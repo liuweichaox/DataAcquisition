@@ -4,9 +4,14 @@ using DynamicPLCDataCollector.Utils;
 
 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
 
-var devices = await JsonUtils.LoadConfigAsync<List<Device>>("Configs/devices.json");
+var baseDirectory = AppContext.BaseDirectory;
 
-var metricTableConfigs =await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>("Configs/MetricConfigs");
+var deviceConfigPath = Path.Combine(baseDirectory, "Configs", "devices.json");
+var metricTableConfigPath = Path.Combine(baseDirectory, "Configs", "MetricConfigs");
+
+var devices = await JsonUtils.LoadConfigAsync<List<Device>>(deviceConfigPath);
+var metricTableConfigs = await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>(metricTableConfigPath);
+
 
 IPLCCommunicator communicator = new PLCCommunicator(devices);
 
