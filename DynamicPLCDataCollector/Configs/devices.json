@@ -1,7 +1,7 @@
 ﻿[
   {
     "Code": "S00001",
-    "IpAddress": " ",
+    "IpAddress": "192.168.1.1",
     "Port": 502
   }
 ]

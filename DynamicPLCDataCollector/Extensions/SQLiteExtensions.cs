@@ -9,19 +9,29 @@ public static class SQLiteExtensions
     /// </summary>
     /// <param name="tableName">目标表名</param>
     /// <param name="data">要插入的数据，键为列名，值为对应的值</param>
-    public static void Insert(this SQLiteConnection connection, string tableName, Dictionary<string, object> data)
+    public static async Task<bool> InsertAsync(this SQLiteConnection connection, string tableName, Dictionary<string, object> data)
     {
-        var columns = string.Join(", ", data.Keys);
-        var parameters = string.Join(", ", data.Keys.Select(key => $"@{key}"));
-
-        var commandText = $"INSERT INTO {tableName} ({columns}) VALUES ({parameters})";
-        using var command = new SQLiteCommand(commandText, connection);
-        foreach (var kvp in data)
+        try
         {
-            command.Parameters.AddWithValue($"@{kvp.Key}", kvp.Value);
-        }
+            var columns = string.Join(", ", data.Keys);
+            var parameters = string.Join(", ", data.Keys.Select(key => $"@{key}"));
 
-        command.ExecuteNonQuery();
+            var commandText = $"INSERT INTO {tableName} ({columns}) VALUES ({parameters})";
+            await using var command = new SQLiteCommand(commandText, connection);
+            foreach (var kvp in data)
+            {
+                command.Parameters.AddWithValue($"@{kvp.Key}", kvp.Value);
+            }
+
+            var count = await command.ExecuteNonQueryAsync();
+
+            return count > 0;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inserting data: {ex.Message}");
+            return false;
+        }
     }
 
 
@@ -30,15 +40,25 @@ public static class SQLiteExtensions
     /// </summary>
     /// <param name="tableName">目标表名</param>
     /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
-    public static void InsertBatch(this SQLiteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
+    public static async Task<bool> InsertBatchAsync(this SQLiteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
     {
-        using var transaction = connection.BeginTransaction();
+        await using var transaction = connection.BeginTransaction();
 
-        foreach (var data in dataBatch)
+        try
         {
-            connection.Insert(tableName, data);
-        }
+            foreach (var data in dataBatch)
+            {
+                await connection.InsertAsync(tableName, data);
+            }
 
-        transaction.Commit();
+            transaction.Commit();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error inserting data: {ex.Message}");
+            transaction.Rollback();
+            return false;
+        }
     }
 }
