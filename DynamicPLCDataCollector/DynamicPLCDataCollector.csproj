@@ -20,9 +20,6 @@
       <None Update="Configs\MetricConfigs\devicemonitor.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="Data\db.sqlite">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
       <None Update="Configs\MetricConfigs\rocket_flight_metrics.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>

@@ -1,4 +1,5 @@
-﻿using System.Data.SQLite;
+﻿using System.Data;
+using System.Data.SQLite;
 
 namespace DynamicPLCDataCollector.Extensions;
 
@@ -34,7 +35,6 @@ public static class SQLiteExtensions
         }
     }
 
-
     /// <summary>
     /// 批量插入数据到指定的表中
     /// </summary>
@@ -42,7 +42,7 @@ public static class SQLiteExtensions
     /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
     public static async Task<bool> InsertBatchAsync(this SQLiteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
     {
-        await using var transaction = connection.BeginTransaction();
+        await using var transaction = await connection.BeginTransactionAsync();
 
         try
         {

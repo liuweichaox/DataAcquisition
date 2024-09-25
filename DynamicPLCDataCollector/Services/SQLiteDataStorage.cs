@@ -25,13 +25,36 @@ namespace DynamicPLCDataCollector.Services
 
         private async Task ProcessQueue(string tableName, BlockingCollection<Dictionary<string, object>> queue)
         {
-            await using var sqLiteConnection = new SQLiteConnection($@"Data Source=Data/db.sqlite;Version=3;");
+            const int batchSize = 1000;
+            
+            await using var sqLiteConnection = new SQLiteConnection($@"Data Source=db.sqlite;Version=3;");
             
             sqLiteConnection.Open();
             
+            var dataBatch = new List<Dictionary<string, object>>();
+            
             foreach (var data in queue.GetConsumingEnumerable())
             {
-               await sqLiteConnection.InsertAsync(tableName, data);
+                dataBatch.Add(data);
+                
+                if (dataBatch.Count >= batchSize)
+                {
+                    await sqLiteConnection.InsertBatchAsync(tableName, dataBatch);
+                    dataBatch.Clear();
+                }
+            }
+            
+            if (dataBatch.Count > 0)
+            {
+                await sqLiteConnection.InsertBatchAsync(tableName, dataBatch);
+            }
+        }
+        
+        public void CompleteAddingAll()
+        {
+            foreach (var queue in QueueDictionary.Values)
+            {
+                queue.CompleteAdding();
             }
         }
     }

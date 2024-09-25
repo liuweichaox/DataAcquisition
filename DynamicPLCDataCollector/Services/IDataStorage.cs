@@ -13,4 +13,6 @@ public interface IDataStorage
     /// <param name="data"></param>
     /// <param name="metricTableConfig"></param>
     void Save(Dictionary<string, object> data, MetricTableConfig metricTableConfig);
+
+    void CompleteAddingAll();
 }
