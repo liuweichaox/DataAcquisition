@@ -3,7 +3,7 @@
 ### 配置 PLC 通讯地址
 
 配置文件：Configs/devices.json
-##### 定义
+#### 定义
 - Code: 设备编码
 - IpAddress: IP 地址
 - Port： IP端口
@@ -20,7 +20,7 @@
 
 ### 配置 PLC 采集表、列、采集频率
 
-##### 定义
+#### 定义
 
 - IsEnabled: 是否开启
 - TableName: 表名
