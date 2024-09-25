@@ -43,11 +43,11 @@
 ]
 ```
 
-### 设置PLC数据采集参数
+### 设置 PLC 数据采集参数
 
-#### 文件路径
+#### 配置目录
 
-`Configs/MetricConfigs/rocket_flight_metrics.json` （每个表对应一个独立的JSON文件）
+`Configs/MetricConfigs` （每个表对应一个独立的JSON文件）
 
 #### 参数详解
 
@@ -61,7 +61,7 @@
   - `DataLength`: 读取的数据长度
   - `DataType`: 数据类型
 
-#### 样例配置
+#### 样例配置 (`Configs/MetricConfigs/rocket_flight_metrics.json`)
 
 ```json
 {
@@ -136,7 +136,7 @@
 
 ### 自定义服务接口
 
-#### PLC通讯服务
+#### PLC 通讯服务
 
 实现 `Services/IPLCCommunicator` 接口，确保每个PLC设备都有单独的连接，并支持断线自动重连和读取失败后的重试机制。
 
