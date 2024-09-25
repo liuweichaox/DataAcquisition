@@ -4,7 +4,7 @@
 
 配置文件：Configs/devices.json
 ##### 定义
-- Code:: 设备编码
+- Code: 设备编码
 - IpAddress: IP 地址
 - Port： IP端口
 
