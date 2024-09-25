@@ -14,23 +14,30 @@ public class PLCCommunicator : IPLCCommunicator
     {
         foreach (var device in devices)
         {
-            var plcClient = new InovanceTcpNet(device.IpAddress, device.Port)
-            {
-                Station = 1,
-                AddressStartWithZero = true,
-                IsStringReverse = true,
-                ConnectTimeOut = 1000
-            };
-            var connect = plcClient.ConnectServer();
-            if (connect.IsSuccess)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
-                PLCClients[device.Code] = plcClient;
-            }
-            else
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
-            }
+            CreateClient(device);
+        }
+    }
+
+    private bool CreateClient(Device device)
+    {
+        var plcClient = new InovanceTcpNet(device.IpAddress, device.Port)
+        {
+            Station = 1,
+            AddressStartWithZero = true,
+            IsStringReverse = true,
+            ConnectTimeOut = 1000
+        };
+        var connect = plcClient.ConnectServer();
+        if (connect.IsSuccess)
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
+            PLCClients[device.Code] = plcClient;
+            return true;
+        }
+        else
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
+            return false;
         }
     }
 
@@ -89,6 +96,11 @@ public class PLCCommunicator : IPLCCommunicator
                 }
             }
         }
+        else
+        {
+            return CreateClient(device);
+        }
+
         return false;
     }
 
