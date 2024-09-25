@@ -16,7 +16,7 @@ var cts = new CancellationTokenSource();
 
 Console.CancelKeyPress += async (sender, e) =>
 {
-    e.Cancel = true; // 阻止立即退出
+    e.Cancel = true;
     Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 捕获到控制台关闭信号 (Ctrl+C 或窗口关闭)...");
     await HandleExitAsync();
 };
