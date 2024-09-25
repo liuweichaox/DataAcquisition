@@ -12,6 +12,21 @@ IPLCCommunicator communicator = new PLCCommunicator(devices);
 
 IDataStorage dataStorage = new SQLiteDataStorage();
 
+var cts = new CancellationTokenSource();
+
+Console.CancelKeyPress += async (sender, e) =>
+{
+    e.Cancel = true; // 阻止立即退出
+    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 捕获到控制台关闭信号 (Ctrl+C 或窗口关闭)...");
+    await HandleExitAsync();
+};
+
+AppDomain.CurrentDomain.ProcessExit += async (s, e) =>
+{
+    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 捕获到程序退出信号...");
+    await HandleExitAsync();
+};
+
 foreach (var device in devices)
 {
     foreach (var metricTableConfig in metricTableConfigs)
@@ -43,7 +58,20 @@ void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
             {
                 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
             }
-            await Task.Delay(metricTableConfig.CollectionFrequency);
+            await Task.Delay(metricTableConfig.CollectionFrequency, cts.Token);
         }
-    }, TaskCreationOptions.LongRunning);
+    }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+}
+
+async Task HandleExitAsync()
+{
+    // 取消任务
+    cts.Cancel();
+
+    // 等待清理完成
+    await Task.Run(async () =>
+    {
+        await communicator.DisconnectAllAsync();
+        dataStorage.CompleteAddingAll();
+    });
 }
