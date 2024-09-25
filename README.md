@@ -2,6 +2,12 @@
 
 ### 配置 PLC 通讯地址
 
+配置文件：Configs/devices.json
+##### 定义
+- Code:: 设备编码
+- IpAddress: IP 地址
+- Port： IP端口
+
 ```json
 [
   {
@@ -13,6 +19,21 @@
 ```
 
 ### 配置 PLC 采集表、列、采集频率
+
+##### 定义
+
+- IsEnabled: 是否开启
+- TableName: 表名
+- CollectionFrequency: 数据采集频率
+- DatabaseName: 数据库名称
+- MetricConfigs 列名配置
+  - ColumnName: 列名
+  - DataAddress: PLC 数据地址
+  - DataLength: PLC 数据长度
+  - DataType: PLC 数据类型
+
+
+配置文件：Configs/MetricConfig.json (每张表对应的配置，表与 JSON 文件为一对一的关系)
 
 ```json
 {
