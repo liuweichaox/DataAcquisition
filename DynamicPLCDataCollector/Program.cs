@@ -65,10 +65,8 @@ void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
 
 async Task HandleExitAsync()
 {
-    // 取消任务
     cts.Cancel();
 
-    // 等待清理完成
     await Task.Run(async () =>
     {
         await communicator.DisconnectAllAsync();
