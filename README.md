@@ -2,7 +2,7 @@
 
 ### 配置 PLC 通讯地址
 
-配置文件：Configs/devices.json
+配置文件：`Configs/devices.json`
 #### 定义
 - Code: 设备编码
 - IpAddress: IP 地址
@@ -33,9 +33,9 @@
   - DataType: PLC 数据类型
 
 
-配置目录：Configs/MetricConfigs (每张表对应的配置，表与 JSON 文件为一对一的关系)
+配置目录：`Configs/MetricConfigs` (每张表对应的配置，表与 JSON 文件为一对一的关系)
 
-示例文件：rocket_flight_metrics.json
+示例文件：`rocket_flight_metrics.json`
 
 ```json
 {
@@ -110,8 +110,8 @@
 
 ### PLC 通讯与数据存储服务自定义 
 
-- PLC 通讯实现 IPLCCommunicator 接口
+- PLC 通讯实现 `IPLCCommunicator` 接口
 > PLC 通讯为每个设备建立一个连接，支持 PLC 通讯中断自动重连，支持读取失败重试
 
-- 数据存储实现 IDataStorage 接口
+- 数据存储实现 `IDataStorage` 接口
 > 通过 PLC 通讯读取到的数据为每个表建立一个 `BlockingCollection<T>` 线程安全的集合，实现在多线程环境中有效地管理数据的生产和消费。可以根据不同的数据库类型实现数据存储。
