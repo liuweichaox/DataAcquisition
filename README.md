@@ -63,7 +63,7 @@
 
 #### 样例配置 
 
-Configs/MetricConfigs/rocket_flight_metrics.json
+`Configs/MetricConfigs/rocket_flight_metrics.json`
 
 ```json
 {
