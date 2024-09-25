@@ -34,6 +34,7 @@
 
 
 配置目录：Configs/MetricConfigs (每张表对应的配置，表与 JSON 文件为一对一的关系)
+
 示例文件：rocket_flight_metrics.json
 
 ```json
