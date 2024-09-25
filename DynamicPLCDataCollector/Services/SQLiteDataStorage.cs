@@ -7,7 +7,7 @@ namespace DynamicPLCDataCollector.Services
 {
     public class SQLiteDataStorage : IDataStorage
     {
-        private static readonly ConcurrentDictionary<string, BlockingCollection<Dictionary<string, object>>> QueueDictionary = new();
+        private readonly ConcurrentDictionary<string, BlockingCollection<Dictionary<string, object>>> QueueDictionary = new();
 
         public void Save(Dictionary<string, object> data, MetricTableConfig metricTableConfig)
         {

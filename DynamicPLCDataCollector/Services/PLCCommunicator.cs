@@ -8,7 +8,7 @@ namespace DynamicPLCDataCollector.Services;
 
 public class PLCCommunicator : IPLCCommunicator
 {
-    private static readonly ConcurrentDictionary<string, InovanceTcpNet> PLCClients = new();
+    private readonly ConcurrentDictionary<string, InovanceTcpNet> PLCClients = new();
 
     public PLCCommunicator(List<Device> devices)
     {
