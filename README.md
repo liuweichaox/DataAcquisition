@@ -1,41 +1,67 @@
-# 动态 PLC 数据采集
+# 动态 PLC 数据采集系统
 
-### 配置 PLC 通讯地址
+## 项目概述
 
-配置文件：`Configs/devices.json`
-#### 定义
-- Code: 设备编码
-- IpAddress: IP 地址
-- Port： IP端口
+### 目标
+
+本项目旨在通过动态收集来自PLC（可编程逻辑控制器）的数据，为用户提供实时监控和分析工业设备运行状态的能力。
+
+### 技术栈
+
+- 编程语言：C#
+- 通信协议：Modbus TCP/IP
+
+## 主要功能
+
+- **数据采集**：支持从多个PLC设备中获取多种类型的实时数据。
+- **配置灵活性**：允许用户自定义数据点、采集频率以及采集方式。
+- **实时监控**：具备数据可视化功能，能够即时展示设备状态的变化。
+
+## 适用场景
+
+- 工业自动化过程中的监控与控制
+- 设备性能分析及故障诊断
+- 历史数据记录与回溯
+
+## 使用指南
+
+### 配置PLC通讯地址
+
+#### 文件路径
+
+`Configs/devices.json`
+
+#### 样例配置
 
 ```json
 [
   {
     "Code": "S00001",
-    "IpAddress": "0.0.0.0",
+    "IpAddress": "192.168.1.100",
     "Port": 502
   }
 ]
 ```
 
-### 配置 PLC 采集表、列、采集频率
+### 设置PLC数据采集参数
 
-#### 定义
+#### 文件路径
 
-- IsEnabled: 是否开启
-- TableName: 表名
-- CollectionFrequency: 数据采集频率
-- DatabaseName: 数据库名称
-- MetricConfigs 列名配置
-  - ColumnName: 列名
-  - DataAddress: PLC 数据地址
-  - DataLength: PLC 数据长度
-  - DataType: PLC 数据类型
+`Configs/MetricConfigs/rocket_flight_metrics.json` （每个表对应一个独立的JSON文件）
 
+#### 参数详解
 
-配置目录：`Configs/MetricConfigs` (每张表对应的配置，表与 JSON 文件为一对一的关系)
+- `IsEnabled`: 是否启用此表的数据采集
+- `TableName`: 数据库中的表名
+- `CollectionFrequency`: 数据采集的时间间隔（毫秒）
+- `DatabaseName`: 存储数据的目标数据库名称
+- `MetricConfigs`: 每个指标的具体配置
+  - `ColumnName`: 在数据库表中的列名
+  - `DataAddress`: PLC中存储该数据的地址
+  - `DataLength`: 读取的数据长度
+  - `DataType`: 数据类型
 
-示例文件：`rocket_flight_metrics.json`
+#### 样例配置
 
 ```json
 {
@@ -108,12 +134,12 @@
 }
 ```
 
-### PLC 通讯与数据存储服务自定义 
+### 自定义服务接口
 
-- PLC 通讯实现 `Services/IPLCCommunicator` 接口
+#### PLC通讯服务
 
-> PLC 通讯为每个设备建立一个连接，支持 PLC 通讯中断自动重连，支持读取失败重试
+实现 `Services/IPLCCommunicator` 接口，确保每个PLC设备都有单独的连接，并支持断线自动重连和读取失败后的重试机制。
 
-- 数据存储实现 `Services/IDataStorage` 接口
+#### 数据存储服务
 
-> 通过 PLC 通讯读取到的数据为每个表建立一个 `BlockingCollection<T>` 线程安全的集合，实现在多线程环境中有效地管理数据的生产和消费。可以根据不同的数据库类型实现数据存储。
+实现 `Services/IDataStorage` 接口，利用 `BlockingCollection<T>` 来管理多线程环境下的数据流，保证高效的数据处理与持久化到不同类型的数据库中。
