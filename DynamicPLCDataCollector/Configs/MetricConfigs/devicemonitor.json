@@ -8,32 +8,32 @@
     {
       "Id": 1,
       "MetricId": 1,
-      "ColumnName": "工位状态",
-      "DataAddress": "MW3800",
+      "ColumnName": "温度",
+      "DataAddress": "D6000",
       "DataLength": 1,
       "DataType": "float"
     },
     {
       "Id": 1,
       "MetricId": 1,
-      "ColumnName": "序号",
-      "DataAddress": "MW3812",
+      "ColumnName": "压力",
+      "DataAddress": "D6100",
       "DataLength": 1,
       "DataType": "float"
     },
     {
       "Id": 1,
       "MetricId": 1,
-      "ColumnName": "HEAT位置",
-      "DataAddress": "MW3824",
+      "ColumnName": "光栅位置",
+      "DataAddress": "D6200",
       "DataLength": 1,
       "DataType": "float"
     },
     {
       "Id": 1,
       "MetricId": 1,
-      "ColumnName": "WORK置",
-      "DataAddress": "MW3836",
+      "ColumnName": "伺服位置",
+      "DataAddress": "D6300",
       "DataLength": 1,
       "DataType": "float"
     }
