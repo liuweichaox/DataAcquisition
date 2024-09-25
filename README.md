@@ -61,7 +61,9 @@
   - `DataLength`: 读取的数据长度
   - `DataType`: 数据类型
 
-#### 样例配置 (`Configs/MetricConfigs/rocket_flight_metrics.json`)
+#### 样例配置 
+
+Configs/MetricConfigs/rocket_flight_metrics.json
 
 ```json
 {
