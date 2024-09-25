@@ -14,5 +14,8 @@ public interface IDataStorage
     /// <param name="metricTableConfig"></param>
     void Save(Dictionary<string, object> data, MetricTableConfig metricTableConfig);
 
-    void CompleteAddingAll();
+    /// <summary>
+    /// 释放数据流
+    /// </summary>
+    void DisconnectAll();
 }

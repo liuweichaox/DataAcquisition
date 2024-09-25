@@ -16,7 +16,7 @@ public interface IPLCCommunicator
     Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig);
     
     /// <summary>
-    /// 释放
+    /// 释放连接
     /// </summary>
     /// <returns></returns>
     Task DisconnectAllAsync();
