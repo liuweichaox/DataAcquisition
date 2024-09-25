@@ -110,8 +110,10 @@
 
 ### PLC 通讯与数据存储服务自定义 
 
-- PLC 通讯实现 `IPLCCommunicator` 接口
+- PLC 通讯实现 `Services/IPLCCommunicator` 接口
+
 > PLC 通讯为每个设备建立一个连接，支持 PLC 通讯中断自动重连，支持读取失败重试
 
-- 数据存储实现 `IDataStorage` 接口
+- 数据存储实现 `Services/IDataStorage` 接口
+
 > 通过 PLC 通讯读取到的数据为每个表建立一个 `BlockingCollection<T>` 线程安全的集合，实现在多线程环境中有效地管理数据的生产和消费。可以根据不同的数据库类型实现数据存储。
