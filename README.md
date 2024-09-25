@@ -55,7 +55,7 @@
 - `TableName`: 数据库中的表名
 - `CollectionFrequency`: 数据采集的时间间隔（毫秒）
 - `DatabaseName`: 存储数据的目标数据库名称
-- `MetricConfigs`: 每个指标的具体配置
+- `MetricColumnConfigs`: 每个指标的具体配置
   - `ColumnName`: 在数据库表中的列名
   - `DataAddress`: PLC中存储该数据的地址
   - `DataLength`: 读取的数据长度
@@ -69,7 +69,7 @@
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 100,
   "DatabaseName": "dbo",
-  "MetricConfigs": [
+  "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",
       "DataAddress": "D6000",

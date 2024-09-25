@@ -9,7 +9,7 @@ namespace DynamicPLCDataCollector.Services;
 public class PLCCommunicator : IPLCCommunicator
 {
     private static readonly ConcurrentDictionary<string, InovanceTcpNet> PLCClients = new();
-    
+
     public PLCCommunicator(List<Device> devices)
     {
         foreach (var device in devices)
@@ -36,8 +36,8 @@ public class PLCCommunicator : IPLCCommunicator
 
     public async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig)
     {
-        if (!PLCClients.TryGetValue(device.Code, out var plcClient)|| plcClient.IpAddressPing() != System.Net.NetworkInformation.IPStatus.Success)
-        { 
+        if (!PLCClients.TryGetValue(device.Code, out var plcClient) || plcClient.IpAddressPing() != System.Net.NetworkInformation.IPStatus.Success)
+        {
             // 尝试重新连接
             if (await ReconnectAsync(device))
             {
@@ -48,18 +48,18 @@ public class PLCCommunicator : IPLCCommunicator
                 throw new Exception($"连接设备 {device.Code} 失败");
             }
         }
-        
+
         var data = new Dictionary<string, object>
         {
             { "TimeStamp", DateTime.Now },
             { "Device", device.Code }
         };
-        
-        foreach (var metricConfig in metricTableConfig.MetricConfigs)
+
+        foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
         {
             try
             {
-                data[metricConfig.ColumnName] = await ParseValue(plcClient, metricConfig);;
+                data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig);
             }
             catch (Exception ex)
             {

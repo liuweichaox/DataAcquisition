@@ -3,7 +3,7 @@
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 100,
   "DatabaseName": "dbo",
-  "MetricConfigs": [
+  "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",
       "DataAddress": "D6000",
