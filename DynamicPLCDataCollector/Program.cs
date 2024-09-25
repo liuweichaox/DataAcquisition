@@ -70,6 +70,6 @@ async Task HandleExitAsync()
     await Task.Run(async () =>
     {
         await communicator.DisconnectAllAsync();
-        dataStorage.DisconnectAll();
+        dataStorage.ReleaseAll();
     });
 }
