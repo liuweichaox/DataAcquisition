@@ -6,11 +6,6 @@
 public class MetricTableConfig
 {
     /// <summary>
-    /// 采集ID
-    /// </summary>
-    public int Id { get; set; }
-
-    /// <summary>
     /// 数据库名称
     /// </summary>
     public string DatabaseName { get; set; }
