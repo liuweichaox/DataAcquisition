@@ -50,7 +50,7 @@ namespace DynamicPLCDataCollector.Services
             }
         }
         
-        public void DisconnectAll()
+        public void ReleaseAll()
         {
             foreach (var queue in QueueDictionary.Values)
             {

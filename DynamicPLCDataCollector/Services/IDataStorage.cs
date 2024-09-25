@@ -17,5 +17,5 @@ public interface IDataStorage
     /// <summary>
     /// 释放数据流
     /// </summary>
-    void DisconnectAll();
+    void ReleaseAll();
 }
