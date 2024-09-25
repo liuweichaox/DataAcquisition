@@ -23,15 +23,20 @@ public static class SQLiteExtensions
 
         command.ExecuteNonQuery();
     }
-    
-    
+
+
+    /// <summary>
+    /// 批量插入数据到指定的表中
+    /// </summary>
+    /// <param name="tableName">目标表名</param>
+    /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
     public static void InsertBatch(this SQLiteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
     {
         using var transaction = connection.BeginTransaction();
 
         foreach (var data in dataBatch)
         {
-            connection.Insert(tableName, data);  
+            connection.Insert(tableName, data);
         }
 
         transaction.Commit();
