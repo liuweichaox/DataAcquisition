@@ -195,6 +195,29 @@ public class PLCClientManager : AbstractPLCClientManager
 }
 ```
 
+### 5.6 运行
+使用 `IPLCClientManager`、`IDataStorage` 实例构建 `DataCollector`，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+```C#
+using DynamicPLCDataCollector.DataStorages;
+using DynamicPLCDataCollector.Models;
+using DynamicPLCDataCollector.PLCClients;
+using DynamicPLCDataCollector.Utils;
+
+Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
+
+var devices = await JsonUtils.LoadConfigAsync<List<Device>>("Configs/devices.json");
+
+var metricTableConfigs = await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>("Configs/MetricConfigs");
+
+IPLCClientManager clientManager = new PLCClientManager(devices);
+
+IDataStorage dataStorage = new SQLiteDataStorage();
+
+var dataCollector = new DataCollector(clientManager, dataStorage);
+
+await dataCollector.StartCollectionTasks(devices, metricTableConfigs);
+```
+
 ## 6. 总结
 
 本动态 PLC 数据采集系统通过灵活配置和强大功能，能有效支持工业自动化过程中的数据监控与分析，适用于多种场景。用户可根据实际需求进行定制与扩展，提升生产效率和设备管理能力。

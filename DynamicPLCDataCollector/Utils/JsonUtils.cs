@@ -12,7 +12,7 @@ public static class JsonUtils
     /// <returns>反序列化后的对象</returns>
     public static async Task<T> LoadConfigAsync<T>(string filePath)
     {
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read);
+        await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open, FileAccess.Read);
         return await JsonSerializer.DeserializeAsync<T>(stream);
     }
     

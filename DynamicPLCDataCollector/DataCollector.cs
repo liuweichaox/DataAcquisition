@@ -15,8 +15,10 @@ public class DataCollector
         _cts = new CancellationTokenSource();
     }
 
-    public void StartCollectionTasks(List<Device> devices, List<MetricTableConfig> metricTableConfigs)
+    public async Task StartCollectionTasks(List<Device> devices, List<MetricTableConfig> metricTableConfigs)
     {
+        ListenExitEvents();
+        
         foreach (var device in devices)
         {
             foreach (var metricTableConfig in metricTableConfigs)
@@ -26,6 +28,11 @@ public class DataCollector
                     StartCollectionTask(device, metricTableConfig);
                 }
             }
+        }
+        
+        while (true)
+        {
+            await Task.Delay(1000);
         }
     }
 
@@ -57,7 +64,6 @@ public class DataCollector
             await HandleExitAsync();
         };
         AppDomain.CurrentDomain.ProcessExit += async (s, e) => await HandleExitAsync();
-        
     }
 
     private async Task HandleExitAsync()
