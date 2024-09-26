@@ -3,6 +3,9 @@ using System.Net.NetworkInformation;
 using DynamicPLCDataCollector.Models;
 using DynamicPLCDataCollector.PLCClients;
 
+/// <summary>
+/// PLC 客户端实现
+/// </summary>
 public class PLCClient : IPLClient
 {
     private readonly InovanceTcpNet _plcClient;

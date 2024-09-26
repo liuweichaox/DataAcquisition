@@ -3,6 +3,9 @@ using DynamicPLCDataCollector.Models;
 
 namespace DynamicPLCDataCollector.PLCClients;
 
+/// <summary>
+/// PLC 连接管理器抽象类
+/// </summary>
 public abstract class AbstractPLCClientManager: IPLCClientManager
 {
     protected readonly ConcurrentDictionary<string, IPLClient> PLCClients = new();

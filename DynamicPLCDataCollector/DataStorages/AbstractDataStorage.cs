@@ -3,6 +3,9 @@ using DynamicPLCDataCollector.Models;
 
 namespace DynamicPLCDataCollector.DataStorages;
 
+/// <summary>
+/// 数据存储抽象类
+/// </summary>
 public abstract class AbstractDataStorage : IDataStorage
 {
     private readonly ConcurrentDictionary<string, BlockingCollection<Dictionary<string, object>>> _queueDictionary = new();
@@ -20,6 +23,12 @@ public abstract class AbstractDataStorage : IDataStorage
 
         queue.Add(data);
     }
+    
+    /// <summary>
+    /// 消费队列
+    /// </summary>
+    /// <param name="queue"></param>
+    /// <param name="metricTableConfig"></param>
     protected abstract void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig);
     
     public void ReleaseAll()

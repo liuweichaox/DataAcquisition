@@ -2,7 +2,9 @@
 
 namespace DynamicPLCDataCollector.PLCClients;
 
-
+/// <summary>
+/// PLC 客户但管理器实现
+/// </summary>
 public class PLCClientManager : AbstractPLCClientManager
 {
     public PLCClientManager(List<Device> devices) : base(devices)

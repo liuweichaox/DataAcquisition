@@ -5,6 +5,9 @@ using DynamicPLCDataCollector.Models;
 
 namespace DynamicPLCDataCollector.DataStorages
 {
+    /// <summary>
+    /// SQLite 数据存储实现
+    /// </summary>
     public class SQLiteDataStorage : AbstractDataStorage
     {
         protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
