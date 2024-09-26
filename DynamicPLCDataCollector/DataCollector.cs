@@ -21,6 +21,8 @@ public class DataCollector
     /// <summary>
     /// 构造函数
     /// </summary>
+    /// <param name="plcClientFactory"></param>
+    /// <param name="dataStorageFactory"></param>
     public DataCollector(Func<string, int, IPLCClient> plcClientFactory, Func<MetricTableConfig, IDataStorage> dataStorageFactory)
     {
         Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
