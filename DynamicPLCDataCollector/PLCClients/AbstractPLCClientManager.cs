@@ -8,35 +8,28 @@ namespace DynamicPLCDataCollector.PLCClients;
 /// </summary>
 public abstract class AbstractPLCClientManager: IPLCClientManager
 {
-    protected readonly ConcurrentDictionary<string, IPLClient> PLCClients = new();
+    private readonly ConcurrentDictionary<string, IPLClient> _plcClients;
 
-    public AbstractPLCClientManager(List<Device> devices)
+    public AbstractPLCClientManager()
     {
-        foreach (var device in devices)
-        {
-            var result = CreatePLCClient(device);
-            if (result.IsSuccess)
-            {
-                AddPLClient(device, result.Content);
-            }
-        }
+        _plcClients = new ConcurrentDictionary<string, IPLClient>();
     }
 
     protected abstract OperationResult<IPLClient> CreatePLCClient(Device device);
 
     private void AddPLClient(Device device, IPLClient plcClient)
     {
-        PLCClients[device.Code] = plcClient;
+        _plcClients[device.Code] = plcClient;
     }
     
     public async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig)
     {
-        if (!PLCClients.TryGetValue(device.Code, out var plcClient) || !plcClient.IsConnected())
+        if (!_plcClients.TryGetValue(device.Code, out var plcClient) || !plcClient.IsConnected())
         {
             // 尝试重新连接
             if (await ReconnectAsync(device))
             {
-                plcClient = PLCClients[device.Code];
+                plcClient = _plcClients[device.Code];
             }
             else
             {
@@ -67,7 +60,7 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
     
     private async Task<bool> ReconnectAsync(Device device)
     {
-        if (PLCClients.TryGetValue(device.Code, out var plcClient))
+        if (_plcClients.TryGetValue(device.Code, out var plcClient))
         {
             for (var i = 0; i < 5; i++)  // 尝试重连5次
             {
@@ -129,7 +122,7 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
     
     public async Task DisconnectAllAsync()
     {
-        foreach (var client  in PLCClients.Values)
+        foreach (var client  in _plcClients.Values)
         {
            await client.ConnectCloseAsync();
         }

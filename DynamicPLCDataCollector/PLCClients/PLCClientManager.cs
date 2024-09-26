@@ -7,10 +7,6 @@ namespace DynamicPLCDataCollector.PLCClients;
 /// </summary>
 public class PLCClientManager : AbstractPLCClientManager
 {
-    public PLCClientManager(List<Device> devices) : base(devices)
-    {
-    }
-    
     protected override OperationResult<IPLClient> CreatePLCClient(Device device)
     {
         var plcClient = new PLCClient(device.IpAddress, device.Port);

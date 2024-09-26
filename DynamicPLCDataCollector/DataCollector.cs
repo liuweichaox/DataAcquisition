@@ -1,6 +1,8 @@
-﻿using DynamicPLCDataCollector.DataStorages;
+﻿using System.Collections.Concurrent;
+using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
 using DynamicPLCDataCollector.PLCClients;
+using DynamicPLCDataCollector.Services;
 
 /// <summary>
 /// 数据采集器
@@ -9,6 +11,9 @@ public class DataCollector
 {
     private readonly IPLCClientManager _clientManager;
     private readonly IDataStorage _dataStorage;
+    private readonly IDeviceService _deviceService;
+    private readonly IMetricTableConfigService _metricTableConfigService;
+    private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
 
     /// <summary>
@@ -18,34 +23,57 @@ public class DataCollector
     /// <param name="dataStorage"></param>
     public DataCollector(IPLCClientManager clientManager, IDataStorage dataStorage)
     {
+        Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
         _clientManager = clientManager;
         _dataStorage = dataStorage;
+        _deviceService = new DeviceService();
+        _metricTableConfigService = new MetricTableConfigService();
+        _runningTasks  = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
+        ListenExitEvents();
     }
-
+    
+    /// <summary>
+    /// 生成采集任务的 Key
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private string GenerateTaskKey(Device device, MetricTableConfig config)
+    {
+        return $"{device.Code}_{config.TableName}";
+    }
+    
+    /// <summary>
+    /// 是否开始采集任务
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
+    {
+        var taskKey = GenerateTaskKey(device, config);
+        return _runningTasks.ContainsKey(taskKey);
+    }
+    
     /// <summary>
     /// 开始采集任务
     /// </summary>
-    /// <param name="devices"></param>
-    /// <param name="metricTableConfigs"></param>
-    public async Task StartCollectionTasks(List<Device> devices, List<MetricTableConfig> metricTableConfigs)
+    public async Task StartCollectionTasks()
     {
-        ListenExitEvents();
+        var devices = await _deviceService.GetDevices();
+        
+        var metricTableConfigs = await _metricTableConfigService.GetMetricTableConfigs();
         
         foreach (var device in devices)
         {
             foreach (var metricTableConfig in metricTableConfigs)
             {
-                if (metricTableConfig.IsEnabled)
-                {
-                   StartCollectionTask(device, metricTableConfig);
+                if (metricTableConfig.IsEnabled && !IsTaskRunningForDeviceAndConfig(device, metricTableConfig))
+                { 
+                    StartCollectionTask(device, metricTableConfig);
                 }
             }
-        }
-        
-        while (true)
-        {
-            await Task.Delay(1000);
         }
     }
 
@@ -56,7 +84,7 @@ public class DataCollector
     /// <param name="metricTableConfig"></param>
     private void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
     {
-        Task.Factory.StartNew(async () =>
+        var task = Task.Factory.StartNew(async () =>
         {
             while (true)
             {
@@ -72,6 +100,9 @@ public class DataCollector
                 await Task.Delay(metricTableConfig.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
+        
+        var taskKey = GenerateTaskKey(device, metricTableConfig);
+        _runningTasks[taskKey] = task;
     }
 
     /// <summary>
