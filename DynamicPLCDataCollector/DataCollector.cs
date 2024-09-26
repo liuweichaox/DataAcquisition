@@ -108,10 +108,15 @@ public class DataCollector
                 {
                     if (!plcClient.IsConnected())
                     {
-                        var reconnectIsSuccess = await ReconnectAsync(plcClient, device);
-                        if (!reconnectIsSuccess)
+                        connect = await plcClient.ConnectServerAsync();
+                        
+                        if (connect.IsSuccess)
                         {
-                            throw new Exception($"连接设备 {device.Code} 失败");
+                            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+                        }
+                        else
+                        {
+                            throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
                         }
                     }
 
@@ -147,31 +152,6 @@ public class DataCollector
         _runningTasks[taskKey] = task;
     }
     
-    /// <summary>
-    /// 重连
-    /// </summary>
-    /// <param name="plcClient"></param>
-    /// <returns></returns>
-    private async Task<bool> ReconnectAsync(IPLCClient plcClient, Device device)
-    {
-        for (var i = 0; i < 5; i++)  // 尝试重连5次
-        {
-            var connect = await plcClient.ConnectServerAsync();
-            if (connect.IsSuccess)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
-                return true;
-            }
-            else
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 失败：{connect.Message}");
-                await Task.Delay(2000);  // 等待2秒后再次尝试
-            }
-        }
-
-        return false;
-    }
-
     /// <summary>
     /// 读取数据
     /// </summary>
