@@ -93,14 +93,14 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
         return false;
     }
 
-    protected virtual async Task<object> ParseValue(IPLClient plcClient, string dataAddress, ushort dataLength, string dataType)
+    private async Task<object> ParseValue(IPLClient plcClient, string dataAddress, ushort dataLength, string dataType)
     {
         return dataType.ToLower() switch
         {
             "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress, dataLength))).Content[0],
             "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress, dataLength))).Content[0],
             "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress, dataLength))).Content[0],
-            "string" => ParseStringValue((await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content),
+            "string" => (await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content,
             "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(dataAddress, dataLength))).Content[0],
             _ => throw new ArgumentException("未知的数据类型")
         };
@@ -120,18 +120,6 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
             await Task.Delay(1000);  // 等待1秒后重试
         }
         throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
-    }
-    
-    private string ParseStringValue(string stringValue)
-    {
-        // 查找终止符
-        var nullCharIndex = stringValue.IndexOf('\0');
-        if (nullCharIndex >= 0)
-        {
-            // 如果找到终止符，则截断字符串
-            stringValue = stringValue.Substring(0, nullCharIndex);
-        }
-        return stringValue;
     }
     
     public async Task DisconnectAllAsync()

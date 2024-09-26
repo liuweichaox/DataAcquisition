@@ -66,7 +66,7 @@ public class PLCClient : IPLClient
     {
         var result = await _plcClient.ReadStringAsync(address, length);
         return result.IsSuccess 
-            ? new OperationResult<string>(result.Content) 
+            ? new OperationResult<string>(ParseStringValue(result.Content)) 
             : new OperationResult<string>(result.Message);
     }
 
@@ -76,5 +76,17 @@ public class PLCClient : IPLClient
         return result.IsSuccess 
             ? new OperationResult<bool[]>(result.Content) 
             : new OperationResult<bool[]>(result.Message);
+    }
+    
+    private string ParseStringValue(string stringValue)
+    {
+        // 查找终止符
+        var nullCharIndex = stringValue.IndexOf('\0');
+        if (nullCharIndex >= 0)
+        {
+            // 如果找到终止符，则截断字符串
+            stringValue = stringValue.Substring(0, nullCharIndex);
+        }
+        return stringValue;
     }
 }

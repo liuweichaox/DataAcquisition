@@ -136,9 +136,64 @@
 
 `AbstractPLCClientManager` 为 `IPLCClient` 的管理器，负责创建单独的连接，并支持自动重连及读取失败后的重试机制。
 
+```C#
+    public class SQLiteDataStorage : AbstractDataStorage
+    {
+        protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
+        {
+            await using var sqLiteConnection = new SQLiteConnection($@"Data Source=db.sqlite;Version=3;");
+            sqLiteConnection.Open();
+
+            var dataBatch = new List<Dictionary<string, object>>();
+
+            foreach (var data in queue.GetConsumingEnumerable())
+            {
+                dataBatch.Add(data);
+
+                if (dataBatch.Count >= metricTableConfig.BatchSize)
+                {
+                    await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
+                    dataBatch.Clear();
+                }
+            }
+
+            if (dataBatch.Count > 0)
+            {
+                await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
+            }
+        }
+    }
+```
+
 ### 5.5 实现 AbstractDataStorage 抽象类
 
 `AbstractDataStorage` 为数据存储服务，使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。
+
+```C#
+public class PLCClientManager : AbstractPLCClientManager
+{
+    public PLCClientManager(List<Device> devices) : base(devices)
+    {
+    }
+    
+    protected override OperationResult<IPLClient> CreatePLCClient(Device device)
+    {
+        var plcClient = new PLCClient(device.IpAddress, device.Port);
+
+        var connect = plcClient.ConnectServerAsync().Result;
+        if (connect.IsSuccess)
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
+            return new OperationResult<IPLClient>(plcClient);
+        }
+        else
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
+            return new OperationResult<IPLClient>(connect.Message);
+        }
+    }
+}
+```
 
 ## 6. 总结
 
