@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using DynamicPLCDataCollector.Common;
 using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
 using DynamicPLCDataCollector.PLCClients;
@@ -15,15 +16,15 @@ public class DataCollector
     private readonly CancellationTokenSource _cts;
     private readonly List<IDataStorage> _dataStorages;
     private readonly List<IPLCClient> _plcClients;
-    private readonly Func<string, int, IPLCClient> _plcClientFactory;
-    private readonly Func<MetricTableConfig, IDataStorage> _dataStorageFactory;
+    private readonly PLCClientFactory _plcClientFactory;
+    private readonly DataStorageFactory _dataStorageFactory;
     
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
-    public DataCollector(Func<string, int, IPLCClient> plcClientFactory, Func<MetricTableConfig, IDataStorage> dataStorageFactory)
+    public DataCollector(PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory)
     {
         Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
         _deviceService = new DeviceService();

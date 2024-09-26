@@ -156,14 +156,19 @@ namespace DynamicPLCDataCollector.DataStorages
 使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
 ```C#
 using DynamicPLCDataCollector.DataStorages;
+using DynamicPLCDataCollector.Models;
+using DynamicPLCDataCollector.PLCClients;
 
-var dataCollector = new DataCollector(
-    (ipAddress, port) => new PLCClient(ipAddress, port), 
-    metricTableConfig => new SQLiteDataStorage(metricTableConfig));
+IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
+
+IDataStorage DataStorageFactory(MetricTableConfig metricTableConfig) => new SQLiteDataStorage(metricTableConfig);
+
+var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory);
 
 await dataCollector.StartCollectionTasks();
 
 await Task.Delay(Timeout.Infinite);
+
 ```
 
 ## 6. 总结
