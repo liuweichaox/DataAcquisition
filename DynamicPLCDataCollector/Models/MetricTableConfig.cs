@@ -1,7 +1,7 @@
 ﻿namespace DynamicPLCDataCollector.Models;
 
 /// <summary>
-/// 采集
+/// 采集表配置
 /// </summary>
 public class MetricTableConfig
 {

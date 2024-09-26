@@ -3,7 +3,7 @@
 namespace DynamicPLCDataCollector.PLCClients;
 
 /// <summary>
-/// PLC 通讯类
+/// PLC 通讯类管理类器定义
 /// </summary>
 public interface IPLCClientManager
 {

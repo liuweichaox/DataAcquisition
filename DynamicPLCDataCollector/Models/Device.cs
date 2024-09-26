@@ -1,5 +1,8 @@
 ﻿namespace DynamicPLCDataCollector.Models;
 
+/// <summary>
+/// 设备
+/// </summary>
 public class Device
 {
     /// <summary>

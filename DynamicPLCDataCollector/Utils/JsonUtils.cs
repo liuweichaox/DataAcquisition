@@ -2,6 +2,9 @@
 
 namespace DynamicPLCDataCollector.Utils;
 
+/// <summary>
+/// JSON 工具类
+/// </summary>
 public static class JsonUtils
 {
     /// <summary>
