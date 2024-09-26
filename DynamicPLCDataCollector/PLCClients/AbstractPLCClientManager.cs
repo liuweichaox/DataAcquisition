@@ -1,49 +1,35 @@
 ﻿using System.Collections.Concurrent;
 using DynamicPLCDataCollector.Models;
-using HslCommunication;
-using HslCommunication.Profinet.Inovance;
 
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.PLCClients;
 
-
-public class PLCCommunicator : IPLCCommunicator
+public abstract class AbstractPLCClientManager: IPLCClientManager
 {
-    private readonly ConcurrentDictionary<string, InovanceTcpNet> PLCClients = new();
+    protected readonly ConcurrentDictionary<string, IPLClient> PLCClients = new();
 
-    public PLCCommunicator(List<Device> devices)
+    public AbstractPLCClientManager(List<Device> devices)
     {
         foreach (var device in devices)
         {
-            CreateClient(device);
+            var result = CreatePLCClient(device);
+            if (result.IsSuccess)
+            {
+                AddPLClient(device, result.Content);
+            }
         }
     }
 
-    private bool CreateClient(Device device)
+    protected abstract OperationResult<IPLClient> CreatePLCClient(Device device);
+
+    private void AddPLClient(Device device, IPLClient plcClient)
     {
-        var plcClient = new InovanceTcpNet(device.IpAddress, device.Port)
-        {
-            Station = 1,
-            AddressStartWithZero = true,
-            IsStringReverse = true,
-            ConnectTimeOut = 1000
-        };
-        var connect = plcClient.ConnectServer();
-        if (connect.IsSuccess)
-        {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
-            PLCClients[device.Code] = plcClient;
-            return true;
-        }
-        else
-        {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
-            return false;
-        }
+        PLCClients[device.Code] = plcClient;
     }
-
+    
+    
     public async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig)
     {
-        if (!PLCClients.TryGetValue(device.Code, out var plcClient) || plcClient.IpAddressPing() != System.Net.NetworkInformation.IPStatus.Success)
+        if (!PLCClients.TryGetValue(device.Code, out var plcClient) || !plcClient.IsConnected())
         {
             // 尝试重新连接
             if (await ReconnectAsync(device))
@@ -66,7 +52,7 @@ public class PLCCommunicator : IPLCCommunicator
         {
             try
             {
-                data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig);
+                data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig.DataAddress, metricColumnConfig.DataLength, metricColumnConfig.DataType);
             }
             catch (Exception ex)
             {
@@ -76,7 +62,7 @@ public class PLCCommunicator : IPLCCommunicator
 
         return data;
     }
-
+    
     private async Task<bool> ReconnectAsync(Device device)
     {
         if (PLCClients.TryGetValue(device.Code, out var plcClient))
@@ -98,13 +84,30 @@ public class PLCCommunicator : IPLCCommunicator
         }
         else
         {
-            return CreateClient(device);
+            var result = CreatePLCClient(device);
+            if (result.IsSuccess)
+            {
+                AddPLClient(device, result.Content);
+            }
         }
 
         return false;
     }
 
-    private async Task<OperateResult<T>> RetryOnFailure<T>(Func<Task<OperateResult<T>>> action, int maxRetries = 3)
+    protected virtual async Task<object> ParseValue(IPLClient plcClient, string dataAddress, ushort dataLength, string dataType)
+    {
+        return dataType.ToLower() switch
+        {
+            "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress, dataLength))).Content[0],
+            "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress, dataLength))).Content[0],
+            "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress, dataLength))).Content[0],
+            "string" => ParseStringValue((await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content),
+            "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(dataAddress, dataLength))).Content[0],
+            _ => throw new ArgumentException("未知的数据类型")
+        };
+    }
+    
+    private async Task<OperationResult<T>> RetryOnFailure<T>(Func<Task<OperationResult<T>>> action, int maxRetries = 3)
     {
         var retries = 0;
         while (retries < maxRetries)
@@ -119,20 +122,7 @@ public class PLCCommunicator : IPLCCommunicator
         }
         throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
     }
-
-    private async Task<object> ParseValue(InovanceTcpNet plcClient, MetricColumnConfig metricColumnConfig)
-    {
-        return metricColumnConfig.DataType.ToLower() switch
-        {
-            "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(metricColumnConfig.DataAddress, metricColumnConfig.DataLength))).Content[0],
-            "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(metricColumnConfig.DataAddress, metricColumnConfig.DataLength))).Content[0],
-            "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(metricColumnConfig.DataAddress, metricColumnConfig.DataLength))).Content[0],
-            "string" => ParseStringValue((await RetryOnFailure(() => plcClient.ReadStringAsync(metricColumnConfig.DataAddress, metricColumnConfig.DataLength))).Content),
-            "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(metricColumnConfig.DataAddress, metricColumnConfig.DataLength))).Content[0],
-            _ => throw new ArgumentException("未知的数据类型")
-        };
-    }
-
+    
     private string ParseStringValue(string stringValue)
     {
         // 查找终止符
@@ -144,12 +134,12 @@ public class PLCCommunicator : IPLCCommunicator
         }
         return stringValue;
     }
-
+    
     public async Task DisconnectAllAsync()
     {
-        foreach (var client in PLCClients.Values)
+        foreach (var client  in PLCClients.Values)
         {
-            await client.ConnectCloseAsync();
+           await client.ConnectCloseAsync();
         }
     }
 }

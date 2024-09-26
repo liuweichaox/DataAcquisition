@@ -1,5 +1,6 @@
-﻿using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services;
+﻿using DynamicPLCDataCollector.DataStorages;
+using DynamicPLCDataCollector.Models;
+using DynamicPLCDataCollector.PLCClients;
 using DynamicPLCDataCollector.Utils;
 
 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
@@ -13,7 +14,7 @@ var devices = await JsonUtils.LoadConfigAsync<List<Device>>(deviceConfigPath);
 var metricTableConfigs = await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>(metricTableConfigPath);
 
 
-IPLCCommunicator communicator = new PLCCommunicator(devices);
+IPLCClientManager clientManager = new PLCClientManager(devices);
 
 IDataStorage dataStorage = new SQLiteDataStorage();
 
@@ -55,7 +56,7 @@ void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
             {
                 if (metricTableConfig.IsEnabled)
                 {
-                    var data = await communicator.ReadAsync(device, metricTableConfig);
+                    var data = await clientManager.ReadAsync(device, metricTableConfig);
                     dataStorage.Save(data, metricTableConfig);
                 }
             }
@@ -74,7 +75,7 @@ async Task HandleExitAsync()
 
     await Task.Run(async () =>
     {
-        await communicator.DisconnectAllAsync();
+        await clientManager.DisconnectAllAsync();
         dataStorage.ReleaseAll();
     });
 }

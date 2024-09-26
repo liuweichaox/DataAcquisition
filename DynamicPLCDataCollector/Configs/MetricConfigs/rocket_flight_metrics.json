@@ -2,6 +2,7 @@
   "IsEnabled": true,
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 100,
+  "BatchSize": 100,
   "DatabaseName": "dbo",
   "MetricColumnConfigs": [
     {

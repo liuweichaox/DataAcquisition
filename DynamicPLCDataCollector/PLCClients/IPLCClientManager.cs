@@ -1,11 +1,11 @@
 ﻿using DynamicPLCDataCollector.Models;
 
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.PLCClients;
 
 /// <summary>
-/// PLC通讯类
+/// PLC 通讯类
 /// </summary>
-public interface IPLCCommunicator
+public interface IPLCClientManager
 {
     /// <summary>
     /// 读取数据

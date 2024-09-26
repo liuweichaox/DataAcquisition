@@ -1,6 +1,6 @@
 ﻿using DynamicPLCDataCollector.Models;
 
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.DataStorages;
 
 /// <summary>
 /// 数据存储服务

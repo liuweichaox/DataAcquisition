@@ -26,6 +26,11 @@ public class MetricTableConfig
     public int CollectionFrequency { get; set; }
 
     /// <summary>
+    /// 批量保存的数据
+    /// </summary>
+    public int BatchSize { get; set; }
+
+    /// <summary>
     /// 采集配置
     /// </summary>
     public List<MetricColumnConfig> MetricColumnConfigs { get; set; }
