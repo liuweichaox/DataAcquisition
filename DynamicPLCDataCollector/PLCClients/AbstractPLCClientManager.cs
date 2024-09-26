@@ -88,6 +88,8 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
             {
                 AddPLClient(device, result.Content);
             }
+
+            return result.IsSuccess;
         }
 
         return false;
@@ -97,11 +99,11 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
     {
         return dataType.ToLower() switch
         {
-            "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress, dataLength))).Content[0],
-            "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress, dataLength))).Content[0],
-            "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress, dataLength))).Content[0],
+            "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress))).Content,
+            "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress))).Content,
+            "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress))).Content,
             "string" => (await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content,
-            "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(dataAddress, dataLength))).Content[0],
+            "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(dataAddress))).Content,
             _ => throw new ArgumentException("未知的数据类型")
         };
     }

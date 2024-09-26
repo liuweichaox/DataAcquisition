@@ -1,4 +1,5 @@
-﻿using DynamicPLCDataCollector.DataStorages;
+﻿using DynamicPLCDataCollector;
+using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
 using DynamicPLCDataCollector.PLCClients;
 using DynamicPLCDataCollector.Utils;

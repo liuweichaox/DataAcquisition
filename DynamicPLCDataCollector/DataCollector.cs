@@ -25,7 +25,7 @@ public class DataCollector
             {
                 if (metricTableConfig.IsEnabled)
                 {
-                    StartCollectionTask(device, metricTableConfig);
+                   StartCollectionTask(device, metricTableConfig);
                 }
             }
         }

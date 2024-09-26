@@ -1,7 +1,7 @@
 ﻿{
   "IsEnabled": true,
   "TableName": "rocket_flight_metrics",
-  "CollectionFrequency": 100,
+  "CollectionFrequency": 1000,
   "BatchSize": 100,
   "DatabaseName": "dbo",
   "MetricColumnConfigs": [
@@ -29,41 +29,11 @@
       "DataLength": 1,
       "DataType": "float"
     },
-     {
-      "ColumnName": "发动机推力",
+    {
+      "ColumnName": "编号",
       "DataAddress": "D6400",
-      "DataLength": 1,
-      "DataType": "float"
-    },
-    {
-      "ColumnName": "重心变化",
-      "DataAddress": "D6500",
-      "DataLength": 1,
-      "DataType": "float"
-    },
-    {
-      "ColumnName": "轨道倾角",
-      "DataAddress": "D6600",
-      "DataLength": 1,
-      "DataType": "float"
-    },
-    {
-      "ColumnName": "飞行时间",
-      "DataAddress": "D6700",
-      "DataLength": 1,
-      "DataType": "float"
-    },
-    {
-      "ColumnName": "温度监测",
-      "DataAddress": "D6800",
-      "DataLength": 1,
-      "DataType": "float"
-    },
-    {
-      "ColumnName": "姿态控制",
-      "DataAddress": "D6900",
-      "DataLength": 1,
-      "DataType": "float"
+      "DataLength": 10,
+      "DataType": "string"
     }
   ]
 }

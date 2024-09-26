@@ -27,25 +27,22 @@ public interface IPLClient
     /// 读取整数
     /// </summary>
     /// <param name="address"></param>
-    /// <param name="length"></param>
     /// <returns></returns>
-    Task<OperationResult<int[]>> ReadInt32Async(string address, ushort length);
+    Task<OperationResult<int>> ReadInt32Async(string address);
 
     /// <summary>
     /// 读取浮点数
     /// </summary>
     /// <param name="address"></param>
-    /// <param name="length"></param>
     /// <returns></returns>
-    Task<OperationResult<float[]>> ReadFloatAsync(string address, ushort length);
+    Task<OperationResult<float>> ReadFloatAsync(string address);
 
     /// <summary>
     /// 读取双精度浮点数
     /// </summary>
     /// <param name="address"></param>
-    /// <param name="length"></param>
     /// <returns></returns>
-    Task<OperationResult<double[]>> ReadDoubleAsync(string address, ushort length);
+    Task<OperationResult<double>> ReadDoubleAsync(string address);
 
     /// <summary>
     /// 读取字符串
@@ -59,7 +56,6 @@ public interface IPLClient
     /// 读取布尔值
     /// </summary>
     /// <param name="address"></param>
-    /// <param name="length"></param>
     /// <returns></returns>
-    Task<OperationResult<bool[]>> ReadBoolAsync(string address, ushort length);
+    Task<OperationResult<bool>> ReadBoolAsync(string address);
 }

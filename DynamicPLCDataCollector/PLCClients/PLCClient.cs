@@ -7,7 +7,7 @@ public class PLCClient : IPLClient
 {
     private readonly InovanceTcpNet _plcClient;
     public PLCClient(string ipAddress, int port)
-    {
+    {   
         _plcClient = new InovanceTcpNet(ipAddress, port)
         {
             Station = 1,
@@ -38,28 +38,28 @@ public class PLCClient : IPLClient
         return _plcClient.IpAddressPing() == IPStatus.Success;
     }
 
-    public async Task<OperationResult<int[]>> ReadInt32Async(string address, ushort length)
+    public async Task<OperationResult<int>> ReadInt32Async(string address)
     {
-        var result = await _plcClient.ReadInt32Async(address, length);
+        var result = await _plcClient.ReadInt32Async(address);
         return result.IsSuccess 
-            ? new OperationResult<int[]>(result.Content) 
-            : new OperationResult<int[]>(result.Message);
+            ? new OperationResult<int>(result.Content) 
+            : new OperationResult<int>(result.Message);
     }
 
-    public async Task<OperationResult<float[]>> ReadFloatAsync(string address, ushort length)
+    public async Task<OperationResult<float>> ReadFloatAsync(string address)
     {
-        var result = await _plcClient.ReadFloatAsync(address, length);
+        var result = await _plcClient.ReadFloatAsync(address);
         return result.IsSuccess 
-            ? new OperationResult<float[]>(result.Content) 
-            : new OperationResult<float[]>(result.Message);
+            ? new OperationResult<float>(result.Content) 
+            : new OperationResult<float>(result.Message);
     }
 
-    public async Task<OperationResult<double[]>> ReadDoubleAsync(string address, ushort length)
+    public async Task<OperationResult<double>> ReadDoubleAsync(string address)
     {
-        var result = await _plcClient.ReadDoubleAsync(address, length);
+        var result = await _plcClient.ReadDoubleAsync(address);
         return result.IsSuccess 
-            ? new OperationResult<double[]>(result.Content) 
-            : new OperationResult<double[]>(result.Message);
+            ? new OperationResult<double>(result.Content) 
+            : new OperationResult<double>(result.Message);
     }
 
     public async Task<OperationResult<string>> ReadStringAsync(string address, ushort length)
@@ -70,12 +70,12 @@ public class PLCClient : IPLClient
             : new OperationResult<string>(result.Message);
     }
 
-    public async Task<OperationResult<bool[]>> ReadBoolAsync(string address, ushort length)
+    public async Task<OperationResult<bool>> ReadBoolAsync(string address)
     {
-        var result = await _plcClient.ReadBoolAsync(address, length);
+        var result = await _plcClient.ReadBoolAsync(address);
         return result.IsSuccess 
-            ? new OperationResult<bool[]>(result.Content) 
-            : new OperationResult<bool[]>(result.Message);
+            ? new OperationResult<bool>(result.Content) 
+            : new OperationResult<bool>(result.Message);
     }
     
     private string ParseStringValue(string stringValue)
