@@ -5,7 +5,6 @@
 /// </summary>
 public class MetricColumnConfig
 {
-
     /// <summary>
     /// 列名
     /// </summary>
