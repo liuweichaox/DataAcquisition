@@ -12,7 +12,8 @@ namespace DynamicPLCDataCollector.DataStorages
     {
         protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
         {
-            await using var sqLiteConnection = new SQLiteConnection($@"Data Source=db.sqlite;Version=3;");
+            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");
+            await using var sqLiteConnection = new SQLiteConnection($@"Data Source={dbPath};Version=3;");
             sqLiteConnection.Open();
 
             var dataBatch = new List<Dictionary<string, object>>();
