@@ -5,8 +5,9 @@ namespace DynamicPLCDataCollector.PLCClients;
 /// <summary>
 /// PLC 客户端接口定义
 /// </summary>
-public interface IPLClient
+public interface IPLCClient
 {
+    
     /// <summary>
     /// 连接到 PLC 设备
     /// </summary>

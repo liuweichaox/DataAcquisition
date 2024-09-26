@@ -6,7 +6,7 @@ using DynamicPLCDataCollector.PLCClients;
 /// <summary>
 /// PLC 客户端实现
 /// </summary>
-public class PLCClient : IPLClient
+public class PLCClient : IPLCClient
 {
     private readonly InovanceTcpNet _plcClient;
     public PLCClient(string ipAddress, int port)

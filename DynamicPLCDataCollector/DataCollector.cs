@@ -9,27 +9,25 @@ using DynamicPLCDataCollector.Services;
 /// </summary>
 public class DataCollector
 {
-    private readonly IPLCClientManager _clientManager;
-    private readonly IDataStorage _dataStorage;
     private readonly IDeviceService _deviceService;
     private readonly IMetricTableConfigService _metricTableConfigService;
     private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
+    private readonly List<IDataStorage> _dataStorages;
+    private readonly List<IPLCClient> _plcClients;
 
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="clientManager"></param>
-    /// <param name="dataStorage"></param>
-    public DataCollector(IPLCClientManager clientManager, IDataStorage dataStorage)
+    public DataCollector()
     {
         Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
-        _clientManager = clientManager;
-        _dataStorage = dataStorage;
         _deviceService = new DeviceService();
         _metricTableConfigService = new MetricTableConfigService();
         _runningTasks  = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
+        _dataStorages = new List<IDataStorage>();
+        _plcClients = new List<IPLCClient>();
         ListenExitEvents();
     }
     
@@ -86,12 +84,69 @@ public class DataCollector
     {
         var task = Task.Factory.StartNew(async () =>
         {
+            IPLCClient plcClient = new PLCClient(device.IpAddress, device.Port);
+            
+            _plcClients.Add(plcClient);
+
+            IDataStorage dataStorage = new SQLiteDataStorage(metricTableConfig);
+            
+            _dataStorages.Add(dataStorage);
+            
+            var connect = await plcClient.ConnectServerAsync();
+            if (connect.IsSuccess)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
+            }
+            else
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
+            }
+            
             while (true)
             {
                 try
                 {
-                    var data = await _clientManager.ReadAsync(device, metricTableConfig);
-                    _dataStorage.Save(data, metricTableConfig);
+                    if (!plcClient.IsConnected())
+                    {
+                        for (var i = 0; i < 5; i++)  // 尝试重连5次
+                        {
+                            connect = await plcClient.ConnectServerAsync();
+                            if (connect.IsSuccess)
+                            {
+                                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+                                return true;
+                            }
+                            else
+                            {
+                                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 失败：{connect.Message}");
+                                await Task.Delay(2000);  // 等待2秒后再次尝试
+                            }
+                        }
+                    }
+                    else
+                    {
+                        throw new Exception($"连接设备 {device.Code} 失败");
+                    }
+
+                    var data = new Dictionary<string, object>
+                    {
+                        { "TimeStamp", DateTime.Now },
+                        { "Device", device.Code }
+                    };
+
+                    foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
+                    {
+                        try
+                        {
+                            data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig.DataAddress, metricColumnConfig.DataLength, metricColumnConfig.DataType);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
+                        }
+                    }
+                    
+                    dataStorage.Save(data, metricTableConfig);
                 }
                 catch (Exception ex)
                 {
@@ -104,7 +159,54 @@ public class DataCollector
         var taskKey = GenerateTaskKey(device, metricTableConfig);
         _runningTasks[taskKey] = task;
     }
-
+    
+    /// <summary>
+    /// 读取数据
+    /// </summary>
+    /// <param name="plcClient"></param>
+    /// <param name="dataAddress"></param>
+    /// <param name="dataLength"></param>
+    /// <param name="dataType"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    private async Task<object> ParseValue(IPLCClient plcClient, string dataAddress, ushort dataLength, string dataType)
+    {
+        return dataType.ToLower() switch
+        {
+            "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress))).Content,
+            "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress))).Content,
+            "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress))).Content,
+            "string" => (await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content,
+            "boolean" => (await RetryOnFailure(() => plcClient.ReadBoolAsync(dataAddress))).Content,
+            _ => throw new ArgumentException("未知的数据类型")
+        };
+    }
+    
+    
+    /// <summary>
+    /// 失败重试读取
+    /// </summary>
+    /// <param name="action"></param>
+    /// <param name="maxRetries"></param>
+    /// <typeparam name="T"></typeparam>
+    /// <returns></returns>
+    /// <exception cref="Exception"></exception>
+    private async Task<OperationResult<T>> RetryOnFailure<T>(Func<Task<OperationResult<T>>> action, int maxRetries = 3)
+    {
+        var retries = 0;
+        while (retries < maxRetries)
+        {
+            var result = await action();
+            if (result.IsSuccess)
+            {
+                return result;
+            }
+            retries++;
+            await Task.Delay(1000);  // 等待1秒后重试
+        }
+        throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
+    }
+    
     /// <summary>
     /// 监听退出事件
     /// </summary>
@@ -112,7 +214,7 @@ public class DataCollector
     {
         Console.CancelKeyPress += async (sender, e) =>
         {
-            e.Cancel = true;
+            e.Cancel = true; 
             await HandleExitAsync();
         };
         AppDomain.CurrentDomain.ProcessExit += async (s, e) => await HandleExitAsync();
@@ -125,12 +227,17 @@ public class DataCollector
     {
         _cts.Cancel();
 
-        await Task.Run(async () =>
+        foreach (var plcClient in _plcClients)
         {
-            await _clientManager.DisconnectAllAsync();
-            _dataStorage.ReleaseAll();
-            LogExitInformation("程序已正常退出");
-        });
+            await plcClient.ConnectCloseAsync();
+        }
+        
+        foreach (var dataStorage in _dataStorages)
+        {
+            dataStorage.Release();
+        }
+        
+        LogExitInformation("程序已正常退出");
     }
 
     /// <summary>

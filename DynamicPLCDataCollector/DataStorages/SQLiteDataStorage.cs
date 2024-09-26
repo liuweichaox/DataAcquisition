@@ -10,6 +10,9 @@ namespace DynamicPLCDataCollector.DataStorages
     /// </summary>
     public class SQLiteDataStorage : AbstractDataStorage
     {
+        public SQLiteDataStorage(MetricTableConfig metricTableConfig) : base(metricTableConfig)
+        {
+        }
         protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
         {
             var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");

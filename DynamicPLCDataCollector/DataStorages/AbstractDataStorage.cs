@@ -8,20 +8,17 @@ namespace DynamicPLCDataCollector.DataStorages;
 /// </summary>
 public abstract class AbstractDataStorage : IDataStorage
 {
-    private readonly ConcurrentDictionary<string, BlockingCollection<Dictionary<string, object>>> _queueDictionary = new();
+    private readonly BlockingCollection<Dictionary<string, object>> _queue;
+
+    public AbstractDataStorage(MetricTableConfig metricTableConfig)
+    {
+        _queue = new BlockingCollection<Dictionary<string, object>>();
+        ProcessQueue(_queue, metricTableConfig);
+    }
 
     public void Save(Dictionary<string, object> data, MetricTableConfig metricTableConfig)
     {
-        var queue = _queueDictionary.GetOrAdd(metricTableConfig.TableName, tableName =>
-        {
-            var newQueue = new BlockingCollection<Dictionary<string, object>>();
-            
-            ProcessQueue(newQueue, metricTableConfig);
-            
-            return newQueue;
-        });
-
-        queue.Add(data);
+        _queue.Add(data);
     }
     
     /// <summary>
@@ -31,11 +28,8 @@ public abstract class AbstractDataStorage : IDataStorage
     /// <param name="metricTableConfig"></param>
     protected abstract void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig);
     
-    public void ReleaseAll()
+    public void Release()
     {
-        foreach (var queue in _queueDictionary.Values)
-        {
-            queue.CompleteAdding();
-        }
+        _queue.CompleteAdding();
     }
 }
