@@ -91,60 +91,18 @@ public class DataCollector
     {
         var task = Task.Factory.StartNew(async () =>
         {
-            var plcClient = _plcClientFactory(device.IpAddress, device.Port);
-            
-            _plcClients.Add(plcClient);
+            var plcClient = await CreatePLCClientAsync(device);
 
-            var dataStorage = _dataStorageFactory(metricTableConfig);
-            
-            _dataStorages.Add(dataStorage);
-            
-            var connect = await plcClient.ConnectServerAsync();
-            if (connect.IsSuccess)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
-            }
-            else
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
-            }
-            
+            var dataStorage = CreateDataStorage(metricTableConfig);
+
             while (true)
             {
                 try
                 {
-                    if (!plcClient.IsConnected())
-                    {
-                        connect = await plcClient.ConnectServerAsync();
-                        
-                        if (connect.IsSuccess)
-                        {
-                            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
-                        }
-                        else
-                        {
-                            throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
-                        }
-                    }
+                    await CheckIsConnectedAsync(device, plcClient);
 
-                    var data = new Dictionary<string, object>
-                    {
-                        { "TimeStamp", DateTime.Now },
-                        { "Device", device.Code }
-                    };
+                    var data = await ReadAsync(device, metricTableConfig, plcClient);
 
-                    foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
-                    {
-                        try
-                        {
-                            data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig.DataAddress, metricColumnConfig.DataLength, metricColumnConfig.DataType);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
-                        }
-                    }
-                    
                     dataStorage.Save(data, metricTableConfig);
                 }
                 catch (Exception ex)
@@ -158,7 +116,99 @@ public class DataCollector
         var taskKey = GenerateTaskKey(device, metricTableConfig);
         _runningTasks[taskKey] = task;
     }
-    
+
+    /// <summary>
+    /// 创建数据存储服务
+    /// </summary>
+    /// <param name="metricTableConfig"></param>
+    /// <returns></returns>
+    private IDataStorage CreateDataStorage(MetricTableConfig metricTableConfig)
+    {
+        var dataStorage = _dataStorageFactory(metricTableConfig);
+
+        _dataStorages.Add(dataStorage);
+        
+        return dataStorage;
+    }
+
+    /// <summary>
+    /// 创建 PLC 客户端
+    /// </summary>
+    /// <param name="device"></param>
+    /// <returns></returns>
+    private async Task<IPLCClient> CreatePLCClientAsync(Device device)
+    {
+        var plcClient = _plcClientFactory(device.IpAddress, device.Port);
+            
+        var connect = await plcClient.ConnectServerAsync();
+            
+        if (connect.IsSuccess)
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
+        }
+        else
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
+        }
+            
+        _plcClients.Add(plcClient);
+        
+        return plcClient;
+    }
+
+    /// <summary>
+    /// 检查 PLC 客户端是否连接中
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="plcClient"></param>
+    /// <exception cref="Exception"></exception>
+    private static async Task CheckIsConnectedAsync(Device device, IPLCClient plcClient)
+    {
+        if (!plcClient.IsConnected())
+        {
+            var connect = await plcClient.ConnectServerAsync();
+                        
+            if (connect.IsSuccess)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+            }
+            else
+            {
+                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 读取数据
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="metricTableConfig"></param>
+    /// <param name="plcClient"></param>
+    /// <returns></returns>
+    private async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient)
+    {
+        var data = new Dictionary<string, object>
+        {
+            { "TimeStamp", DateTime.Now },
+            { "Device", device.Code }
+        };
+
+        foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
+        {
+            try
+            {
+                data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig.DataAddress, metricColumnConfig.DataLength, metricColumnConfig.DataType);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
+            }
+        }
+
+        return data;
+    }
+
     /// <summary>
     /// 读取数据
     /// </summary>
