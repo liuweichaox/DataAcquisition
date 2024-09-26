@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
-using System.Data.SQLite;
 using DynamicPLCDataCollector.Extensions;
 using DynamicPLCDataCollector.Models;
+using Microsoft.Data.Sqlite;
 
 namespace DynamicPLCDataCollector.DataStorages
 {
@@ -16,7 +16,7 @@ namespace DynamicPLCDataCollector.DataStorages
         protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
         {
             var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");
-            await using var sqLiteConnection = new SQLiteConnection($@"Data Source={dbPath};Version=3;");
+            await using var sqLiteConnection = new SqliteConnection($@"Data Source={dbPath};");
             sqLiteConnection.Open();
 
             var dataBatch = new List<Dictionary<string, object>>();

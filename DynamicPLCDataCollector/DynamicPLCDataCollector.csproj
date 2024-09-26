@@ -10,7 +10,7 @@
 
     <ItemGroup>
       <PackageReference Include="HslCommunication" Version="12.1.1" />
-      <PackageReference Include="System.Data.SQLite" Version="1.0.118" />
+      <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
     </ItemGroup>
 
     <ItemGroup>

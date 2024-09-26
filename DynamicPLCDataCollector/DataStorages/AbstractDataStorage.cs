@@ -13,7 +13,7 @@ public abstract class AbstractDataStorage : IDataStorage
     public AbstractDataStorage(MetricTableConfig metricTableConfig)
     {
         _queue = new BlockingCollection<Dictionary<string, object>>();
-        ProcessQueue(_queue, metricTableConfig);
+        Task.Run(() => ProcessQueue(_queue, metricTableConfig));
     }
 
     public void Save(Dictionary<string, object> data, MetricTableConfig metricTableConfig)

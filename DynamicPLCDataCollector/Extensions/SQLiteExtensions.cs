@@ -1,5 +1,4 @@
-﻿using System.Data;
-using System.Data.SQLite;
+﻿using Microsoft.Data.Sqlite;
 
 namespace DynamicPLCDataCollector.Extensions;
 
@@ -10,7 +9,7 @@ public static class SQLiteExtensions
     /// </summary>
     /// <param name="tableName">目标表名</param>
     /// <param name="data">要插入的数据，键为列名，值为对应的值</param>
-    public static async Task<bool> InsertAsync(this SQLiteConnection connection, string tableName, Dictionary<string, object> data)
+    public static async Task<bool> InsertAsync(this SqliteConnection connection, string tableName, Dictionary<string, object> data)
     {
         try
         {
@@ -18,7 +17,7 @@ public static class SQLiteExtensions
             var parameters = string.Join(", ", data.Keys.Select(key => $"@{key}"));
 
             var commandText = $"INSERT INTO {tableName} ({columns}) VALUES ({parameters})";
-            await using var command = new SQLiteCommand(commandText, connection);
+            await using var command = new SqliteCommand(commandText, connection);
             foreach (var kvp in data)
             {
                 command.Parameters.AddWithValue($"@{kvp.Key}", kvp.Value);
@@ -40,7 +39,7 @@ public static class SQLiteExtensions
     /// </summary>
     /// <param name="tableName">目标表名</param>
     /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
-    public static async Task<bool> InsertBatchAsync(this SQLiteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
+    public static async Task<bool> InsertBatchAsync(this SqliteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
     {
         await using var transaction = await connection.BeginTransactionAsync();
 
