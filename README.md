@@ -104,40 +104,7 @@
 
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
 
-### 5.4 实现 AbstractPLCClientManager 抽象类
-
-`AbstractPLCClientManager` 为 `IPLCClient` 的管理器，负责创建单独的连接，并支持自动重连及读取失败后的重试机制。
-
-```C#
-    public class SQLiteDataStorage : AbstractDataStorage
-    {
-        protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
-        {
-            await using var sqLiteConnection = new SQLiteConnection($@"Data Source=db.sqlite;Version=3;");
-            sqLiteConnection.Open();
-
-            var dataBatch = new List<Dictionary<string, object>>();
-
-            foreach (var data in queue.GetConsumingEnumerable())
-            {
-                dataBatch.Add(data);
-
-                if (dataBatch.Count >= metricTableConfig.BatchSize)
-                {
-                    await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-                    dataBatch.Clear();
-                }
-            }
-
-            if (dataBatch.Count > 0)
-            {
-                await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-            }
-        }
-    }
-```
-
-### 5.5 实现 AbstractDataStorage 抽象类
+### 5.4 实现 AbstractDataStorage 抽象类
 
 `AbstractDataStorage` 为数据存储服务，使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。
 
@@ -167,17 +134,14 @@ public class PLCClientManager : AbstractPLCClientManager
 }
 ```
 
-### 5.6 运行
-使用 `IPLCClientManager`、`IDataStorage` 实例构建 `DataCollector`，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+### 5.5 运行
+使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
 ```C#
 using DynamicPLCDataCollector.DataStorages;
-using DynamicPLCDataCollector.PLCClients;
 
-IPLCClientManager clientManager = new PLCClientManager();
-
-IDataStorage dataStorage = new SQLiteDataStorage();
-
-var dataCollector = new DataCollector(clientManager, dataStorage);
+var dataCollector = new DataCollector(
+    (ipAddress, port) => new PLCClient(ipAddress, port), 
+    metricTableConfig => new SQLiteDataStorage(metricTableConfig));
 
 await dataCollector.StartCollectionTasks();
 
