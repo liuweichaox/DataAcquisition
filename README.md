@@ -48,6 +48,7 @@
 - `IsEnabled`：是否启用此表的数据采集
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
+- `BatchSize`: 批量保存大小
 - `DatabaseName`：存储数据的目标数据库名称
 - `MetricColumnConfigs`：指标的具体配置
   - `ColumnName`：数据库表中的列名
