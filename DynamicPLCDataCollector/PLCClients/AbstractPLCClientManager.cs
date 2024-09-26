@@ -26,7 +26,6 @@ public abstract class AbstractPLCClientManager: IPLCClientManager
         PLCClients[device.Code] = plcClient;
     }
     
-    
     public async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig)
     {
         if (!PLCClients.TryGetValue(device.Code, out var plcClient) || !plcClient.IsConnected())
