@@ -15,11 +15,13 @@ public class DataCollector
     private readonly CancellationTokenSource _cts;
     private readonly List<IDataStorage> _dataStorages;
     private readonly List<IPLCClient> _plcClients;
-
+    private readonly Func<string, int, IPLCClient> _plcClientFactory;
+    private readonly Func<MetricTableConfig, IDataStorage> _dataStorageFactory;
+    
     /// <summary>
     /// 构造函数
     /// </summary>
-    public DataCollector()
+    public DataCollector(Func<string, int, IPLCClient> plcClientFactory, Func<MetricTableConfig, IDataStorage> dataStorageFactory)
     {
         Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
         _deviceService = new DeviceService();
@@ -28,6 +30,8 @@ public class DataCollector
         _cts = new CancellationTokenSource();
         _dataStorages = new List<IDataStorage>();
         _plcClients = new List<IPLCClient>();
+        _plcClientFactory = plcClientFactory;
+        _dataStorageFactory = dataStorageFactory;
         ListenExitEvents();
     }
     
@@ -84,11 +88,11 @@ public class DataCollector
     {
         var task = Task.Factory.StartNew(async () =>
         {
-            IPLCClient plcClient = new PLCClient(device.IpAddress, device.Port);
+            var plcClient = _plcClientFactory(device.IpAddress, device.Port);
             
             _plcClients.Add(plcClient);
 
-            IDataStorage dataStorage = new SQLiteDataStorage(metricTableConfig);
+            var dataStorage = _dataStorageFactory(metricTableConfig);
             
             _dataStorages.Add(dataStorage);
             
