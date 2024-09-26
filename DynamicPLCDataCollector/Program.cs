@@ -65,7 +65,7 @@ void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
             }
             await Task.Delay(metricTableConfig.CollectionFrequency, cts.Token);
         }
-    }, cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }, TaskCreationOptions.LongRunning);
 }
 
 async Task HandleExitAsync()
