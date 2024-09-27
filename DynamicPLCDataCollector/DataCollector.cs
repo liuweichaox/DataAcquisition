@@ -39,35 +39,11 @@ public class DataCollector
     }
     
     /// <summary>
-    /// 生成采集任务的 Key
-    /// </summary>
-    /// <param name="device"></param>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private string GenerateTaskKey(Device device, MetricTableConfig config)
-    {
-        return $"{device.Code}_{config.TableName}";
-    }
-    
-    /// <summary>
-    /// 是否开始采集任务
-    /// </summary>
-    /// <param name="device"></param>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
-    {
-        var taskKey = GenerateTaskKey(device, config);
-        return _runningTasks.ContainsKey(taskKey);
-    }
-    
-    /// <summary>
     /// 开始采集任务
     /// </summary>
     public async Task StartCollectionTasks()
     {
         var devices = await _deviceService.GetDevices();
-        
         var metricTableConfigs = await _metricTableConfigService.GetMetricTableConfigs();
         
         foreach (var device in devices)
@@ -92,23 +68,11 @@ public class DataCollector
         var task = Task.Factory.StartNew(async () =>
         {
             var plcClient = await CreatePLCClientAsync(device);
-
             var dataStorage = CreateDataStorage(metricTableConfig);
 
             while (true)
             {
-                try
-                {
-                    await CheckIsConnectedAsync(device, plcClient);
-
-                    var data = await ReadAsync(device, metricTableConfig, plcClient);
-
-                    dataStorage.Save(data, metricTableConfig);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
-                }
+                await ReadAndSaveAsync(device, metricTableConfig, plcClient, dataStorage);
                 await Task.Delay(metricTableConfig.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
@@ -116,21 +80,30 @@ public class DataCollector
         var taskKey = GenerateTaskKey(device, metricTableConfig);
         _runningTasks[taskKey] = task;
     }
-
+    
     /// <summary>
-    /// 创建数据存储服务
+    /// 生成采集任务的 Key
     /// </summary>
-    /// <param name="metricTableConfig"></param>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(MetricTableConfig metricTableConfig)
+    private string GenerateTaskKey(Device device, MetricTableConfig config)
     {
-        var dataStorage = _dataStorageFactory(metricTableConfig);
-
-        _dataStorages.Add(dataStorage);
-        
-        return dataStorage;
+        return $"{device.Code}_{config.TableName}";
     }
-
+    
+    /// <summary>
+    /// 是否开始采集任务
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
+    {
+        var taskKey = GenerateTaskKey(device, config);
+        return _runningTasks.ContainsKey(taskKey);
+    }
+    
     /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
@@ -154,6 +127,42 @@ public class DataCollector
         _plcClients.Add(plcClient);
         
         return plcClient;
+    }
+    
+    /// <summary>
+    /// 创建数据存储服务
+    /// </summary>
+    /// <param name="metricTableConfig"></param>
+    /// <returns></returns>
+    private IDataStorage CreateDataStorage(MetricTableConfig metricTableConfig)
+    {
+        var dataStorage = _dataStorageFactory(metricTableConfig);
+
+        _dataStorages.Add(dataStorage);
+        
+        return dataStorage;
+    }
+    
+    /// <summary>
+    /// 读取数据并保存
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="metricTableConfig"></param>
+    /// <param name="plcClient"></param>
+    /// <param name="dataStorage"></param>
+    private async Task ReadAndSaveAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient,
+        IDataStorage dataStorage)
+    {
+        try
+        {
+            await CheckIsConnectedAsync(device, plcClient);
+            var data = await ReadAsync(device, metricTableConfig, plcClient);
+            dataStorage.Save(data, metricTableConfig);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
+        }
     }
 
     /// <summary>
