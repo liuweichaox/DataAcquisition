@@ -82,26 +82,26 @@ public class DataCollector
     }
     
     /// <summary>
-    /// 生成采集任务的 Key
+    /// 检查 PLC 客户端是否连接中
     /// </summary>
     /// <param name="device"></param>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private string GenerateTaskKey(Device device, MetricTableConfig config)
+    /// <param name="plcClient"></param>
+    /// <exception cref="Exception"></exception>
+    private static async Task CheckIsConnectedAsync(Device device, IPLCClient plcClient)
     {
-        return $"{device.Code}_{config.TableName}";
-    }
-    
-    /// <summary>
-    /// 是否开始采集任务
-    /// </summary>
-    /// <param name="device"></param>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
-    {
-        var taskKey = GenerateTaskKey(device, config);
-        return _runningTasks.ContainsKey(taskKey);
+        if (!plcClient.IsConnected())
+        {
+            var connect = await plcClient.ConnectServerAsync();
+                        
+            if (connect.IsSuccess)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+            }
+            else
+            {
+                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
+            }
+        }
     }
     
     /// <summary>
@@ -166,29 +166,6 @@ public class DataCollector
     }
 
     /// <summary>
-    /// 检查 PLC 客户端是否连接中
-    /// </summary>
-    /// <param name="device"></param>
-    /// <param name="plcClient"></param>
-    /// <exception cref="Exception"></exception>
-    private static async Task CheckIsConnectedAsync(Device device, IPLCClient plcClient)
-    {
-        if (!plcClient.IsConnected())
-        {
-            var connect = await plcClient.ConnectServerAsync();
-                        
-            if (connect.IsSuccess)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
-            }
-            else
-            {
-                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
-            }
-        }
-    }
-
-    /// <summary>
     /// 读取数据
     /// </summary>
     /// <param name="device"></param>
@@ -240,7 +217,6 @@ public class DataCollector
         };
     }
     
-    
     /// <summary>
     /// 失败重试读取
     /// </summary>
@@ -263,6 +239,29 @@ public class DataCollector
             await Task.Delay(1000);  // 等待1秒后重试
         }
         throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
+    }
+    
+    /// <summary>
+    /// 生成采集任务的 Key
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private string GenerateTaskKey(Device device, MetricTableConfig config)
+    {
+        return $"{device.Code}_{config.TableName}";
+    }
+    
+    /// <summary>
+    /// 是否开始采集任务
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
+    {
+        var taskKey = GenerateTaskKey(device, config);
+        return _runningTasks.ContainsKey(taskKey);
     }
     
     /// <summary>
