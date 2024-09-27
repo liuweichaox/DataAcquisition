@@ -14,8 +14,8 @@ public class DataCollector
     private readonly IMetricTableConfigService _metricTableConfigService;
     private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
-    private readonly List<IDataStorage> _dataStorages;
-    private readonly List<IPLCClient> _plcClients;
+    private readonly ConcurrentBag<IDataStorage> _dataStorages;
+    private readonly ConcurrentBag<IPLCClient> _plcClients;
     private readonly PLCClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     
@@ -31,8 +31,8 @@ public class DataCollector
         _metricTableConfigService = new MetricTableConfigService();
         _runningTasks  = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
-        _dataStorages = new List<IDataStorage>();
-        _plcClients = new List<IPLCClient>();
+        _dataStorages = new ConcurrentBag<IDataStorage>();
+        _plcClients = new ConcurrentBag<IPLCClient>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         ListenExitEvents();
