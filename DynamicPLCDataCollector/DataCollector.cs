@@ -82,12 +82,12 @@ public class DataCollector
     }
     
     /// <summary>
-    /// 检查 PLC 客户端是否连接中
+    /// 如果 PLC 客户端连接断开则重连
     /// </summary>
     /// <param name="device"></param>
     /// <param name="plcClient"></param>
     /// <exception cref="Exception"></exception>
-    private static async Task CheckIsConnectedAsync(Device device, IPLCClient plcClient)
+    private static async Task IfPLCClientNotConnectedReconnectAsync(Device device, IPLCClient plcClient)
     {
         if (!plcClient.IsConnected())
         {
@@ -155,7 +155,7 @@ public class DataCollector
     {
         try
         {
-            await CheckIsConnectedAsync(device, plcClient);
+            await IfPLCClientNotConnectedReconnectAsync(device, plcClient);
             var data = await ReadAsync(device, metricTableConfig, plcClient);
             dataStorage.Save(data, metricTableConfig);
         }
