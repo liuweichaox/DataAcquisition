@@ -23,7 +23,59 @@
 
 ## 5. 使用指南
 
-### 5.1 配置 PLC 通讯地址
+### 5.1 实现 IPLClient 接口（决定 PLC 客户端类型）
+
+`IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
+
+### 5.2 实现 AbstractDataStorage 抽象类（决定持久化数据库类型）
+
+`AbstractDataStorage` 为数据存储服务，使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。
+
+```C#
+using System.Collections.Concurrent;
+using DynamicPLCDataCollector.Extensions;
+using DynamicPLCDataCollector.Models;
+using Microsoft.Data.Sqlite;
+
+namespace DynamicPLCDataCollector.DataStorages
+{
+    /// <summary>
+    /// SQLite 数据存储实现
+    /// </summary>
+    public class SQLiteDataStorage : AbstractDataStorage
+    {
+        public SQLiteDataStorage(MetricTableConfig metricTableConfig) : base(metricTableConfig)
+        {
+        }
+        protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
+        {
+            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");
+            await using var sqLiteConnection = new SqliteConnection($@"Data Source={dbPath};");
+            sqLiteConnection.Open();
+
+            var dataBatch = new List<Dictionary<string, object>>();
+
+            foreach (var data in queue.GetConsumingEnumerable())
+            {
+                dataBatch.Add(data);
+
+                if (dataBatch.Count >= metricTableConfig.BatchSize)
+                {
+                    await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
+                    dataBatch.Clear();
+                }
+            }
+
+            if (dataBatch.Count > 0)
+            {
+                await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
+            }
+        }
+    }
+}
+```
+
+### 5.3 配置 PLC 通讯地址（决定与 PLC 服务设备连接连接）
 
 **文件路径**：`Configs/devices.json`
 
@@ -39,7 +91,7 @@
 ]
 ```
 
-### 5.2 设置 PLC 数据采集参数
+### 5.4 设置 PLC 数据采集参数（决定怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
@@ -97,58 +149,6 @@
       "DataType": "string"
     }
   ]
-}
-```
-
-### 5.3 实现 IPLClient 接口
-
-`IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
-
-### 5.4 实现 AbstractDataStorage 抽象类
-
-`AbstractDataStorage` 为数据存储服务，使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。
-
-```C#
-using System.Collections.Concurrent;
-using DynamicPLCDataCollector.Extensions;
-using DynamicPLCDataCollector.Models;
-using Microsoft.Data.Sqlite;
-
-namespace DynamicPLCDataCollector.DataStorages
-{
-    /// <summary>
-    /// SQLite 数据存储实现
-    /// </summary>
-    public class SQLiteDataStorage : AbstractDataStorage
-    {
-        public SQLiteDataStorage(MetricTableConfig metricTableConfig) : base(metricTableConfig)
-        {
-        }
-        protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
-        {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");
-            await using var sqLiteConnection = new SqliteConnection($@"Data Source={dbPath};");
-            sqLiteConnection.Open();
-
-            var dataBatch = new List<Dictionary<string, object>>();
-
-            foreach (var data in queue.GetConsumingEnumerable())
-            {
-                dataBatch.Add(data);
-
-                if (dataBatch.Count >= metricTableConfig.BatchSize)
-                {
-                    await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-                    dataBatch.Clear();
-                }
-            }
-
-            if (dataBatch.Count > 0)
-            {
-                await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-            }
-        }
-    }
 }
 ```
 
