@@ -23,11 +23,11 @@
 
 ## 5. 使用指南
 
-### 5.1 实现 IPLClient 接口（决定 PLC 客户端类型）
+### 5.1 实现 IPLClient 接口（定义 PLC 客户端类型）
 
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
 
-### 5.2 实现 AbstractDataStorage 抽象类（决定持久化数据库类型）
+### 5.2 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
 
 `AbstractDataStorage` 为数据存储服务，使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。
 
@@ -75,7 +75,7 @@ namespace DynamicPLCDataCollector.DataStorages
 }
 ```
 
-### 5.3 配置 PLC 通讯地址（决定与 PLC 服务设备连接）
+### 5.3 配置 PLC 通讯地址（定义 PLC 服务连接方式）
 
 **文件路径**：`Configs/devices.json`
 
@@ -91,7 +91,7 @@ namespace DynamicPLCDataCollector.DataStorages
 ]
 ```
 
-### 5.4 设置 PLC 数据采集参数（决定怎么采集数据）
+### 5.4 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
