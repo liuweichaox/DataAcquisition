@@ -75,7 +75,7 @@ namespace DynamicPLCDataCollector.DataStorages
 }
 ```
 
-### 5.3 配置 PLC 通讯地址（决定与 PLC 服务设备连接连接）
+### 5.3 配置 PLC 通讯地址（决定与 PLC 服务设备连接）
 
 **文件路径**：`Configs/devices.json`
 
