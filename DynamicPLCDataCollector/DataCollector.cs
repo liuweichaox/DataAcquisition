@@ -82,29 +82,6 @@ public class DataCollector
     }
     
     /// <summary>
-    /// 如果 PLC 客户端连接断开则重连
-    /// </summary>
-    /// <param name="device"></param>
-    /// <param name="plcClient"></param>
-    /// <exception cref="Exception"></exception>
-    private static async Task IfPLCClientNotConnectedReconnectAsync(Device device, IPLCClient plcClient)
-    {
-        if (!plcClient.IsConnected())
-        {
-            var connect = await plcClient.ConnectServerAsync();
-                        
-            if (connect.IsSuccess)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
-            }
-            else
-            {
-                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
-            }
-        }
-    }
-    
-    /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
     /// <param name="device"></param>
@@ -162,6 +139,29 @@ public class DataCollector
         catch (Exception ex)
         {
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
+        }
+    }
+    
+    /// <summary>
+    /// 如果 PLC 客户端连接断开则重连
+    /// </summary>
+    /// <param name="device"></param>
+    /// <param name="plcClient"></param>
+    /// <exception cref="Exception"></exception>
+    private static async Task IfPLCClientNotConnectedReconnectAsync(Device device, IPLCClient plcClient)
+    {
+        if (!plcClient.IsConnected())
+        {
+            var connect = await plcClient.ConnectServerAsync();
+                        
+            if (connect.IsSuccess)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+            }
+            else
+            {
+                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
+            }
         }
     }
 
