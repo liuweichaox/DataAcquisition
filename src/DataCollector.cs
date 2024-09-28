@@ -174,11 +174,7 @@ public class DataCollector
     /// <returns></returns>
     private async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient)
     {
-        var data = new Dictionary<string, object>
-        {
-            { "TimeStamp", DateTime.Now },
-            { "Device", device.Code }
-        };
+        var data = new Dictionary<string, object>();
         
         foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
         {
