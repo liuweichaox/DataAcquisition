@@ -22,7 +22,7 @@ DynamicPLCDataCollector/
 │   │   │   └── SQLiteDataStorage.cs          # SQLite 数据服务实现
 │   │   ├── /Devices                          # 设备服务
 │   │   │   ├── IDeviceService.cs             # 设备服务接口
-│   │   │   └── DataProcessingService.cs      # 设备服务实现
+│   │   │   └── DeviceService.cs              # 设备服务实现
 │   │   ├── /MetricTableConfigs               # 数据采集配置服务
 │   │   │   ├── IMetricTableConfigService.cs  # 数据采集配置服务接口
 │   │   │   └── MetricTableConfigService.cs   # 数据采集配置服务实现
