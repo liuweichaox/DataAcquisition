@@ -158,8 +158,8 @@ public class SQLiteDataStorage : AbstractDataStorage
 - `CollectionFrequency`：数据采集间隔（毫秒）
 - `BatchSize`: 批量保存大小
 - `IsAddDateTimeNow`: 是否添加当前时间
-- `IsUtc`: 是否使用 Utc 时间
-- `DateTimeNowColumnName`: 当前时间列名
+- `IsUtc`: 是否使用 Utc 时间（`IsAddDateTimeNow`为`true`时有效）
+- `DateTimeNowColumnName`: 当前时间列名`IsAddDateTimeNow`为`true`时有效）
 - `MetricColumnConfigs`：指标的具体配置
   - `ColumnName`：数据库表中的列名
   - `DataAddress`：PLC 中存储该数据的地址
