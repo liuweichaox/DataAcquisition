@@ -46,11 +46,6 @@ DynamicPLCDataCollector/
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
 
 ```C#
-using HslCommunication.Profinet.Inovance;
-using System.Net.NetworkInformation;
-using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.PLCClients;
-
 /// <summary>
 /// PLC 客户端实现
 /// </summary>
@@ -88,38 +83,31 @@ public class PLCClient : IPLCClient
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
-using DynamicPLCDataCollector.Extensions;
-using DynamicPLCDataCollector.Models;
-using Microsoft.Data.Sqlite;
-
-namespace DynamicPLCDataCollector.DataStorages
+/// <summary>
+/// SQLite 数据存储实现
+/// </summary>
+public class SQLiteDataStorage : IDataStorage
 {
-    /// <summary>
-    /// SQLite 数据存储实现
-    /// </summary>
-    public class SQLiteDataStorage : IDataStorage
+    private readonly SqliteConnection _connection;
+    private readonly MetricTableConfig _metricTableConfig;
+    public SQLiteDataStorage(MetricTableConfig metricTableConfig)
     {
-        private readonly SqliteConnection _connection;
-        private readonly MetricTableConfig _metricTableConfig;
-        public SQLiteDataStorage(MetricTableConfig metricTableConfig)
-        {
-            _metricTableConfig = metricTableConfig;
-            
-            var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
-            _connection = new SqliteConnection($@"Data Source={dbPath};");
-            _connection.Open();
-        }
+        _metricTableConfig = metricTableConfig;
+        
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
+        _connection = new SqliteConnection($@"Data Source={dbPath};");
+        _connection.Open();
+    }
 
-        public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
-        {
-            await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
-        }
+    public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
+    {
+        await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
+    }
 
-        public async ValueTask DisposeAsync()
-        {
-            await _connection.CloseAsync();
-            await _connection.DisposeAsync();
-        }
+    public async ValueTask DisposeAsync()
+    {
+        await _connection.CloseAsync();
+        await _connection.DisposeAsync();
     }
 }
 ```
