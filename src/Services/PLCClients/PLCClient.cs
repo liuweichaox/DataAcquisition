@@ -1,5 +1,4 @@
 ﻿using System.Net.NetworkInformation;
-using DynamicPLCDataCollector.Models;
 using HslCommunication.Profinet.Inovance;
 
 namespace DynamicPLCDataCollector.Services.PLCClients;

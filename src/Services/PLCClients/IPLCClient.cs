@@ -1,6 +1,4 @@
-﻿using DynamicPLCDataCollector.Models;
-
-namespace DynamicPLCDataCollector.Services.PLCClients;
+﻿namespace DynamicPLCDataCollector.Services.PLCClients;
 
 /// <summary>
 /// PLC 客户端接口定义

@@ -1,6 +1,4 @@
-﻿using DynamicPLCDataCollector.Models;
-
-namespace DynamicPLCDataCollector.Services.Devices;
+﻿namespace DynamicPLCDataCollector.Services.Devices;
 
 /// <summary>
 /// 设备服务接口

@@ -1,5 +1,4 @@
-﻿using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Utils;
+﻿using DynamicPLCDataCollector.Utils;
 
 namespace DynamicPLCDataCollector.Services.MetricTableConfigs;
 

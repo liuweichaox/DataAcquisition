@@ -1,10 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using DynamicPLCDataCollector.Common;
-using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.DataStorages;
 using DynamicPLCDataCollector.Services.Devices;
 using DynamicPLCDataCollector.Services.MetricTableConfigs;
-using DynamicPLCDataCollector.Services.PLCClients;
 using DynamicPLCDataCollector.Services.QueueManagers;
 
 namespace DynamicPLCDataCollector;

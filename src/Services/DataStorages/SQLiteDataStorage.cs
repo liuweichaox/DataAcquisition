@@ -1,5 +1,4 @@
 ﻿using DynamicPLCDataCollector.Extensions;
-using DynamicPLCDataCollector.Models;
 using Microsoft.Data.Sqlite;
 
 namespace DynamicPLCDataCollector.Services.DataStorages;

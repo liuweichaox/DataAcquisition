@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.DataStorages;
 
 namespace DynamicPLCDataCollector.Services.QueueManagers;
 
