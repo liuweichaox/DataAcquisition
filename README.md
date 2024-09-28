@@ -9,21 +9,7 @@
 - **编程语言**：C#
 - **通信协议**：Modbus TCP/IP
 
-## 3. 主要功能
-
-- **数据采集**：支持从多个 PLC 设备获取多种类型的实时数据。
-- **配置灵活性**：用户可自定义数据点、采集频率及方式。
-- **实时监控**：具备数据可视化功能，能够即时展示设备状态变化。
-
-## 4. 适用场景
-
-- 工业自动化过程中的监控与控制
-- 设备性能分析及故障诊断
-- 历史数据记录与回溯
-
-## 5. 使用指南
-
-### 项目结构
+## 3. 项目结构
 ```
 DynamicPLCDataCollector/
 ├── /src                                #源代码目录
@@ -41,7 +27,21 @@ DynamicPLCDataCollector/
 └── README.md                           # 项目说明文件
 ```
 
-### 5.1 实现 IPLClient 接口（定义 PLC 客户端类型）
+## 4. 主要功能
+
+- **数据采集**：支持从多个 PLC 设备获取多种类型的实时数据。
+- **配置灵活性**：用户可自定义数据点、采集频率及方式。
+- **实时监控**：具备数据可视化功能，能够即时展示设备状态变化。
+
+## 5. 适用场景
+
+- 工业自动化过程中的监控与控制
+- 设备性能分析及故障诊断
+- 历史数据记录与回溯
+
+## 6. 使用指南
+
+### 6.1 实现 IPLClient 接口（定义 PLC 客户端类型）
 
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
 
@@ -82,7 +82,7 @@ public class PLCClient : IPLCClient
 }
 ```
 
-### 5.2 实现 IDataStorage 接口（定义持久化数据库类型）
+### 6.2 实现 IDataStorage 接口（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
@@ -124,7 +124,7 @@ namespace DynamicPLCDataCollector.DataStorages
 }
 ```
 
-### 5.3 配置 PLC 通讯地址（定义 PLC 服务连接方式）
+### 6.3 配置 PLC 通讯地址（定义 PLC 服务连接方式）
 
 **文件路径**：`Configs/devices.json`
 
@@ -140,7 +140,7 @@ namespace DynamicPLCDataCollector.DataStorages
 ]
 ```
 
-### 5.4 设置 PLC 数据采集参数（定义怎么采集数据）
+### 6.4 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
@@ -201,7 +201,7 @@ namespace DynamicPLCDataCollector.DataStorages
 }
 ```
 
-### 5.5 运行
+### 6.5 运行
 使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
 ```C#
 using DynamicPLCDataCollector.DataStorages;
@@ -220,6 +220,6 @@ await Task.Delay(Timeout.Infinite);
 
 ```
 
-## 6. 总结
+## 7. 总结
 
 本动态 PLC 数据采集系统通过灵活配置和强大功能，能有效支持工业自动化过程中的数据监控与分析，适用于多种场景。用户可根据实际需求进行定制与扩展，提升生产效率和设备管理能力。
