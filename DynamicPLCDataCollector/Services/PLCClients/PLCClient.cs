@@ -1,7 +1,8 @@
-﻿using HslCommunication.Profinet.Inovance;
-using System.Net.NetworkInformation;
+﻿using System.Net.NetworkInformation;
 using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.PLCClients;
+using HslCommunication.Profinet.Inovance;
+
+namespace DynamicPLCDataCollector.Services.PLCClients;
 
 /// <summary>
 /// PLC 客户端实现

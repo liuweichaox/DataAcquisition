@@ -1,4 +1,4 @@
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.Services.QueueManagers;
 
 /// <summary>
 /// 队列管理器接口

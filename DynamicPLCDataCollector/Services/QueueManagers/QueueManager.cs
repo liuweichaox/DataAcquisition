@@ -1,7 +1,8 @@
 using System.Collections.Concurrent;
-using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services;
+using DynamicPLCDataCollector.Services.DataStorages;
+
+namespace DynamicPLCDataCollector.Services.QueueManagers;
 
 /// <summary>
 /// 队里管理器

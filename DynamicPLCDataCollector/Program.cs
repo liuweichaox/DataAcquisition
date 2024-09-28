@@ -1,6 +1,7 @@
-﻿using DynamicPLCDataCollector.DataStorages;
+﻿using DynamicPLCDataCollector;
 using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.PLCClients;
+using DynamicPLCDataCollector.Services.DataStorages;
+using DynamicPLCDataCollector.Services.PLCClients;
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 

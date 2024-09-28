@@ -1,9 +1,13 @@
 ﻿using System.Collections.Concurrent;
 using DynamicPLCDataCollector.Common;
-using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.PLCClients;
-using DynamicPLCDataCollector.Services;
+using DynamicPLCDataCollector.Services.DataStorages;
+using DynamicPLCDataCollector.Services.Devices;
+using DynamicPLCDataCollector.Services.MetricTableConfigs;
+using DynamicPLCDataCollector.Services.PLCClients;
+using DynamicPLCDataCollector.Services.QueueManagers;
+
+namespace DynamicPLCDataCollector;
 
 /// <summary>
 /// 数据采集器
@@ -290,7 +294,7 @@ public class DataCollector
         
         foreach (var dataStorage in _dataStorages)
         {
-           await dataStorage.DisposeAsync();
+            await dataStorage.DisposeAsync();
         }
         
         foreach (var queueManager in _queueManagers)

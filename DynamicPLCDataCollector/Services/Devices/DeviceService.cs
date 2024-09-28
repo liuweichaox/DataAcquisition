@@ -1,7 +1,7 @@
 ﻿using DynamicPLCDataCollector.Models;
 using DynamicPLCDataCollector.Utils;
 
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.Services.Devices;
 
 public class DeviceService : IDeviceService
 {

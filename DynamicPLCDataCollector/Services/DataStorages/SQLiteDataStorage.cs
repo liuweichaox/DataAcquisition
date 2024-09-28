@@ -2,7 +2,7 @@
 using DynamicPLCDataCollector.Models;
 using Microsoft.Data.Sqlite;
 
-namespace DynamicPLCDataCollector.DataStorages
+namespace DynamicPLCDataCollector.Services.DataStorages
 {
     /// <summary>
     /// SQLite 数据存储实现

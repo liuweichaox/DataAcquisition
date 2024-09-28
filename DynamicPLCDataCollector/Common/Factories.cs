@@ -1,6 +1,6 @@
-using DynamicPLCDataCollector.DataStorages;
 using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.PLCClients;
+using DynamicPLCDataCollector.Services.DataStorages;
+using DynamicPLCDataCollector.Services.PLCClients;
 
 namespace DynamicPLCDataCollector.Common;
 

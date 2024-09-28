@@ -1,6 +1,6 @@
 ﻿using DynamicPLCDataCollector.Models;
 
-namespace DynamicPLCDataCollector.Services;
+namespace DynamicPLCDataCollector.Services.MetricTableConfigs;
 
 /// <summary>
 /// 采集配置服务接口
