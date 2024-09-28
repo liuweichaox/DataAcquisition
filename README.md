@@ -36,8 +36,8 @@ DynamicPLCDataCollector/
 │   ├── /Utils                                # 辅助函数
 │   ├── DynamicPLCDataCollector.csproj        # 项目文件
 │   ├── DynamicPLCDataCollector.sln           # 解决方案
-│   └── DataCollector.cs                      # 配置文件
-│   └── Program.cs                            # 程序主文件
+│   ├── DataCollector.cs                      # 配置文件
+│   ├── Program.cs                            # 程序主文件
 │   └── Usings.cs                             # 全局 using
 ├── .gitignore                                # Git 忽略文件
 └── README.md                                 # 项目说明文件
