@@ -4,9 +4,6 @@
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "IsAddDateTimeNow": true,
-  "IsUtc": false,
-  "DateTimeNowColumnName": "时间",
   "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",

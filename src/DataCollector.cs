@@ -20,13 +20,15 @@ public class DataCollector
     private readonly ConcurrentBag<IQueueManager> _queueManagers;
     private readonly PLCClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
+    private readonly ProcessReadData _processReadData;
     
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
-    public DataCollector(PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory)
+    /// <param name="processReadData"></param>
+    public DataCollector(PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
     {
         Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集程序已启动...");
         _deviceService = new DeviceService();
@@ -38,6 +40,7 @@ public class DataCollector
         _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
+        _processReadData = processReadData;
         ListenExitEvents();
     }
     
@@ -176,18 +179,6 @@ public class DataCollector
     {
         var data = new Dictionary<string, object>();
 
-        if (metricTableConfig.IsAddDateTimeNow)
-        {
-            if (metricTableConfig.IsUtc)
-            {
-                data[metricTableConfig.DateTimeNowColumnName] = DateTime.UtcNow;
-            }
-            else
-            {
-                data[metricTableConfig.DateTimeNowColumnName] = DateTime.Now;
-            }
-        }
-
         foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
         {
             try
@@ -199,7 +190,9 @@ public class DataCollector
                 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
             }
         }
-        
+
+        _processReadData(data, device);
+            
         return data;
     }
 
