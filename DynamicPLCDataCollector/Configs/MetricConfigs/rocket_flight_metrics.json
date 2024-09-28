@@ -1,9 +1,9 @@
 ﻿{
   "IsEnabled": true,
+  "DatabaseName": "dbo",
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "DatabaseName": "dbo",
   "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",

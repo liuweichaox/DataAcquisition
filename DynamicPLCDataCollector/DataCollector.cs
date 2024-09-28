@@ -14,8 +14,9 @@ public class DataCollector
     private readonly IMetricTableConfigService _metricTableConfigService;
     private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
-    private readonly ConcurrentBag<IDataStorage> _dataStorages;
     private readonly ConcurrentBag<IPLCClient> _plcClients;
+    private readonly ConcurrentBag<IDataStorage> _dataStorages;
+    private readonly ConcurrentBag<IQueueManager> _queueManagers;
     private readonly PLCClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     
@@ -31,8 +32,9 @@ public class DataCollector
         _metricTableConfigService = new MetricTableConfigService();
         _runningTasks  = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
-        _dataStorages = new ConcurrentBag<IDataStorage>();
         _plcClients = new ConcurrentBag<IPLCClient>();
+        _dataStorages = new ConcurrentBag<IDataStorage>();
+        _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         ListenExitEvents();
@@ -68,11 +70,13 @@ public class DataCollector
         var task = Task.Factory.StartNew(async () =>
         {
             var plcClient = await CreatePLCClientAsync(device);
-            var dataStorage = CreateDataStorage(metricTableConfig);
-
+            var dataStorage = CreateDataStorage();
+            var queueManager = new QueueManager(dataStorage, metricTableConfig);
+            _queueManagers.Add(queueManager);
+            
             while (true)
             {
-                await ReadAndSaveAsync(device, metricTableConfig, plcClient, dataStorage);
+                await ReadAndSaveAsync(device, metricTableConfig, plcClient, queueManager);
                 await Task.Delay(metricTableConfig.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
@@ -89,9 +93,7 @@ public class DataCollector
     private async Task<IPLCClient> CreatePLCClientAsync(Device device)
     {
         var plcClient = _plcClientFactory(device.IpAddress, device.Port);
-            
         var connect = await plcClient.ConnectServerAsync();
-            
         if (connect.IsSuccess)
         {
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
@@ -100,7 +102,6 @@ public class DataCollector
         {
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
         }
-            
         _plcClients.Add(plcClient);
         
         return plcClient;
@@ -109,14 +110,11 @@ public class DataCollector
     /// <summary>
     /// 创建数据存储服务
     /// </summary>
-    /// <param name="metricTableConfig"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(MetricTableConfig metricTableConfig)
+    private IDataStorage CreateDataStorage()
     {
-        var dataStorage = _dataStorageFactory(metricTableConfig);
-
+        var dataStorage = _dataStorageFactory();
         _dataStorages.Add(dataStorage);
-        
         return dataStorage;
     }
     
@@ -126,15 +124,15 @@ public class DataCollector
     /// <param name="device"></param>
     /// <param name="metricTableConfig"></param>
     /// <param name="plcClient"></param>
-    /// <param name="dataStorage"></param>
+    /// <param name="queueManager"></param>
     private async Task ReadAndSaveAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient,
-        IDataStorage dataStorage)
+        QueueManager queueManager)
     {
         try
         {
             await IfPLCClientNotConnectedReconnectAsync(device, plcClient);
             var data = await ReadAsync(device, metricTableConfig, plcClient);
-            dataStorage.Save(data, metricTableConfig);
+            queueManager.EnqueueData(data);
         }
         catch (Exception ex)
         {
@@ -153,7 +151,6 @@ public class DataCollector
         if (!plcClient.IsConnected())
         {
             var connect = await plcClient.ConnectServerAsync();
-                        
             if (connect.IsSuccess)
             {
                 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
@@ -179,7 +176,7 @@ public class DataCollector
             { "TimeStamp", DateTime.Now },
             { "Device", device.Code }
         };
-
+        
         foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
         {
             try
@@ -191,7 +188,7 @@ public class DataCollector
                 Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
             }
         }
-
+        
         return data;
     }
 
@@ -228,6 +225,7 @@ public class DataCollector
     private async Task<OperationResult<T>> RetryOnFailure<T>(Func<Task<OperationResult<T>>> action, int maxRetries = 3)
     {
         var retries = 0;
+        
         while (retries < maxRetries)
         {
             var result = await action();
@@ -238,6 +236,7 @@ public class DataCollector
             retries++;
             await Task.Delay(1000);  // 等待1秒后重试
         }
+        
         throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
     }
     
@@ -283,7 +282,7 @@ public class DataCollector
     private async Task HandleExitAsync()
     {
         _cts.Cancel();
-
+        
         foreach (var plcClient in _plcClients)
         {
             await plcClient.ConnectCloseAsync();
@@ -291,7 +290,12 @@ public class DataCollector
         
         foreach (var dataStorage in _dataStorages)
         {
-            dataStorage.Release();
+           await dataStorage.DisposeAsync();
+        }
+        
+        foreach (var queueManager in _queueManagers)
+        {
+            queueManager.Complete();
         }
         
         LogExitInformation("程序已正常退出");

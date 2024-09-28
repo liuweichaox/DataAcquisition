@@ -6,6 +6,11 @@
 public class MetricTableConfig
 {
     /// <summary>
+    /// 是否启用
+    /// </summary>
+    public bool IsEnabled { get; set; }
+    
+    /// <summary>
     /// 数据库名称
     /// </summary>
     public string DatabaseName { get; set; }
@@ -14,11 +19,6 @@ public class MetricTableConfig
     /// 表名
     /// </summary>
     public string TableName { get; set; }
-
-    /// <summary>
-    /// 是否启用
-    /// </summary>
-    public bool IsEnabled { get; set; }
 
     /// <summary>
     /// 间隔时间（ms）

@@ -1,5 +1,4 @@
-﻿using System.Collections.Concurrent;
-using DynamicPLCDataCollector.Extensions;
+﻿using DynamicPLCDataCollector.Extensions;
 using DynamicPLCDataCollector.Models;
 using Microsoft.Data.Sqlite;
 
@@ -8,34 +7,25 @@ namespace DynamicPLCDataCollector.DataStorages
     /// <summary>
     /// SQLite 数据存储实现
     /// </summary>
-    public class SQLiteDataStorage : AbstractDataStorage
+    public class SQLiteDataStorage : IDataStorage
     {
-        public SQLiteDataStorage(MetricTableConfig metricTableConfig) : base(metricTableConfig)
+        private readonly SqliteConnection _connection;
+        public SQLiteDataStorage()
         {
+            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite"); 
+            _connection = new SqliteConnection($@"Data Source={dbPath};");
+            _connection.Open();
         }
-        protected override async void ProcessQueue(BlockingCollection<Dictionary<string, object>> queue, MetricTableConfig metricTableConfig)
+
+        public async Task SaveBatchAsync(List<Dictionary<string, object>> data, MetricTableConfig metricTableConfig)
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite");
-            await using var sqLiteConnection = new SqliteConnection($@"Data Source={dbPath};");
-            sqLiteConnection.Open();
+            await _connection.InsertBatchAsync(metricTableConfig.TableName, data);
+        }
 
-            var dataBatch = new List<Dictionary<string, object>>();
-
-            foreach (var data in queue.GetConsumingEnumerable())
-            {
-                dataBatch.Add(data);
-
-                if (dataBatch.Count >= metricTableConfig.BatchSize)
-                {
-                    await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-                    dataBatch.Clear();
-                }
-            }
-
-            if (dataBatch.Count > 0)
-            {
-                await sqLiteConnection.InsertBatchAsync(metricTableConfig.TableName, dataBatch);
-            }
+        public async ValueTask DisposeAsync()
+        {
+            await _connection.CloseAsync();
+            await _connection.DisposeAsync();
         }
     }
 }

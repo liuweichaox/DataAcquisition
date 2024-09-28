@@ -4,7 +4,7 @@ using DynamicPLCDataCollector.PLCClients;
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 
-IDataStorage DataStorageFactory(MetricTableConfig metricTableConfig) => new SQLiteDataStorage(metricTableConfig);
+IDataStorage DataStorageFactory() => new SQLiteDataStorage();
 
 var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory);
 
