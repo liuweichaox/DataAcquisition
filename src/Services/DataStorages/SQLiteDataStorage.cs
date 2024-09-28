@@ -21,7 +21,7 @@ public class SQLiteDataStorage : AbstractDataStorage
         _connection.Open();
     }
 
-    public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
+    public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
     {
         await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
     }

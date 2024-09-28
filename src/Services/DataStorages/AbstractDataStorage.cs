@@ -6,5 +6,7 @@ public abstract class AbstractDataStorage : IDataStorage
     {
     }
 
+    public abstract Task SaveBatchAsync(List<Dictionary<string, object>> data);
+    
     public abstract ValueTask DisposeAsync();
 }
