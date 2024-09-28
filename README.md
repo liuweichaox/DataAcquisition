@@ -12,20 +12,35 @@
 ## 3. 项目结构
 ```
 DynamicPLCDataCollector/
-├── /src                                #源代码目录
-│   ├── /Conmon                         # 工具类
-│   ├── /Configs                        # 配置文件
-│   ├── /Extensions                     # 扩展方法
-│   ├── /Services                       # 服务相关的代码
-│   ├── /Models                         # 数据模型
-│   ├── /Utils                          # 辅助函数
-│   ├── DynamicPLCDataCollector.csproj  # 项目文件
-│   ├── DynamicPLCDataCollector.sln     # 解决方案
-│   └── DataCollector.cs                # 配置文件
-│   └── Program.cs                      # 程序主文件
-│   └── Usings.cs                       # 全局 using
-├── .gitignore                          # Git 忽略文件
-└── README.md                           # 项目说明文件
+├── /src                                      # 源代码目录
+│   ├── /Common                               # 工具类
+│   ├── /Configs                              # 配置文件
+│   ├── /Extensions                           # 扩展方法
+│   ├── /Services                             # 服务相关的代码
+│   │   ├── /DataStorages                     # 数据服务 (与数据获取、存储相关)
+│   │   │   ├── IDataStorage.cs               # 数据服务接口
+│   │   │   └── SQLiteDataStorage.cs          # SQLite 数据服务实现
+│   │   ├── /Devices                          # 设备服务
+│   │   │   ├── IDeviceService.cs             # 设备服务接口
+│   │   │   └── DataProcessingService.cs      # 设备服务实现
+│   │   ├── /MetricTableConfigs               # 数据采集配置服务
+│   │   │   ├── IMetricTableConfigService.cs  # 数据采集配置服务接口
+│   │   │   └── MetricTableConfigService.cs   # 数据采集配置服务实现
+│   │   ├── /PLCClients                       # PLC 通信服务 (与 PLC 通信)
+│   │   │   ├── IPLCClient.cs                 # PLC 通信服务接口
+│   │   │   └── PLCClient.cs                  # PLC 通信服务实现
+│   │   └── /QueueManagers                    # 队列管理器服务
+│   │       ├── IQueueManager.cs              # 队列管理器服务接口
+│   │       └── QueueManager.cs               # 队列管理器服务实现
+│   ├── /Models                               # 数据模型
+│   ├── /Utils                                # 辅助函数
+│   ├── DynamicPLCDataCollector.csproj        # 项目文件
+│   ├── DynamicPLCDataCollector.sln           # 解决方案
+│   └── DataCollector.cs                      # 配置文件
+│   └── Program.cs                            # 程序主文件
+│   └── Usings.cs                             # 全局 using
+├── .gitignore                                # Git 忽略文件
+└── README.md                                 # 项目说明文件
 ```
 
 ## 4. 主要功能
