@@ -11,6 +11,5 @@ public interface IDataStorage : IAsyncDisposable
     /// 保存
     /// </summary>
     /// <param name="data"></param>
-    /// <param name="metricTableConfig"></param>
-    Task SaveBatchAsync(List<Dictionary<string, object>> data, MetricTableConfig metricTableConfig);
+    Task SaveBatchAsync(List<Dictionary<string, object>> data);
 }

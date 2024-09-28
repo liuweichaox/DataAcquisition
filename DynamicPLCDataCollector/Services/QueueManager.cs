@@ -40,14 +40,14 @@ public class QueueManager : IQueueManager
             
             if (_dataBatch.Count >= _metricTableConfig.BatchSize)
             {
-                await _dataStorage.SaveBatchAsync(_dataBatch, _metricTableConfig);
+                await _dataStorage.SaveBatchAsync(_dataBatch);
                 _dataBatch.Clear();
             }
         }
         
         if (_dataBatch.Count > 0)
         {
-            await _dataStorage.SaveBatchAsync(_dataBatch, _metricTableConfig);
+            await _dataStorage.SaveBatchAsync(_dataBatch);
         }
     }
 

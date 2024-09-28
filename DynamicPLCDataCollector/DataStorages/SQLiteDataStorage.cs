@@ -10,16 +10,19 @@ namespace DynamicPLCDataCollector.DataStorages
     public class SQLiteDataStorage : IDataStorage
     {
         private readonly SqliteConnection _connection;
-        public SQLiteDataStorage()
+        private readonly MetricTableConfig _metricTableConfig;
+        public SQLiteDataStorage(MetricTableConfig metricTableConfig)
         {
-            var dbPath = Path.Combine(AppContext.BaseDirectory, "db.sqlite"); 
+            _metricTableConfig = metricTableConfig;
+            
+            var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
             _connection = new SqliteConnection($@"Data Source={dbPath};");
             _connection.Open();
         }
 
-        public async Task SaveBatchAsync(List<Dictionary<string, object>> data, MetricTableConfig metricTableConfig)
+        public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
         {
-            await _connection.InsertBatchAsync(metricTableConfig.TableName, data);
+            await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
         }
 
         public async ValueTask DisposeAsync()
