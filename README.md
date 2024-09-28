@@ -30,6 +30,7 @@
 ### 5.2 实现 IDataStorage 接口（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
+这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
 using DynamicPLCDataCollector.Extensions;
