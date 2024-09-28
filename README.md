@@ -9,7 +9,7 @@
 - **编程语言**：C# / .NET 8
 - **通信协议**：Modbus TCP/IP
 
-## 3. 项目结构
+## 3. 项目结构介绍
 ```
 DynamicPLCDataCollector/
 ├── /src                                      # 源代码目录
