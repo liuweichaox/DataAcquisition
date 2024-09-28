@@ -23,6 +23,24 @@
 
 ## 5. 使用指南
 
+### 项目结构
+```
+DynamicPLCDataCollector/
+├── /src                                #源代码目录
+│   ├── /Conmon                         # 工具类
+│   ├── /Configs                        # 配置文件
+│   ├── /Extensions                     # 扩展方法
+│   ├── /Services                       # 服务相关的代码
+│   ├── /Models                         # 数据模型
+│   ├── /Utils                          # 辅助函数
+│   ├── DynamicPLCDataCollector.csproj  # 项目文件
+│   ├── DynamicPLCDataCollector.sln     # 解决方案
+│   └── DataCollector.cs                # 配置文件
+│   └── Program.cs                      # 配置文件
+├── .gitignore                          # Git 忽略文件
+└── README.md                           # 项目说明文件
+```
+
 ### 5.1 实现 IPLClient 接口（定义 PLC 客户端类型）
 
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
