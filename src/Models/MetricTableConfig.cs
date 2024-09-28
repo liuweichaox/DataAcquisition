@@ -29,6 +29,21 @@ public class MetricTableConfig
     /// 批量保存的数据
     /// </summary>
     public int BatchSize { get; set; }
+    
+    /// <summary>
+    /// 是否需要添加时间戳列
+    /// </summary>
+    public bool IsAddDateTimeNow { get; set; }
+    
+    /// <summary>
+    /// 是否使用 Utc 时间戳
+    /// </summary>
+    public bool IsUtc {  get; set; }
+    
+    /// <summary>
+    /// 时间戳列名
+    /// </summary>
+    public string DateTimeNowColumnName { get; set; }
 
     /// <summary>
     /// 采集配置

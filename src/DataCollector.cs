@@ -175,7 +175,19 @@ public class DataCollector
     private async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient)
     {
         var data = new Dictionary<string, object>();
-        
+
+        if (metricTableConfig.IsAddDateTimeNow)
+        {
+            if (metricTableConfig.IsUtc)
+            {
+                data[metricTableConfig.DateTimeNowColumnName] = DateTime.UtcNow;
+            }
+            else
+            {
+                data[metricTableConfig.DateTimeNowColumnName] = DateTime.Now;
+            }
+        }
+
         foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
         {
             try

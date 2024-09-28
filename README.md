@@ -157,6 +157,9 @@ public class SQLiteDataStorage : AbstractDataStorage
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
 - `BatchSize`: 批量保存大小
+- `IsAddDateTimeNow`: 是否添加当前时间
+- `IsUtc`: 是否使用 Utc 时间
+- `DateTimeNowColumnName`: 当前时间列名
 - `MetricColumnConfigs`：指标的具体配置
   - `ColumnName`：数据库表中的列名
   - `DataAddress`：PLC 中存储该数据的地址
@@ -172,6 +175,9 @@ public class SQLiteDataStorage : AbstractDataStorage
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
+  "IsAddDateTimeNow": true,
+  "IsUtc": false,
+  "DateTimeNowColumnName": "时间",
   "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",
