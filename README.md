@@ -93,23 +93,25 @@ public class PLCClient : IPLCClient
 }
 ```
 
-### 6.2 实现 IDataStorage 接口（定义持久化数据库类型）
+### 6.2 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
-/// <summary>
+// <summary>
 /// SQLite 数据存储实现
 /// </summary>
-public class SQLiteDataStorage : IDataStorage
+public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
+    private readonly Device _device;
     private readonly MetricTableConfig _metricTableConfig;
-    public SQLiteDataStorage(MetricTableConfig metricTableConfig)
+    public SQLiteDataStorage(Device device, MetricTableConfig metricTableConfig):base(device, metricTableConfig)
     {
+        _device = device;
         _metricTableConfig = metricTableConfig;
-        
+            
         var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
@@ -120,7 +122,7 @@ public class SQLiteDataStorage : IDataStorage
         await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
     }
 
-    public async ValueTask DisposeAsync()
+    public override async ValueTask DisposeAsync()
     {
         await _connection.CloseAsync();
         await _connection.DisposeAsync();
