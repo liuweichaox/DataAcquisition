@@ -157,9 +157,6 @@ public class SQLiteDataStorage : AbstractDataStorage
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
 - `BatchSize`: 批量保存大小
-- `IsAddDateTimeNow`: 是否添加当前时间
-- `IsUtc`: 是否使用 Utc 时间（`IsAddDateTimeNow`为`true`时有效）
-- `DateTimeNowColumnName`: 当前时间列名`IsAddDateTimeNow`为`true`时有效）
 - `MetricColumnConfigs`：指标的具体配置
   - `ColumnName`：数据库表中的列名
   - `DataAddress`：PLC 中存储该数据的地址
@@ -175,9 +172,6 @@ public class SQLiteDataStorage : AbstractDataStorage
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "IsAddDateTimeNow": true,
-  "IsUtc": false,
-  "DateTimeNowColumnName": "时间",
   "MetricColumnConfigs": [
     {
       "ColumnName": "实时速度",
@@ -214,17 +208,23 @@ public class SQLiteDataStorage : AbstractDataStorage
 ```
 
 ### 6.5 运行
-使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。`ProcessReadData`使在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
 ```C#
-IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
-
-IDataStorage DataStorageFactory(MetricTableConfig metricTableConfig) => new SQLiteDataStorage(metricTableConfig);
-
-var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory);
+var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
 
 await dataCollector.StartCollectionTasks();
 
 await Task.Delay(Timeout.Infinite);
+
+IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
+
+IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
+
+void ProcessReadData(Dictionary<string, object> data, Device device)
+{
+    data["时间"] = DateTime.Now;
+    data["DeviceCode"] = device.Code;
+}
 ```
 
 ## 7. 总结
