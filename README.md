@@ -27,6 +27,43 @@
 
 `IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
 
+```C#
+using HslCommunication.Profinet.Inovance;
+using System.Net.NetworkInformation;
+using DynamicPLCDataCollector.Models;
+using DynamicPLCDataCollector.PLCClients;
+
+/// <summary>
+/// PLC 客户端实现
+/// </summary>
+public class PLCClient : IPLCClient
+{
+    private readonly InovanceTcpNet _plcClient;
+
+    public PLCClient(string ipAddress, int port)
+    {
+        // 初始化 PLC 客户端
+    }
+
+    public async Task<OperationResult<bool>> ConnectServerAsync()
+    {
+        // 连接到 PLC 服务器并返回连接结果
+    }
+
+    public async Task<OperationResult<bool>> ConnectCloseAsync()
+    {
+        // 断开与 PLC 的连接并返回断开结果
+    }
+
+    public bool IsConnected()
+    {
+        // 检查当前连接状态，返回布尔值
+    }
+
+    // 其他读取方法...
+}
+```
+
 ### 5.2 实现 IDataStorage 接口（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
