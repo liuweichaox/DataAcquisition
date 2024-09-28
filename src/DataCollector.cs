@@ -71,7 +71,7 @@ public class DataCollector
         var task = Task.Factory.StartNew(async () =>
         {
             var plcClient = await CreatePLCClientAsync(device);
-            var dataStorage = CreateDataStorage(metricTableConfig);
+            var dataStorage = CreateDataStorage(device, metricTableConfig);
             var queueManager = new QueueManager(dataStorage, metricTableConfig);
             _queueManagers.Add(queueManager);
             
@@ -111,10 +111,12 @@ public class DataCollector
     /// <summary>
     /// 创建数据存储服务
     /// </summary>
+    /// <param name="device"></param>
+    /// <param name="metricTableConfig"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(MetricTableConfig metricTableConfig)
+    private IDataStorage CreateDataStorage(Device device, MetricTableConfig metricTableConfig)
     {
-        var dataStorage = _dataStorageFactory(metricTableConfig);
+        var dataStorage = _dataStorageFactory(device, metricTableConfig);
         _dataStorages.Add(dataStorage);
         return dataStorage;
     }

@@ -1,6 +1,6 @@
 ﻿IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 
-IDataStorage DataStorageFactory(MetricTableConfig metricTableConfig) => new SQLiteDataStorage(metricTableConfig);
+IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 
 var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory);
 
