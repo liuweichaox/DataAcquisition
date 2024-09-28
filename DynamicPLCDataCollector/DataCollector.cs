@@ -266,7 +266,7 @@ public class DataCollector
     /// <summary>
     /// 监听退出事件
     /// </summary>
-    public void ListenExitEvents()
+    private void ListenExitEvents()
     {
         Console.CancelKeyPress += async (sender, e) =>
         {
