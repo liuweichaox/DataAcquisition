@@ -208,25 +208,33 @@ public class SQLiteDataStorage : AbstractDataStorage
 ```
 
 ### 6.5 运行
-创建`IPLCClient`、`IDataStorage`实例`，定义`ProcessReadData`委托（读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理），构建`DataCollector`实例。运行`StartCollectionTasks` 函数，开启数据采集。
+
+定义`IPLCClient`的实现
 ```C#
-var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
-
-await dataCollector.StartCollectionTasks();
-
-await Task.Delay(Timeout.Infinite);
-
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
-
+```
+定义`IDataStorage`的实现
+```C#
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
+```
+定义`ProcessReadData`委托
+> 读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理
 
+```C#
 void ProcessReadData(Dictionary<string, object> data, Device device)
 {
     data["时间"] = DateTime.Now;
     data["DeviceCode"] = device.Code;
 }
 ```
+构建`DataCollector`实例，运行`StartCollectionTasks` 函数，开启数据采集
+```C#
+var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
 
+await dataCollector.StartCollectionTasks();
+
+await Task.Delay(Timeout.Infinite);
+```
 ## 7. 总结
 
 本动态 PLC 数据采集系统通过灵活配置和强大功能，能有效支持工业自动化过程中的数据监控与分析，适用于多种场景。用户可根据实际需求进行定制与扩展，提升生产效率和设备管理能力。
