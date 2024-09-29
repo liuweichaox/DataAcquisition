@@ -209,11 +209,12 @@ public class SQLiteDataStorage : AbstractDataStorage
 
 ### 6.5 运行
 
-#### 6.5.1 定义`IPLCClient`的实现
+#### 6.5.1 定义`IPLCClient`的创建
 ```C#
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 ```
-#### 6.5.2 定义`IDataStorage`的实现
+
+#### 6.5.2 定义`IDataStorage`的创建
 ```C#
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 ```
