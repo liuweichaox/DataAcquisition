@@ -208,7 +208,7 @@ public class SQLiteDataStorage : AbstractDataStorage
 ```
 
 ### 6.5 运行
-使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。`ProcessReadData`使在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+创建`IPLCClient`、`IDataStorage`实例`，定义`ProcessReadData`委托（读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理），构建`DataCollector`实例。运行`StartCollectionTasks` 函数，开启数据采集。
 ```C#
 var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
 
