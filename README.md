@@ -209,17 +209,16 @@ public class SQLiteDataStorage : AbstractDataStorage
 
 ### 6.5 运行
 
-定义`IPLCClient`的实现
+#### 6.5.1 定义`IPLCClient`的实现
 ```C#
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 ```
-定义`IDataStorage`的实现
+#### 6.5.2 定义`IDataStorage`的实现
 ```C#
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 ```
-定义`ProcessReadData`委托
+#### 6.5.3 定义`ProcessReadData`委托
 > 读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理
-
 ```C#
 void ProcessReadData(Dictionary<string, object> data, Device device)
 {
@@ -227,7 +226,7 @@ void ProcessReadData(Dictionary<string, object> data, Device device)
     data["DeviceCode"] = device.Code;
 }
 ```
-构建`DataCollector`实例，运行`StartCollectionTasks` 函数，开启数据采集
+#### 6.5.4 构建`DataCollector`实例，运行`StartCollectionTasks` 函数，开启数据采集
 ```C#
 var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
 
