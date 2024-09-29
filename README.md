@@ -219,7 +219,7 @@ IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddre
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 ```
 #### 6.5.3 定义`ProcessReadData`委托
-> 读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理
+读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理
 ```C#
 void ProcessReadData(Dictionary<string, object> data, Device device)
 {
