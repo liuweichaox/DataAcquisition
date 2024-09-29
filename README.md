@@ -227,7 +227,8 @@ void ProcessReadData(Dictionary<string, object> data, Device device)
     data["DeviceCode"] = device.Code;
 }
 ```
-#### 6.5.4 构建`DataCollector`实例，运行`StartCollectionTasks` 函数，开启数据采集
+#### 6.5.4 开启数据采集
+ 构建`DataCollector`实例，运行`StartCollectionTasks` 函数
 ```C#
 var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
 
