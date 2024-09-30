@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <OutputType>Exe</OutputType>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\DynamicPLCDataCollector\DynamicPLCDataCollector.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="HslCommunication" Version="12.1.1" />
+      <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Update="Configs\MetricConfigs\rocket_flight_metrics.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+      <None Update="Configs\devices.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+</Project>

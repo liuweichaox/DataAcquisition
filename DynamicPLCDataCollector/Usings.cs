@@ -1,0 +1,3 @@
+global using DynamicPLCDataCollector.Models;
+global using DynamicPLCDataCollector.Services.DataStorages;
+global using DynamicPLCDataCollector.Services.PLCClients;

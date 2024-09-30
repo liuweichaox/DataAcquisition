@@ -6,39 +6,45 @@
 
 ## 2. 技术栈
 
-- **编程语言**：C# / .NET 8
+- **编程语言**：C#
+- **平台支持**：net6.0; net7.0; net8.0; netstandard2.1
 - **通信协议**：Modbus TCP/IP
 
 ## 3. 项目结构介绍
 ```
 DynamicPLCDataCollector/
-├── /src                                      # 源代码目录
+├── /DynamicPLCDataCollector                  # 源代码目录
 │   ├── /Common                               # 工具类
-│   ├── /Configs                              # 配置文件
-│   ├── /Extensions                           # 扩展方法
+│   ├── /Models                               # 数据模型
 │   ├── /Services                             # 服务相关的代码
 │   │   ├── /DataStorages                     # 数据服务 (与数据获取、存储相关)
-│   │   │   ├── IDataStorage.cs               # 数据服务接口
-│   │   │   └── SQLiteDataStorage.cs          # SQLite 数据服务实现
+│   │   │   └── IDataStorage.cs               # 数据服务接口
 │   │   ├── /Devices                          # 设备服务
-│   │   │   ├── IDeviceService.cs             # 设备服务接口
-│   │   │   └── DeviceService.cs              # 设备服务实现
+│   │   │   └── IDeviceService.cs             # 设备服务接口
 │   │   ├── /MetricTableConfigs               # 数据采集配置服务
-│   │   │   ├── IMetricTableConfigService.cs  # 数据采集配置服务接口
-│   │   │   └── MetricTableConfigService.cs   # 数据采集配置服务实现
+│   │   │   └── IMetricTableConfigService.cs  # 数据采集配置服务接口
 │   │   ├── /PLCClients                       # PLC 通信服务 (与 PLC 通信)
-│   │   │   ├── IPLCClient.cs                 # PLC 通信服务接口
-│   │   │   └── PLCClient.cs                  # PLC 通信服务实现
+│   │   │   └── IPLCClient.cs                 # PLC 通信服务接口
 │   │   └── /QueueManagers                    # 队列管理器服务
 │   │       ├── IQueueManager.cs              # 队列管理器服务接口
 │   │       └── QueueManager.cs               # 队列管理器服务实现
 │   ├── /Models                               # 数据模型
-│   ├── /Utils                                # 辅助函数
-│   ├── DynamicPLCDataCollector.csproj        # 项目文件
-│   ├── DynamicPLCDataCollector.sln           # 解决方案
 │   ├── DataCollector.cs                      # 配置文件
-│   ├── Program.cs                            # 程序主文件
 │   └── Usings.cs                             # 全局 using
+├── /Samples                                  # 示例项目
+│   ├── /Configs                              # 配置文件
+│   ├── /Extensions                           # 扩展方法
+│   ├── /Services                             # 服务相关的代码
+│   │   ├── /DataStorages                     # 数据服务
+│   │   │   └── DataStorage.cs                # 数据服务实现
+│   │   ├── /Devices                          # 设备服务
+│   │   │   └── DeviceService.cs              # 设备服务实现
+│   │   ├── /MetricTableConfigs               # 数据采集配置服务
+│   │   │   └── MetricTableConfigService.cs   # 数据采集配置服务实现
+│   │   └── /PLCClients                       # PLC 通信服务
+│   │       └── PLCClient.cs                  # PLC 通信服务实现
+│   ├── /Utils                                # 辅助函数
+│   └── Program.cs                            # 程序主文件
 ├── .gitignore                                # Git 忽略文件
 └── README.md                                 # 项目说明文件
 ```
@@ -55,83 +61,9 @@ DynamicPLCDataCollector/
 - 设备性能分析及故障诊断
 - 历史数据记录与回溯
 
-## 6. 使用指南
-
-### 6.1 实现 IPLClient 接口（定义 PLC 客户端类型）
-
-`IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
-
-```C#
-/// <summary>
-/// PLC 客户端实现
-/// </summary>
-public class PLCClient : IPLCClient
-{
-    private readonly InovanceTcpNet _plcClient;
-
-    public PLCClient(string ipAddress, int port)
-    {
-        // 初始化 PLC 客户端
-    }
-
-    public async Task<OperationResult<bool>> ConnectServerAsync()
-    {
-        // 连接到 PLC 服务器并返回连接结果
-    }
-
-    public async Task<OperationResult<bool>> ConnectCloseAsync()
-    {
-        // 断开与 PLC 的连接并返回断开结果
-    }
-
-    public bool IsConnected()
-    {
-        // 检查当前连接状态，返回布尔值
-    }
-
-    // 其他读取方法...
-}
-```
-
-### 6.2 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
-
-`IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
-这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
-
-```C#
-// <summary>
-/// SQLite 数据存储实现
-/// </summary>
-public class SQLiteDataStorage : AbstractDataStorage
-{
-    private readonly SqliteConnection _connection;
-    private readonly Device _device;
-    private readonly MetricTableConfig _metricTableConfig;
-    public SQLiteDataStorage(Device device, MetricTableConfig metricTableConfig):base(device, metricTableConfig)
-    {
-        _device = device;
-        _metricTableConfig = metricTableConfig;
-            
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
-        _connection = new SqliteConnection($@"Data Source={dbPath};");
-        _connection.Open();
-    }
-
-    public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
-    {
-        await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
-    }
-
-    public override async ValueTask DisposeAsync()
-    {
-        await _connection.CloseAsync();
-        await _connection.DisposeAsync();
-    }
-}
-```
-
-### 6.3 配置 PLC 通讯地址（定义 PLC 服务连接方式）
-
+## 6. 使用示例
+### 6.1 实现 IDeviceService 接口（定义设备配置）
+#### 6.1.1 配置 PLC 通讯地址（定义 PLC 服务连接方式）
 **文件路径**：`Configs/devices.json`
 
 **样例配置**：
@@ -145,8 +77,19 @@ public class SQLiteDataStorage : AbstractDataStorage
   }
 ]
 ```
-
-### 6.4 设置 PLC 数据采集参数（定义怎么采集数据）
+#### 6.1.2 实现 `IDeviceService` 接口
+```C#
+public class DeviceService : IDeviceService
+{
+    public async Task<List<Device>> GetDevices()
+    {
+        var devices = await JsonUtils.LoadConfigAsync<List<Device>>("Configs/devices.json");
+        return devices;
+    }
+}
+```
+### 6.2 实现 IMetricTableConfigService 接口（定义采集配置）
+#### 6.2.1 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
@@ -206,15 +149,102 @@ public class SQLiteDataStorage : AbstractDataStorage
   ]
 }
 ```
-
-### 6.5 运行
-使用自定义的`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。`ProcessReadData`使在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+#### 6.2.2 实现`IMetricTableConfigService`接口
 ```C#
-var dataCollector = new DataCollector(PLCClientFactory, DataStorageFactory, ProcessReadData);
+public class MetricTableConfigService : IMetricTableConfigService
+{
+    public async Task<List<MetricTableConfig>> GetMetricTableConfigs()
+    {
+        var metricTableConfigs = await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>("Configs/MetricConfigs");
+        return metricTableConfigs;
+    }
+}
+```
+
+### 6.3 实现 IPLClient 接口（定义 PLC 客户端类型）
+
+`IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
+
+```C#
+/// <summary>
+/// PLC 客户端实现
+/// </summary>
+public class PLCClient : IPLCClient
+{
+    private readonly InovanceTcpNet _plcClient;
+
+    public PLCClient(string ipAddress, int port)
+    {
+        // 初始化 PLC 客户端
+    }
+
+    public async Task<OperationResult<bool>> ConnectServerAsync()
+    {
+        // 连接到 PLC 服务器并返回连接结果
+    }
+
+    public async Task<OperationResult<bool>> ConnectCloseAsync()
+    {
+        // 断开与 PLC 的连接并返回断开结果
+    }
+
+    public bool IsConnected()
+    {
+        // 检查当前连接状态，返回布尔值
+    }
+
+    // 其他读取方法...
+}
+```
+
+### 6.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
+
+`IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
+这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
+
+```C#
+// <summary>
+/// SQLite 数据存储实现
+/// </summary>
+public class SQLiteDataStorage : AbstractDataStorage
+{
+    private readonly SqliteConnection _connection;
+    private readonly Device _device;
+    private readonly MetricTableConfig _metricTableConfig;
+    public SQLiteDataStorage(Device device, MetricTableConfig metricTableConfig):base(device, metricTableConfig)
+    {
+        _device = device;
+        _metricTableConfig = metricTableConfig;
+            
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
+        _connection = new SqliteConnection($@"Data Source={dbPath};");
+        _connection.Open();
+    }
+
+    public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
+    {
+        await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        await _connection.CloseAsync();
+        await _connection.DisposeAsync();
+    }
+}
+```
+### 6.5 运行
+使用自定义的`IDeviceService`，`IMetricTableConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+
+`ProcessReadData`是在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+```C#
+IDeviceService deviceService = new DeviceService();
+
+IMetricTableConfigService metricTableConfigService = new MetricTableConfigService();
+
+var dataCollector = new DataCollector(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
 
 await dataCollector.StartCollectionTasks();
-
-await Task.Delay(Timeout.Infinite);
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 
