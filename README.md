@@ -47,6 +47,7 @@ DynamicPLCDataCollector/
 │   ├── /Utils                                # 辅助函数
 │   └── Program.cs                            # 程序主文件
 ├── .gitignore                                # Git 忽略文件
+├── DynamicPLCDataCollector.sln               # 解决方案
 └── README.md                                 # 项目说明文件
 ```
 
