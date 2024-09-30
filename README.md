@@ -18,6 +18,7 @@ DynamicPLCDataCollector/
 │   ├── /Models                               # 数据模型
 │   ├── /Services                             # 服务相关的代码
 │   │   ├── /DataStorages                     # 数据服务 (与数据获取、存储相关)
+│   │   │   ├── AbstractDataStorage.cs        # 数据服务抽象类
 │   │   │   └── IDataStorage.cs               # 数据服务接口
 │   │   ├── /Devices                          # 设备服务
 │   │   │   └── IDeviceService.cs             # 设备服务接口
