@@ -47,7 +47,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         _processReadData = processReadData;
-        ListenExitEvents();
     }
     
     /// <summary>
@@ -275,23 +274,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         return _runningTasks.ContainsKey(taskKey);
     }
     
-    /// <summary>
-    /// 监听退出事件
-    /// </summary>
-    private void ListenExitEvents()
-    {
-        Console.CancelKeyPress += async (sender, e) =>
-        {
-            e.Cancel = true; 
-            await HandleExitAsync();
-        };
-        AppDomain.CurrentDomain.ProcessExit += async (s, e) => await HandleExitAsync();
-    }
-
-    /// <summary>
-    /// 处理退出
-    /// </summary>
-    private async Task HandleExitAsync()
+    public async Task HandleExitAsync()
     {
         _cts.Cancel();
         
