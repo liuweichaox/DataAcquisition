@@ -9,9 +9,9 @@ using Samples.Services.PLCClients;
 
 var deviceService = new DeviceService();
 
-var metricTableConfigService = new DataAcquisitionConfigService();
+var dataAcquisitionConfigService = new DataAcquisitionConfigService();
 
-var dataAcquisitionService = new DataAcquisitionService(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
+var dataAcquisitionService = new DataAcquisitionService(deviceService, dataAcquisitionConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
 
 await dataAcquisitionService.StartCollectionTasks();
 
