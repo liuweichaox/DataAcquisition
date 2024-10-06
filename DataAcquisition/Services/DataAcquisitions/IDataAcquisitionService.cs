@@ -10,8 +10,8 @@ public interface IDataAcquisitionService
     Task StartCollectionTasks();
 
     /// <summary>
-    /// 处理退出
+    /// 停止采集任务
     /// </summary>
     /// <returns></returns>
-    Task HandleExitAsync();
+    Task StopCollectionTasks();
 }

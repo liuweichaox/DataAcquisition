@@ -274,7 +274,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         return _runningTasks.ContainsKey(taskKey);
     }
     
-    public async Task HandleExitAsync()
+    public async Task StopCollectionTasks()
     {
         _cts.Cancel();
         
