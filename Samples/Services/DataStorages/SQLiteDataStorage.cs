@@ -20,7 +20,7 @@ public class SQLiteDataStorage : AbstractDataStorage
 
     public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
     {
-        await _connection.InsertBatchAsync(_dataAcquisitionConfig.TableName, data);
+        await _connection.InsertBatchAsync(DataAcquisitionConfig.TableName, data);
     }
 
     public override async ValueTask DisposeAsync()
