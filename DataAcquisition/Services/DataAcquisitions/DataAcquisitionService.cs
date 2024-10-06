@@ -37,14 +37,14 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="processReadData"></param>
     public DataAcquisitionService(
         IDeviceService deviceService,
-        IDataAcquisitionConfigService dataAcquisitionConfigService, 
+        IDataAcquisitionConfigService dataAcquisitionConfigService,
         PLCClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
         ProcessReadData processReadData)
     {
         _deviceService = deviceService;
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
-        _runningTasks  = new ConcurrentDictionary<string, Task>();
+        _runningTasks = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
         _plcClients = new ConcurrentBag<IPLCClient>();
         _dataStorages = new ConcurrentBag<IDataStorage>();
@@ -53,7 +53,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         _dataStorageFactory = dataStorageFactory;
         _processReadData = processReadData;
     }
-    
+
     /// <summary>
     /// 开始采集任务
     /// </summary>
@@ -61,18 +61,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         var devices = await _deviceService.GetDevices();
         var metricTableConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
-        
+
         foreach (var device in devices)
         {
             foreach (var metricTableConfig in metricTableConfigs)
             {
                 if (metricTableConfig.IsEnabled && !IsTaskRunningForDeviceAndConfig(device, metricTableConfig))
-                { 
+                {
                     StartCollectionTask(device, metricTableConfig);
                 }
             }
         }
-        
+
         await Task.Delay(Timeout.Infinite);
     }
 
@@ -89,18 +89,18 @@ public class DataAcquisitionService : IDataAcquisitionService
             var dataStorage = CreateDataStorage(device, dataAcquisitionConfig);
             var queueManager = new QueueManager(dataStorage, dataAcquisitionConfig);
             _queueManagers.Add(queueManager);
-            
+
             while (true)
             {
                 await ReadAndSaveAsync(device, dataAcquisitionConfig, plcClient, queueManager);
                 await Task.Delay(dataAcquisitionConfig.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
-        
+
         var taskKey = GenerateTaskKey(device, dataAcquisitionConfig);
         _runningTasks[taskKey] = task;
     }
-    
+
     /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
@@ -118,11 +118,12 @@ public class DataAcquisitionService : IDataAcquisitionService
         {
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
         }
+
         _plcClients.Add(plcClient);
-        
+
         return plcClient;
     }
-    
+
     /// <summary>
     /// 创建数据存储服务
     /// </summary>
@@ -135,7 +136,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         _dataStorages.Add(dataStorage);
         return dataStorage;
     }
-    
+
     /// <summary>
     /// 读取数据并保存
     /// </summary>
@@ -144,8 +145,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
     private async Task ReadAndSaveAsync(
-        Device device, 
-        DataAcquisitionConfig dataAcquisitionConfig, 
+        Device device,
+        DataAcquisitionConfig dataAcquisitionConfig,
         IPLCClient plcClient,
         QueueManager queueManager)
     {
@@ -160,7 +161,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
         }
     }
-    
+
     /// <summary>
     /// 如果 PLC 客户端连接断开则重连
     /// </summary>
@@ -191,8 +192,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="plcClient"></param>
     /// <returns></returns>
     private async Task<Dictionary<string, object>> ReadAsync(
-        Device device, 
-        DataAcquisitionConfig dataAcquisitionConfig, 
+        Device device,
+        DataAcquisitionConfig dataAcquisitionConfig,
         IPLCClient plcClient)
     {
         var data = new Dictionary<string, object>();
@@ -201,7 +202,8 @@ public class DataAcquisitionService : IDataAcquisitionService
         {
             try
             {
-                data[positionConfig.ColumnName] = await ParseValue(plcClient, positionConfig.DataAddress, positionConfig.DataLength, positionConfig.DataType);
+                data[positionConfig.ColumnName] = await ParseValue(plcClient, positionConfig.DataAddress,
+                    positionConfig.DataLength, positionConfig.DataType);
             }
             catch (Exception ex)
             {
@@ -210,7 +212,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
 
         _processReadData(data, device);
-            
+
         return data;
     }
 
@@ -224,9 +226,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     private async Task<object> ParseValue(
-        IPLCClient plcClient, 
-        string dataAddress, 
-        ushort dataLength, 
+        IPLCClient plcClient,
+        string dataAddress,
+        ushort dataLength,
         string dataType)
     {
         return dataType.ToLower() switch
@@ -239,7 +241,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             _ => throw new ArgumentException("未知的数据类型")
         };
     }
-    
+
     /// <summary>
     /// 失败重试读取
     /// </summary>
@@ -249,11 +251,11 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
     private async Task<OperationResult<T>> RetryOnFailure<T>(
-        Func<Task<OperationResult<T>>> action, 
+        Func<Task<OperationResult<T>>> action,
         int maxRetries = 3)
     {
         var retries = 0;
-        
+
         while (retries < maxRetries)
         {
             var result = await action();
@@ -261,13 +263,14 @@ public class DataAcquisitionService : IDataAcquisitionService
             {
                 return result;
             }
+
             retries++;
-            await Task.Delay(1000);  // 等待1秒后重试
+            await Task.Delay(1000); // 等待1秒后重试
         }
-        
+
         throw new Exception($"操作失败，已达到最大重试次数 {maxRetries}。");
     }
-    
+
     /// <summary>
     /// 生成采集任务的 Key
     /// </summary>
@@ -275,12 +278,12 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <returns></returns>
     private string GenerateTaskKey(
-        Device device, 
+        Device device,
         DataAcquisitionConfig config)
     {
         return $"{device.Code}_{config.TableName}";
     }
-    
+
     /// <summary>
     /// 是否开始采集任务
     /// </summary>
@@ -288,32 +291,32 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <returns></returns>
     private bool IsTaskRunningForDeviceAndConfig(
-        Device device, 
+        Device device,
         DataAcquisitionConfig config)
     {
         var taskKey = GenerateTaskKey(device, config);
         return _runningTasks.ContainsKey(taskKey);
     }
-    
+
     public async Task StopCollectionTasks()
     {
         _cts.Cancel();
-        
+
         foreach (var plcClient in _plcClients)
         {
             await plcClient.ConnectCloseAsync();
         }
-        
+
         foreach (var dataStorage in _dataStorages)
         {
             await dataStorage.DisposeAsync();
         }
-        
+
         foreach (var queueManager in _queueManagers)
         {
             queueManager.Complete();
         }
-        
+
         LogExitInformation("程序已正常退出");
     }
 
