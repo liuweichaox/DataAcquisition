@@ -197,12 +197,24 @@ public class SQLiteDataStorage : AbstractDataStorage
 ```
 ### 5.5 运行
 使用自定义的`IDeviceService`，`IDataAcquisitionConfigService`，`IPLCClient`，`IDataStorage`类实例和`ProcessReadData`委托构建 `IDataAcquisitionService`实例。
+#### 构造函数参数说明
+`deviceService：` 设备服务实例
+
+`IDataAcquisitionConfigService：` 数据采集配置服务实例
+
+`plcClientFactory：` PLC 客户端服务创建
+
+`dataStorageFactory：` 数据存储服务创建
+
+`processReadData：` 读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+
+#### 函数说明
 
 运行 `StartCollectionTasks` 函数，开启数据采集。
 
 运行 `StopCollectionTasks` 函数，停止数据采集。
 
-`ProcessReadData`是在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+#### 示例
 ```C#
 var deviceService = new DeviceService();
 
