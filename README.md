@@ -196,7 +196,11 @@ public class SQLiteDataStorage : AbstractDataStorage
 }
 ```
 ### 5.5 运行
-使用自定义的`IDeviceService`，`IDataAcquisitionConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataAcquisitionService`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+使用自定义的`IDeviceService`，`IDataAcquisitionConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataAcquisitionService`实例。
+
+运行 `StartCollectionTasks` 函数，开启数据采集。
+
+运行 `StopCollectionTasks` 函数，停止数据采集。
 
 `ProcessReadData`是在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
 ```C#
