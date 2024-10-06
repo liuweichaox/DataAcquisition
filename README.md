@@ -195,7 +195,7 @@ public class SQLiteDataStorage : AbstractDataStorage
 #### 构造函数参数说明
 `deviceService：` 设备服务实例
 
-`dataAcquisitionConfigService` 数据采集配置服务实例
+`dataAcquisitionConfigService：` 数据采集配置服务实例
 
 `plcClientFactory：` PLC 客户端服务创建
 
