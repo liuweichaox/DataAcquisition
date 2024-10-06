@@ -191,7 +191,7 @@ public class SQLiteDataStorage : AbstractDataStorage
 }
 ```
 ### 5.5 运行
-使用自定义的`IDeviceService`，`IDataAcquisitionConfigService`，`IPLCClient`，`IDataStorage`类实例和`ProcessReadData`委托构建 `IDataAcquisitionService`实例。
+构建 `IDataAcquisitionService`实例
 #### 构造函数参数说明
 `deviceService：` 设备服务实例
 
@@ -205,9 +205,9 @@ public class SQLiteDataStorage : AbstractDataStorage
 
 #### 函数说明
 
-运行 `StartCollectionTasks` 函数，开启数据采集。
+`StartCollectionTasks` 函数，开启数据采集。
 
-运行 `StopCollectionTasks` 函数，停止数据采集。
+`StopCollectionTasks` 函数，停止数据采集。
 
 #### 示例
 ```C#
