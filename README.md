@@ -167,7 +167,7 @@ public class MetricTableConfigService : IMetricTableConfigService
 
 ### 6.3 实现 IPLClient 接口（定义 PLC 客户端类型）
 
-`IPLClient` 是 PLC 客户端接口，项目默认使用 `HslCommunication` 库实现，用户可根据需求自行替换。
+`IPLClient` 是 PLC 客户端接口，示例项目使用 `HslCommunication` 库实现，用户可根据不同 PLC 实现。
 
 ```C#
 /// <summary>
