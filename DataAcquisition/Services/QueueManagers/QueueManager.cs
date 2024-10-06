@@ -14,18 +14,18 @@ public class QueueManager : IQueueManager
     private readonly BlockingCollection<Dictionary<string, object>> _queue;
     private readonly IDataStorage _dataStorage;
     private readonly List<Dictionary<string, object>> _dataBatch;
-    private readonly MetricTableConfig _metricTableConfig;
-    public QueueManager(IDataStorage dataStorage, MetricTableConfig metricTableConfig)
+    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+    public QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
     {
         _queue = new BlockingCollection<Dictionary<string, object>>();
         _dataStorage = dataStorage;
-        _metricTableConfig = metricTableConfig;
+        _dataAcquisitionConfig = dataAcquisitionConfig;
         _dataBatch = new List<Dictionary<string, object>>();
         Task.Run(ProcessQueue);
     }
 
     /// <summary>
-    /// 将数据和其对应的 MetricTableConfig 添加到队列
+    /// 将数据和其对应的 DataAcquisitionConfig 添加到队列
     /// </summary>
     public void EnqueueData(Dictionary<string, object> data)
     {
@@ -33,7 +33,7 @@ public class QueueManager : IQueueManager
     }
 
     /// <summary>
-    /// 处理队列，支持根据不同的 MetricTableConfig 进行批量插入
+    /// 处理队列，支持根据不同的 DataAcquisitionConfig 进行批量插入
     /// </summary>
     private async Task ProcessQueue()
     {
@@ -41,7 +41,7 @@ public class QueueManager : IQueueManager
         {
             _dataBatch.Add(data);
             
-            if (_dataBatch.Count >= _metricTableConfig.BatchSize)
+            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
             {
                 await _dataStorage.SaveBatchAsync(_dataBatch);
                 _dataBatch.Clear();

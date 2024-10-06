@@ -5,7 +5,7 @@ namespace DataAcquisition.Models;
 /// <summary>
 /// 采集表配置
 /// </summary>
-public class MetricTableConfig
+public class DataAcquisitionConfig
 {
     /// <summary>
     /// 是否启用
@@ -33,7 +33,33 @@ public class MetricTableConfig
     public int BatchSize { get; set; }
     
     /// <summary>
-    /// 采集配置
+    /// 采集位置配置
     /// </summary>
-    public List<MetricColumnConfig> MetricColumnConfigs { get; set; }
+    public List<PositionConfig> PositionConfigs { get; set; }
+}
+
+/// <summary>
+/// 采集位置配置
+/// </summary>
+public class PositionConfig
+{
+    /// <summary>
+    /// 列名
+    /// </summary>
+    public string ColumnName { get; set; }
+
+    /// <summary>
+    /// 数据地址
+    /// </summary>
+    public string DataAddress { get; set; }
+
+    /// <summary>
+    /// 数据长度
+    /// </summary>
+    public ushort DataLength { get; set; }
+
+    /// <summary>
+    /// 数据类型
+    /// </summary>
+    public string DataType { get; set; }
 }

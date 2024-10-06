@@ -6,7 +6,7 @@ namespace DataAcquisition.Services.DataStorages;
 
 public abstract class AbstractDataStorage : IDataStorage
 {
-    public AbstractDataStorage(Device device, MetricTableConfig metricTableConfig)
+    public AbstractDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig)
     {
     }
 

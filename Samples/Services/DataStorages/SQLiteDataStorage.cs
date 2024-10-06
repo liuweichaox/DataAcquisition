@@ -12,20 +12,20 @@ public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
     private readonly Device _device;
-    private readonly MetricTableConfig _metricTableConfig;
-    public SQLiteDataStorage(Device device, MetricTableConfig metricTableConfig):base(device, metricTableConfig)
+    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+    public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig):base(device, dataAcquisitionConfig)
     {
         _device = device;
-        _metricTableConfig = metricTableConfig;
+        _dataAcquisitionConfig = dataAcquisitionConfig;
             
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite"); 
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
     }
 
     public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
     {
-        await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
+        await _connection.InsertBatchAsync(_dataAcquisitionConfig.TableName, data);
     }
 
     public override async ValueTask DisposeAsync()

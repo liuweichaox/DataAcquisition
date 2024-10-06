@@ -5,8 +5,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Common;
+using DataAcquisition.Services.DataAcquisitionConfigs;
 using DataAcquisition.Services.Devices;
-using DataAcquisition.Services.MetricTableConfigs;
 using DataAcquisition.Services.QueueManagers;
 
 namespace DataAcquisition.Services.DataAcquisitions;
@@ -17,7 +17,7 @@ namespace DataAcquisition.Services.DataAcquisitions;
 public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDeviceService _deviceService;
-    private readonly IMetricTableConfigService _metricTableConfigService;
+    private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
     private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
     private readonly ConcurrentBag<IPLCClient> _plcClients;
@@ -35,10 +35,10 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
     /// <param name="processReadData"></param>
-    public DataAcquisitionService(IDeviceService deviceService,IMetricTableConfigService metricTableConfigService,PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
+    public DataAcquisitionService(IDeviceService deviceService,IDataAcquisitionConfigService dataAcquisitionConfigService,PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
     {
         _deviceService = deviceService;
-        _metricTableConfigService = metricTableConfigService;
+        _dataAcquisitionConfigService = dataAcquisitionConfigService;
         _runningTasks  = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
         _plcClients = new ConcurrentBag<IPLCClient>();
@@ -56,7 +56,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     public async Task StartCollectionTasks()
     {
         var devices = await _deviceService.GetDevices();
-        var metricTableConfigs = await _metricTableConfigService.GetMetricTableConfigs();
+        var metricTableConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
         
         foreach (var device in devices)
         {
@@ -76,24 +76,24 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 开始单个采集任务
     /// </summary>
     /// <param name="device"></param>
-    /// <param name="metricTableConfig"></param>
-    private void StartCollectionTask(Device device, MetricTableConfig metricTableConfig)
+    /// <param name="dataAcquisitionConfig"></param>
+    private void StartCollectionTask(Device device, DataAcquisitionConfig dataAcquisitionConfig)
     {
         var task = Task.Factory.StartNew(async () =>
         {
             var plcClient = await CreatePLCClientAsync(device);
-            var dataStorage = CreateDataStorage(device, metricTableConfig);
-            var queueManager = new QueueManager(dataStorage, metricTableConfig);
+            var dataStorage = CreateDataStorage(device, dataAcquisitionConfig);
+            var queueManager = new QueueManager(dataStorage, dataAcquisitionConfig);
             _queueManagers.Add(queueManager);
             
             while (true)
             {
-                await ReadAndSaveAsync(device, metricTableConfig, plcClient, queueManager);
-                await Task.Delay(metricTableConfig.CollectionFrequency, _cts.Token);
+                await ReadAndSaveAsync(device, dataAcquisitionConfig, plcClient, queueManager);
+                await Task.Delay(dataAcquisitionConfig.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
         
-        var taskKey = GenerateTaskKey(device, metricTableConfig);
+        var taskKey = GenerateTaskKey(device, dataAcquisitionConfig);
         _runningTasks[taskKey] = task;
     }
     
@@ -123,11 +123,11 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 创建数据存储服务
     /// </summary>
     /// <param name="device"></param>
-    /// <param name="metricTableConfig"></param>
+    /// <param name="dataAcquisitionConfig"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(Device device, MetricTableConfig metricTableConfig)
+    private IDataStorage CreateDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig)
     {
-        var dataStorage = _dataStorageFactory(device, metricTableConfig);
+        var dataStorage = _dataStorageFactory(device, dataAcquisitionConfig);
         _dataStorages.Add(dataStorage);
         return dataStorage;
     }
@@ -136,16 +136,16 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 读取数据并保存
     /// </summary>
     /// <param name="device"></param>
-    /// <param name="metricTableConfig"></param>
+    /// <param name="dataAcquisitionConfig"></param>
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
-    private async Task ReadAndSaveAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient,
+    private async Task ReadAndSaveAsync(Device device, DataAcquisitionConfig dataAcquisitionConfig, IPLCClient plcClient,
         QueueManager queueManager)
     {
         try
         {
             await IfPLCClientNotConnectedReconnectAsync(device, plcClient);
-            var data = await ReadAsync(device, metricTableConfig, plcClient);
+            var data = await ReadAsync(device, dataAcquisitionConfig, plcClient);
             queueManager.EnqueueData(data);
         }
         catch (Exception ex)
@@ -180,18 +180,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 读取数据
     /// </summary>
     /// <param name="device"></param>
-    /// <param name="metricTableConfig"></param>
+    /// <param name="dataAcquisitionConfig"></param>
     /// <param name="plcClient"></param>
     /// <returns></returns>
-    private async Task<Dictionary<string, object>> ReadAsync(Device device, MetricTableConfig metricTableConfig, IPLCClient plcClient)
+    private async Task<Dictionary<string, object>> ReadAsync(Device device, DataAcquisitionConfig dataAcquisitionConfig, IPLCClient plcClient)
     {
         var data = new Dictionary<string, object>();
 
-        foreach (var metricColumnConfig in metricTableConfig.MetricColumnConfigs)
+        foreach (var positionConfig in dataAcquisitionConfig.PositionConfigs)
         {
             try
             {
-                data[metricColumnConfig.ColumnName] = await ParseValue(plcClient, metricColumnConfig.DataAddress, metricColumnConfig.DataLength, metricColumnConfig.DataType);
+                data[positionConfig.ColumnName] = await ParseValue(plcClient, positionConfig.DataAddress, positionConfig.DataLength, positionConfig.DataType);
             }
             catch (Exception ex)
             {
@@ -258,7 +258,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private string GenerateTaskKey(Device device, MetricTableConfig config)
+    private string GenerateTaskKey(Device device, DataAcquisitionConfig config)
     {
         return $"{device.Code}_{config.TableName}";
     }
@@ -269,7 +269,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(Device device, MetricTableConfig config)
+    private bool IsTaskRunningForDeviceAndConfig(Device device, DataAcquisitionConfig config)
     {
         var taskKey = GenerateTaskKey(device, config);
         return _runningTasks.ContainsKey(taskKey);

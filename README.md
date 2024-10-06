@@ -196,13 +196,13 @@ public class SQLiteDataStorage : AbstractDataStorage
 }
 ```
 ### 5.5 运行
-使用自定义的`IDeviceService`，`IMetricTableConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataAcquisitionService`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+使用自定义的`IDeviceService`，`IDataAcquisitionConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataAcquisitionService`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
 
 `ProcessReadData`是在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
 ```C#
-IDeviceService deviceService = new DeviceService();
+var deviceService = new DeviceService();
 
-IMetricTableConfigService metricTableConfigService = new MetricTableConfigService();
+var metricTableConfigService = new DataAcquisitionConfigService();
 
 var dataAcquisitionService = new DataAcquisitionService(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
 
@@ -211,7 +211,7 @@ await dataAcquisitionService.StartCollectionTasks();
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 
 
-IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
+IDataStorage DataStorageFactory(Device device, DataAcquisitionConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 
 void ProcessReadData(Dictionary<string, object> data, Device device)
 {
