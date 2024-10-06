@@ -11,13 +11,8 @@ namespace Samples.Services.DataStorages;
 public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
-    private readonly Device _device;
-    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
     public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig):base(device, dataAcquisitionConfig)
     {
-        _device = device;
-        _dataAcquisitionConfig = dataAcquisitionConfig;
-            
         var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite"); 
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();

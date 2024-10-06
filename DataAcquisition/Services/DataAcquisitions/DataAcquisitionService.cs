@@ -26,16 +26,21 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly PLCClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     private readonly ProcessReadData _processReadData;
-    
+
     /// <summary>
     /// 构造函数
     /// </summary>
     /// <param name="deviceService"></param>
-    /// <param name="metricTableConfigService"></param>
+    /// <param name="dataAcquisitionConfigService"></param>
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
     /// <param name="processReadData"></param>
-    public DataAcquisitionService(IDeviceService deviceService,IDataAcquisitionConfigService dataAcquisitionConfigService,PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
+    public DataAcquisitionService(
+        IDeviceService deviceService,
+        IDataAcquisitionConfigService dataAcquisitionConfigService, 
+        PLCClientFactory plcClientFactory,
+        DataStorageFactory dataStorageFactory,
+        ProcessReadData processReadData)
     {
         _deviceService = deviceService;
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
@@ -138,7 +143,10 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataAcquisitionConfig"></param>
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
-    private async Task ReadAndSaveAsync(Device device, DataAcquisitionConfig dataAcquisitionConfig, IPLCClient plcClient,
+    private async Task ReadAndSaveAsync(
+        Device device, 
+        DataAcquisitionConfig dataAcquisitionConfig, 
+        IPLCClient plcClient,
         QueueManager queueManager)
     {
         try
@@ -182,7 +190,10 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataAcquisitionConfig"></param>
     /// <param name="plcClient"></param>
     /// <returns></returns>
-    private async Task<Dictionary<string, object>> ReadAsync(Device device, DataAcquisitionConfig dataAcquisitionConfig, IPLCClient plcClient)
+    private async Task<Dictionary<string, object>> ReadAsync(
+        Device device, 
+        DataAcquisitionConfig dataAcquisitionConfig, 
+        IPLCClient plcClient)
     {
         var data = new Dictionary<string, object>();
 
@@ -212,7 +223,11 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataType"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    private async Task<object> ParseValue(IPLCClient plcClient, string dataAddress, ushort dataLength, string dataType)
+    private async Task<object> ParseValue(
+        IPLCClient plcClient, 
+        string dataAddress, 
+        ushort dataLength, 
+        string dataType)
     {
         return dataType.ToLower() switch
         {
@@ -233,7 +248,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <typeparam name="T"></typeparam>
     /// <returns></returns>
     /// <exception cref="Exception"></exception>
-    private async Task<OperationResult<T>> RetryOnFailure<T>(Func<Task<OperationResult<T>>> action, int maxRetries = 3)
+    private async Task<OperationResult<T>> RetryOnFailure<T>(
+        Func<Task<OperationResult<T>>> action, 
+        int maxRetries = 3)
     {
         var retries = 0;
         
@@ -257,7 +274,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private string GenerateTaskKey(Device device, DataAcquisitionConfig config)
+    private string GenerateTaskKey(
+        Device device, 
+        DataAcquisitionConfig config)
     {
         return $"{device.Code}_{config.TableName}";
     }
@@ -268,7 +287,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(Device device, DataAcquisitionConfig config)
+    private bool IsTaskRunningForDeviceAndConfig(
+        Device device, 
+        DataAcquisitionConfig config)
     {
         var taskKey = GenerateTaskKey(device, config);
         return _runningTasks.ContainsKey(taskKey);
