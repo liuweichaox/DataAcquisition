@@ -13,6 +13,7 @@ public class QueueManager : IQueueManager
     private readonly IDataStorage _dataStorage;
     private readonly List<Dictionary<string, object>> _dataBatch;
     private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+
     public QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
     {
         _queue = new BlockingCollection<Dictionary<string, object>>();
@@ -38,14 +39,14 @@ public class QueueManager : IQueueManager
         foreach (var data in _queue.GetConsumingEnumerable())
         {
             _dataBatch.Add(data);
-            
+
             if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
             {
                 await _dataStorage.SaveBatchAsync(_dataBatch);
                 _dataBatch.Clear();
             }
         }
-        
+
         if (_dataBatch.Count > 0)
         {
             await _dataStorage.SaveBatchAsync(_dataBatch);
