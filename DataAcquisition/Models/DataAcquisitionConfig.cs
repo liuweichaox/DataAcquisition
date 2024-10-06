@@ -11,7 +11,7 @@ public class DataAcquisitionConfig
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; }
-    
+
     /// <summary>
     /// 数据库名称
     /// </summary>
@@ -31,7 +31,7 @@ public class DataAcquisitionConfig
     /// 批量保存的数据
     /// </summary>
     public int BatchSize { get; set; }
-    
+
     /// <summary>
     /// 采集位置配置
     /// </summary>
