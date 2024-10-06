@@ -1,7 +1,4 @@
 using System.Collections.Generic;
-using DataAcquisition.Models;
-using DataAcquisition.Services.DataStorages;
-using DataAcquisition.Services.PLCClients;
 
 namespace DataAcquisition.Common;
 
