@@ -52,7 +52,7 @@ public class DeviceService : IDeviceService
     }
 }
 ```
-### 5.2 实现 IMetricTableConfigService 接口（定义采集配置）
+### 5.2 实现 IDataAcquisitionConfigService 接口（定义采集配置）
 #### 5.2.1 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
@@ -113,7 +113,7 @@ public class DeviceService : IDeviceService
   ]
 }
 ```
-#### 5.2.2 实现`IMetricTableConfigService`接口
+#### 5.2.2 实现`IDataAcquisitionConfigService`接口
 ```C#
 public class MetricTableConfigService : IMetricTableConfigService
 {
