@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace DynamicPLCDataCollector.Services.QueueManagers;
+namespace DataAcquisition.Services.QueueManagers;
 
 /// <summary>
 /// 队列管理器接口

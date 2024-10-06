@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace DynamicPLCDataCollector.Models;
+namespace DataAcquisition.Models;
 
 /// <summary>
 /// 采集表配置

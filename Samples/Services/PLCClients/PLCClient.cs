@@ -1,6 +1,6 @@
 ﻿using System.Net.NetworkInformation;
-using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.PLCClients;
+using DataAcquisition.Models;
+using DataAcquisition.Services.PLCClients;
 using HslCommunication.Profinet.Inovance;
 
 namespace Samples.Services.PLCClients;

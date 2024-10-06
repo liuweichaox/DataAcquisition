@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DynamicPLCDataCollector.Services.DataStorages;
+namespace DataAcquisition.Services.DataStorages;
 
 /// <summary>
 /// 数据存储服务

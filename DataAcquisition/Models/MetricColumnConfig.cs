@@ -1,4 +1,4 @@
-﻿namespace DynamicPLCDataCollector.Models;
+﻿namespace DataAcquisition.Models;
 
 /// <summary>
 /// 采集列配置

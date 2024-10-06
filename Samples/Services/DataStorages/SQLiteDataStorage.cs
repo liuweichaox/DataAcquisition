@@ -1,8 +1,9 @@
-﻿using DynamicPLCDataCollector.Extensions;
-using DynamicPLCDataCollector.Models;
+﻿using DataAcquisition.Models;
+using DataAcquisition.Services.DataStorages;
 using Microsoft.Data.Sqlite;
+using Samples.Extensions;
 
-namespace DynamicPLCDataCollector.Services.DataStorages;
+namespace Samples.Services.DataStorages;
  
 /// <summary>
 /// SQLite 数据存储实现

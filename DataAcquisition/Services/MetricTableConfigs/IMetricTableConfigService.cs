@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using DataAcquisition.Models;
 
-namespace DynamicPLCDataCollector.Services.MetricTableConfigs;
+namespace DataAcquisition.Services.MetricTableConfigs;
 
 /// <summary>
 /// 采集配置服务接口

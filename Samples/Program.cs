@@ -1,9 +1,10 @@
-﻿using DynamicPLCDataCollector;
-using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.DataStorages;
-using DynamicPLCDataCollector.Services.Devices;
-using DynamicPLCDataCollector.Services.MetricTableConfigs;
-using DynamicPLCDataCollector.Services.PLCClients;
+﻿using DataAcquisition;
+using DataAcquisition.Models;
+using DataAcquisition.Services.DataStorages;
+using DataAcquisition.Services.Devices;
+using DataAcquisition.Services.MetricTableConfigs;
+using DataAcquisition.Services.PLCClients;
+using Samples.Services.DataStorages;
 using Samples.Services.Devices;
 using Samples.Services.MetricTableConfigs;
 using Samples.Services.PLCClients;
@@ -17,6 +18,7 @@ var dataCollector = new DataCollector(deviceService, metricTableConfigService, P
 await dataCollector.StartCollectionTasks();
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
+
 
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 

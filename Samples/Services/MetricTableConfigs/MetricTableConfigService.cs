@@ -1,5 +1,5 @@
-﻿using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.MetricTableConfigs;
+﻿using DataAcquisition.Models;
+using DataAcquisition.Services.MetricTableConfigs;
 using Samples.Utils;
 
 namespace Samples.Services.MetricTableConfigs;

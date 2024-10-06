@@ -1,5 +1,5 @@
-﻿using DynamicPLCDataCollector.Models;
-using DynamicPLCDataCollector.Services.Devices;
+﻿using DataAcquisition.Models;
+using DataAcquisition.Services.Devices;
 using Samples.Utils;
 
 namespace Samples.Services.Devices;

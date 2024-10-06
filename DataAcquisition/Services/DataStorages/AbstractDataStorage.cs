@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DataAcquisition.Models;
 
-namespace DynamicPLCDataCollector.Services.DataStorages;
+namespace DataAcquisition.Services.DataStorages;
 
 public abstract class AbstractDataStorage : IDataStorage
 {

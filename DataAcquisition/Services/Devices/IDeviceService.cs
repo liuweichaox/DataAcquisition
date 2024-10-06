@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
+using DataAcquisition.Models;
 
-namespace DynamicPLCDataCollector.Services.Devices;
+namespace DataAcquisition.Services.Devices;
 
 /// <summary>
 /// 设备服务接口

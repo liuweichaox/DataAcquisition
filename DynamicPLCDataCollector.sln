@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DynamicPLCDataCollector", "DynamicPLCDataCollector\DynamicPLCDataCollector.csproj", "{C1ABCED8-9BEE-45FA-BB8B-5B763432799E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition", "DataAcquisition\DataAcquisition.csproj", "{C1ABCED8-9BEE-45FA-BB8B-5B763432799E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Samples", "Samples\Samples.csproj", "{4862CEC2-E8F8-47F6-9DFE-D4D43CD37E73}"
 EndProject

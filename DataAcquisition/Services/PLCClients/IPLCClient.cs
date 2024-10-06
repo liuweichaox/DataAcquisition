@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks;
+using DataAcquisition.Models;
 
-namespace DynamicPLCDataCollector.Services.PLCClients;
+namespace DataAcquisition.Services.PLCClients;
 
 /// <summary>
 /// PLC 客户端接口定义

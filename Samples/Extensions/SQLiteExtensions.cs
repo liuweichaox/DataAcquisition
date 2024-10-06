@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 
-namespace DynamicPLCDataCollector.Extensions;
+namespace Samples.Extensions;
 
 public static class SQLiteExtensions
 {

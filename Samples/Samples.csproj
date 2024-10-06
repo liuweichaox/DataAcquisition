@@ -8,7 +8,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DynamicPLCDataCollector\DynamicPLCDataCollector.csproj" />
+      <ProjectReference Include="..\DataAcquisition\DataAcquisition.csproj" />
     </ItemGroup>
 
     <ItemGroup>

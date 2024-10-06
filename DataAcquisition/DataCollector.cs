@@ -4,12 +4,12 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using DynamicPLCDataCollector.Common;
-using DynamicPLCDataCollector.Services.Devices;
-using DynamicPLCDataCollector.Services.MetricTableConfigs;
-using DynamicPLCDataCollector.Services.QueueManagers;
+using DataAcquisition.Common;
+using DataAcquisition.Services.Devices;
+using DataAcquisition.Services.MetricTableConfigs;
+using DataAcquisition.Services.QueueManagers;
 
-namespace DynamicPLCDataCollector;
+namespace DataAcquisition;
 
 /// <summary>
 /// 数据采集器
