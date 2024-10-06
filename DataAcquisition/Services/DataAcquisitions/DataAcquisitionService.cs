@@ -9,12 +9,12 @@ using DataAcquisition.Services.Devices;
 using DataAcquisition.Services.MetricTableConfigs;
 using DataAcquisition.Services.QueueManagers;
 
-namespace DataAcquisition;
+namespace DataAcquisition.Services.DataAcquisitions;
 
 /// <summary>
 /// 数据采集器
 /// </summary>
-public class DataCollector
+public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDeviceService _deviceService;
     private readonly IMetricTableConfigService _metricTableConfigService;
@@ -35,7 +35,7 @@ public class DataCollector
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
     /// <param name="processReadData"></param>
-    public DataCollector(IDeviceService deviceService,IMetricTableConfigService metricTableConfigService,PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
+    public DataAcquisitionService(IDeviceService deviceService,IMetricTableConfigService metricTableConfigService,PLCClientFactory plcClientFactory, DataStorageFactory dataStorageFactory, ProcessReadData processReadData)
     {
         _deviceService = deviceService;
         _metricTableConfigService = metricTableConfigService;

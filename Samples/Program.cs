@@ -1,5 +1,5 @@
-﻿using DataAcquisition;
-using DataAcquisition.Models;
+﻿using DataAcquisition.Models;
+using DataAcquisition.Services.DataAcquisitions;
 using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.Devices;
 using DataAcquisition.Services.MetricTableConfigs;
@@ -13,9 +13,9 @@ IDeviceService deviceService = new DeviceService();
 
 IMetricTableConfigService metricTableConfigService = new MetricTableConfigService();
 
-var dataCollector = new DataCollector(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
+var dataAcquisitionService = new DataAcquisitionService(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
 
-await dataCollector.StartCollectionTasks();
+await dataAcquisitionService.StartCollectionTasks();
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
 

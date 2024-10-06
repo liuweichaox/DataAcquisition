@@ -25,49 +25,9 @@
 - 设备性能分析及故障诊断
 - 历史数据记录与回溯
 
-## 5. 项目结构介绍
-```
-DynamicPLCDataCollector/
-├── /DataAcquisition                  # 源代码目录
-│   ├── /Common                               # 工具类
-│   ├── /Models                               # 数据模型
-│   ├── /Services                             # 服务相关的代码
-│   │   ├── /DataStorages                     # 数据服务 (与数据获取、存储相关)
-│   │   │   ├── AbstractDataStorage.cs        # 数据服务抽象类
-│   │   │   └── IDataStorage.cs               # 数据服务接口
-│   │   ├── /Devices                          # 设备服务
-│   │   │   └── IDeviceService.cs             # 设备服务接口
-│   │   ├── /MetricTableConfigs               # 数据采集配置服务
-│   │   │   └── IMetricTableConfigService.cs  # 数据采集配置服务接口
-│   │   ├── /PLCClients                       # PLC 通信服务 (与 PLC 通信)
-│   │   │   └── IPLCClient.cs                 # PLC 通信服务接口
-│   │   └── /QueueManagers                    # 队列管理器服务
-│   │       ├── IQueueManager.cs              # 队列管理器服务接口
-│   │       └── QueueManager.cs               # 队列管理器服务实现
-│   ├── /Models                               # 数据模型
-│   ├── DataCollector.cs                      # 配置文件
-│   └── Usings.cs                             # 全局 using
-├── /Samples                                  # 示例项目
-│   ├── /Configs                              # 配置文件
-│   ├── /Extensions                           # 扩展方法
-│   ├── /Services                             # 服务相关的代码
-│   │   ├── /DataStorages                     # 数据服务
-│   │   │   └── DataStorage.cs                # 数据服务实现
-│   │   ├── /Devices                          # 设备服务
-│   │   │   └── DeviceService.cs              # 设备服务实现
-│   │   ├── /MetricTableConfigs               # 数据采集配置服务
-│   │   │   └── MetricTableConfigService.cs   # 数据采集配置服务实现
-│   │   └── /PLCClients                       # PLC 通信服务
-│   │       └── PLCClient.cs                  # PLC 通信服务实现
-│   ├── /Utils                                # 辅助函数
-│   └── Program.cs                            # 程序主文件
-├── .gitignore                                # Git 忽略文件
-├── DynamicPLCDataCollector.sln               # 解决方案
-└── README.md                                 # 项目说明文件
-```
-## 6. 使用示例
-### 6.1 实现 IDeviceService 接口（定义设备配置）
-#### 6.1.1 配置 PLC 通讯地址（定义 PLC 服务连接方式）
+## 5. 使用示例
+### 5.1 实现 IDeviceService 接口（定义设备配置）
+#### 5.1.1 配置 PLC 通讯地址（定义 PLC 服务连接方式）
 **文件路径**：`Configs/devices.json`
 
 **样例配置**：
@@ -81,7 +41,7 @@ DynamicPLCDataCollector/
   }
 ]
 ```
-#### 6.1.2 实现 `IDeviceService` 接口
+#### 5.1.2 实现 `IDeviceService` 接口
 ```C#
 public class DeviceService : IDeviceService
 {
@@ -92,8 +52,8 @@ public class DeviceService : IDeviceService
     }
 }
 ```
-### 6.2 实现 IMetricTableConfigService 接口（定义采集配置）
-#### 6.2.1 设置 PLC 数据采集参数（定义怎么采集数据）
+### 5.2 实现 IMetricTableConfigService 接口（定义采集配置）
+#### 5.2.1 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
@@ -153,7 +113,7 @@ public class DeviceService : IDeviceService
   ]
 }
 ```
-#### 6.2.2 实现`IMetricTableConfigService`接口
+#### 5.2.2 实现`IMetricTableConfigService`接口
 ```C#
 public class MetricTableConfigService : IMetricTableConfigService
 {
@@ -164,8 +124,7 @@ public class MetricTableConfigService : IMetricTableConfigService
     }
 }
 ```
-
-### 6.3 实现 IPLClient 接口（定义 PLC 客户端类型）
+### 5.3 实现 IPLClient 接口（定义 PLC 客户端类型）
 
 `IPLClient` 是 PLC 客户端接口，示例项目使用 `HslCommunication` 库实现，用户可根据不同 PLC 实现。
 
@@ -200,8 +159,7 @@ public class PLCClient : IPLCClient
     // 其他读取方法...
 }
 ```
-
-### 6.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
+### 5.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
@@ -237,8 +195,8 @@ public class SQLiteDataStorage : AbstractDataStorage
     }
 }
 ```
-### 6.5 运行
-使用自定义的`IDeviceService`，`IMetricTableConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataCollector`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
+### 5.5 运行
+使用自定义的`IDeviceService`，`IMetricTableConfigService`，`PLCClient`，`SQLiteDataStorage`类`IDataStorage` 构建 `DataAcquisitionService`实例，运行 `StartCollectionTasks` 函数，即可开启数据采集。
 
 `ProcessReadData`是在读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
 ```C#
@@ -246,11 +204,12 @@ IDeviceService deviceService = new DeviceService();
 
 IMetricTableConfigService metricTableConfigService = new MetricTableConfigService();
 
-var dataCollector = new DataCollector(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
+var dataAcquisitionService = new DataAcquisitionService(deviceService, metricTableConfigService, PLCClientFactory, DataStorageFactory, ProcessReadData);
 
-await dataCollector.StartCollectionTasks();
+await dataAcquisitionService.StartCollectionTasks();
 
 IPLCClient PLCClientFactory(string ipAddress, int port) => new PLCClient(ipAddress, port);
+
 
 IDataStorage DataStorageFactory(Device device, MetricTableConfig metricTableConfig) => new SQLiteDataStorage(device, metricTableConfig);
 
@@ -261,6 +220,6 @@ void ProcessReadData(Dictionary<string, object> data, Device device)
 }
 ```
 
-## 7. 总结
+## 6. 总结
 
 本动态 PLC 数据采集系统通过灵活配置和强大功能，能有效支持工业自动化过程中的数据监控与分析，适用于多种场景。用户可根据实际需求进行定制与扩展，提升生产效率和设备管理能力。
