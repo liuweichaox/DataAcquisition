@@ -4,7 +4,7 @@
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "MetricColumnConfigs": [
+  "PositionConfigs": [
     {
       "ColumnName": "实时速度",
       "DataAddress": "D6000",

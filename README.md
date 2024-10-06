@@ -64,7 +64,7 @@ public class DeviceService : IDeviceService
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
 - `BatchSize`: 批量保存大小
-- `MetricColumnConfigs`：指标的具体配置
+- `PositionConfigs`：指标的具体配置
   - `ColumnName`：数据库表中的列名
   - `DataAddress`：PLC 中存储该数据的地址
   - `DataLength`：读取的数据长度
@@ -79,7 +79,7 @@ public class DeviceService : IDeviceService
   "TableName": "rocket_flight_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "MetricColumnConfigs": [
+  "PositionConfigs": [
     {
       "ColumnName": "实时速度",
       "DataAddress": "D6000",
@@ -115,12 +115,12 @@ public class DeviceService : IDeviceService
 ```
 #### 5.2.2 实现`IDataAcquisitionConfigService`接口
 ```C#
-public class MetricTableConfigService : IMetricTableConfigService
+public class DataAcquisitionConfigService : IDataAcquisitionConfigService
 {
-    public async Task<List<MetricTableConfig>> GetMetricTableConfigs()
+    public async Task<List<DataAcquisitionConfig>> GetDataAcquisitionConfigs()
     {
-        var metricTableConfigs = await JsonUtils.LoadAllJsonFilesAsync<MetricTableConfig>("Configs/MetricConfigs");
-        return metricTableConfigs;
+        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs/MetricConfigs");
+        return dataAcquisitionConfigs;
     }
 }
 ```
