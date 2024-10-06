@@ -165,27 +165,22 @@ public class PLCClient : IPLCClient
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
-// <summary>
+/// <summary>
 /// SQLite 数据存储实现
 /// </summary>
 public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
-    private readonly Device _device;
-    private readonly MetricTableConfig _metricTableConfig;
-    public SQLiteDataStorage(Device device, MetricTableConfig metricTableConfig):base(device, metricTableConfig)
+    public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig):base(device, dataAcquisitionConfig)
     {
-        _device = device;
-        _metricTableConfig = metricTableConfig;
-            
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{metricTableConfig.DatabaseName}.sqlite"); 
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite"); 
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
     }
 
-    public async Task SaveBatchAsync(List<Dictionary<string, object>> data)
+    public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
     {
-        await _connection.InsertBatchAsync(_metricTableConfig.TableName, data);
+        await _connection.InsertBatchAsync(DataAcquisitionConfig.TableName, data);
     }
 
     public override async ValueTask DisposeAsync()
