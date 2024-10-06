@@ -28,7 +28,7 @@
 ## 5. 项目结构介绍
 ```
 DynamicPLCDataCollector/
-├── /DynamicPLCDataCollector                  # 源代码目录
+├── /DataAcquisition                  # 源代码目录
 │   ├── /Common                               # 工具类
 │   ├── /Models                               # 数据模型
 │   ├── /Services                             # 服务相关的代码
