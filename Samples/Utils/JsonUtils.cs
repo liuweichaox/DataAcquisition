@@ -18,7 +18,7 @@ public static class JsonUtils
         await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open, FileAccess.Read);
         return await JsonSerializer.DeserializeAsync<T>(stream);
     }
-    
+
     /// <summary>
     /// 遍历指定文件夹下的所有 JSON 文件，并加载每个文件的内容
     /// </summary>
@@ -31,7 +31,7 @@ public static class JsonUtils
 
         // 获取所有 JSON 文件
         var jsonFiles = Directory.GetFiles(directoryPath, "*.json");
-        
+
         foreach (var filePath in jsonFiles)
         {
             try

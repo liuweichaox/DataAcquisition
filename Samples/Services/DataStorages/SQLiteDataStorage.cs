@@ -4,16 +4,16 @@ using Microsoft.Data.Sqlite;
 using Samples.Extensions;
 
 namespace Samples.Services.DataStorages;
- 
+
 /// <summary>
 /// SQLite 数据存储实现
 /// </summary>
 public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
-    public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig):base(device, dataAcquisitionConfig)
+    public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig) : base(device, dataAcquisitionConfig)
     {
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite"); 
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite");
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
     }
