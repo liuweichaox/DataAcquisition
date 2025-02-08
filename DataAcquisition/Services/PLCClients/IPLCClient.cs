@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 namespace DataAcquisition.Services.PLCClients;
 
@@ -24,13 +25,48 @@ public interface IPLCClient
     /// </summary>
     /// <returns></returns>
     bool IsConnected();
-
+    
     /// <summary>
-    /// 读取整数
+    /// 读取 16 位无符号整数
     /// </summary>
     /// <param name="address"></param>
     /// <returns></returns>
-    Task<OperationResult<int>> ReadInt32Async(string address);
+    Task<OperationResult<UInt16>> ReadUInt16Async(string address);
+
+    /// <summary>
+    /// 读取 32 位无符号整数
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    Task<OperationResult<UInt32>> ReadUInt32Async(string address);
+    
+    /// <summary>
+    /// 读取 64 位无符号整数
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    Task<OperationResult<UInt64>> ReadUInt64Async(string address);
+    
+    /// <summary>
+    /// 读取 16 位带符号整数
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    Task<OperationResult<Int16>> ReadInt16Async(string address);
+
+    /// <summary>
+    /// 读取 32 位带符号整数
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    Task<OperationResult<Int32>> ReadInt32Async(string address);
+    
+    /// <summary>
+    /// 读取 64 位带符号整数
+    /// </summary>
+    /// <param name="address"></param>
+    /// <returns></returns>
+    Task<OperationResult<Int64>> ReadInt64Async(string address);
 
     /// <summary>
     /// 读取浮点数

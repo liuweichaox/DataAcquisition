@@ -233,7 +233,12 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         return dataType.ToLower() switch
         {
+            "ushort" => (await RetryOnFailure(() => plcClient.ReadUInt16Async(dataAddress))).Content,
+            "uint" => (await RetryOnFailure(() => plcClient.ReadUInt32Async(dataAddress))).Content,
+            "ulong" => (await RetryOnFailure(() => plcClient.ReadUInt64Async(dataAddress))).Content,
+            "short" => (await RetryOnFailure(() => plcClient.ReadInt16Async(dataAddress))).Content,
             "int" => (await RetryOnFailure(() => plcClient.ReadInt32Async(dataAddress))).Content,
+            "long" => (await RetryOnFailure(() => plcClient.ReadInt64Async(dataAddress))).Content,
             "float" => (await RetryOnFailure(() => plcClient.ReadFloatAsync(dataAddress))).Content,
             "double" => (await RetryOnFailure(() => plcClient.ReadDoubleAsync(dataAddress))).Content,
             "string" => (await RetryOnFailure(() => plcClient.ReadStringAsync(dataAddress, dataLength))).Content,

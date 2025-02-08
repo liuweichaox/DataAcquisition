@@ -42,13 +42,53 @@ public class PLCClient : IPLCClient
     {
         return _plcClient.IpAddressPing() == IPStatus.Success;
     }
+    
+    public async Task<OperationResult<UInt16>> ReadUInt16Async(string address)
+    {
+        var result = await _plcClient.ReadUInt16Async(address);
+        return result.IsSuccess
+            ? new OperationResult<UInt16>(result.Content)
+            : new OperationResult<UInt16>(result.Message);
+    }
+    
+    public async Task<OperationResult<UInt32>> ReadUInt32Async(string address)
+    {
+        var result = await _plcClient.ReadUInt32Async(address);
+        return result.IsSuccess
+            ? new OperationResult<UInt32>(result.Content)
+            : new OperationResult<UInt32>(result.Message);
+    }
+    
+    public async Task<OperationResult<UInt64>> ReadUInt64Async(string address)
+    {
+        var result = await _plcClient.ReadUInt64Async(address);
+        return result.IsSuccess
+            ? new OperationResult<UInt64>(result.Content)
+            : new OperationResult<UInt64>(result.Message);
+    }
 
-    public async Task<OperationResult<int>> ReadInt32Async(string address)
+    public async Task<OperationResult<Int16>> ReadInt16Async(string address)
+    {
+        var result = await _plcClient.ReadInt16Async(address);
+        return result.IsSuccess
+            ? new OperationResult<Int16>(result.Content)
+            : new OperationResult<Int16>(result.Message);
+    }
+    
+    public async Task<OperationResult<Int32>> ReadInt32Async(string address)
     {
         var result = await _plcClient.ReadInt32Async(address);
         return result.IsSuccess
             ? new OperationResult<int>(result.Content)
             : new OperationResult<int>(result.Message);
+    }
+    
+    public async Task<OperationResult<Int64>> ReadInt64Async(string address)
+    {
+        var result = await _plcClient.ReadInt64Async(address);
+        return result.IsSuccess
+            ? new OperationResult<Int64>(result.Content)
+            : new OperationResult<Int64>(result.Message);
     }
 
     public async Task<OperationResult<float>> ReadFloatAsync(string address)
@@ -66,7 +106,7 @@ public class PLCClient : IPLCClient
             ? new OperationResult<double>(result.Content)
             : new OperationResult<double>(result.Message);
     }
-
+    
     public async Task<OperationResult<string>> ReadStringAsync(string address, ushort length)
     {
         var result = await _plcClient.ReadStringAsync(address, length);
