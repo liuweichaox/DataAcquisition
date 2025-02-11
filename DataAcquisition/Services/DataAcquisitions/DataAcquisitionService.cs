@@ -73,32 +73,39 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     private async Task StartCollectionTask(DataAcquisitionConfig config)
     {
-        var task = Task.Factory.StartNew(async () =>
+        var key = GenerateKey(config);
+
+        var task = Task.Run(async () =>
         {
-            var plcClient = await CreatePLCClientAsync(config);
+            var plcClient = CreatePLCClient(config);
+            if (plcClient == null)
+            {
+                Console.WriteLine("PLC 连接不能创建");
+                return;
+            }
+
             var dataStorage = CreateDataStorage(config);
             var queueManager = new QueueManager(dataStorage, config);
             _queueManagers.Add(queueManager);
 
-            while (true)
+            while (!_cts.Token.IsCancellationRequested)
             {
                 try
                 {
-                    await ReadAndSaveAsync(config, plcClient, queueManager);
+                    await ReadAndSaveAsync(config, plcClient, queueManager).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
                 }
 
-                await Task.Delay(config.CollectionFrequency, _cts.Token);
+                await Task.Delay(config.CollectionFrequency, _cts.Token).ConfigureAwait(false);
             }
-        }, TaskCreationOptions.LongRunning);
+        }, _cts.Token);
 
-        var key = GenerateKey(config);
         _runningTasks[key] = task;
 
-        await task;
+        await task.ConfigureAwait(false);
     }
 
     /// <summary>
@@ -106,29 +113,25 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private async Task<IPLCClient> CreatePLCClientAsync(DataAcquisitionConfig config)
+    private IPLCClient CreatePLCClient(DataAcquisitionConfig config)
     {
-        IPLCClient plcClient;
         var key = GenerateKey(config);
-        if (_plcClients.TryGetValue(key, value: out var client))
+
+        var plcClient = _plcClients.GetOrAdd(key, _ =>
         {
-            plcClient = client;
-        }
-        else
-        {
-            plcClient = _plcClientFactory(config.IpAddress, config.Port);
-            var connect = await plcClient.ConnectServerAsync();
+            var client = _plcClientFactory(config.IpAddress, config.Port);
+            var connect = client.ConnectServerAsync().Result;
             if (connect.IsSuccess)
             {
                 Console.WriteLine($"连接到设备 {config.Code} 成功！");
+                return client;
             }
             else
             {
                 Console.WriteLine($"连接到设备 {config.Code} 失败：{connect.Message}");
+                return null;
             }
-
-            _plcClients.TryAdd(key, plcClient);
-        }
+        });
 
         return plcClient;
     }
@@ -157,7 +160,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         QueueManager queueManager)
     {
         await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
-        var data= await ReadAsync(config, plcClient);
+        var data = await ReadAsync(config, plcClient);
         queueManager.EnqueueData(data);
     }
 
@@ -199,7 +202,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         {
             var result = await ParseValue(plcClient, positionConfig.DataAddress,
                 positionConfig.DataLength, positionConfig.DataType);
-            
+
             if (result.IsSuccess)
             {
                 data[positionConfig.ColumnName] = result.Content;
@@ -282,7 +285,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             var resultBool = await plcClient.ReadBoolAsync(dataAddress);
             result = OperationResult.From(resultBool);
         }
-        
+
         return result;
     }
 
