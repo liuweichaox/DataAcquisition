@@ -3,11 +3,9 @@ using System.Threading.Tasks;
 
 namespace DataAcquisition.Services.DataStorages;
 
-public abstract class AbstractDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig) : IDataStorage
+public abstract class AbstractDataStorage(DataAcquisitionConfig config) : IDataStorage
 {
-    protected readonly Device Device = device;
-    protected readonly DataAcquisitionConfig DataAcquisitionConfig = dataAcquisitionConfig;
-
+    protected readonly DataAcquisitionConfig DataAcquisitionConfig = config;
     public abstract Task SaveBatchAsync(List<Dictionary<string, object>> data);
     public abstract ValueTask DisposeAsync();
 }

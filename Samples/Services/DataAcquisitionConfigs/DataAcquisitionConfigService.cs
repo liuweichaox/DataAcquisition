@@ -8,7 +8,7 @@ public class DataAcquisitionConfigService : IDataAcquisitionConfigService
 {
     public async Task<List<DataAcquisitionConfig>> GetDataAcquisitionConfigs()
     {
-        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs/MetricConfigs");
+        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs");
         return dataAcquisitionConfigs;
     }
 }

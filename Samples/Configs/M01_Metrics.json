@@ -1,7 +1,10 @@
 ﻿{
   "IsEnabled": true,
+  "Code": "M01",
+  "IpAddress": "192.168.1.1",
+  "Port": 502,
   "DatabaseName": "dbo",
-  "TableName": "rocket_flight_metrics",
+  "TableName": "m01_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
   "PositionConfigs": [

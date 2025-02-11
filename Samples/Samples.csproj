@@ -17,12 +17,18 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="Configs\MetricConfigs\rocket_flight_metrics.json">
+      <None Remove="Services\Devices\**" />
+      <None Update="Configs\rocket_flight_metrics.json">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
-      <None Update="Configs\devices.json">
-        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Services\Devices\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Services\Devices\**" />
     </ItemGroup>
 
 </Project>

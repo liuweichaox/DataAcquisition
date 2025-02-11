@@ -26,40 +26,16 @@
 - 历史数据记录与回溯
 
 ## 5. 使用示例
-### 5.1 实现 IDeviceService 接口（定义设备配置）
-#### 5.1.1 配置 PLC 通讯地址（定义 PLC 服务连接方式）
-**文件路径**：`Configs/devices.json`
-
-**样例配置**：
-
-```json
-[
-  {
-    "Code": "S00001",
-    "IpAddress": "192.168.1.100",
-    "Port": 502
-  }
-]
-```
-#### 5.1.2 实现 `IDeviceService` 接口
-```C#
-public class DeviceService : IDeviceService
-{
-    public async Task<List<Device>> GetDevices()
-    {
-        var devices = await JsonUtils.LoadConfigAsync<List<Device>>("Configs/devices.json");
-        return devices;
-    }
-}
-```
-### 5.2 实现 IDataAcquisitionConfigService 接口（定义采集配置）
-#### 5.2.1 设置 PLC 数据采集参数（定义怎么采集数据）
+### 5.1 实现 IDataAcquisitionConfigService 接口（定义采集配置）
+#### 5.1.1 设置 PLC 数据采集参数（定义怎么采集数据）
 
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
 **参数详解**：
-
 - `IsEnabled`：是否启用此表的数据采集
+- `Code`: 数据采集表编码
+- `IpAddress`: PLC 的 IP 地址
+- `Port`: PLC 的端口号
 - `DatabaseName`：存储数据的目标数据库名称，可以根据数据库名称进行分库存储
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
@@ -75,8 +51,11 @@ public class DeviceService : IDeviceService
 ```json
 {
   "IsEnabled": true,
+  "Code": "M01",
+  "IpAddress": "192.168.1.1",
+  "Port": 502,
   "DatabaseName": "dbo",
-  "TableName": "rocket_flight_metrics",
+  "TableName": "m01_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
   "PositionConfigs": [
@@ -113,18 +92,18 @@ public class DeviceService : IDeviceService
   ]
 }
 ```
-#### 5.2.2 实现`IDataAcquisitionConfigService`接口
+#### 5.1.2 实现`IDataAcquisitionConfigService`接口
 ```C#
 public class DataAcquisitionConfigService : IDataAcquisitionConfigService
 {
     public async Task<List<DataAcquisitionConfig>> GetDataAcquisitionConfigs()
     {
-        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs/MetricConfigs");
+        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs");
         return dataAcquisitionConfigs;
     }
 }
 ```
-### 5.3 实现 IPLClient 接口（定义 PLC 客户端类型）
+### 5.2 实现 IPLClient 接口（定义 PLC 客户端类型）
 
 `IPLClient` 是 PLC 客户端接口，示例项目使用 `HslCommunication` 库实现，用户可根据不同 PLC 实现。
 
@@ -159,10 +138,10 @@ public class PLCClient : IPLCClient
     // 其他读取方法...
 }
 ```
-### 5.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
+### 5.3 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
 
 `IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
-这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`MetricTableConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
+这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`DataAcquisitionConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
 /// <summary>
@@ -171,9 +150,9 @@ public class PLCClient : IPLCClient
 public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
-    public SQLiteDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig):base(device, dataAcquisitionConfig)
+    public SQLiteDataStorage(DataAcquisitionConfig config) : base(config)
     {
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{dataAcquisitionConfig.DatabaseName}.sqlite"); 
+        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{config.DatabaseName}.sqlite");
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
     }
@@ -190,10 +169,9 @@ public class SQLiteDataStorage : AbstractDataStorage
     }
 }
 ```
-### 5.5 运行
+### 5.4 运行
 构建 `IDataAcquisitionService`实例
 #### 构造函数参数说明
-`deviceService：` 设备服务实例
 
 `dataAcquisitionConfigService：` 数据采集配置服务实例
 
@@ -211,29 +189,26 @@ public class SQLiteDataStorage : AbstractDataStorage
 
 #### 示例
 ```C#
-var deviceService = new DeviceService();
-
 var dataAcquisitionConfigService = new DataAcquisitionConfigService();
 
 var dataAcquisitionService = new DataAcquisitionService(
-    deviceService, 
-    dataAcquisitionConfigService, 
-    PLCClientFactory, 
-    DataStorageFactory, 
+    dataAcquisitionConfigService,
+    PLCClientFactory,
+    DataStorageFactory,
     ProcessReadData);
 
 await dataAcquisitionService.StartCollectionTasks();
 
-IPLCClient PLCClientFactory(string ipAddress, int port) 
+IPLCClient PLCClientFactory(string ipAddress, int port)
     => new PLCClient(ipAddress, port);
 
-IDataStorage DataStorageFactory(Device device, DataAcquisitionConfig metricTableConfig) 
-    => new SQLiteDataStorage(device, metricTableConfig);
+IDataStorage DataStorageFactory(DataAcquisitionConfig metricTableConfig)
+    => new SQLiteDataStorage(metricTableConfig);
 
-void ProcessReadData(Dictionary<string, object> data, Device device)
+void ProcessReadData(Dictionary<string, object> data, DataAcquisitionConfig config)
 {
     data["时间"] = DateTime.Now;
-    data["DeviceCode"] = device.Code;
+    data["DeviceCode"] = config.Code;
 }
 ```
 

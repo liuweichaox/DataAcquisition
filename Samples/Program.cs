@@ -4,15 +4,11 @@ using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.PLCClients;
 using Samples.Services.DataAcquisitionConfigs;
 using Samples.Services.DataStorages;
-using Samples.Services.Devices;
 using Samples.Services.PLCClients;
-
-var deviceService = new DeviceService();
 
 var dataAcquisitionConfigService = new DataAcquisitionConfigService();
 
 var dataAcquisitionService = new DataAcquisitionService(
-    deviceService,
     dataAcquisitionConfigService,
     PLCClientFactory,
     DataStorageFactory,
@@ -23,11 +19,11 @@ await dataAcquisitionService.StartCollectionTasks();
 IPLCClient PLCClientFactory(string ipAddress, int port)
     => new PLCClient(ipAddress, port);
 
-IDataStorage DataStorageFactory(Device device, DataAcquisitionConfig metricTableConfig)
-    => new SQLiteDataStorage(device, metricTableConfig);
+IDataStorage DataStorageFactory(DataAcquisitionConfig metricTableConfig)
+    => new SQLiteDataStorage(metricTableConfig);
 
-void ProcessReadData(Dictionary<string, object> data, Device device)
+void ProcessReadData(Dictionary<string, object> data, DataAcquisitionConfig config)
 {
     data["时间"] = DateTime.Now;
-    data["DeviceCode"] = device.Code;
+    data["DeviceCode"] = config.Code;
 }

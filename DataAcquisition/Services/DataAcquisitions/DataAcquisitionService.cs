@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Common;
 using DataAcquisition.Services.DataAcquisitionConfigs;
-using DataAcquisition.Services.Devices;
 using DataAcquisition.Services.QueueManagers;
 
 namespace DataAcquisition.Services.DataAcquisitions;
@@ -16,7 +15,6 @@ namespace DataAcquisition.Services.DataAcquisitions;
 /// </summary>
 public class DataAcquisitionService : IDataAcquisitionService
 {
-    private readonly IDeviceService _deviceService;
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
     private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
@@ -30,19 +28,16 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 构造函数
     /// </summary>
-    /// <param name="deviceService"></param>
     /// <param name="dataAcquisitionConfigService"></param>
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
     /// <param name="processReadData"></param>
     public DataAcquisitionService(
-        IDeviceService deviceService,
         IDataAcquisitionConfigService dataAcquisitionConfigService,
         PLCClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
         ProcessReadData processReadData)
     {
-        _deviceService = deviceService;
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
         _runningTasks = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
@@ -59,17 +54,13 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     public async Task StartCollectionTasks()
     {
-        var devices = await _deviceService.GetDevices();
-        var metricTableConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
+        var dataAcquisitionConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
 
-        foreach (var device in devices)
+        foreach (var config in dataAcquisitionConfigs)
         {
-            foreach (var metricTableConfig in metricTableConfigs)
+            if (config.IsEnabled && !IsTaskRunningForDeviceAndConfig(config))
             {
-                if (metricTableConfig.IsEnabled && !IsTaskRunningForDeviceAndConfig(device, metricTableConfig))
-                {
-                    StartCollectionTask(device, metricTableConfig);
-                }
+                StartCollectionTask(config);
             }
         }
 
@@ -79,44 +70,43 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 开始单个采集任务
     /// </summary>
-    /// <param name="device"></param>
-    /// <param name="dataAcquisitionConfig"></param>
-    private void StartCollectionTask(Device device, DataAcquisitionConfig dataAcquisitionConfig)
+    /// <param name="config"></param>
+    private void StartCollectionTask(DataAcquisitionConfig config)
     {
         var task = Task.Factory.StartNew(async () =>
         {
-            var plcClient = await CreatePLCClientAsync(device);
-            var dataStorage = CreateDataStorage(device, dataAcquisitionConfig);
-            var queueManager = new QueueManager(dataStorage, dataAcquisitionConfig);
+            var plcClient = await CreatePLCClientAsync(config);
+            var dataStorage = CreateDataStorage(config);
+            var queueManager = new QueueManager(dataStorage, config);
             _queueManagers.Add(queueManager);
 
             while (true)
             {
-                await ReadAndSaveAsync(device, dataAcquisitionConfig, plcClient, queueManager);
-                await Task.Delay(dataAcquisitionConfig.CollectionFrequency, _cts.Token);
+                await ReadAndSaveAsync(config, plcClient, queueManager);
+                await Task.Delay(config.CollectionFrequency, _cts.Token);
             }
         }, TaskCreationOptions.LongRunning);
 
-        var taskKey = GenerateTaskKey(device, dataAcquisitionConfig);
+        var taskKey = GenerateTaskKey(config);
         _runningTasks[taskKey] = task;
     }
 
     /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
-    /// <param name="device"></param>
+    /// <param name="config"></param>
     /// <returns></returns>
-    private async Task<IPLCClient> CreatePLCClientAsync(Device device)
+    private async Task<IPLCClient> CreatePLCClientAsync(DataAcquisitionConfig config)
     {
-        var plcClient = _plcClientFactory(device.IpAddress, device.Port);
+        var plcClient = _plcClientFactory(config.IpAddress, config.Port);
         var connect = await plcClient.ConnectServerAsync();
         if (connect.IsSuccess)
         {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 成功！");
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Code} 成功！");
         }
         else
         {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {device.Code} 失败：{connect.Message}");
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Code} 失败：{connect.Message}");
         }
 
         _plcClients.Add(plcClient);
@@ -127,12 +117,11 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 创建数据存储服务
     /// </summary>
-    /// <param name="device"></param>
-    /// <param name="dataAcquisitionConfig"></param>
+    /// <param name="config"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(Device device, DataAcquisitionConfig dataAcquisitionConfig)
+    private IDataStorage CreateDataStorage(DataAcquisitionConfig config)
     {
-        var dataStorage = _dataStorageFactory(device, dataAcquisitionConfig);
+        var dataStorage = _dataStorageFactory(config);
         _dataStorages.Add(dataStorage);
         return dataStorage;
     }
@@ -140,20 +129,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 读取数据并保存
     /// </summary>
-    /// <param name="device"></param>
-    /// <param name="dataAcquisitionConfig"></param>
+    /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
     private async Task ReadAndSaveAsync(
-        Device device,
-        DataAcquisitionConfig dataAcquisitionConfig,
+        DataAcquisitionConfig config,
         IPLCClient plcClient,
         QueueManager queueManager)
     {
         try
         {
-            await IfPLCClientNotConnectedReconnectAsync(device, plcClient);
-            var data = await ReadAsync(device, dataAcquisitionConfig, plcClient);
+            await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
+            var data = await ReadAsync(config, plcClient);
             queueManager.EnqueueData(data);
         }
         catch (Exception ex)
@@ -165,21 +152,21 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 如果 PLC 客户端连接断开则重连
     /// </summary>
-    /// <param name="device"></param>
+    /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <exception cref="Exception"></exception>
-    private static async Task IfPLCClientNotConnectedReconnectAsync(Device device, IPLCClient plcClient)
+    private static async Task IfPLCClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPLCClient plcClient)
     {
         if (!plcClient.IsConnected())
         {
             var connect = await plcClient.ConnectServerAsync();
             if (connect.IsSuccess)
             {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {device.Code} 成功！");
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Code} 成功！");
             }
             else
             {
-                throw new Exception($"重新连接到设备 {device.Code} 失败：{connect.Message}");
+                throw new Exception($"重新连接到设备 {config.Code} 失败：{connect.Message}");
             }
         }
     }
@@ -187,18 +174,16 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 读取数据
     /// </summary>
-    /// <param name="device"></param>
-    /// <param name="dataAcquisitionConfig"></param>
+    /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <returns></returns>
     private async Task<Dictionary<string, object>> ReadAsync(
-        Device device,
-        DataAcquisitionConfig dataAcquisitionConfig,
+        DataAcquisitionConfig config,
         IPLCClient plcClient)
     {
         var data = new Dictionary<string, object>();
 
-        foreach (var positionConfig in dataAcquisitionConfig.PositionConfigs)
+        foreach (var positionConfig in config.PositionConfigs)
         {
             try
             {
@@ -207,11 +192,11 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {device.Code} 失败：{ex.Message}");
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {config.Code} 失败：{ex.Message}");
             }
         }
 
-        _processReadData(data, device);
+        _processReadData(data, config);
 
         return data;
     }
@@ -279,27 +264,21 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <summary>
     /// 生成采集任务的 Key
     /// </summary>
-    /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private string GenerateTaskKey(
-        Device device,
-        DataAcquisitionConfig config)
+    private string GenerateTaskKey(DataAcquisitionConfig config)
     {
-        return $"{device.Code}_{config.TableName}";
+        return $"{config.Code}_{config.TableName}";
     }
 
     /// <summary>
     /// 是否开始采集任务
     /// </summary>
-    /// <param name="device"></param>
     /// <param name="config"></param>
     /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(
-        Device device,
-        DataAcquisitionConfig config)
+    private bool IsTaskRunningForDeviceAndConfig(DataAcquisitionConfig config)
     {
-        var taskKey = GenerateTaskKey(device, config);
+        var taskKey = GenerateTaskKey(config);
         return _runningTasks.ContainsKey(taskKey);
     }
 
