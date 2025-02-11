@@ -25,17 +25,21 @@ public class PLCClient : IPLCClient
     public async Task<OperationResult<bool>> ConnectServerAsync()
     {
         var result = await _plcClient.ConnectServerAsync();
-        return result.IsSuccess
-            ? new OperationResult<bool>(true)
-            : new OperationResult<bool>(result.Message);
+        return new OperationResult<bool>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message
+        };
     }
 
     public async Task<OperationResult<bool>> ConnectCloseAsync()
     {
         var result = await _plcClient.ConnectCloseAsync();
-        return result.IsSuccess
-            ? new OperationResult<bool>(true)
-            : new OperationResult<bool>(result.Message);
+        return new OperationResult<bool>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message
+        };
     }
 
     public bool IsConnected()
@@ -46,81 +50,111 @@ public class PLCClient : IPLCClient
     public async Task<OperationResult<UInt16>> ReadUInt16Async(string address)
     {
         var result = await _plcClient.ReadUInt16Async(address);
-        return result.IsSuccess
-            ? new OperationResult<UInt16>(result.Content)
-            : new OperationResult<UInt16>(result.Message);
+        return new OperationResult<UInt16>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
     
     public async Task<OperationResult<UInt32>> ReadUInt32Async(string address)
     {
         var result = await _plcClient.ReadUInt32Async(address);
-        return result.IsSuccess
-            ? new OperationResult<UInt32>(result.Content)
-            : new OperationResult<UInt32>(result.Message);
+        return new OperationResult<UInt32>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
     
     public async Task<OperationResult<UInt64>> ReadUInt64Async(string address)
     {
         var result = await _plcClient.ReadUInt64Async(address);
-        return result.IsSuccess
-            ? new OperationResult<UInt64>(result.Content)
-            : new OperationResult<UInt64>(result.Message);
+        return new OperationResult<UInt64>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
 
     public async Task<OperationResult<Int16>> ReadInt16Async(string address)
     {
         var result = await _plcClient.ReadInt16Async(address);
-        return result.IsSuccess
-            ? new OperationResult<Int16>(result.Content)
-            : new OperationResult<Int16>(result.Message);
+        return new OperationResult<Int16>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
     
     public async Task<OperationResult<Int32>> ReadInt32Async(string address)
     {
         var result = await _plcClient.ReadInt32Async(address);
-        return result.IsSuccess
-            ? new OperationResult<int>(result.Content)
-            : new OperationResult<int>(result.Message);
+        return new OperationResult<Int32>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
     
     public async Task<OperationResult<Int64>> ReadInt64Async(string address)
     {
         var result = await _plcClient.ReadInt64Async(address);
-        return result.IsSuccess
-            ? new OperationResult<Int64>(result.Content)
-            : new OperationResult<Int64>(result.Message);
+        return new OperationResult<Int64>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
 
     public async Task<OperationResult<float>> ReadFloatAsync(string address)
     {
         var result = await _plcClient.ReadFloatAsync(address);
-        return result.IsSuccess
-            ? new OperationResult<float>(result.Content)
-            : new OperationResult<float>(result.Message);
+        return new OperationResult<float>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
 
     public async Task<OperationResult<double>> ReadDoubleAsync(string address)
     {
         var result = await _plcClient.ReadDoubleAsync(address);
-        return result.IsSuccess
-            ? new OperationResult<double>(result.Content)
-            : new OperationResult<double>(result.Message);
+        return new OperationResult<double>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
     
     public async Task<OperationResult<string>> ReadStringAsync(string address, ushort length)
     {
         var result = await _plcClient.ReadStringAsync(address, length);
-        return result.IsSuccess
-            ? new OperationResult<string>(ParseStringValue(result.Content))
-            : new OperationResult<string>(result.Message);
+        return new OperationResult<string>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
 
     public async Task<OperationResult<bool>> ReadBoolAsync(string address)
     {
         var result = await _plcClient.ReadBoolAsync(address);
-        return result.IsSuccess
-            ? new OperationResult<bool>(result.Content)
-            : new OperationResult<bool>(result.Message);
+        return new OperationResult<bool>()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+            Content = result.Content
+        };
     }
 
     private string ParseStringValue(string stringValue)

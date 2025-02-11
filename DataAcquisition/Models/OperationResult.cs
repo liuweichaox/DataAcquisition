@@ -20,25 +20,18 @@ public class OperationResult<T>
     /// 数据
     /// </summary>
     public T Content { get; set; }
+}
 
-    /// <summary>
-    /// 成功
-    /// </summary>
-    /// <param name="content"></param>
-    public OperationResult(T content)
+
+public class OperationResult : OperationResult<object>
+{
+    public static OperationResult<object> From<T>(OperationResult<T> result)
     {
-        IsSuccess = true;
-        Content = content;
-    }
-
-    /// <summary>
-    /// 失败
-    /// </summary>
-    /// <param name="message"></param>
-
-    public OperationResult(string message)
-    {
-        IsSuccess = false;
-        Message = message;
+        return new OperationResult<object>
+        {
+            IsSuccess = result.IsSuccess,
+            Content = result.Content,
+            Message = result.Message
+        };
     }
 }
