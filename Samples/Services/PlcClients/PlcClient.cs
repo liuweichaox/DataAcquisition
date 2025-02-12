@@ -1,6 +1,6 @@
 ﻿using System.Net.NetworkInformation;
 using DataAcquisition.Models;
-using DataAcquisition.Services.PLCClients;
+using DataAcquisition.Services.PlcClients;
 using HslCommunication.Profinet.Inovance;
 
 namespace Samples.Services.PLCClients;
@@ -8,19 +8,15 @@ namespace Samples.Services.PLCClients;
 /// <summary>
 /// PLC 客户端实现
 /// </summary>
-public class PLCClient : IPLCClient
+public class PlcClient(string ipAddress, int port) : IPlcClient
 {
-    private readonly InovanceTcpNet _plcClient;
-    public PLCClient(string ipAddress, int port)
+    private readonly InovanceTcpNet _plcClient = new(ipAddress, port)
     {
-        _plcClient = new InovanceTcpNet(ipAddress, port)
-        {
-            Station = 1,
-            AddressStartWithZero = true,
-            IsStringReverse = true,
-            ConnectTimeOut = 1000
-        };
-    }
+        Station = 1,
+        AddressStartWithZero = true,
+        IsStringReverse = true,
+        ConnectTimeOut = 1000
+    };
 
     public async Task<OperationResult<bool>> ConnectServerAsync()
     {

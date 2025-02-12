@@ -193,23 +193,15 @@ var dataAcquisitionConfigService = new DataAcquisitionConfigService();
 
 var dataAcquisitionService = new DataAcquisitionService(
     dataAcquisitionConfigService,
-    PLCClientFactory,
-    DataStorageFactory,
-    ProcessReadData);
+    (ipAddress, port) => new PlcClient(ipAddress, port),
+    config => new SQLiteDataStorage(config),
+    (data, config) =>
+    {
+        data["时间"] = DateTime.Now;
+        data["DeviceCode"] = config.Code;
+    });
 
 await dataAcquisitionService.StartCollectionTasks();
-
-IPLCClient PLCClientFactory(string ipAddress, int port)
-    => new PLCClient(ipAddress, port);
-
-IDataStorage DataStorageFactory(DataAcquisitionConfig metricTableConfig)
-    => new SQLiteDataStorage(metricTableConfig);
-
-void ProcessReadData(Dictionary<string, object> data, DataAcquisitionConfig config)
-{
-    data["时间"] = DateTime.Now;
-    data["DeviceCode"] = config.Code;
-}
 ```
 
 ## 6. 总结

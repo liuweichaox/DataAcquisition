@@ -1,12 +1,12 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Services.PLCClients;
+namespace DataAcquisition.Services.PlcClients;
 
 /// <summary>
 /// PLC 客户端接口定义
 /// </summary>
-public interface IPLCClient
+public interface IPlcClient
 {
     /// <summary>
     /// 连接到 PLC 设备

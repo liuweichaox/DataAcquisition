@@ -24,6 +24,7 @@
       <None Update="Configs\M01_Metrics.json">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <None Remove="Configs\M02_Metrics.json" />
     </ItemGroup>
 
     <ItemGroup>

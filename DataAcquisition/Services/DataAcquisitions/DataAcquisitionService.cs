@@ -16,12 +16,12 @@ namespace DataAcquisition.Services.DataAcquisitions;
 public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
-    private readonly ConcurrentDictionary<string, Task> _runningTasks;
     private readonly CancellationTokenSource _cts;
-    private readonly ConcurrentDictionary<string, IPLCClient> _plcClients;
+    private readonly ConcurrentDictionary<string, IPlcClient> _plcClients;
     private readonly ConcurrentBag<IDataStorage> _dataStorages;
     private readonly ConcurrentBag<IQueueManager> _queueManagers;
-    private readonly PLCClientFactory _plcClientFactory;
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+    private readonly PlcClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     private readonly ProcessReadData _processReadData;
 
@@ -34,37 +34,38 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="processReadData"></param>
     public DataAcquisitionService(
         IDataAcquisitionConfigService dataAcquisitionConfigService,
-        PLCClientFactory plcClientFactory,
+        PlcClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
         ProcessReadData processReadData)
     {
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
-        _runningTasks = new ConcurrentDictionary<string, Task>();
         _cts = new CancellationTokenSource();
-        _plcClients = new ConcurrentDictionary<string, IPLCClient>();
+        _plcClients = new ConcurrentDictionary<string, IPlcClient>();
         _dataStorages = new ConcurrentBag<IDataStorage>();
         _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         _processReadData = processReadData;
     }
-
+    
     /// <summary>
     /// 开始采集任务
     /// </summary>
     public async Task StartCollectionTasks()
     {
+        var tasks = new List<Task>();
+         
         var dataAcquisitionConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
-
+        
         foreach (var config in dataAcquisitionConfigs)
         {
-            if (config.IsEnabled && !IsTaskRunningForDeviceAndConfig(config))
-            {
-                StartCollectionTask(config);
-            }
+            if (!config.IsEnabled) continue;
+            
+            var task = StartCollectionTask(config);
+            tasks.Add(task);
         }
-
-        await Task.Delay(Timeout.Infinite);
+            
+        await Task.WhenAll(tasks);
     }
 
     /// <summary>
@@ -73,17 +74,22 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     private async Task StartCollectionTask(DataAcquisitionConfig config)
     {
-        var key = GenerateKey(config);
-
         var task = Task.Run(async () =>
         {
-            var plcClient = CreatePLCClient(config);
-            if (plcClient == null)
+            IPlcClient plcClient = null;
+            while (plcClient == null)
             {
-                Console.WriteLine("PLC 连接不能创建");
-                return;
+                try
+                {
+                    plcClient = await CreatePlcClientAsync(config);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 创建 PlcClient 失败，正在重试: {ex.Message}");
+                    await Task.Delay(1000);
+                }
             }
-
+            
             var dataStorage = CreateDataStorage(config);
             var queueManager = new QueueManager(dataStorage, config);
             _queueManagers.Add(queueManager);
@@ -103,8 +109,6 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
         }, _cts.Token);
 
-        _runningTasks[key] = task;
-
         await task.ConfigureAwait(false);
     }
 
@@ -113,27 +117,44 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private IPLCClient CreatePLCClient(DataAcquisitionConfig config)
+    private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
     {
-        var key = GenerateKey(config);
-
-        var plcClient = _plcClients.GetOrAdd(key, _ =>
+        var key = config.Code;
+        
+        if (_plcClients.TryGetValue(key, out var plcClient))
         {
-            var client = _plcClientFactory(config.IpAddress, config.Port);
-            var connect = client.ConnectServerAsync().Result;
+            return plcClient;
+        }
+        
+        var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        
+        await semaphore.WaitAsync();
+
+        try
+        {
+            if (_plcClients.TryGetValue(key, out plcClient))
+            {
+                return plcClient;
+            }
+            
+            plcClient = _plcClientFactory(config.IpAddress, config.Port);
+            var connect = await RetryOnFailure(() => plcClient.ConnectServerAsync());
+        
             if (connect.IsSuccess)
             {
                 Console.WriteLine($"连接到设备 {config.Code} 成功！");
-                return client;
+                _plcClients.TryAdd(key, plcClient);
+                return plcClient;
             }
             else
             {
-                Console.WriteLine($"连接到设备 {config.Code} 失败：{connect.Message}");
-                return null;
+                throw new Exception($"连接到设备 {config.Code} 失败：{connect.Message}");
             }
-        });
-
-        return plcClient;
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     /// <summary>
@@ -156,7 +177,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="queueManager"></param>
     private async Task ReadAndSaveAsync(
         DataAcquisitionConfig config,
-        IPLCClient plcClient,
+        IPlcClient plcClient,
         QueueManager queueManager)
     {
         await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
@@ -170,7 +191,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <exception cref="Exception"></exception>
-    private async Task IfPLCClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPLCClient plcClient)
+    private async Task IfPLCClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
     {
         if (!plcClient.IsConnected())
         {
@@ -194,7 +215,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     private async Task<Dictionary<string, object>> ReadAsync(
         DataAcquisitionConfig config,
-        IPLCClient plcClient)
+        IPlcClient plcClient)
     {
         var data = new Dictionary<string, object>();
 
@@ -228,7 +249,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
     private async Task<OperationResult<object>> ParseValue(
-        IPLCClient plcClient,
+        IPlcClient plcClient,
         string dataAddress,
         ushort dataLength,
         string dataType)
@@ -322,28 +343,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
         return result;
     }
-
-    /// <summary>
-    /// 生成采集任务的 Key
-    /// </summary>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private string GenerateKey(DataAcquisitionConfig config)
-    {
-        return $"{config.DatabaseName}_{config.TableName}";
-    }
-
-    /// <summary>
-    /// 是否开始采集任务
-    /// </summary>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private bool IsTaskRunningForDeviceAndConfig(DataAcquisitionConfig config)
-    {
-        var taskKey = GenerateKey(config);
-        return _runningTasks.ContainsKey(taskKey);
-    }
-
+    
     public async Task StopCollectionTasks()
     {
         _cts.Cancel();
