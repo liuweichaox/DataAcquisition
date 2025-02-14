@@ -45,6 +45,7 @@
   - `DataAddress`：PLC 中存储该数据的地址
   - `DataLength`：读取的数据长度
   - `DataType`：数据类型
+  - `EvalExpression`：数据采集时的计算表达式，支持对数据进行处理和计算，如 `value / 1000.0`，value 为采集到的数据
 
 **样例配置**：`Configs/MetricConfigs/rocket_flight_metrics.json`
 
@@ -63,31 +64,36 @@
       "ColumnName": "实时速度",
       "DataAddress": "D6000",
       "DataLength": 1,
-      "DataType": "float"
+      "DataType": "float",
+      "EvalExpression":  null
     },
     {
       "ColumnName": "实时高度",
       "DataAddress": "D6100",
       "DataLength": 1,
-      "DataType": "float"
+      "DataType": "float",
+      "EvalExpression":  null
     },
     {
       "ColumnName": "加速度",
       "DataAddress": "D6200",
       "DataLength": 1,
-      "DataType": "float"
+      "DataType": "float",
+      "EvalExpression":  null
     },
     {
       "ColumnName": "气动压力",
       "DataAddress": "D6300",
       "DataLength": 1,
-      "DataType": "float"
+      "DataType": "float",
+      "EvalExpression":  "value / 1000.0"
     },
     {
       "ColumnName": "编号",
       "DataAddress": "D6400",
       "DataLength": 10,
-      "DataType": "string"
+      "DataType": "string",
+      "EvalExpression":  null
     }
   ]
 }

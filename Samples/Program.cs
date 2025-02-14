@@ -16,3 +16,4 @@ var dataAcquisitionService = new DataAcquisitionService(
     });
 
 await dataAcquisitionService.StartCollectionTasks();
+

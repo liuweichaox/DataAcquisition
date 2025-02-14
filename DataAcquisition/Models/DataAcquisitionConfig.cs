@@ -77,4 +77,9 @@ public class PositionConfig
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
+    
+    /// <summary>
+    /// 数据表达式计算
+    /// </summary>
+    public string EvalExpression { get; set; }
 }

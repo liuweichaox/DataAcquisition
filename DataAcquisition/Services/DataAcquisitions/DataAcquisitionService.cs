@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Common;
 using DataAcquisition.Services.DataAcquisitionConfigs;
 using DataAcquisition.Services.QueueManagers;
+using NCalc;
 
 namespace DataAcquisition.Services.DataAcquisitions;
 
@@ -229,7 +230,17 @@ public class DataAcquisitionService : IDataAcquisitionService
 
             if (result.IsSuccess)
             {
-                data[positionConfig.ColumnName] = result.Content;
+                if (!string.IsNullOrWhiteSpace(positionConfig.EvalExpression))
+                {
+                    var expression = new AsyncExpression(positionConfig.EvalExpression);
+                    expression.Parameters["value"] = result.Content;
+                    var value = await expression.EvaluateAsync();
+                    data[positionConfig.ColumnName] = value;
+                }
+                else
+                {
+                    data[positionConfig.ColumnName] = result.Content;
+                }
             }
             else
             {
