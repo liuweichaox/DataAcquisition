@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DataAcquisition.Common;
 
 namespace DataAcquisition.Services.QueueManagers;
 
@@ -14,10 +15,10 @@ public class QueueManager : IQueueManager
     private readonly List<Dictionary<string, object>> _dataBatch;
     private readonly DataAcquisitionConfig _dataAcquisitionConfig;
 
-    public QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
+    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
     {
         _queue = new BlockingCollection<Dictionary<string, object>>();
-        _dataStorage = dataStorage;
+        _dataStorage = dataStorageFactory(dataAcquisitionConfig);
         _dataAcquisitionConfig = dataAcquisitionConfig;
         _dataBatch = new List<Dictionary<string, object>>();
         Task.Run(ProcessQueue);
@@ -58,6 +59,7 @@ public class QueueManager : IQueueManager
     /// </summary>
     public void Complete()
     {
-        _queue.CompleteAdding();
+        _queue.CompleteAdding(); 
+        _dataStorage.DisposeAsync();
     }
 }

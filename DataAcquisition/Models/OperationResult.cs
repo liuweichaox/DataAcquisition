@@ -25,9 +25,9 @@ public class OperationResult<T>
 
 public class OperationResult : OperationResult<object>
 {
-    public static OperationResult<object> From<T>(OperationResult<T> result)
+    public static OperationResult From<T>(OperationResult<T> result)
     {
-        return new OperationResult<object>
+        return new OperationResult
         {
             IsSuccess = result.IsSuccess,
             Content = result.Content,

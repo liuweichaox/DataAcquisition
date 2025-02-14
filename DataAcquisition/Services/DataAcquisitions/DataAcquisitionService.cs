@@ -18,7 +18,6 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
     private readonly CancellationTokenSource _cts;
     private readonly ConcurrentDictionary<string, IPlcClient> _plcClients;
-    private readonly ConcurrentBag<IDataStorage> _dataStorages;
     private readonly ConcurrentBag<IQueueManager> _queueManagers;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly PlcClientFactory _plcClientFactory;
@@ -41,7 +40,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
         _cts = new CancellationTokenSource();
         _plcClients = new ConcurrentDictionary<string, IPlcClient>();
-        _dataStorages = new ConcurrentBag<IDataStorage>();
         _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
@@ -76,29 +74,45 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         var task = Task.Run(async () =>
         {
-            var plcClient = await CreatePlcClientAsync(config);
-            var dataStorage = CreateDataStorage(config);
-            var queueManager = new QueueManager(dataStorage, config);
-            _queueManagers.Add(queueManager);
+            var plcClient = await CreatePlcClientWithRetryAsync(config); 
+            
+            var queueManager = InitializeQueueManager(config);
 
             while (!_cts.Token.IsCancellationRequested)
             {
-                try
-                {
-                    await ReadAndSaveAsync(config, plcClient, queueManager).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
-                }
-
+                await CollectDataAsync(config, plcClient, queueManager);
                 await Task.Delay(config.CollectionFrequency, _cts.Token).ConfigureAwait(false);
             }
         }, _cts.Token);
 
         await task.ConfigureAwait(false);
     }
+    
+    /// <summary>
+    /// 创建 PLC 客户端并进行重试
+    /// </summary>
+    /// <param name="config"></param>
+    /// <returns></returns>
+    private async Task<IPlcClient> CreatePlcClientWithRetryAsync(DataAcquisitionConfig config)
+    {
+        IPlcClient plcClient = null;
+        
+        while (plcClient == null)
+        {
+            try
+            {
+                plcClient = await CreatePlcClientAsync(config);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 正在重试：{ex.Message}. 正在重试");
+                await Task.Delay(1000);
+            }
+        }
 
+        return plcClient;
+    }
+    
     /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
@@ -106,20 +120,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
     {
-        var key = config.Code;
-        
-        if (_plcClients.TryGetValue(key, out var plcClient))
+        if (_plcClients.TryGetValue(config.Code, out var plcClient))
         {
             return plcClient;
         }
         
-        var semaphore = _locks.GetOrAdd(key, _ => new SemaphoreSlim(1, 1));
+        var semaphore = _locks.GetOrAdd(config.Code, _ => new SemaphoreSlim(1, 1));
         
         await semaphore.WaitAsync();
 
         try
         {
-            if (_plcClients.TryGetValue(key, out plcClient))
+            if (_plcClients.TryGetValue(config.Code, out plcClient))
             {
                 return plcClient;
             }
@@ -130,7 +142,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             if (connect.IsSuccess)
             {
                 Console.WriteLine($"连接到设备 {config.Code} 成功！");
-                _plcClients.TryAdd(key, plcClient);
+                _plcClients.TryAdd(config.Code, plcClient);
                 return plcClient;
             }
             else
@@ -143,33 +155,37 @@ public class DataAcquisitionService : IDataAcquisitionService
             semaphore.Release();
         }
     }
-
+    
     /// <summary>
-    /// 创建数据存储服务
+    /// 队列管理初始化
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private IDataStorage CreateDataStorage(DataAcquisitionConfig config)
+    private QueueManager InitializeQueueManager(DataAcquisitionConfig config)
     {
-        var dataStorage = _dataStorageFactory(config);
-        _dataStorages.Add(dataStorage);
-        return dataStorage;
+        var queueManager = new QueueManager(_dataStorageFactory, config);
+        _queueManagers.Add(queueManager);
+        return queueManager;
     }
 
     /// <summary>
-    /// 读取数据并保存
+    /// 收集数据并处理异常
     /// </summary>
     /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
-    private async Task ReadAndSaveAsync(
-        DataAcquisitionConfig config,
-        IPlcClient plcClient,
-        QueueManager queueManager)
+    private async Task CollectDataAsync(DataAcquisitionConfig config, IPlcClient plcClient, QueueManager queueManager)
     {
-        await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
-        var data = await ReadAsync(config, plcClient);
-        queueManager.EnqueueData(data);
+        try
+        {
+            await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
+            var data = await ReadAsync(config, plcClient);
+            queueManager.EnqueueData(data);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -235,13 +251,13 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataType"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    private async Task<OperationResult<object>> ParseValue(
+    private async Task<OperationResult> ParseValue(
         IPlcClient plcClient,
         string dataAddress,
         ushort dataLength,
         string dataType)
     {
-        OperationResult<object> result = new OperationResult();
+        OperationResult result = new OperationResult();
 
         if (dataType.Equals("ushort", StringComparison.OrdinalIgnoreCase))
         {
@@ -338,11 +354,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         foreach (var plcClient in _plcClients.Values)
         {
             await plcClient.ConnectCloseAsync();
-        }
-
-        foreach (var dataStorage in _dataStorages)
-        {
-            await dataStorage.DisposeAsync();
         }
 
         foreach (var queueManager in _queueManagers)
