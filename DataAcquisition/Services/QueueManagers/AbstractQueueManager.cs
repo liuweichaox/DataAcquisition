@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using DataAcquisition.Common;
@@ -9,10 +10,10 @@ public abstract class AbstractQueueManager : IQueueManager
 {
     public AbstractQueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
     {
-        Task.Run((Func<Task>)ProcessQueue);
+        ProcessQueueAsync();
     }
-    public abstract Task ProcessQueue();
     
     public abstract void EnqueueData(Dictionary<string, object> data);
+    public abstract Task ProcessQueueAsync();
     public abstract void Complete();
 }

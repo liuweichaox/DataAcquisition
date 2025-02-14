@@ -167,7 +167,11 @@ public class QueueManager : AbstractQueueManager
         _dataBatch = new List<Dictionary<string, object>>();
     }
 
-    public override async Task ProcessQueue()
+    public override void EnqueueData(Dictionary<string, object> data)
+    {
+        _queue.Add(data);
+    }
+    public override async Task ProcessQueueAsync()
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
@@ -184,11 +188,6 @@ public class QueueManager : AbstractQueueManager
         {
             await _dataStorage.SaveBatchAsync(_dataBatch);
         }
-    }
-
-    public override void EnqueueData(Dictionary<string, object> data)
-    {
-        _queue.Add(data);
     }
 
     public override void Complete()
