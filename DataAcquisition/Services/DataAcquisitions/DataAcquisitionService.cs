@@ -77,17 +77,15 @@ public class DataAcquisitionService : IDataAcquisitionService
         var task = Task.Run(async () =>
         {
             IPlcClient plcClient = null;
-            while (plcClient == null)
+            
+            try
             {
-                try
-                {
-                    plcClient = await CreatePlcClientAsync(config);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 创建 PlcClient 失败，正在重试: {ex.Message}");
-                    await Task.Delay(1000);
-                }
+                plcClient = await CreatePlcClientAsync(config);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 创建 PLC 客户端失败: {ex.Message}");
+                await Task.Delay(1000);
             }
             
             var dataStorage = CreateDataStorage(config);

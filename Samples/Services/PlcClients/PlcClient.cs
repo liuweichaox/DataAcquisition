@@ -2,22 +2,23 @@
 using DataAcquisition.Models;
 using DataAcquisition.Services.PlcClients;
 using HslCommunication.Profinet.Inovance;
+using HslCommunication.Profinet.Melsec;
 
 namespace Samples.Services.PLCClients;
 
 /// <summary>
 /// PLC 客户端实现
 /// </summary>
-public class PlcClient(string ipAddress, int port) : IPlcClient
+public class PlcClient : IPlcClient
 {
-    private readonly InovanceTcpNet _plcClient = new(ipAddress, port)
+    private readonly MelsecA1ENet _plcClient;
+    public PlcClient(string ipAddress, int port)
     {
-        Station = 1,
-        AddressStartWithZero = true,
-        IsStringReverse = true,
-        ConnectTimeOut = 1000
-    };
-
+        _plcClient = new (ipAddress, port);
+        _plcClient.ReceiveTimeOut = 2000;
+        _plcClient.ConnectTimeOut = 2000;
+    }
+    
     public async Task<OperationResult<bool>> ConnectServerAsync()
     {
         var result = await _plcClient.ConnectServerAsync();
