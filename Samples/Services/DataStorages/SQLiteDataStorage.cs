@@ -11,6 +11,7 @@ namespace Samples.Services.DataStorages;
 public class SQLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
+    private readonly DataAcquisitionConfig _config;
     public SQLiteDataStorage(DataAcquisitionConfig config) : base(config)
     {
         var dbPath = Path.Combine(AppContext.BaseDirectory, $"{config.DatabaseName}.sqlite");
@@ -20,7 +21,7 @@ public class SQLiteDataStorage : AbstractDataStorage
 
     public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
     {
-        await _connection.InsertBatchAsync(DataAcquisitionConfig.TableName, data);
+        await _connection.InsertBatchAsync(_config.TableName, data);
     }
 
     public override async ValueTask DisposeAsync()
