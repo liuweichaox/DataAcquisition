@@ -1,41 +1,28 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 using DataAcquisition.Common;
+using DataAcquisition.Models;
+using DataAcquisition.Services.DataStorages;
+using DataAcquisition.Services.QueueManagers;
 
-namespace DataAcquisition.Services.QueueManagers;
+namespace Samples.Services.QueueManagers;
 
-/// <summary>
-/// 队里管理器
-/// </summary>
-public class QueueManager : IQueueManager
+public class QueueManager : AbstractQueueManager
 {
     private readonly BlockingCollection<Dictionary<string, object>> _queue;
     private readonly IDataStorage _dataStorage;
     private readonly List<Dictionary<string, object>> _dataBatch;
     private readonly DataAcquisitionConfig _dataAcquisitionConfig;
 
-    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
+    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig) : base(
+        dataStorageFactory, dataAcquisitionConfig)
     {
         _queue = new BlockingCollection<Dictionary<string, object>>();
         _dataStorage = dataStorageFactory(dataAcquisitionConfig);
         _dataAcquisitionConfig = dataAcquisitionConfig;
         _dataBatch = new List<Dictionary<string, object>>();
-        Task.Run(ProcessQueue);
     }
 
-    /// <summary>
-    /// 将数据和其对应的 DataAcquisitionConfig 添加到队列
-    /// </summary>
-    public void EnqueueData(Dictionary<string, object> data)
-    {
-        _queue.Add(data);
-    }
-
-    /// <summary>
-    /// 处理队列，支持根据不同的 DataAcquisitionConfig 进行批量插入
-    /// </summary>
-    private async Task ProcessQueue()
+    public override async Task ProcessQueue()
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
@@ -54,12 +41,14 @@ public class QueueManager : IQueueManager
         }
     }
 
-    /// <summary>
-    /// 完成队列，防止再添加数据
-    /// </summary>
-    public void Complete()
+    public override void EnqueueData(Dictionary<string, object> data)
     {
-        _queue.CompleteAdding(); 
+        _queue.Add(data);
+    }
+
+    public override void Complete()
+    {
+        _queue.CompleteAdding();
         _dataStorage.DisposeAsync();
     }
 }

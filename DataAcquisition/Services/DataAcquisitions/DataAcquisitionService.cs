@@ -23,6 +23,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly PlcClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
+    private readonly QueueManagerFactory _queueManagerFactory;
     private readonly ProcessReadData _processReadData;
 
     /// <summary>
@@ -31,11 +32,13 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataAcquisitionConfigService"></param>
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
+    /// <param name="queueManagerFactory"></param>
     /// <param name="processReadData"></param>
     public DataAcquisitionService(
         IDataAcquisitionConfigService dataAcquisitionConfigService,
         PlcClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
+        QueueManagerFactory queueManagerFactory,
         ProcessReadData processReadData)
     {
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
@@ -44,6 +47,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
+        _queueManagerFactory = queueManagerFactory;
         _processReadData = processReadData;
     }
     
@@ -162,9 +166,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private QueueManager InitializeQueueManager(DataAcquisitionConfig config)
+    private IQueueManager InitializeQueueManager(DataAcquisitionConfig config)
     {
-        var queueManager = new QueueManager(_dataStorageFactory, config);
+        var queueManager =  _queueManagerFactory(_dataStorageFactory, config);
         _queueManagers.Add(queueManager);
         return queueManager;
     }
@@ -175,7 +179,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <param name="queueManager"></param>
-    private async Task CollectDataAsync(DataAcquisitionConfig config, IPlcClient plcClient, QueueManager queueManager)
+    private async Task CollectDataAsync(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager)
     {
         try
         {

@@ -11,13 +11,14 @@
 
 ## 3. 主要功能和特点
 -	**动态配置：** 通过配置文件定义采集表、列名、频率，支持自定义数据点和采集方式。
--	**多平台支持：** 兼容 .NET 6.0, 7.0, 8.0 和 .NET Standard 2.1。
+- **多平台支持：** 兼容 .NET Standard 2.0 和 .NET Standard 2.1。
 -	**多 PLC 数据采集：** 支持同时从多个 PLC 周期性地采集实时寄存器数据。
 -	**模块化设计：** 易于扩展和维护。
 -	**高效通讯：** 基于 Modbus TCP 协议，实现稳定的高效通讯。
 -	**数据存储：** 支持存储至本地文件或数据库，云存储。
 -	**频率控制：** 可配置采集频率，支持毫秒级控制。
 -	**错误处理：** 支持断线重连与超时重试，确保系统稳定运行。
+- **消息队列：** 支持消息队列，实现高并发数据采集。可使用 RabbitMQ 或 Kafka。
 
 ## 4. 适用场景
 
@@ -144,9 +145,63 @@ public class PLCClient : IPLCClient
     // 其他读取方法...
 }
 ```
-### 5.3 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
 
-`IDataStorage` 为数据存储服务，内部使用 `BlockingCollection<T>` 管理多线程环境下的数据流，确保高效数据处理及持久化。数据每次读取会添加到队列。
+### 5.3 实现 AbstractQueueManager 抽象类（定义消息队列类型）
+
+`IQueueManager` 为消息队列服务，确保高效数据处理及持久化。数据每次读取会添加到队列。用户可根据需要选择不同的消息队列实现，如 RabbitMQ 或 Kafka。这里使用 BlockingCollection 作为示例。
+
+```C#
+public class QueueManager : AbstractQueueManager
+{
+    private readonly BlockingCollection<Dictionary<string, object>> _queue;
+    private readonly IDataStorage _dataStorage;
+    private readonly List<Dictionary<string, object>> _dataBatch;
+    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+
+    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig) : base(
+        dataStorageFactory, dataAcquisitionConfig)
+    {
+        _queue = new BlockingCollection<Dictionary<string, object>>();
+        _dataStorage = dataStorageFactory(dataAcquisitionConfig);
+        _dataAcquisitionConfig = dataAcquisitionConfig;
+        _dataBatch = new List<Dictionary<string, object>>();
+    }
+
+    public override async Task ProcessQueue()
+    {
+        foreach (var data in _queue.GetConsumingEnumerable())
+        {
+            _dataBatch.Add(data);
+
+            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+            {
+                await _dataStorage.SaveBatchAsync(_dataBatch);
+                _dataBatch.Clear();
+            }
+        }
+
+        if (_dataBatch.Count > 0)
+        {
+            await _dataStorage.SaveBatchAsync(_dataBatch);
+        }
+    }
+
+    public override void EnqueueData(Dictionary<string, object> data)
+    {
+        _queue.Add(data);
+    }
+
+    public override void Complete()
+    {
+        _queue.CompleteAdding();
+        _dataStorage.DisposeAsync();
+    }
+}
+```
+
+### 5.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
+
+`IDataStorage` 为数据存储服务，确保数据持久化。用户可根据不同数据库实现，如 MySQL、PostgreSQL 或 InflixDB 等数据库，这里以 SQLite 为例。
 这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`DataAcquisitionConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
 
 ```C#
@@ -175,7 +230,8 @@ public class SQLiteDataStorage : AbstractDataStorage
     }
 }
 ```
-### 5.4 运行
+
+### 5.5 运行
 构建 `IDataAcquisitionService`实例
 #### 构造函数参数说明
 
@@ -195,12 +251,11 @@ public class SQLiteDataStorage : AbstractDataStorage
 
 #### 示例
 ```C#
-var dataAcquisitionConfigService = new DataAcquisitionConfigService();
-
 var dataAcquisitionService = new DataAcquisitionService(
     dataAcquisitionConfigService,
     (ipAddress, port) => new PlcClient(ipAddress, port),
     config => new SQLiteDataStorage(config),
+    (factory, config) => new QueueManager(factory, config),
     (data, config) =>
     {
         data["时间"] = DateTime.Now;
