@@ -76,18 +76,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         var task = Task.Run(async () =>
         {
-            IPlcClient plcClient = null;
-            
-            try
-            {
-                plcClient = await CreatePlcClientAsync(config);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 创建 PLC 客户端失败: {ex.Message}");
-                await Task.Delay(1000);
-            }
-            
+            var plcClient = await CreatePlcClientAsync(config);
             var dataStorage = CreateDataStorage(config);
             var queueManager = new QueueManager(dataStorage, config);
             _queueManagers.Add(queueManager);
@@ -146,7 +135,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
             else
             {
-                throw new Exception($"连接到设备 {config.Code} 失败：{connect.Message}");
+                throw new Exception($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Code} 失败：{connect.Message}");
             }
         }
         finally
