@@ -6,6 +6,9 @@ using DataAcquisition.Services.QueueManagers;
 
 namespace Samples.Services.QueueManagers;
 
+/// <summary>
+/// 消息队列里实现
+/// </summary>
 public class QueueManager : AbstractQueueManager
 {
     private readonly BlockingCollection<Dictionary<string, object>> _queue;

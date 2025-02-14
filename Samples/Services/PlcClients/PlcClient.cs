@@ -1,7 +1,6 @@
 ﻿using System.Net.NetworkInformation;
 using DataAcquisition.Models;
 using DataAcquisition.Services.PlcClients;
-using HslCommunication.Profinet.Inovance;
 using HslCommunication.Profinet.Melsec;
 
 namespace Samples.Services.PLCClients;
