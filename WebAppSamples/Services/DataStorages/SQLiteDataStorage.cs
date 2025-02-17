@@ -1,7 +1,7 @@
 ﻿using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
 using Microsoft.Data.Sqlite;
-using Samples.Extensions;
+using WebAppSamples.Extensions;
 
 namespace WebAppSamples.Services.DataStorages;
 

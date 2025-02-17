@@ -4,7 +4,7 @@ using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.QueueManagers;
 
-namespace Samples.Services.QueueManagers;
+namespace WebAppSamples.Services.QueueManagers;
 
 /// <summary>
 /// 消息队列里实现

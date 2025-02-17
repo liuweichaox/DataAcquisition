@@ -1,6 +1,6 @@
 ﻿using Microsoft.Data.Sqlite;
 
-namespace Samples.Extensions;
+namespace WebAppSamples.Extensions;
 
 /// <summary>
 /// SqlLite 拓展类

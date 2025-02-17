@@ -1,10 +1,10 @@
 using DataAcquisition.Services.DataAcquisitions;
 using Microsoft.AspNetCore.SignalR;
-using Samples.Services.QueueManagers;
 using WebAppSamples.Hubs;
 using WebAppSamples.Services.DataAcquisitionConfigs;
 using WebAppSamples.Services.DataStorages;
 using WebAppSamples.Services.PlcClients;
+using WebAppSamples.Services.QueueManagers;
 
 var builder = WebApplication.CreateBuilder(args);
 
