@@ -1,7 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-
 namespace DataAcquisition.Services.QueueManagers;
 
 /// <summary>
@@ -12,10 +8,8 @@ public interface IQueueManager
     /// <summary>
     /// 将数据添加到队列
     /// </summary>
-    /// <param name="data">要添加的数据</param>
-    void EnqueueData(Dictionary<string, object> data);
-    
-    Task ProcessQueueAsync();
+    /// <param name="dataPoint">要添加的数据</param>
+    void EnqueueData(DataPoint? dataPoint);
 
     /// <summary>
     /// 完成队列，防止再添加数据

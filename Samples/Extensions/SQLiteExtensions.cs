@@ -2,11 +2,15 @@
 
 namespace Samples.Extensions;
 
-public static class SQLiteExtensions
+/// <summary>
+/// SqlLite 拓展类
+/// </summary>
+public static class SqLiteExtensions
 {
     /// <summary>
     /// 插入数据到指定的表中
     /// </summary>
+    /// <param name="connection"></param>
     /// <param name="tableName">目标表名</param>
     /// <param name="data">要插入的数据，键为列名，值为对应的值</param>
     public static async Task<bool> InsertAsync(this SqliteConnection connection, string tableName, Dictionary<string, object> data)
@@ -37,6 +41,7 @@ public static class SQLiteExtensions
     /// <summary>
     /// 批量插入数据到指定的表中
     /// </summary>
+    /// <param name="connection"></param>
     /// <param name="tableName">目标表名</param>
     /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
     public static async Task<bool> InsertBatchAsync(this SqliteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)

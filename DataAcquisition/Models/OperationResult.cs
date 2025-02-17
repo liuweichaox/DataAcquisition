@@ -22,7 +22,9 @@ public class OperationResult<T>
     public T Content { get; set; }
 }
 
-
+/// <summary>
+/// object 操作返回类
+/// </summary>
 public class OperationResult : OperationResult<object>
 {
     public static OperationResult From<T>(OperationResult<T> result)

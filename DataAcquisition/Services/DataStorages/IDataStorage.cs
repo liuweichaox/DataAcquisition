@@ -12,6 +12,12 @@ public interface IDataStorage : IAsyncDisposable
     /// <summary>
     /// 保存
     /// </summary>
-    /// <param name="data"></param>
-    Task SaveBatchAsync(List<Dictionary<string, object>> data);
+    /// <param name="dataPoint"></param>
+    Task SaveAsync(DataPoint? dataPoint);
+    
+    /// <summary>
+    /// 批量保存
+    /// </summary>
+    /// <param name="dataPoints"></param>
+    Task SaveBatchAsync(List<DataPoint?> dataPoints);
 }

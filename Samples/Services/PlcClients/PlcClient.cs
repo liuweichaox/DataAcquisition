@@ -13,7 +13,7 @@ public class PlcClient : IPlcClient
     private readonly MelsecA1ENet _plcClient;
     public PlcClient(string ipAddress, int port)
     {
-        _plcClient = new (ipAddress, port);
+        _plcClient = new MelsecA1ENet(ipAddress, port);
         _plcClient.ReceiveTimeOut = 2000;
         _plcClient.ConnectTimeOut = 2000;
     }
@@ -134,6 +134,11 @@ public class PlcClient : IPlcClient
     public async Task<OperationResult<string>> ReadStringAsync(string address, ushort length)
     {
         var result = await _plcClient.ReadStringAsync(address, length);
+        if (result.IsSuccess)
+        {
+            result.Content = ParseStringValue(result.Content);
+        }
+
         return new OperationResult<string>()
         {
             IsSuccess = result.IsSuccess,

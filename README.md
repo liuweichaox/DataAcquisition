@@ -11,14 +11,14 @@
 
 ## 3. 主要功能和特点
 -	**动态配置：** 通过配置文件定义采集表、列名、频率，支持自定义数据点和采集方式。
-- **多平台支持：** 兼容 .NET Standard 2.0 和 .NET Standard 2.1。
+-   **多平台支持：** 兼容 .NET Standard 2.0 和 .NET Standard 2.1。
 -	**多 PLC 数据采集：** 支持同时从多个 PLC 周期性地采集实时寄存器数据。
 -	**模块化设计：** 易于扩展和维护。
 -	**高效通讯：** 基于 Modbus TCP 协议，实现稳定的高效通讯。
 -	**数据存储：** 支持存储至本地文件或数据库，云存储。
 -	**频率控制：** 可配置采集频率，支持毫秒级控制。
 -	**错误处理：** 支持断线重连与超时重试，确保系统稳定运行。
-- **消息队列：** 支持消息队列，实现高并发数据采集。可使用 RabbitMQ 或 Kafka。
+-   **消息队列：** 支持消息队列，实现高并发数据采集。可使用 RabbitMQ 或 Kafka。
 
 ## 4. 适用场景
 
@@ -33,70 +33,74 @@
 **文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
 
 **参数详解**：
+- `Plc`：PLC 的具体配置
+    - `Code`: 数据采集表编码
+    - `IpAddress`: PLC 的 IP 地址
+    - `Port`: PLC 的端口号
+    - `Registers`：寄存器的具体配置
+        - `ColumnName`：数据库表中的列名
+        - `DataAddress`：PLC 中存储该数据的地址
+        - `DataLength`：读取的数据长度
+        - `DataType`：数据类型
+        - `EvalExpression`：数据采集时的计算表达式，支持对数据进行处理和计算，如 `value / 1000.0`，value 为采集到的数据
 - `IsEnabled`：是否启用此表的数据采集
-- `Code`: 数据采集表编码
-- `IpAddress`: PLC 的 IP 地址
-- `Port`: PLC 的端口号
 - `DatabaseName`：存储数据的目标数据库名称，可以根据数据库名称进行分库存储
 - `TableName`：数据库表名
 - `CollectionFrequency`：数据采集间隔（毫秒）
 - `BatchSize`: 批量保存大小
-- `PositionConfigs`：指标的具体配置
-  - `ColumnName`：数据库表中的列名
-  - `DataAddress`：PLC 中存储该数据的地址
-  - `DataLength`：读取的数据长度
-  - `DataType`：数据类型
-  - `EvalExpression`：数据采集时的计算表达式，支持对数据进行处理和计算，如 `value / 1000.0`，value 为采集到的数据
+
 
 **样例配置**：`Configs/MetricConfigs/rocket_flight_metrics.json`
 
 ```json
 {
   "IsEnabled": true,
-  "Code": "M01",
-  "IpAddress": "192.168.1.1",
-  "Port": 502,
   "DatabaseName": "dbo",
   "TableName": "m01_metrics",
   "CollectionFrequency": 1000,
   "BatchSize": 100,
-  "PositionConfigs": [
-    {
-      "ColumnName": "实时速度",
-      "DataAddress": "D6000",
-      "DataLength": 1,
-      "DataType": "float",
-      "EvalExpression":  null
-    },
-    {
-      "ColumnName": "实时高度",
-      "DataAddress": "D6100",
-      "DataLength": 1,
-      "DataType": "float",
-      "EvalExpression":  null
-    },
-    {
-      "ColumnName": "加速度",
-      "DataAddress": "D6200",
-      "DataLength": 1,
-      "DataType": "float",
-      "EvalExpression":  null
-    },
-    {
-      "ColumnName": "气动压力",
-      "DataAddress": "D6300",
-      "DataLength": 1,
-      "DataType": "float",
-      "EvalExpression":  "value / 1000.0"
-    },
-    {
-      "ColumnName": "编号",
-      "DataAddress": "D6400",
-      "DataLength": 10,
-      "DataType": "string",
-      "EvalExpression":  null
-    }
-  ]
+  "Plc": {
+    "Code": "M01",
+    "IpAddress": "192.168.1.1",
+    "Port": 502,
+    "Registers": [
+      {
+        "ColumnName": "实时速度",
+        "DataAddress": "D6000",
+        "DataLength": 1,
+        "DataType": "float",
+        "EvalExpression":  null
+      },
+      {
+        "ColumnName": "实时高度",
+        "DataAddress": "D6100",
+        "DataLength": 1,
+        "DataType": "float",
+        "EvalExpression":  null
+      },
+      {
+        "ColumnName": "加速度",
+        "DataAddress": "D6200",
+        "DataLength": 1,
+        "DataType": "float",
+        "EvalExpression":  null
+      },
+      {
+        "ColumnName": "气动压力",
+        "DataAddress": "D6300",
+        "DataLength": 1,
+        "DataType": "float",
+        "EvalExpression":  "value / 1000.0"
+      },
+      {
+        "ColumnName": "编号",
+        "DataAddress": "D6400",
+        "DataLength": 10,
+        "DataType": "string",
+        "EvalExpression":  null
+      }
+    ]
+  }
 }
 ```
 #### 5.1.2 实现`IDataAcquisitionConfigService`接口
@@ -151,36 +155,38 @@ public class PLCClient : IPLCClient
 `IQueueManager` 为消息队列服务，确保高效数据处理及持久化。数据每次读取会添加到队列。用户可根据需要选择不同的消息队列实现，如 RabbitMQ 或 Kafka。这里使用 BlockingCollection 作为示例。
 
 ```C#
-public class QueueManager : AbstractQueueManager
+/// <summary>
+/// 消息队列里实现
+/// </summary>
+public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
+    : AbstractQueueManager(dataStorageFactory, dataAcquisitionConfig)
 {
-    private readonly BlockingCollection<Dictionary<string, object>> _queue;
-    private readonly IDataStorage _dataStorage;
-    private readonly List<Dictionary<string, object>> _dataBatch;
-    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+    private readonly BlockingCollection<DataPoint?> _queue = new();
+    private readonly IDataStorage _dataStorage = dataStorageFactory(dataAcquisitionConfig);
+    private readonly List<DataPoint?> _dataBatch = [];
+    private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
 
-    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig) : base(
-        dataStorageFactory, dataAcquisitionConfig)
+    public override void EnqueueData(DataPoint? dataPoint)
     {
-        _queue = new BlockingCollection<Dictionary<string, object>>();
-        _dataStorage = dataStorageFactory(dataAcquisitionConfig);
-        _dataAcquisitionConfig = dataAcquisitionConfig;
-        _dataBatch = new List<Dictionary<string, object>>();
-    }
-
-    public override void EnqueueData(Dictionary<string, object> data)
-    {
-        _queue.Add(data);
+        _queue.Add(dataPoint);
     }
     public override async Task ProcessQueueAsync()
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
-            _dataBatch.Add(data);
-
-            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+            if (_dataAcquisitionConfig.BatchSize > 1)
             {
-                await _dataStorage.SaveBatchAsync(_dataBatch);
-                _dataBatch.Clear();
+                _dataBatch.Add(data);
+            
+                if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+                {
+                    await _dataStorage.SaveBatchAsync(_dataBatch);
+                    _dataBatch.Clear();
+                }
+            }
+            else
+            {
+                await _dataStorage.SaveAsync(data);
             }
         }
 
@@ -207,19 +213,27 @@ public class QueueManager : AbstractQueueManager
 /// <summary>
 /// SQLite 数据存储实现
 /// </summary>
-public class SQLiteDataStorage : AbstractDataStorage
+public class SqLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
-    public SQLiteDataStorage(DataAcquisitionConfig config) : base(config)
+    private readonly DataAcquisitionConfig _config;
+    public SqLiteDataStorage(DataAcquisitionConfig config) : base(config)
     {
+        _config = config;
         var dbPath = Path.Combine(AppContext.BaseDirectory, $"{config.DatabaseName}.sqlite");
         _connection = new SqliteConnection($@"Data Source={dbPath};");
         _connection.Open();
     }
 
-    public override async Task SaveBatchAsync(List<Dictionary<string, object>> data)
+    public override async Task SaveAsync(DataPoint? dataPoint)
     {
-        await _connection.InsertBatchAsync(DataAcquisitionConfig.TableName, data);
+        await _connection.InsertAsync(_config.TableName, dataPoint.Values);
+    }
+
+    public override async Task SaveBatchAsync(List<DataPoint?> dataPoints)
+    {
+        var dataBatch = dataPoints.Select(x => x.Values).ToList();
+        await _connection.InsertBatchAsync(_config.TableName, dataBatch);
     }
 
     public override async ValueTask DisposeAsync()
@@ -253,12 +267,11 @@ public class SQLiteDataStorage : AbstractDataStorage
 var dataAcquisitionService = new DataAcquisitionService(
     dataAcquisitionConfigService,
     (ipAddress, port) => new PlcClient(ipAddress, port),
-    config => new SQLiteDataStorage(config),
+    config => new SqLiteDataStorage(config),
     (factory, config) => new QueueManager(factory, config),
     (data, config) =>
     {
-        data["时间"] = DateTime.Now;
-        data["DeviceCode"] = config.Code;
+        data.Values["Timestamp"] = DateTime.Now;
     });
 
 await dataAcquisitionService.StartCollectionTasks();

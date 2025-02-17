@@ -58,7 +58,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         var tasks = new List<Task>();
          
-        var dataAcquisitionConfigs = await _dataAcquisitionConfigService.GetDataAcquisitionConfigs();
+        var dataAcquisitionConfigs = await _dataAcquisitionConfigService.GetConfigs();
         
         foreach (var config in dataAcquisitionConfigs)
         {
@@ -79,7 +79,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         var task = Task.Run(async () =>
         {
-            var plcClient = await CreatePlcClientWithRetryAsync(config); 
+            var plcClient = await CreatePlcClientAsync(config); 
             
             var queueManager = InitializeQueueManager(config);
 
@@ -94,66 +94,37 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
     
     /// <summary>
-    /// 创建 PLC 客户端并进行重试
-    /// </summary>
-    /// <param name="config"></param>
-    /// <returns></returns>
-    private async Task<IPlcClient> CreatePlcClientWithRetryAsync(DataAcquisitionConfig config)
-    {
-        IPlcClient plcClient = null;
-        
-        while (plcClient == null)
-        {
-            try
-            {
-                plcClient = await CreatePlcClientAsync(config);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 正在重试：{ex.Message}. 正在重试");
-                await Task.Delay(1000);
-            }
-        }
-
-        return plcClient;
-    }
-    
-    /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
     private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
     {
-        if (_plcClients.TryGetValue(config.Code, out var plcClient))
+        if (_plcClients.TryGetValue(config.Plc.Code, out var plcClient))
         {
             return plcClient;
         }
         
-        var semaphore = _locks.GetOrAdd(config.Code, _ => new SemaphoreSlim(1, 1));
+        var semaphore = _locks.GetOrAdd(config.Plc.Code, _ => new SemaphoreSlim(1, 1));
         
         await semaphore.WaitAsync();
 
         try
         {
-            if (_plcClients.TryGetValue(config.Code, out plcClient))
-            {
-                return plcClient;
-            }
+            plcClient =  _plcClients.GetOrAdd(config.Plc.Code, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
             
-            plcClient = _plcClientFactory(config.IpAddress, config.Port);
             var connect = await RetryOnFailure(() => plcClient.ConnectServerAsync());
         
             if (connect.IsSuccess)
             {
-                Console.WriteLine($"连接到设备 {config.Code} 成功！");
-                _plcClients.TryAdd(config.Code, plcClient);
-                return plcClient;
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
             }
             else
             {
-                throw new Exception($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Code} 失败：{connect.Message}");
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
+            
+            return plcClient;
         }
         finally
         {
@@ -183,9 +154,12 @@ public class DataAcquisitionService : IDataAcquisitionService
     {
         try
         {
-            await IfPLCClientNotConnectedReconnectAsync(config, plcClient);
-            var data = await ReadAsync(config, plcClient);
-            queueManager.EnqueueData(data);
+            await IfPlcClientNotConnectedReconnectAsync(config, plcClient);
+            var dataPoint = await ReadAsync(config, plcClient);
+            if (dataPoint != null)
+            {
+                queueManager.EnqueueData(dataPoint);
+            }
         }
         catch (Exception ex)
         {
@@ -199,18 +173,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <exception cref="Exception"></exception>
-    private async Task IfPLCClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
+    private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
     {
         if (!plcClient.IsConnected())
         {
-            var connect = await RetryOnFailure(() => plcClient.ConnectServerAsync());
+            var connect = await plcClient.ConnectServerAsync();
             if (connect.IsSuccess)
             {
-                Console.WriteLine($"重新连接到设备 {config.Code} 成功！");
+                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
             }
             else
             {
-                throw new Exception($"重新连接到设备 {config.Code} 失败：{connect.Message}");
+                throw new Exception($"重新连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
         }
     }
@@ -221,40 +195,50 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     /// <param name="plcClient"></param>
     /// <returns></returns>
-    private async Task<Dictionary<string, object>> ReadAsync(
+    private async Task<DataPoint?> ReadAsync(
         DataAcquisitionConfig config,
         IPlcClient plcClient)
     {
         var data = new Dictionary<string, object>();
 
-        foreach (var positionConfig in config.PositionConfigs)
+        foreach (var register in config.Plc.Registers)
         {
-            var result = await ParseValue(plcClient, positionConfig.DataAddress,
-                positionConfig.DataLength, positionConfig.DataType);
+            var result = await ParseValue(plcClient, register.DataAddress,
+                register.DataLength, register.DataType);
 
             if (result.IsSuccess)
             {
-                if (!string.IsNullOrWhiteSpace(positionConfig.EvalExpression))
+                if (!string.IsNullOrWhiteSpace(register.EvalExpression))
                 {
-                    var expression = new AsyncExpression(positionConfig.EvalExpression);
-                    expression.Parameters["value"] = result.Content;
+                    var expression = new AsyncExpression(register.EvalExpression)
+                    {
+                        Parameters =
+                        {
+                            ["value"] = result.Content
+                        }
+                    };
                     var value = await expression.EvaluateAsync();
-                    data[positionConfig.ColumnName] = value;
+                    data[register.ColumnName] = value;
                 }
                 else
                 {
-                    data[positionConfig.ColumnName] = result.Content;
+                    data[register.ColumnName] = result.Content;
                 }
             }
             else
             {
-                throw new Exception($"读取设备 {config.Code} 失败：{result.Message}");
+                throw new Exception($"读取设备 {config.Plc.Code} 寄存器地址 {register.DataAddress} 失败：{result.Message}");
             }
         }
 
-        _processReadData(data, config);
+        if (data.Count == 0)
+        {
+            return null;
+        }
 
-        return data;
+        var dataPoint = new DataPoint(data);
+        _processReadData(dataPoint, config);
+        return dataPoint;
     }
 
     /// <summary>

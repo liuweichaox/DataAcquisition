@@ -13,7 +13,7 @@ public static class JsonUtils
     /// <typeparam name="T">要反序列化的目标类型</typeparam>
     /// <param name="filePath">JSON 文件路径</param>
     /// <returns>反序列化后的对象</returns>
-    public static async Task<T> LoadConfigAsync<T>(string filePath)
+    private static async Task<T> LoadConfigAsync<T>(string filePath)
     {
         await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open, FileAccess.Read);
         return await JsonSerializer.DeserializeAsync<T>(stream);

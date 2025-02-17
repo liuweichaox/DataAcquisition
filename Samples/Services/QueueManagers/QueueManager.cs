@@ -9,36 +9,35 @@ namespace Samples.Services.QueueManagers;
 /// <summary>
 /// 消息队列里实现
 /// </summary>
-public class QueueManager : AbstractQueueManager
+public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
+    : AbstractQueueManager(dataStorageFactory, dataAcquisitionConfig)
 {
-    private readonly BlockingCollection<Dictionary<string, object>> _queue;
-    private readonly IDataStorage _dataStorage;
-    private readonly List<Dictionary<string, object>> _dataBatch;
-    private readonly DataAcquisitionConfig _dataAcquisitionConfig;
+    private readonly BlockingCollection<DataPoint?> _queue = new();
+    private readonly IDataStorage _dataStorage = dataStorageFactory(dataAcquisitionConfig);
+    private readonly List<DataPoint?> _dataBatch = [];
+    private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
 
-    public QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig) : base(
-        dataStorageFactory, dataAcquisitionConfig)
+    public override void EnqueueData(DataPoint? dataPoint)
     {
-        _queue = new BlockingCollection<Dictionary<string, object>>();
-        _dataStorage = dataStorageFactory(dataAcquisitionConfig);
-        _dataAcquisitionConfig = dataAcquisitionConfig;
-        _dataBatch = new List<Dictionary<string, object>>();
-    }
-
-    public override void EnqueueData(Dictionary<string, object> data)
-    {
-        _queue.Add(data);
+        _queue.Add(dataPoint);
     }
     public override async Task ProcessQueueAsync()
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
-            _dataBatch.Add(data);
-
-            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+            if (_dataAcquisitionConfig.BatchSize > 1)
             {
-                await _dataStorage.SaveBatchAsync(_dataBatch);
-                _dataBatch.Clear();
+                _dataBatch.Add(data);
+            
+                if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+                {
+                    await _dataStorage.SaveBatchAsync(_dataBatch);
+                    _dataBatch.Clear();
+                }
+            }
+            else
+            {
+                await _dataStorage.SaveAsync(data);
             }
         }
 

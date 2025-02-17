@@ -8,19 +8,9 @@ namespace DataAcquisition.Models;
 public class DataAcquisitionConfig
 {
     /// <summary>
-    /// 设备编码
+    /// PLC 配置
     /// </summary>
-    public string Code { get; set; }
-
-    /// <summary>
-    /// IP地址
-    /// </summary>
-    public string IpAddress { get; set; }
-
-    /// <summary>
-    /// 端口
-    /// </summary>
-    public int Port { get; set; }
+    public PlcConfig Plc { get; set; }
     
     /// <summary>
     /// 是否启用
@@ -46,17 +36,39 @@ public class DataAcquisitionConfig
     /// 批量保存的数据
     /// </summary>
     public int BatchSize { get; set; }
+    
+}
 
+/// <summary>
+/// PLC 配置
+/// </summary>
+public class PlcConfig
+{
+    /// <summary>
+    /// PLC 编码
+    /// </summary>
+    public string Code { get; set; }
+
+    /// <summary>
+    /// IP地址
+    /// </summary>
+    public string IpAddress { get; set; }
+
+    /// <summary>
+    /// 端口
+    /// </summary>
+    public int Port { get; set; }
+    
     /// <summary>
     /// 采集位置配置
     /// </summary>
-    public List<PositionConfig> PositionConfigs { get; set; }
+    public List<Register> Registers { get; set; }
 }
 
 /// <summary>
 /// 采集位置配置
 /// </summary>
-public class PositionConfig
+public class Register
 {
     /// <summary>
     /// 列名

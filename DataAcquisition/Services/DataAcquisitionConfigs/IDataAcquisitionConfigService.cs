@@ -12,5 +12,5 @@ public interface IDataAcquisitionConfigService
     /// 获取所有采集表格配置
     /// </summary>
     /// <returns></returns>
-    Task<List<DataAcquisitionConfig>> GetDataAcquisitionConfigs();
+    Task<List<DataAcquisitionConfig>> GetConfigs();
 }

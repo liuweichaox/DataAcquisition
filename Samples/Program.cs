@@ -9,12 +9,11 @@ var dataAcquisitionConfigService = new DataAcquisitionConfigService();
 var dataAcquisitionService = new DataAcquisitionService(
     dataAcquisitionConfigService,
     (ipAddress, port) => new PlcClient(ipAddress, port),
-    config => new SQLiteDataStorage(config),
+    config => new SqLiteDataStorage(config),
     (factory, config) => new QueueManager(factory, config),
     (data, config) =>
     {
-        data["时间"] = DateTime.Now;
-        data["DeviceCode"] = config.Code;
+        data.Values["Timestamp"] = DateTime.Now;
     });
 
 await dataAcquisitionService.StartCollectionTasks();
