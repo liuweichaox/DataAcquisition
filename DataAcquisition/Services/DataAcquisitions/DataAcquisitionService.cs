@@ -17,14 +17,15 @@ namespace DataAcquisition.Services.DataAcquisitions;
 public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
-    private readonly CancellationTokenSource _cts;
     private readonly ConcurrentDictionary<string, IPlcClient> _plcClients;
     private readonly ConcurrentBag<IQueueManager> _queueManagers;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly PlcClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     private readonly QueueManagerFactory _queueManagerFactory;
-    private readonly ProcessReadData _processReadData;
+    private readonly ProcessDataPoint _processDataPoint;
+    private readonly MessageHandle _messageHandle;
+    private readonly ConcurrentDictionary<string, CancellationTokenSource> _runningTasks = new();
 
     /// <summary>
     /// 构造函数
@@ -33,22 +34,24 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="plcClientFactory"></param>
     /// <param name="dataStorageFactory"></param>
     /// <param name="queueManagerFactory"></param>
-    /// <param name="processReadData"></param>
+    /// <param name="processDataPoint"></param>
+    /// <param name="messageHandle"></param>
     public DataAcquisitionService(
         IDataAcquisitionConfigService dataAcquisitionConfigService,
         PlcClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
         QueueManagerFactory queueManagerFactory,
-        ProcessReadData processReadData)
+        ProcessDataPoint processDataPoint, 
+        MessageHandle messageHandle)
     {
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
-        _cts = new CancellationTokenSource();
         _plcClients = new ConcurrentDictionary<string, IPlcClient>();
         _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         _queueManagerFactory = queueManagerFactory;
-        _processReadData = processReadData;
+        _processDataPoint = processDataPoint;
+        _messageHandle = messageHandle;
     }
     
     /// <summary>
@@ -56,41 +59,43 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     public async Task StartCollectionTasks()
     {
-        var tasks = new List<Task>();
-         
         var dataAcquisitionConfigs = await _dataAcquisitionConfigService.GetConfigs();
         
         foreach (var config in dataAcquisitionConfigs)
         {
             if (!config.IsEnabled) continue;
             
-            var task = StartCollectionTask(config);
-            tasks.Add(task);
+            StartCollectionTask(config);
         }
-            
-        await Task.WhenAll(tasks);
     }
 
     /// <summary>
     /// 开始单个采集任务
     /// </summary>
     /// <param name="config"></param>
-    private async Task StartCollectionTask(DataAcquisitionConfig config)
+    private void StartCollectionTask(DataAcquisitionConfig config)
     {
-        var task = Task.Run(async () =>
+        if (_runningTasks.ContainsKey(config.Plc.Code))
+        {
+            return;
+        }
+        
+        var ctx = new CancellationTokenSource();
+        var token = ctx.Token;
+        Task.Run(async () =>
         {
             var plcClient = await CreatePlcClientAsync(config); 
             
             var queueManager = InitializeQueueManager(config);
 
-            while (!_cts.Token.IsCancellationRequested)
+            while (!token.IsCancellationRequested)
             {
                 await CollectDataAsync(config, plcClient, queueManager);
-                await Task.Delay(config.CollectionFrequency, _cts.Token).ConfigureAwait(false);
+                await Task.Delay(config.CollectionFrequency, token).ConfigureAwait(false);
             }
-        }, _cts.Token);
-
-        await task.ConfigureAwait(false);
+        }, token);
+       
+        _runningTasks.TryAdd(config.Plc.Code, ctx);
     }
     
     /// <summary>
@@ -117,11 +122,11 @@ public class DataAcquisitionService : IDataAcquisitionService
         
             if (connect.IsSuccess)
             {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
             }
             else
             {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
             
             return plcClient;
@@ -163,7 +168,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
+            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 采集数据异常: {ex.Message}");
         }
     }
 
@@ -180,7 +185,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             var connect = await plcClient.ConnectServerAsync();
             if (connect.IsSuccess)
             {
-                Console.WriteLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
             }
             else
             {
@@ -237,7 +242,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
 
         var dataPoint = new DataPoint(data);
-        _processReadData(dataPoint, config);
+        _processDataPoint(dataPoint, config);
         return dataPoint;
     }
 
@@ -348,7 +353,12 @@ public class DataAcquisitionService : IDataAcquisitionService
     
     public async Task StopCollectionTasks()
     {
-        _cts.Cancel();
+        foreach (var token in _runningTasks.Values)
+        {
+            token.Cancel();
+            token.Dispose();
+        }
+        _runningTasks.Clear();
 
         foreach (var plcClient in _plcClients.Values)
         {
@@ -359,7 +369,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         {
             queueManager.Complete();
         }
-
+        
         LogExitInformation("程序已正常退出");
     }
 

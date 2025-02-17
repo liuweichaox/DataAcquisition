@@ -1,0 +1,193 @@
+﻿@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据采集控制</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/5.0.7/signalr.min.js"></script>
+    <style>
+        /* 终端样式 */
+        body {
+            background-color: #1e1e1e;
+            color: #dcdcaa;
+            font-family: 'Consolas', 'Courier New', monospace;
+            margin: 0;
+            padding: 0;
+        }
+        
+        .container {
+            text-align: center;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            font-weight: normal;
+        }
+
+        button {
+            background-color: #333;
+            color: #dcdcaa;
+            border: 1px solid #555;
+            padding: 12px 24px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        .message-list {
+            max-height: 800px;
+            overflow-y: auto;
+            text-align: left;
+            margin-top: 20px;
+            border: 1px solid #444;
+            padding: 15px;
+            background-color: #121212;
+            border-radius: 5px;
+            color: #dcdcaa;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .message-item {
+            padding: 5px;
+        }
+
+        /* 滚动条样式 */
+        .message-list::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .message-list::-webkit-scrollbar-thumb {
+            background-color: #555;
+            border-radius: 4px;
+        }
+
+        .message-list::-webkit-scrollbar-track {
+            background-color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app" class="container">
+    <h2>数据采集控制</h2>
+    <button v-on:click="startCollection" :disabled="loading">开始采集</button>
+    <button v-on:click="stopCollection" :disabled="loading">停止采集</button>
+    <p v-if="message">{{ message }}</p>
+    
+    <div class="message-list" ref="messageList">
+        <div v-for="(msg, index) in messageHistory" :key="index" class="message-item">
+            {{ msg }}
+        </div>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, onMounted, onUnmounted, nextTick } = Vue;
+
+    createApp({
+        setup() {
+            const loading = ref(false);
+            const message = ref('');
+            const messageHistory = ref([]);
+            let connection = null;
+
+            // 更新消息历史并滚动到最新
+            const updateMessages = (newMessage) => {
+                messageHistory.value.push(newMessage);
+                nextTick(() => {
+                    // 滚动到消息列表的底部
+                    const messageList = document.querySelector('.message-list');
+                    messageList.scrollTop = messageList.scrollHeight;
+                });
+            };
+
+            const startCollection = async () => {
+                loading.value = true;
+                message.value = '正在启动数据采集...';
+                try {
+                    const response = await fetch('/api/DataAcquisition/StartCollectionTasks', {
+                        method: 'POST',
+                    });
+                    message.value = response.ok ? '数据采集已启动！' : '启动失败';
+                    updateMessages(message.value); // 将启动状态添加到消息历史
+                } catch (error) {
+                    message.value = '请求失败，请检查服务器连接！';
+                    updateMessages(message.value);
+                }
+                loading.value = false;
+            };
+
+            const stopCollection = async () => {
+                loading.value = true;
+                message.value = '正在停止数据采集...';
+                try {
+                    const response = await fetch('/api/DataAcquisition/StopCollectionTasks', {
+                        method: 'POST',
+                    });
+                    message.value = response.ok ? '数据采集已停止！' : '停止失败';
+                    updateMessages(message.value); // 将停止状态添加到消息历史
+                } catch (error) {
+                    message.value = '请求失败，请检查服务器连接！';
+                    updateMessages(message.value);
+                }
+                loading.value = false;
+            };
+
+            // 设置 SignalR 连接
+            onMounted(() => {
+                connection = new signalR.HubConnectionBuilder()
+                    .withUrl("/dataHub") // SignalR Hub 地址
+                    .build();
+
+                connection.on("ReceiveMessage", (message) => {
+                    // 当从服务器接收到消息时，更新实时消息
+                    updateMessages(message);
+                });
+
+                connection.start().then(() => {
+                    console.log('SignalR 连接已打开');
+                }).catch(err => {
+                    console.error('SignalR 连接失败', err);
+                });
+            });
+
+            // 关闭 SignalR 连接
+            onUnmounted(() => {
+                if (connection) {
+                    connection.stop();
+                }
+            });
+
+            return {
+                loading,
+                message,
+                messageHistory,
+                startCollection,
+                stopCollection
+            };
+        }
+    }).mount('#app');
+</script>
+
+</body>
+</html>

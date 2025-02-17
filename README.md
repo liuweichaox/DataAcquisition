@@ -1,56 +1,42 @@
 # PLC 数据采集系统
 
-## 1. 项目概述
+## 项目概述
 
-本项目旨在通过动态收集来自 PLC（可编程逻辑控制器）的数据，为用户提供实时监控和分析工业设备运行状态的能力。
+本项目旨在通过动态收集来自 PLC（可编程逻辑控制器）的数据，为用户提供实时监控和分析工业设备运行状态的能力。支持多种 PLC 类型、实时数据采集、消息队列、高效数据存储等功能，适用于工业自动化过程中的监控与控制、设备性能分析及故障诊断。
 
-## 2. 技术栈
-
+## 技术栈
 - **编程语言**：C#
 - **通信协议**：Modbus TCP/IP
+- **数据库支持**：SQLite（支持 MySQL、PostgreSQL 可根据需要扩展）
+- **消息队列**：RabbitMQ 或 Kafka（支持高并发数据采集）
 
-## 3. 主要功能和特点
--	**动态配置：** 通过配置文件定义采集表、列名、频率，支持自定义数据点和采集方式。
--   **多平台支持：** 兼容 .NET Standard 2.0 和 .NET Standard 2.1。
--	**多 PLC 数据采集：** 支持同时从多个 PLC 周期性地采集实时寄存器数据。
--	**模块化设计：** 易于扩展和维护。
--	**高效通讯：** 基于 Modbus TCP 协议，实现稳定的高效通讯。
--	**数据存储：** 支持存储至本地文件或数据库，云存储。
--	**频率控制：** 可配置采集频率，支持毫秒级控制。
--	**错误处理：** 支持断线重连与超时重试，确保系统稳定运行。
--   **消息队列：** 支持消息队列，实现高并发数据采集。可使用 RabbitMQ 或 Kafka。
+## 主要功能
 
-## 4. 适用场景
+- **动态配置**：通过配置文件定义采集表、列名、频率，支持自定义数据点和采集方式。
+- **多平台支持**：兼容 .NET Standard 2.0 和 .NET Standard 2.1。
+- **多 PLC 数据采集**：支持从多个 PLC 周期性地采集实时数据。
+- **模块化设计**：易于扩展和维护。
+- **高效通讯**：基于 Modbus TCP 协议，实现稳定的高效通讯。
+- **数据存储**：支持存储至本地 SQLite 数据库或云存储。
+- **频率控制**：可配置采集频率，支持毫秒级控制。
+- **错误处理**：支持断线重连与超时重试，确保系统稳定运行。
+- **消息队列**：支持 RabbitMQ 或 Kafka，用于高并发数据采集。
 
-- 工业自动化过程中的监控与控制
-- 设备性能分析及故障诊断
-- 历史数据记录与回溯
+## 安装与使用
 
-## 5. 使用示例
-### 5.1 实现 IDataAcquisitionConfigService 接口（定义采集配置）
-#### 5.1.1 设置 PLC 数据采集参数（定义怎么采集数据）
+### 1. 克隆仓库
 
-**文件路径**：`Configs/MetricConfigs`（每个表对应一个独立的 JSON 文件）
+```bash
+git clone https://github.com/liuweichaox/DataAcquisition.git
+```
 
-**参数详解**：
-- `Plc`：PLC 的具体配置
-    - `Code`: 数据采集表编码
-    - `IpAddress`: PLC 的 IP 地址
-    - `Port`: PLC 的端口号
-    - `Registers`：寄存器的具体配置
-        - `ColumnName`：数据库表中的列名
-        - `DataAddress`：PLC 中存储该数据的地址
-        - `DataLength`：读取的数据长度
-        - `DataType`：数据类型
-        - `EvalExpression`：数据采集时的计算表达式，支持对数据进行处理和计算，如 `value / 1000.0`，value 为采集到的数据
-- `IsEnabled`：是否启用此表的数据采集
-- `DatabaseName`：存储数据的目标数据库名称，可以根据数据库名称进行分库存储
-- `TableName`：数据库表名
-- `CollectionFrequency`：数据采集间隔（毫秒）
-- `BatchSize`: 批量保存大小
+### 2. 配置文件
 
+在 `Configs` 文件夹中，每个表对应一个独立的 JSON 文件，您可以根据需要修改配置。配置文件定义了 PLC 信息、寄存器地址、数据类型等内容。示例配置文件如下：
 
-**样例配置**：`Configs/MetricConfigs/rocket_flight_metrics.json`
+**配置文件路径**：`Configs/`
+
+**示例配置** (`Configs/M01_Metrics.json`):
 
 ```json
 {
@@ -77,202 +63,94 @@
         "DataLength": 1,
         "DataType": "float",
         "EvalExpression":  null
-      },
-      {
-        "ColumnName": "加速度",
-        "DataAddress": "D6200",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  null
-      },
-      {
-        "ColumnName": "气动压力",
-        "DataAddress": "D6300",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  "value / 1000.0"
-      },
-      {
-        "ColumnName": "编号",
-        "DataAddress": "D6400",
-        "DataLength": 10,
-        "DataType": "string",
-        "EvalExpression":  null
       }
     ]
   }
 }
 ```
-#### 5.1.2 实现`IDataAcquisitionConfigService`接口
-```C#
-public class DataAcquisitionConfigService : IDataAcquisitionConfigService
+
+### 3. 配置数据库与消息队列
+
+- 配置您使用的数据库（例如 SQLite），确保能正常存储采集到的数据。
+- 配置消息队列（RabbitMQ 或 Kafka），确保可以高效处理大量数据。
+
+### 4. 启动数据采集服务
+
+在 `Startup.cs` 中配置 `IDataAcquisitionService` 实例：
+
+```csharp
+builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {
-    public async Task<List<DataAcquisitionConfig>> GetDataAcquisitionConfigs()
-    {
-        var dataAcquisitionConfigs = await JsonUtils.LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs");
-        return dataAcquisitionConfigs;
-    }
-}
-```
-### 5.2 实现 IPLClient 接口（定义 PLC 客户端类型）
-
-`IPLClient` 是 PLC 客户端接口，示例项目使用 `HslCommunication` 库实现，用户可根据不同 PLC 实现。
-
-```C#
-/// <summary>
-/// PLC 客户端实现
-/// </summary>
-public class PLCClient : IPLCClient
-{
-    private readonly InovanceTcpNet _plcClient;
-
-    public PLCClient(string ipAddress, int port)
-    {
-        // 初始化 PLC 客户端
-    }
-
-    public async Task<OperationResult<bool>> ConnectServerAsync()
-    {
-        // 连接到 PLC 服务器并返回连接结果
-    }
-
-    public async Task<OperationResult<bool>> ConnectCloseAsync()
-    {
-        // 断开与 PLC 的连接并返回断开结果
-    }
-
-    public bool IsConnected()
-    {
-        // 检查当前连接状态，返回布尔值
-    }
-
-    // 其他读取方法...
-}
-```
-
-### 5.3 实现 AbstractQueueManager 抽象类（定义消息队列类型）
-
-`IQueueManager` 为消息队列服务，确保高效数据处理及持久化。数据每次读取会添加到队列。用户可根据需要选择不同的消息队列实现，如 RabbitMQ 或 Kafka。这里使用 BlockingCollection 作为示例。
-
-```C#
-/// <summary>
-/// 消息队列里实现
-/// </summary>
-public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
-    : AbstractQueueManager(dataStorageFactory, dataAcquisitionConfig)
-{
-    private readonly BlockingCollection<DataPoint?> _queue = new();
-    private readonly IDataStorage _dataStorage = dataStorageFactory(dataAcquisitionConfig);
-    private readonly List<DataPoint?> _dataBatch = [];
-    private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
-
-    public override void EnqueueData(DataPoint? dataPoint)
-    {
-        _queue.Add(dataPoint);
-    }
-    public override async Task ProcessQueueAsync()
-    {
-        foreach (var data in _queue.GetConsumingEnumerable())
+    var hubContext = provider.GetService<IHubContext<DataHub>>();
+    return new DataAcquisitionService(
+        new DataAcquisitionConfigService(),
+        (ipAddress, port) => new PlcClient(ipAddress, port),
+        config => new SqLiteDataStorage(config),
+        (factory, config) => new QueueManager(factory, config),
+        (dataPoint, config) =>
         {
-            if (_dataAcquisitionConfig.BatchSize > 1)
-            {
-                _dataBatch.Add(data);
-            
-                if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
-                {
-                    await _dataStorage.SaveBatchAsync(_dataBatch);
-                    _dataBatch.Clear();
-                }
-            }
-            else
-            {
-                await _dataStorage.SaveAsync(data);
-            }
-        }
-
-        if (_dataBatch.Count > 0)
+            dataPoint.Values["Timestamp"] = DateTime.Now;
+        },
+        async (message) =>
         {
-            await _dataStorage.SaveBatchAsync(_dataBatch);
-        }
-    }
-
-    public override void Complete()
-    {
-        _queue.CompleteAdding();
-        _dataStorage.DisposeAsync();
-    }
-}
+            await hubContext.Clients.All.SendAsync("ReceiveMessage", message);
+        });
+});
 ```
 
-### 5.4 实现 AbstractDataStorage 抽象类（定义持久化数据库类型）
+### 5. 数据采集控制器
 
-`IDataStorage` 为数据存储服务，确保数据持久化。用户可根据不同数据库实现，如 MySQL、PostgreSQL 或 InflixDB 等数据库，这里以 SQLite 为例。
-这里为了提高插入效率使用是批量插入，如果不需要批量插入，可以修改`DataAcquisitionConfig`中`BatchSize`配置值为`1`，即可实现单条插入。
+在 `DataAcquisitionController` 中定义 API 接口，控制数据采集任务的开始与停止：
 
-```C#
-/// <summary>
-/// SQLite 数据存储实现
-/// </summary>
-public class SqLiteDataStorage : AbstractDataStorage
+```csharp
+[Route("api/[controller]/[action]")]
+public class DataAcquisitionController : ControllerBase
 {
-    private readonly SqliteConnection _connection;
-    private readonly DataAcquisitionConfig _config;
-    public SqLiteDataStorage(DataAcquisitionConfig config) : base(config)
+    private readonly IDataAcquisitionService _dataAcquisitionService;
+
+    public DataAcquisitionController(IDataAcquisitionService dataAcquisitionService)
     {
-        _config = config;
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"{config.DatabaseName}.sqlite");
-        _connection = new SqliteConnection($@"Data Source={dbPath};");
-        _connection.Open();
+        _dataAcquisitionService = dataAcquisitionService;
     }
 
-    public override async Task SaveAsync(DataPoint? dataPoint)
+    [HttpPost]
+    public IActionResult StartCollectionTasks()
     {
-        await _connection.InsertAsync(_config.TableName, dataPoint.Values);
+        _dataAcquisitionService.StartCollectionTasks();
+        return Ok("开始数据采集任务");
     }
 
-    public override async Task SaveBatchAsync(List<DataPoint?> dataPoints)
+    [HttpPost]
+    public IActionResult StopCollectionTasks()
     {
-        var dataBatch = dataPoints.Select(x => x.Values).ToList();
-        await _connection.InsertBatchAsync(_config.TableName, dataBatch);
-    }
-
-    public override async ValueTask DisposeAsync()
-    {
-        await _connection.CloseAsync();
-        await _connection.DisposeAsync();
+        _dataAcquisitionService.StopCollectionTasks();
+        return Ok("停止数据采集任务");
     }
 }
 ```
 
-### 5.5 运行
-构建 `IDataAcquisitionService`实例
-#### 构造函数参数说明
+## API 文档
 
-`dataAcquisitionConfigService：` 数据采集配置服务实例
+### 开始数据采集任务
 
-`plcClientFactory：` PLC 客户端服务创建
+- **POST** `/api/DataAcquisition/StartCollectionTasks`
+- **返回**：`开始数据采集任务`
 
-`dataStorageFactory：` 数据存储服务创建
+### 停止数据采集任务
 
-`processReadData：` 读取到后执行的委托，可以在此对读取到的数据进行拓展或额外处理。
+- **POST** `/api/DataAcquisition/StopCollectionTasks`
+- **返回**：`停止数据采集任务`
 
-#### 函数说明
+## 贡献
 
-`StartCollectionTasks` 函数，开启数据采集。
+如果您想为该项目贡献代码，欢迎提交 Pull Request！在提交之前，请确保代码通过了所有单元测试，并且没有引入任何破坏性变化。
 
-`StopCollectionTasks` 函数，停止数据采集。
+## 许可
 
-#### 示例
-```C#
-var dataAcquisitionService = new DataAcquisitionService(
-    dataAcquisitionConfigService,
-    (ipAddress, port) => new PlcClient(ipAddress, port),
-    config => new SqLiteDataStorage(config),
-    (factory, config) => new QueueManager(factory, config),
-    (data, config) =>
-    {
-        data.Values["Timestamp"] = DateTime.Now;
-    });
+本项目使用 MIT 许可证，详情请参阅 [LICENSE](LICENSE) 文件。
 
-await dataAcquisitionService.StartCollectionTasks();
+---
+
+感谢您使用 PLC 数据采集系统！如有问题，欢迎提出 issue 或进行讨论。
+
 ```

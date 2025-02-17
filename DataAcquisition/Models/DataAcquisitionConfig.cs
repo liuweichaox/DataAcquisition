@@ -8,11 +8,6 @@ namespace DataAcquisition.Models;
 public class DataAcquisitionConfig
 {
     /// <summary>
-    /// PLC 配置
-    /// </summary>
-    public PlcConfig Plc { get; set; }
-    
-    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; }
@@ -37,6 +32,10 @@ public class DataAcquisitionConfig
     /// </summary>
     public int BatchSize { get; set; }
     
+    /// <summary>
+    /// PLC 配置
+    /// </summary>
+    public PlcConfig Plc { get; set; }
 }
 
 /// <summary>
