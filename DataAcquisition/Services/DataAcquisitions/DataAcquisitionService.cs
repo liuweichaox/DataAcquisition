@@ -138,7 +138,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         }
 
         /// <summary>
-        /// 初始化队列管理器（如数据入库、缓冲处理等）
+        /// 初始化队列管理器（数据入库、缓冲处理等）
         /// </summary>
         private void InitializeQueueManager(DataAcquisitionConfig config)
         {
