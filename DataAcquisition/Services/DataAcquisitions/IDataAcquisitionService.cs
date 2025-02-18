@@ -20,5 +20,5 @@ public interface IDataAcquisitionService
     /// 获取 PLC 连接状态
     /// </summary>
     /// <returns></returns>
-    Dictionary<string, bool> GetPlcConnectionStatus();
+    SortedDictionary<string, bool> GetPlcConnectionStatus();
 }

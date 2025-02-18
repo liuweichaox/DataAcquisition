@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Common;
@@ -345,9 +346,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 获取 PLC 连接状态
     /// </summary>
     /// <returns></returns>
-    public Dictionary<string, bool> GetPlcConnectionStatus()
+    public SortedDictionary<string, bool> GetPlcConnectionStatus()
     {
-        return new Dictionary<string, bool>(_plcConnectionStatus);
+        return new SortedDictionary<string, bool>(_plcConnectionStatus);
     }
     
     /// <summary>
