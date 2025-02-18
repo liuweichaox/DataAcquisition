@@ -165,7 +165,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace} - Source: {ex.Source}");
+            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
         }
     }
 
