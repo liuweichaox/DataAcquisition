@@ -24,7 +24,7 @@ public interface IPlcClient
     /// 检查设备是否在线
     /// </summary>
     /// <returns></returns>
-    bool IsConnected();
+    Task<bool> IsConnectedAsync();
     
     /// <summary>
     /// 读取 16 位无符号整数

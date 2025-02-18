@@ -11,6 +11,7 @@ namespace WebAppSamples.Services.PlcClients;
 public class PlcClient : IPlcClient
 {
     private readonly MelsecA1ENet _plcClient;
+    private readonly SemaphoreSlim _connectLock = new(1, 1);
     public PlcClient(string ipAddress, int port)
     {
         _plcClient = new MelsecA1ENet(ipAddress, port);
@@ -20,27 +21,51 @@ public class PlcClient : IPlcClient
     
     public async Task<OperationResult<bool>> ConnectServerAsync()
     {
-        var result = await _plcClient.ConnectServerAsync();
-        return new OperationResult<bool>()
+        await _connectLock.WaitAsync();
+        try
         {
-            IsSuccess = result.IsSuccess,
-            Message = result.Message
-        };
+            var result = await _plcClient.ConnectServerAsync();
+            return new OperationResult<bool>()
+            {
+                IsSuccess = result.IsSuccess,
+                Message = result.Message
+            };
+        }
+        finally
+        {
+            _connectLock.Release();
+        }
     }
 
     public async Task<OperationResult<bool>> ConnectCloseAsync()
     {
-        var result = await _plcClient.ConnectCloseAsync();
-        return new OperationResult<bool>()
+        await _connectLock.WaitAsync();
+        try
         {
-            IsSuccess = result.IsSuccess,
-            Message = result.Message
-        };
+            var result = await _plcClient.ConnectCloseAsync();
+            return new OperationResult<bool>()
+            {
+                IsSuccess = result.IsSuccess,
+                Message = result.Message
+            };
+        }
+        finally
+        {
+            _connectLock.Release();
+        }
     }
 
-    public bool IsConnected()
+    public async Task<bool> IsConnectedAsync()
     {
-        return _plcClient.IpAddressPing() == IPStatus.Success;
+        await _connectLock.WaitAsync();
+        try
+        {
+            return await Task.Run(() => _plcClient.IpAddressPing() == IPStatus.Success);
+        }
+        finally
+        {
+            _connectLock.Release();
+        }
     }
     
     public async Task<OperationResult<UInt16>> ReadUInt16Async(string address)

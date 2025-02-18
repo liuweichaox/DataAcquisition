@@ -184,7 +184,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <exception cref="Exception"></exception>
     private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
     {
-        if (!plcClient.IsConnected())
+        if (!await plcClient.IsConnectedAsync())
         {
             var connect = await plcClient.ConnectServerAsync();
             if (connect.IsSuccess)
