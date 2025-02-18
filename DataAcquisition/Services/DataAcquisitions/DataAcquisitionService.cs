@@ -184,7 +184,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
     {
         var connect = await plcClient.ConnectServerAsync();
-        if (connect.IsSuccess)
+        if (connect.IsSuccess && !_plcConnectionStatus[config.Plc.Code])
         {
             _plcConnectionStatus[config.Plc.Code] = true;
             _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
