@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Common;
@@ -18,16 +16,16 @@ namespace DataAcquisition.Services.DataAcquisitions;
 public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
-    private readonly ConcurrentDictionary<string, IPlcClient> _plcClients;
-    private readonly ConcurrentBag<IQueueManager> _queueManagers;
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
+    private readonly ConcurrentDictionary<string, IPlcClient> _plcClients = new();
+    private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
+    private readonly ConcurrentDictionary<int, IQueueManager> _queueManagers = new();
+    private readonly ConcurrentDictionary<int, CancellationTokenSource> _runningTasks = new();
     private readonly PlcClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     private readonly QueueManagerFactory _queueManagerFactory;
     private readonly ProcessDataPoint _processDataPoint;
     private readonly MessageHandle _messageHandle;
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _runningTasks = new();
-    private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
     
     /// <summary>
     /// 构造函数
@@ -47,8 +45,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         MessageHandle messageHandle)
     {
         _dataAcquisitionConfigService = dataAcquisitionConfigService;
-        _plcClients = new ConcurrentDictionary<string, IPlcClient>();
-        _queueManagers = new ConcurrentBag<IQueueManager>();
         _plcClientFactory = plcClientFactory;
         _dataStorageFactory = dataStorageFactory;
         _queueManagerFactory = queueManagerFactory;
@@ -77,39 +73,46 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="config"></param>
     private void StartCollectionTask(DataAcquisitionConfig config)
     {
-        if (_runningTasks.ContainsKey(config.Plc.Code))
+        if (_runningTasks.ContainsKey(config.Id))
         {
             return;
         }
         
-        _plcConnectionStatus[config.Plc.Code] = false;
-        
+        var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
+        _plcConnectionStatus[plcKey] = false;
+
         var ctx = new CancellationTokenSource();
         var token = ctx.Token;
+        
         Task.Run(async () =>
-        {
-            var plcClient = await CreatePlcClientAsync(config); 
+        { 
+            await CreatePlcClientAsync(config); 
             
-            var queueManager = InitializeQueueManager(config);
+            InitializeQueueManager(config);
 
             while (!token.IsCancellationRequested)
             {
-                await CollectDataAsync(config, plcClient, queueManager);
+                await DataCollectAsync(config);
                 await Task.Delay(config.CollectionFrequency, token).ConfigureAwait(false);
             }
         }, token);
-       
-        _runningTasks.TryAdd(config.Plc.Code, ctx);
+        
+        _runningTasks[config.Id] = ctx;
     }
-    
+
     /// <summary>
     /// 创建 PLC 客户端
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
+    private async Task CreatePlcClientAsync(DataAcquisitionConfig config)
     {
         var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
+
+        if (_plcClients.ContainsKey(plcKey))
+        {
+            return;
+        }
 
         var semaphore = _locks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
 
@@ -123,48 +126,42 @@ public class DataAcquisitionService : IDataAcquisitionService
 
             if (connect.IsSuccess)
             {
-                _plcConnectionStatus[config.Plc.Code] = true;
-                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
+                _plcConnectionStatus[plcKey] = true;
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {plcKey} 成功！");
             }
             else
             {
-                _plcConnectionStatus[config.Plc.Code] = false;
-                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
+                _plcConnectionStatus[plcKey] = false;
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {plcKey} 失败：{connect.Message}");
             }
-
-            return plcClient;
         }
         finally
         {
             semaphore.Release();
         }
     }
-    
+
     /// <summary>
     /// 队列管理初始化
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    private IQueueManager InitializeQueueManager(DataAcquisitionConfig config)
+    private void InitializeQueueManager(DataAcquisitionConfig config)
     {
-        var queueManager =  _queueManagerFactory(_dataStorageFactory, config);
-        _queueManagers.Add(queueManager);
-        return queueManager;
+        _queueManagers.GetOrAdd(config.Id, _ => _queueManagerFactory(_dataStorageFactory, config));
     }
 
     /// <summary>
     /// 收集数据并处理异常
     /// </summary>
     /// <param name="config"></param>
-    /// <param name="plcClient"></param>
-    /// <param name="queueManager"></param>
-    private async Task CollectDataAsync(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager)
+    private async Task DataCollectAsync(DataAcquisitionConfig config)
     {
         try
         {
-            await IfPlcClientNotConnectedReconnectAsync(config, plcClient);
-            var dataPoint = await ReadAsync(config, plcClient);
-            if (dataPoint != null)
+            await IfPlcClientNotConnectedReconnectAsync(config);
+            var dataPoint = await ReadAsync(config);
+            if (dataPoint != null && _queueManagers.TryGetValue(config.Id, out var queueManager))
             {
                 queueManager.EnqueueData(dataPoint);
             }
@@ -179,20 +176,28 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 如果 PLC 客户端连接断开则重连
     /// </summary>
     /// <param name="config"></param>
-    /// <param name="plcClient"></param>
     /// <exception cref="Exception"></exception>
-    private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
+    private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config)
     {
-        var connect = await plcClient.ConnectServerAsync();
-        if (connect.IsSuccess && !_plcConnectionStatus[config.Plc.Code])
+        var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
+        if (_plcClients.TryGetValue(plcKey, out var plcClient))
         {
-            _plcConnectionStatus[config.Plc.Code] = true;
-            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
-        }
-        else
-        {
-            _plcConnectionStatus[config.Plc.Code] = false;
-            throw new Exception($"重新连接到设备 {config.Plc.Code} 失败：{connect.Message}");
+            if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
+            {
+                return;
+            }
+            
+            var connect = await plcClient.ConnectServerAsync();
+            if (connect.IsSuccess)
+            {
+                _plcConnectionStatus[plcKey] = true;
+                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到 {plcKey} 成功！");
+            }
+            else
+            {
+                _plcConnectionStatus[plcKey] = false;
+                throw new Exception($"重新连接到设备 {plcKey} 失败：{connect.Message}");
+            }
         }
     }
 
@@ -200,12 +205,13 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 读取数据
     /// </summary>
     /// <param name="config"></param>
-    /// <param name="plcClient"></param>
     /// <returns></returns>
-    private async Task<DataPoint?> ReadAsync(
-        DataAcquisitionConfig config,
-        IPlcClient plcClient)
+    private async Task<DataPoint?> ReadAsync(DataAcquisitionConfig config)
     {
+        var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
+        
+        if (!_plcClients.TryGetValue(plcKey, out var plcClient)) return null;
+        
         var data = new Dictionary<string, object>();
 
         foreach (var register in config.Plc.Registers)
@@ -215,22 +221,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
             if (result.IsSuccess)
             {
-                if (!string.IsNullOrWhiteSpace(register.EvalExpression))
-                {
-                    var expression = new AsyncExpression(register.EvalExpression)
-                    {
-                        Parameters =
-                        {
-                            ["value"] = result.Content
-                        }
-                    };
-                    var value = await expression.EvaluateAsync();
-                    data[register.ColumnName] = value;
-                }
-                else
-                {
-                    data[register.ColumnName] = result.Content;
-                }
+                data[register.ColumnName] = await ContentHandle(register, result.Content);
             }
             else
             {
@@ -246,6 +237,28 @@ public class DataAcquisitionService : IDataAcquisitionService
         var dataPoint = new DataPoint(data);
         _processDataPoint(dataPoint, config);
         return dataPoint;
+
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="register"></param>
+    /// <param name="content"></param>
+    private static async Task<object?> ContentHandle(Register register, object content)
+    {
+        if (string.IsNullOrWhiteSpace(register.EvalExpression)) return content;
+        
+        var expression = new AsyncExpression(register.EvalExpression)
+        {
+            Parameters =
+            {
+                ["value"] = content
+            }
+        };
+        
+        return await expression.EvaluateAsync();
+
     }
 
     /// <summary>
@@ -257,91 +270,55 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataType"></param>
     /// <returns></returns>
     /// <exception cref="ArgumentException"></exception>
-    private async Task<OperationResult> ParseValue(
-        IPlcClient plcClient,
-        string dataAddress,
-        ushort dataLength,
-        string dataType)
+    private async Task<OperationResult> ParseValue(IPlcClient plcClient, string dataAddress, ushort dataLength, string dataType)
     {
-        OperationResult result = new OperationResult();
-
-        if (dataType.Equals("ushort", StringComparison.OrdinalIgnoreCase))
+        var operations = new Dictionary<string, Func<Task<OperationResult>>>(StringComparer.OrdinalIgnoreCase)
         {
-            var resultUshort = await plcClient.ReadUInt16Async(dataAddress);
-            result = OperationResult.From(resultUshort);
-        }
-        else if (dataType.Equals("uint", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultUint = await plcClient.ReadUInt32Async(dataAddress);
-            result = OperationResult.From(resultUint);
-        }
-        else if (dataType.Equals("ulong", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultUlong = await plcClient.ReadUInt64Async(dataAddress);
-            result = OperationResult.From(resultUlong);
-        }
-        else if (dataType.Equals("short", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultShort = await plcClient.ReadInt16Async(dataAddress);
-            result = OperationResult.From(resultShort);
-        }
-        else if (dataType.Equals("int", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultInt = await plcClient.ReadInt32Async(dataAddress);
-            result = OperationResult.From(resultInt);
-        }
-        else if (dataType.Equals("long", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultLong = await plcClient.ReadInt64Async(dataAddress);
-            result = OperationResult.From(resultLong);
-        }
-        else if (dataType.Equals("float", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultFloat = await plcClient.ReadFloatAsync(dataAddress);
-            result = OperationResult.From(resultFloat);
-        }
-        else if (dataType.Equals("double", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultDouble = await plcClient.ReadDoubleAsync(dataAddress);
-            result = OperationResult.From(resultDouble);
-        }
-        else if (dataType.Equals("string", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultString = await plcClient.ReadStringAsync(dataAddress, dataLength);
-            result = OperationResult.From(resultString);
-        }
-        else if (dataType.Equals("bool", StringComparison.OrdinalIgnoreCase))
-        {
-            var resultBool = await plcClient.ReadBoolAsync(dataAddress);
-            result = OperationResult.From(resultBool);
-        }
-
-        return result;
+            ["ushort"] = async () => OperationResult.From(await plcClient.ReadUInt16Async(dataAddress)),
+            ["uint"] = async () => OperationResult.From(await plcClient.ReadUInt32Async(dataAddress)),
+            ["ulong"] = async () => OperationResult.From(await plcClient.ReadUInt64Async(dataAddress)),
+            ["short"] = async () => OperationResult.From(await plcClient.ReadInt16Async(dataAddress)),
+            ["int"] = async () => OperationResult.From(await plcClient.ReadInt32Async(dataAddress)),
+            ["long"] = async () => OperationResult.From(await plcClient.ReadInt64Async(dataAddress)),
+            ["float"] = async () => OperationResult.From(await plcClient.ReadFloatAsync(dataAddress)),
+            ["double"] = async () => OperationResult.From(await plcClient.ReadDoubleAsync(dataAddress)),
+            ["string"] = async () => OperationResult.From(await plcClient.ReadStringAsync(dataAddress, dataLength)),
+            ["bool"] = async () => OperationResult.From(await plcClient.ReadBoolAsync(dataAddress))
+        };
+        return operations.TryGetValue(dataType, out var operation) ? await operation() : throw new ArgumentException($"不支持的数据类型：{dataType}");
     }
-    
+
     /// <summary>
     /// 停止数据采集任务
     /// </summary>
     public async Task StopCollectionTasks()
-    {
-        foreach (var token in _runningTasks.Values)
+    {    
+        foreach (var semaphoreSlim in _locks.Values)
         {
-            token.Cancel();
-            token.Dispose();
+            semaphoreSlim.Dispose();
         }
-        _runningTasks.Clear();
-
+        _locks.Clear();
+        
         foreach (var plcClient in _plcClients.Values)
         {
             await plcClient.ConnectCloseAsync();
         }
+        _plcClients.Clear();
+        
+        _plcConnectionStatus.Clear();
 
-        foreach (var queueManager in _queueManagers)
+        foreach (var queueManager in _queueManagers.Values)
         {
             queueManager.Complete();
         }
+        _queueManagers.Clear();
         
-        LogExitInformation("程序已正常退出");
+        foreach (var ctx in _runningTasks.Values)
+        {
+            ctx.Cancel();
+            ctx.Dispose();
+        }
+        _runningTasks.Clear();
     }
     
     /// <summary>
@@ -351,16 +328,5 @@ public class DataAcquisitionService : IDataAcquisitionService
     public SortedDictionary<string, bool> GetPlcConnectionStatus()
     {
         return new SortedDictionary<string, bool>(_plcConnectionStatus);
-    }
-    
-    /// <summary>
-    /// 打印退出日志文件
-    /// </summary>
-    /// <param name="message"></param>
-    private void LogExitInformation(string message)
-    {
-        var logFilePath = Path.Combine(AppContext.BaseDirectory, "exit_log.txt");
-        var logMessage = $"{message}\n";
-        File.AppendAllText(logFilePath, logMessage);
     }
 }
