@@ -82,6 +82,8 @@ public class DataAcquisitionService : IDataAcquisitionService
             return;
         }
         
+        _plcConnectionStatus[config.Plc.Code] = false;
+        
         var ctx = new CancellationTokenSource();
         var token = ctx.Token;
         Task.Run(async () =>
@@ -115,8 +117,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         
         try
         {
-            _plcConnectionStatus[config.Plc.Code] = false;
-            
             var plcClient = _plcClients.GetOrAdd(plcKey, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
 
             var connect = await plcClient.ConnectServerAsync();
@@ -128,6 +128,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
             else
             {
+                _plcConnectionStatus[config.Plc.Code] = false;
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
 
