@@ -110,10 +110,13 @@
             const message = ref('');
             const messageHistory = ref([]);
             let connection = null;
-
+            const MAX_MESSAGES = 1000;
             // 更新消息历史并滚动到最新
             const updateMessages = (newMessage) => {
                 messageHistory.value.push(newMessage);
+                if (messageHistory.value.length > MAX_MESSAGES) {
+                    messageHistory.value.shift(); // 移除最早的一条消息
+                }
                 nextTick(() => {
                     // 滚动到消息列表的底部
                     const messageList = document.querySelector('.message-list');
