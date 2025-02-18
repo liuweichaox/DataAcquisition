@@ -110,7 +110,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             return plcClient;
         }
         
-        var semaphore = _locks.GetOrAdd(config.Plc.Code, _ => new SemaphoreSlim(1, 1));
+        var semaphore = _locks.GetOrAdd($"Lock:{config.Plc.IpAddress}:{config.Plc.Port}", _ => new SemaphoreSlim(1, 1));
         
         await semaphore.WaitAsync();
 
