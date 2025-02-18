@@ -241,7 +241,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    /// 
+    /// 内容处理
     /// </summary>
     /// <param name="register"></param>
     /// <param name="content"></param>
