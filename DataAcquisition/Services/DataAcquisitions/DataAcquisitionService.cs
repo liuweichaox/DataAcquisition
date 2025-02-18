@@ -16,11 +16,11 @@ namespace DataAcquisition.Services.DataAcquisitions;
 public class DataAcquisitionService : IDataAcquisitionService
 {
     private readonly IDataAcquisitionConfigService _dataAcquisitionConfigService;
+    private readonly ConcurrentDictionary<int, CancellationTokenSource> _runningTasks = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _locks = new();
     private readonly ConcurrentDictionary<string, IPlcClient> _plcClients = new();
     private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
     private readonly ConcurrentDictionary<int, IQueueManager> _queueManagers = new();
-    private readonly ConcurrentDictionary<int, CancellationTokenSource> _runningTasks = new();
     private readonly PlcClientFactory _plcClientFactory;
     private readonly DataStorageFactory _dataStorageFactory;
     private readonly QueueManagerFactory _queueManagerFactory;
@@ -293,6 +293,13 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     public async Task StopCollectionTasks()
     {    
+        foreach (var ctx in _runningTasks.Values)
+        {
+            ctx.Cancel();
+            ctx.Dispose();
+        }
+        _runningTasks.Clear();
+        
         foreach (var semaphoreSlim in _locks.Values)
         {
             semaphoreSlim.Dispose();
@@ -312,13 +319,6 @@ public class DataAcquisitionService : IDataAcquisitionService
             queueManager.Complete();
         }
         _queueManagers.Clear();
-        
-        foreach (var ctx in _runningTasks.Values)
-        {
-            ctx.Cancel();
-            ctx.Dispose();
-        }
-        _runningTasks.Clear();
     }
     
     /// <summary>
