@@ -105,21 +105,25 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <returns></returns>
     private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
     {
-        if (_plcClients.TryGetValue(config.Plc.Code, out var plcClient))
+        var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
+    
+        if (_plcClients.TryGetValue(plcKey, out var plcClient))
         {
+            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
+            
             return plcClient;
         }
-        
-        var semaphore = _locks.GetOrAdd(config.Plc.Code, _ => new SemaphoreSlim(1, 1));
-        
+
+        var semaphore = _locks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
+
         await semaphore.WaitAsync();
 
         try
         {
-            plcClient =  _plcClients.GetOrAdd(config.Plc.Code, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
-            
-            var connect = await RetryOnFailure(() => plcClient.ConnectServerAsync());
-        
+            plcClient = _plcClients.GetOrAdd(plcKey, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
+
+            var connect = await plcClient.ConnectServerAsync();
+
             if (connect.IsSuccess)
             {
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
@@ -128,7 +132,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             {
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
-            
+
             return plcClient;
         }
         finally
@@ -312,40 +316,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         {
             var resultBool = await plcClient.ReadBoolAsync(dataAddress);
             result = OperationResult.From(resultBool);
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// 失败重试读取
-    /// </summary>
-    /// <param name="action"></param>
-    /// <param name="maxRetries"></param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
-    /// <exception cref="Exception"></exception>
-    private async Task<OperationResult<T>> RetryOnFailure<T>(
-        Func<Task<OperationResult<T>>> action,
-        int maxRetries = 3)
-    {
-        var result = new OperationResult<T>()
-        {
-            IsSuccess = false,
-            Message = $"操作失败，已达到最大重试次数 {maxRetries}。"
-        };
-        var retries = 0;
-
-        while (retries < maxRetries)
-        {
-            result = await action();
-            if (result.IsSuccess)
-            {
-                return result;
-            }
-
-            retries++;
-            await Task.Delay(1000); // 等待1秒后重试
         }
 
         return result;
