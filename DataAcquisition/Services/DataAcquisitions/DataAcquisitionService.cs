@@ -122,12 +122,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                     if (connect.IsSuccess)
                     {
                         _plcConnectionStatus[plcKey] = true;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 成功连接到设备 {plcKey}！");
+                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 成功连接到 {plcKey}！");
                     }
                     else
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接设备 {plcKey} 失败：{connect.Message}");
+                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败：{connect.Message}");
                     }
                 }
             }
@@ -191,7 +191,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 {
                     _plcConnectionStatus[plcKey] = false;
                     // 这里可以选择抛出异常或仅记录错误，视具体业务场景而定
-                    throw new Exception($"重新连接到设备 {plcKey} 失败：{connect.Message}");
+                    throw new Exception($"重新连接到 {plcKey} 失败：{connect.Message}");
                 }
             }
         }
@@ -221,7 +221,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                     }
                     else
                     {
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取设备 {config.Plc.Code} 寄存器地址 {register.DataAddress} 失败：{result.Message}");
+                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.Code} 寄存器地址 {register.DataAddress} 失败：{result.Message}");
                     }
                 }
                 catch (Exception ex)
