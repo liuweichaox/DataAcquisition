@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DataAcquisition.Services.DataAcquisitions;
@@ -14,4 +15,10 @@ public interface IDataAcquisitionService
     /// </summary>
     /// <returns></returns>
     Task StopCollectionTasks();
+
+    /// <summary>
+    /// 获取 PLC 连接状态
+    /// </summary>
+    /// <returns></returns>
+    Dictionary<string, bool> GetPlcConnectionStatus();
 }

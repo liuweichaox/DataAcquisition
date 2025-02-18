@@ -19,12 +19,6 @@ public interface IPlcClient
     /// </summary>
     /// <returns></returns>
     Task<OperationResult<bool>> ConnectCloseAsync();
-
-    /// <summary>
-    /// 检查设备是否在线
-    /// </summary>
-    /// <returns></returns>
-    Task<bool> IsConnectedAsync();
     
     /// <summary>
     /// 读取 16 位无符号整数

@@ -55,19 +55,6 @@ public class PlcClient : IPlcClient
         }
     }
 
-    public async Task<bool> IsConnectedAsync()
-    {
-        await _connectLock.WaitAsync();
-        try
-        {
-            return await Task.Run(() => _plcClient.IpAddressPing() == IPStatus.Success);
-        }
-        finally
-        {
-            _connectLock.Release();
-        }
-    }
-    
     public async Task<OperationResult<UInt16>> ReadUInt16Async(string address)
     {
         var result = await _plcClient.ReadUInt16Async(address);

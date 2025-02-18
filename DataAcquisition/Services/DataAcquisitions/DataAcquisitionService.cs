@@ -26,7 +26,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly ProcessDataPoint _processDataPoint;
     private readonly MessageHandle _messageHandle;
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _runningTasks = new();
-
+    private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
+    
     /// <summary>
     /// 构造函数
     /// </summary>
@@ -119,10 +120,12 @@ public class DataAcquisitionService : IDataAcquisitionService
 
             if (connect.IsSuccess)
             {
+                _plcConnectionStatus[config.Plc.Code] = true;
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
             }
             else
             {
+                _plcConnectionStatus[config.Plc.Code] = false;
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
 
@@ -177,17 +180,16 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <exception cref="Exception"></exception>
     private async Task IfPlcClientNotConnectedReconnectAsync(DataAcquisitionConfig config, IPlcClient plcClient)
     {
-        if (!await plcClient.IsConnectedAsync())
+        var connect = await plcClient.ConnectServerAsync();
+        if (connect.IsSuccess)
         {
-            var connect = await plcClient.ConnectServerAsync();
-            if (connect.IsSuccess)
-            {
-                _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
-            }
-            else
-            {
-                throw new Exception($"重新连接到设备 {config.Plc.Code} 失败：{connect.Message}");
-            }
+            _plcConnectionStatus[config.Plc.Code] = true;
+            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重新连接到设备 {config.Plc.Code} 成功！");
+        }
+        else
+        {
+            _plcConnectionStatus[config.Plc.Code] = false;
+            throw new Exception($"重新连接到设备 {config.Plc.Code} 失败：{connect.Message}");
         }
     }
 
@@ -314,6 +316,9 @@ public class DataAcquisitionService : IDataAcquisitionService
         return result;
     }
     
+    /// <summary>
+    /// 停止数据采集任务
+    /// </summary>
     public async Task StopCollectionTasks()
     {
         foreach (var token in _runningTasks.Values)
@@ -335,7 +340,16 @@ public class DataAcquisitionService : IDataAcquisitionService
         
         LogExitInformation("程序已正常退出");
     }
-
+    
+    /// <summary>
+    /// 获取 PLC 连接状态
+    /// </summary>
+    /// <returns></returns>
+    public Dictionary<string, bool> GetPlcConnectionStatus()
+    {
+        return new Dictionary<string, bool>(_plcConnectionStatus);
+    }
+    
     /// <summary>
     /// 打印退出日志文件
     /// </summary>
