@@ -106,13 +106,6 @@ public class DataAcquisitionService : IDataAcquisitionService
     private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
     {
         var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-    
-        if (_plcClients.TryGetValue(plcKey, out var plcClient))
-        {
-            _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 成功！");
-            
-            return plcClient;
-        }
 
         var semaphore = _locks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
 
@@ -120,7 +113,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
         try
         {
-            plcClient = _plcClients.GetOrAdd(plcKey, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
+            var plcClient = _plcClients.GetOrAdd(plcKey, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
 
             var connect = await plcClient.ConnectServerAsync();
 
