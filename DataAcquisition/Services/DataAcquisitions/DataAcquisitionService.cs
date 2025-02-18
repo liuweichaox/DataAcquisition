@@ -308,7 +308,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             var resultString = await plcClient.ReadStringAsync(dataAddress, dataLength);
             result = OperationResult.From(resultString);
         }
-        else if (dataType.Equals("boolean", StringComparison.OrdinalIgnoreCase))
+        else if (dataType.Equals("bool", StringComparison.OrdinalIgnoreCase))
         {
             var resultBool = await plcClient.ReadBoolAsync(dataAddress);
             result = OperationResult.From(resultBool);

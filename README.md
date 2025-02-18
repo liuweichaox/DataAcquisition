@@ -74,7 +74,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     - **ColumnName**：对应数据库中的列名。
     - **DataAddress**：寄存器地址。
     - **DataLength**：数据长度。
-    - **DataType**：数据类型，支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`boolean`。
+    - **DataType**：数据类型，支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`bool`。
     - **EvalExpression**：可选的表达式字段，用于对数据进行处理或转换。
 
 ---
