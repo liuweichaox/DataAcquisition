@@ -112,9 +112,11 @@ public class DataAcquisitionService : IDataAcquisitionService
         var semaphore = _locks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
 
         await semaphore.WaitAsync();
-
+        
         try
         {
+            _plcConnectionStatus[config.Plc.Code] = false;
+            
             var plcClient = _plcClients.GetOrAdd(plcKey, _ => _plcClientFactory(config.Plc.IpAddress, config.Plc.Port));
 
             var connect = await plcClient.ConnectServerAsync();
@@ -126,7 +128,6 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
             else
             {
-                _plcConnectionStatus[config.Plc.Code] = false;
                 _messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接到设备 {config.Plc.Code} 失败：{connect.Message}");
             }
 
