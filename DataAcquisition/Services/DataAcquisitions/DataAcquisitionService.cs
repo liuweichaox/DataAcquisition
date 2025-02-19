@@ -26,7 +26,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 信号量管理
         /// </summary>
-        private readonly ConcurrentDictionary<string, SemaphoreSlim> _connectionLocks  = new();
+        private readonly ConcurrentDictionary<string, SemaphoreSlim> _connectionLocks = new();
         /// <summary>
         /// PLC 客户端管理
         /// </summary>
@@ -128,7 +128,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             }
 
             // 获取或创建对应的信号量，确保同一 PLC 不会并发连接
-            var semaphore = _connectionLocks .GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
+            var semaphore = _connectionLocks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
             await semaphore.WaitAsync();
             try
             {
@@ -369,11 +369,11 @@ namespace DataAcquisition.Services.DataAcquisitions
             _heartbeatTasks.Clear();
 
             // 释放信号量
-            foreach (var semaphore in _connectionLocks .Values)
+            foreach (var semaphore in _connectionLocks.Values)
             {
                 semaphore.Dispose();
             }
-            _connectionLocks .Clear();
+            _connectionLocks.Clear();
 
             // 关闭并清理所有 PLC 客户端
             foreach (var plcClient in _plcClients.Values)
