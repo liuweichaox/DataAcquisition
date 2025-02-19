@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace DataAcquisition.Models;
 
@@ -7,6 +8,7 @@ namespace DataAcquisition.Models;
 /// </summary>
 public class DataPoint
 {
+    public DateTime Timestamp => DateTime.Now;
     public Dictionary<string,object> Values { get; set; }
 
     public DataPoint(Dictionary<string, object> values)
