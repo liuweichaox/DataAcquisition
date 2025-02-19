@@ -14,14 +14,15 @@ public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisition
 {
     private readonly BlockingCollection<DataPoint?> _queue = new();
     private readonly IDataStorage _dataStorage = dataStorageFactory(dataAcquisitionConfig);
-    private readonly List<DataPoint?> _dataBatch = [];
+    private readonly List<DataPoint> _dataBatch = [];
     private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
 
-    public override void EnqueueData(DataPoint? dataPoint)
+    public override void EnqueueData(DataPoint dataPoint)
     {
         _queue.Add(dataPoint);
     }
-    public override async Task ProcessQueueAsync()
+
+    protected override async Task ProcessQueueAsync()
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
