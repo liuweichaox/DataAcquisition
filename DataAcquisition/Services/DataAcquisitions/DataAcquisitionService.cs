@@ -19,7 +19,6 @@ namespace DataAcquisition.Services.DataAcquisitions
         PlcClientFactory plcClientFactory,
         DataStorageFactory dataStorageFactory,
         QueueManagerFactory queueManagerFactory,
-        ProcessDataPoint processDataPoint,
         MessageHandle messageHandle)
         : IDataAcquisitionService
     {
@@ -256,7 +255,6 @@ namespace DataAcquisition.Services.DataAcquisitions
                 if (data.Count > 0)
                 {
                     var dataPoint = new DataPoint(data);
-                    processDataPoint(dataPoint, config);
                     if (_queueManagers.TryGetValue(config.Id, out var queueManager))
                     {
                         queueManager.EnqueueData(dataPoint);

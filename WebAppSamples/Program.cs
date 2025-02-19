@@ -18,10 +18,6 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
         (ipAddress, port) => new PlcClient(ipAddress, port),
         config => new SqLiteDataStorage(config),
         (factory, config) => new QueueManager(factory, config),
-        (dataPoint, config) =>
-        {
-            dataPoint.Values["Timestamp"] = DateTime.Now;
-        },
          async (message) =>
         {
             await hubContext.Clients.All.SendAsync("ReceiveMessage", message);
