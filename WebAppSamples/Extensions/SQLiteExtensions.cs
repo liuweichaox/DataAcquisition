@@ -1,4 +1,5 @@
-﻿using Microsoft.Data.Sqlite;
+﻿using System.Text.RegularExpressions;
+using Microsoft.Data.Sqlite;
 
 namespace WebAppSamples.Extensions;
 
@@ -7,44 +8,50 @@ namespace WebAppSamples.Extensions;
 /// </summary>
 public static class SqLiteExtensions
 {
-    /// <summary>
-    /// 插入数据到指定的表中
-    /// </summary>
-    /// <param name="connection"></param>
-    /// <param name="tableName">目标表名</param>
-    /// <param name="data">要插入的数据，键为列名，值为对应的值</param>
     public static async Task<bool> InsertAsync(this SqliteConnection connection, string tableName, Dictionary<string, object> data)
     {
         try
         {
-            var columns = string.Join(", ", data.Keys);
-            var parameters = string.Join(", ", data.Keys.Select(key => $"@{key}"));
+            if (data == null || data.Count == 0)
+                throw new ArgumentException("数据不能为空", nameof(data));
+            
+            var columns = string.Join(", ", data.Keys.Select(k => $"`{k}`"));
+            
+            var paramMapping = data.Keys.ToDictionary(
+                key => key,
+                key => Regex.Replace(key, @"[^\w]+", "_").Trim('_')
+            );
+            
+            var parameters = string.Join(", ", paramMapping.Values.Select(k => $"@{k}"));
 
-            var commandText = $"INSERT INTO {tableName} ({columns}) VALUES ({parameters})";
-            await using var command = new SqliteCommand(commandText, connection);
-            foreach (var kvp in data)
+            var sql = $"INSERT INTO `{tableName}` ({columns}) VALUES ({parameters})";
+
+            await using var command = connection.CreateCommand();
+            command.CommandText = sql;
+            
+            foreach (var kvp in paramMapping)
             {
-                command.Parameters.AddWithValue($"@{kvp.Key}", kvp.Value);
+                command.Parameters.AddWithValue($"@{kvp.Value}", data[kvp.Key] ?? DBNull.Value);
             }
 
             var count = await command.ExecuteNonQueryAsync();
-
             return count > 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error inserting data: {ex.Message}");
+            Console.WriteLine($"[ERROR] Insert failed: {ex.Message}");
             return false;
         }
     }
-
+    
     /// <summary>
     /// 批量插入数据到指定的表中
     /// </summary>
     /// <param name="connection"></param>
     /// <param name="tableName">目标表名</param>
     /// <param name="dataBatch">要插入的数据，键为列名，值为对应的值</param>
-    public static async Task<bool> InsertBatchAsync(this SqliteConnection connection, string tableName, List<Dictionary<string, object>> dataBatch)
+    public static async Task<bool> InsertBatchAsync(this SqliteConnection connection, string tableName,
+        List<Dictionary<string, object>> dataBatch)
     {
         await using var transaction = await connection.BeginTransactionAsync();
 
@@ -60,7 +67,7 @@ public static class SqLiteExtensions
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error inserting data: {ex.Message}");
+            Console.WriteLine($"[ERROR] Insert failed: {ex.Message}");
             transaction.Rollback();
             return false;
         }
