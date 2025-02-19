@@ -90,15 +90,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                     // 循环采集数据，直到取消请求
                     while (!cts.Token.IsCancellationRequested)
                     {
-                        // 如果 PLC 已连接则采集数据，否则跳过本周期
+                        // 如果 PLC 已连接则采集数据
                         if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
                         {
                             await DataCollectAsync(config);
                         }
-                        else
-                        {
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 设备 {plcKey} 未连接，跳过采集");
-                        }
+                        
                         await Task.Delay(config.CollectionIntervaMs, cts.Token).ConfigureAwait(false);
                     }
                 }
