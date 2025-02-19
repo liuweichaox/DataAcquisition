@@ -41,7 +41,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   "IsEnabled": true,
   "DatabaseName": "dbo",
   "TableName": "m01_metrics",
-  "CollectionIntervaMs": 100,
+  "CollectIntervaMs": 100,
   "HeartbeatIntervalMs": 5000,
   "BatchSize": 100,
   "Plc": {
@@ -67,7 +67,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 - **IsEnabled**：启用该配置项，`true` 为启用，`false` 为禁用。
 - **DatabaseName**：数据存储的数据库名称。
 - **TableName**：存储数据的数据库表名。
-- **CollectionIntervaMs**：数据采集的频率，单位为毫秒。
+- **CollectIntervaMs**：数据采集的频率，单位为毫秒。
 - **HeartbeatIntervalMs**：心跳检测的频率，单位为毫秒。
 - **BatchSize**：每次批量存储的数据量。
 - **Plc**：PLC 配置信息，定义 PLC 的 IP 地址、端口和数据寄存器。

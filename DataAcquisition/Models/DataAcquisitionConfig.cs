@@ -30,7 +30,7 @@ public class DataAcquisitionConfig
     /// <summary>
     /// 采集间隔时间（ms）
     /// </summary>
-    public int CollectionIntervaMs { get; set; }
+    public int CollectIntervaMs { get; set; }
 
     /// <summary>
     /// 心跳检测间隔时间（ms）

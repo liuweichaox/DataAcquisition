@@ -95,7 +95,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                             await DataCollectAsync(config);
                         }
                         
-                        await Task.Delay(config.CollectionIntervaMs, cts.Token).ConfigureAwait(false);
+                        await Task.Delay(config.CollectIntervaMs, cts.Token).ConfigureAwait(false);
                     }
                 }
                 catch (OperationCanceledException)
