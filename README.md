@@ -54,7 +54,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
         "DataAddress": "D6000",
         "DataLength": 1,
         "DataType": "float",
-        "EvalExpression": null
+        "EvalExpression": "value / 1000.0"
       }
     ]
   }
@@ -79,7 +79,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     - **DataAddress**：寄存器地址。
     - **DataLength**：数据长度。
     - **DataType**：数据类型，支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`bool`。
-    - **EvalExpression**：可选的表达式字段，用于对数据进行处理或转换。
+    - **EvalExpression**：可选的表达式字段，用于对数据进行处理或转换。value 为寄存器读取到的值。
 
 ---
 
