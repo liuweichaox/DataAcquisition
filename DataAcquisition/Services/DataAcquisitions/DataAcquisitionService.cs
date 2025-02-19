@@ -182,13 +182,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                         {
                             continue;
                         }
-                        
-                        if (!_plcClients.TryGetValue(plcKey, out var plcClient))
-                        {
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 未找到 PLC 客户端 {plcKey}，等待下次检测...");
-                            continue;
-                        }
-                        
+
+                        var plcClient = _plcClients[plcKey];
                         var pingResult = await plcClient.IpAddressPingAsync();
                         if (!pingResult.IsSuccess)
                         {
@@ -231,13 +226,9 @@ namespace DataAcquisition.Services.DataAcquisitions
             try
             {
                 var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-                if (!_plcClients.TryGetValue(plcKey, out var plcClient))
-                {
-                    return;
-                }
-
+                var plcClient = _plcClients[plcKey];
                 var data = new Dictionary<string, object>();
-
+                
                 foreach (var register in config.Plc.Registers)
                 {
                     try
