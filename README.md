@@ -107,12 +107,6 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
         // 消息队列管理器：初始化 RabbitMQ 或 Kafka 的消息队列管理
         (factory, config) => new QueueManager(factory, config),
 
-        // 数据预处理：为每个数据点添加时间戳，确保数据同步和时序分析
-        (dataPoint, config) =>
-        {
-            dataPoint.Values["Timestamp"] = DateTime.Now;
-        },
-
         // 推送数据到前端：将实时采集的数据通过 SignalR 推送给前端客户端
         async (message) =>
         {
