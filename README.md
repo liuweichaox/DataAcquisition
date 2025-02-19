@@ -128,7 +128,6 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 - **`PlcClientFactory plcClientFactory`**：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC。
 - **`DataStorageFactory dataStorageFactory`**：初始化据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储。
 - **`QueueManagerFactory queueManagerFactory`**：初始化消息队列管理器，支持 RabbitMQ 或 Kafka。
-- **`ProcessDataPoint processDataPoint`**：数据采集读取数据的委托，用于额外数据采集处理。
 - **`MessageHandle messageHandle`**： 数据采集异常消息处理委托，可以用于日志记录或报警。
 
 ---
