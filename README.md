@@ -159,6 +159,17 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
         dataAcquisitionService.StopCollectionTasks();
         return Ok("停止数据采集任务");
     }
+
+    /// <summary>
+    /// 获取 PLC 连接状态
+    /// </summary>
+    /// <returns></returns>
+    [HttpGet]
+    public IActionResult GetPlcConnectionStatus()
+    {
+        var plcConnectionStatus = dataAcquisitionService.GetPlcConnectionStatus();
+        return Ok(plcConnectionStatus);
+    }
 }
 ```
 
@@ -175,6 +186,11 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
 
 - **POST** `/api/DataAcquisition/StopCollectionTasks`
 - **返回**：`停止数据采集任务`
+
+### 获取 PLC 连接状态
+
+- **GET** `/api/DataAcquisition/GetPlcConnectionStatus`
+- **返回**：`PLC 连接状态字典`
 
 ---
 
