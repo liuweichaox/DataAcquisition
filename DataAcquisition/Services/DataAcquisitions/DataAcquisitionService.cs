@@ -188,7 +188,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (!pingResult.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测失败 {plcKey}：设备不可达");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
                             continue;
                         }
 
@@ -196,18 +196,18 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (connect.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = true;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测恢复 {plcKey} 连接");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
                         }
                         else
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测失败 {plcKey} 失败，等待下次检测...");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测异常 {plcKey}: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                     finally
                     {
@@ -244,12 +244,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                         }
                         else
                         {
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.Code} 地址 {register.DataAddress} 失败: {result.Message}");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.Code} 地址 {register.DataAddress} 异常: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                 }
 
