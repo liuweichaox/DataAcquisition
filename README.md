@@ -37,10 +37,12 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 ```json
 {
+  "Id": "ad3a076e-3d26-4b87-9d8d-24b42ab0cd3c",
   "IsEnabled": true,
   "DatabaseName": "dbo",
   "TableName": "m01_metrics",
-  "CollectionFrequency": 1000,
+  "CollectionIntervaMs": 100,
+  "HeartbeatIntervalMs": 5000,
   "BatchSize": 100,
   "Plc": {
     "Code": "M01",
@@ -61,10 +63,12 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 #### 配置文件解析
 
+- **Id**: 唯一标识符，用于区分不同的配置。
 - **IsEnabled**：启用该配置项，`true` 为启用，`false` 为禁用。
 - **DatabaseName**：数据存储的数据库名称。
 - **TableName**：存储数据的数据库表名。
-- **CollectionFrequency**：数据采集的频率，单位为毫秒。`1000` 表示每秒一次。
+- **CollectionIntervaMs**：数据采集的频率，单位为毫秒。
+- **HeartbeatIntervalMs**：心跳检测的频率，单位为毫秒。
 - **BatchSize**：每次批量存储的数据量。
 - **Plc**：PLC 配置信息，定义 PLC 的 IP 地址、端口和数据寄存器。
   - **Code**：PLC 的唯一代码。
