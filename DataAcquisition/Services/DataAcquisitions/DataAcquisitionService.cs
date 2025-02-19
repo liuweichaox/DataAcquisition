@@ -95,7 +95,10 @@ namespace DataAcquisition.Services.DataAcquisitions
                         {
                             await DataCollectAsync(config);
                         }
-                        
+                        else
+                        {
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 设备 {plcKey} 未连接，跳过采集");
+                        }
                         await Task.Delay(config.CollectionIntervaMs, cts.Token).ConfigureAwait(false);
                     }
                 }
