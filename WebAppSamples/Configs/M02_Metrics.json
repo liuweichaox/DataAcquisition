@@ -1,9 +1,10 @@
 ﻿{
-  "Id": 2,
+  "Id": "0b066279-0b58-4ac7-9b44-18c475666680",
   "IsEnabled": true,
   "DatabaseName": "dbo",
   "TableName": "m02_metrics",
-  "CollectionFrequency": 1000,
+  "CollectionIntervaMs": 100,
+  "HeartbeatIntervalMs": 5000,
   "BatchSize": 100,
   "Plc": {
     "Code": "M02",

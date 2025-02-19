@@ -54,6 +54,23 @@ public class PlcClient : IPlcClient
             _connectLock.Release();
         }
     }
+    
+    public async Task<OperationResult<bool>> IpAddressPingAsync()
+    {
+        await _connectLock.WaitAsync();
+        try
+        {
+            var isSuccess = await Task.Run(()=>_plcClient.IpAddressPing() == IPStatus.Success);
+            return new OperationResult<bool>()
+            { 
+                IsSuccess = isSuccess
+            };
+        }
+        finally
+        {
+            _connectLock.Release();
+        }
+    }
 
     public async Task<OperationResult<UInt16>> ReadUInt16Async(string address)
     {

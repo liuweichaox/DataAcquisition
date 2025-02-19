@@ -10,7 +10,7 @@ public class DataAcquisitionConfig
     /// <summary>
     /// 唯一标识
     /// </summary>
-    public int Id { get; set; }
+    public string Id { get; set; }
     
     /// <summary>
     /// 是否启用
@@ -28,9 +28,14 @@ public class DataAcquisitionConfig
     public string TableName { get; set; }
 
     /// <summary>
-    /// 间隔时间（ms）
+    /// 采集间隔时间（ms）
     /// </summary>
-    public int CollectionFrequency { get; set; }
+    public int CollectionIntervaMs { get; set; }
+
+    /// <summary>
+    /// 心跳检测间隔时间（ms）
+    /// </summary>
+    public int HeartbeatIntervalMs { get; set; }
 
     /// <summary>
     /// 批量保存的数据

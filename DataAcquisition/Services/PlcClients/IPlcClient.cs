@@ -21,6 +21,12 @@ public interface IPlcClient
     Task<OperationResult<bool>> ConnectCloseAsync();
     
     /// <summary>
+    /// Ping 检测 PLC 是否可达
+    /// </summary>
+    /// <returns></returns>
+    Task<OperationResult<bool>> IpAddressPingAsync();
+    
+    /// <summary>
     /// 读取 16 位无符号整数
     /// </summary>
     /// <param name="address"></param>
