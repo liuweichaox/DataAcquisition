@@ -196,12 +196,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (connect.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = true;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重连 {plcKey} 成功");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测恢复 {plcKey} 连接");
                         }
                         else
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 重连 {plcKey} 失败，等待下次检测...");
+                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测失败 {plcKey} 失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
