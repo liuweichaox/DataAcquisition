@@ -15,6 +15,7 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
     private readonly BlockingCollection<DataPoint?> _queue = new();
     private readonly List<DataPoint> _dataBatch = [];
     private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
+    private readonly IDataStorage _dataStorage = dataStorage;
 
     public override void EnqueueData(DataPoint dataPoint)
     {
@@ -31,25 +32,25 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
             
                 if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
                 {
-                    await dataStorage.SaveBatchAsync(_dataBatch);
+                    await _dataStorage.SaveBatchAsync(_dataBatch);
                     _dataBatch.Clear();
                 }
             }
             else
             {
-                await dataStorage.SaveAsync(data);
+                await _dataStorage.SaveAsync(data);
             }
         }
 
         if (_dataBatch.Count > 0)
         {
-            await dataStorage.SaveBatchAsync(_dataBatch);
+            await _dataStorage.SaveBatchAsync(_dataBatch);
         }
     }
 
     public override void Complete()
     {
         _queue.CompleteAdding();
-        dataStorage.DisposeAsync();
+        _dataStorage.DisposeAsync();
     }
 }
