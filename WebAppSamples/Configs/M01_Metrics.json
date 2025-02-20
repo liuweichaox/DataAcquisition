@@ -9,22 +9,26 @@
     "Code": "M01",
     "IpAddress": "192.168.1.1",
     "Port": 502,
+    "RegisterByteAddress": "D6000",
+    "RegisterByteLength": 100,
     "RegisterGroups": [
       {
         "TableName": "m01_metrics",
         "Registers": [
           {
-            "ColumnName": "实时速度",
-            "DataAddress": "D6000",
-            "DataLength": 1,
+            "ColumnName": "速度",
+            "Index": 4,
             "DataType": "float",
+            "ByteLength": 4,
+            "Encoding": null,
             "EvalExpression":  null
           },
           {
-            "ColumnName": "实时高度",
-            "DataAddress": "D6100",
-            "DataLength": 1,
+            "ColumnName": "高度",
+            "Index": 8,
             "DataType": "float",
+            "ByteLength": 4,
+            "Encoding": null,
             "EvalExpression":  null
           }
         ]
@@ -33,17 +37,19 @@
         "TableName": "m02_metrics",
         "Registers": [
           {
-            "ColumnName": "实时速度",
-            "DataAddress": "D6200",
-            "DataLength": 1,
+            "ColumnName": "温度",
+            "Index": 12,
             "DataType": "float",
+            "ByteLength": 4,
+            "Encoding": null,
             "EvalExpression":  null
           },
           {
-            "ColumnName": "实时高度",
-            "DataAddress": "D6300",
-            "DataLength": 1,
+            "ColumnName": "压力",
+            "Index": 16,
             "DataType": "float",
+            "ByteLength": 4,
+            "Encoding": null,
             "EvalExpression":  null
           }
         ]

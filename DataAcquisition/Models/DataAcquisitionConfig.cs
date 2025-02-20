@@ -64,6 +64,16 @@ public class PlcConfig
     public int Port { get; set; }
     
     /// <summary>
+    /// 寄存器地址
+    /// </summary>
+    public string RegisterByteAddress { get; set; }
+    
+    /// <summary>
+    /// 字节长度
+    /// </summary>
+    public ushort RegisterByteLength { get; set; }
+    
+    /// <summary>
     /// 寄存器分组
     /// </summary>
     public RegisterGroup[] RegisterGroups { get; set; }
@@ -94,21 +104,26 @@ public class Register
     /// 列名
     /// </summary>
     public string ColumnName { get; set; }
-
+    
     /// <summary>
-    /// 数据地址
+    /// 索引位置
     /// </summary>
-    public string DataAddress { get; set; }
-
-    /// <summary>
-    /// 数据长度
-    /// </summary>
-    public ushort DataLength { get; set; }
-
+    public int Index { get; set; }
+    
     /// <summary>
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
+    
+    /// <summary>
+    /// byte 数组的长度
+    /// </summary>
+    public int ByteLength { get; set; }
+
+    /// <summary>
+    /// 字符串编码格式
+    /// </summary>
+    public string Encoding { get; set; }
     
     /// <summary>
     /// 数据表达式计算

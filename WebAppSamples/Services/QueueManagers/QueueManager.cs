@@ -3,6 +3,7 @@ using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
+using NCalc;
 
 namespace WebAppSamples.Services.QueueManagers;
 
@@ -26,9 +27,11 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
+           var preprocessData= await PreprocessAsync(data);
+            
             if (_dataAcquisitionConfig.BatchSize > 1)
             {
-                _dataBatch.Add(data);
+                _dataBatch.Add(preprocessData);
             
                 if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
                 {
@@ -38,7 +41,7 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
             }
             else
             {
-                await _dataStorage.SaveAsync(data);
+                await _dataStorage.SaveAsync(preprocessData);
             }
         }
 
@@ -46,6 +49,40 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
         {
             await _dataStorage.SaveBatchAsync(_dataBatch);
         }
+    }
+
+    private async Task<DataPoint> PreprocessAsync(DataPoint dataPoint)
+    {
+        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x=>x.TableName == dataPoint.TableName);
+        foreach (var kv in dataPoint.Values)
+        {
+            var register = config?.Registers.SingleOrDefault(x=>x.ColumnName == kv.Key);
+            if (register != null)
+            {
+                dataPoint.Values[kv.Key] = await EvaluateAsync(register, kv.Value);
+            }
+        }
+        return dataPoint;
+    }
+
+    private async Task<object> EvaluateAsync(Register register, object content)
+    {
+        var types = new[] { "ushort", "uint", "ulong", "int", "long", "float", "double" };
+        if (!types.Contains(register.DataType))
+        {
+            return content;
+        }
+        
+        var expression = new AsyncExpression(register.EvalExpression)
+        {
+            Parameters =
+            {
+                ["value"] = content
+            }
+        };
+
+        var value = await expression.EvaluateAsync();
+        return value ?? 0;
     }
 
     public override void Complete()

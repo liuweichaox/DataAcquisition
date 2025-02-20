@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using DataAcquisition.Services.DataAcquisitionConfigs;
 using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
-using NCalc;
 
 namespace DataAcquisition.Services.DataAcquisitions
 {
@@ -222,6 +221,16 @@ namespace DataAcquisition.Services.DataAcquisitions
                 var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
                 var plcClient = _plcClients[plcKey];
 
+                var operationResult = await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
+                if (!operationResult.IsSuccess)
+                {
+                    await messageService.SendAsync(
+                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
+                   return;
+                }
+                
+                var buffer = operationResult.Content;
+                
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
                     var data = new Dictionary<string, object>();
@@ -229,28 +238,19 @@ namespace DataAcquisition.Services.DataAcquisitions
                     {
                         try
                         {
-                            var result = await ParseValue(plcClient, register.DataAddress, register.DataLength,
-                                register.DataType);
-                            if (result.IsSuccess)
-                            {
-                                data[register.ColumnName] = await ContentHandle(register, result.Content);
-                            }
-                            else
-                            {
-                                await messageService.SendAsync(
-                                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
-                            }
+                            var value =  ParseValue(plcClient, buffer, register.Index, register.ByteLength, register.DataType, register.Encoding);
+                            data[register.ColumnName] = value;
                         }
                         catch (Exception ex)
                         {
                             await messageService.SendAsync(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{config.Plc.IpAddress} 索引位置：{register.Index}: {ex.Message} - StackTrace: {ex.StackTrace}");
                         }
                     }
 
                     if (data.Count > 0)
                     {
-                        var dataPoint = new DataPoint(registerGroup.TableName, data);
+                        var dataPoint = new DataPoint(registerGroup.TableName,   data);
                         if (_queueManagers.TryGetValue(config.Id, out var queueManager))
                         {
                             queueManager.EnqueueData(dataPoint);
@@ -266,56 +266,27 @@ namespace DataAcquisition.Services.DataAcquisitions
         }
 
         /// <summary>
-        /// 对读取到的数据进行表达式计算处理
-        /// </summary>
-        private static async Task<object> ContentHandle(Register register, object content)
-        {
-            if (string.IsNullOrWhiteSpace(register.EvalExpression))
-            {
-                return content;
-            }
-
-            var types = new[] { "ushort", "uint", "ulong", "int", "long", "float", "double" };
-            if (!types.Contains(register.DataType))
-            {
-                return content;
-            }
-
-            var expression = new AsyncExpression(register.EvalExpression)
-            {
-                Parameters =
-                {
-                    ["value"] = content
-                }
-            };
-
-            var value = await expression.EvaluateAsync();
-            return value ?? 0;
-        }
-
-        /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private async Task<OperationResult> ParseValue(IPlcClient plcClient, string dataAddress, ushort dataLength,
-            string dataType)
+        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType, string encoding)
         {
-            var operations = new Dictionary<string, Func<Task<OperationResult>>>(StringComparer.OrdinalIgnoreCase)
+            var operations = new Dictionary<string, Func<object>>(StringComparer.OrdinalIgnoreCase)
             {
-                ["ushort"] = async () => OperationResult.From(await plcClient.ReadUInt16Async(dataAddress)),
-                ["uint"] = async () => OperationResult.From(await plcClient.ReadUInt32Async(dataAddress)),
-                ["ulong"] = async () => OperationResult.From(await plcClient.ReadUInt64Async(dataAddress)),
-                ["short"] = async () => OperationResult.From(await plcClient.ReadInt16Async(dataAddress)),
-                ["int"] = async () => OperationResult.From(await plcClient.ReadInt32Async(dataAddress)),
-                ["long"] = async () => OperationResult.From(await plcClient.ReadInt64Async(dataAddress)),
-                ["float"] = async () => OperationResult.From(await plcClient.ReadFloatAsync(dataAddress)),
-                ["double"] = async () => OperationResult.From(await plcClient.ReadDoubleAsync(dataAddress)),
-                ["string"] = async () => OperationResult.From(await plcClient.ReadStringAsync(dataAddress, dataLength)),
-                ["bool"] = async () => OperationResult.From(await plcClient.ReadBoolAsync(dataAddress))
+                ["ushort"] =  () =>  plcClient.TransUInt16(buffer, length),
+                ["uint"] =  () => plcClient.TransUInt32(buffer, length),
+                ["ulong"] =  () => plcClient.TransUInt64(buffer, length),
+                ["short"] =  () => plcClient.TransInt16(buffer, length),
+                ["int"] =  () => plcClient.TransInt32(buffer, length),
+                ["long"] =  () => plcClient.TransInt64(buffer, length),
+                ["float"] =  () => plcClient.TransSingle(buffer, length),
+                ["double"] =  () => plcClient.TransDouble(buffer, length),
+                ["string"] =  () => plcClient.TransString(buffer, index, length, encoding),
+                ["bool"] =  () => plcClient.TransBool(buffer, length),
             };
 
             if (operations.TryGetValue(dataType, out var operation))
             {
-                return await operation();
+                return operation();
             }
             else
             {
