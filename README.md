@@ -90,39 +90,28 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 ```csharp
 builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {
-    // 获取 SignalR HubContext 用于推送实时数据到客户端
     var hubContext = provider.GetService<IHubContext<DataHub>>();
-
-    // 返回一个新的 DataAcquisitionService 实例，构造时传入依赖项
+    var dataAcquisitionConfigService = new DataAcquisitionConfigService(); // 配置服务：负责读取和解析数据采集配置（例如，频率、数据存储等）
+    var plcClientFactory = new PlcClientFactory(); // PLC 客户端工厂：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC
+    var dataStorageFactory = new DataStorageFactory(); // 数据存储工厂：初始化数据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储
+    var queueManagerFactory = new QueueManagerFactory(); // 消息队列管理器工厂：初始化消息队列管理器，支持 RabbitMQ 或 Kafka
+    var messageService = new MessageService(hubContext); // 消息服务：负责处理数据采集异常消息，支持日志记录或报警
     return new DataAcquisitionService(
-        // 配置服务：负责读取和解析数据采集配置（例如，频率、数据存储等）
-        new DataAcquisitionConfigService(),
-
-        // PLC 客户端：通过 PLC 的 IP 地址和端口创建一个新的 PlcClient
-        (ipAddress, port) => new PlcClient(ipAddress, port),
-
-        // 数据存储：根据配置创建 SQLite 数据存储实例
-        config => new SqLiteDataStorage(config),
-
-        // 消息队列管理器：初始化 RabbitMQ 或 Kafka 的消息队列管理
-        (factory, config) => new QueueManager(factory, config),
-
-        // 推送数据到前端：将实时采集的数据通过 SignalR 推送给前端客户端
-        async (message) =>
-        {
-            // 推送消息到所有连接的客户端
-            await hubContext.Clients.All.SendAsync("ReceiveMessage", message);
-        });
+        dataAcquisitionConfigService,
+        plcClientFactory,
+        dataStorageFactory,
+        queueManagerFactory,
+        messageService);
 });
 ```
 
 ### 配置解释
 
 - **`IDataAcquisitionConfigService dataAcquisitionConfigService`**：配置服务，负责读取和解析数据采集的配置文件（例如，采集频率、数据存储方式等）。
-- **`PlcClientFactory plcClientFactory`**：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC。
-- **`DataStorageFactory dataStorageFactory`**：初始化据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储。
-- **`QueueManagerFactory queueManagerFactory`**：初始化消息队列管理器，支持 RabbitMQ 或 Kafka。
-- **`MessageHandle messageHandle`**： 数据采集异常消息处理委托，可以用于日志记录或报警。
+- **`IPlcClientFactory plcClientFactory`**：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC。
+- **`IDataStorageFactory dataStorageFactory`**：初始化据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储。
+- **`IQueueManagerFactory queueManagerFactory`**：初始化消息队列管理器，支持 RabbitMQ 或 Kafka。
+- **`IMessageService messageService`**： 数据采集异常消息处理委托，可以用于日志记录或报警。
 
 ---
 

@@ -1,19 +1,18 @@
 using System.Collections.Concurrent;
-using DataAcquisition.Common;
 using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.QueueManagers;
+using WebAppSamples.Services.DataStorages;
 
 namespace WebAppSamples.Services.QueueManagers;
 
 /// <summary>
 /// 消息队列里实现
 /// </summary>
-public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisitionConfig dataAcquisitionConfig)
-    : AbstractQueueManager(dataStorageFactory, dataAcquisitionConfig)
+public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
+    : AbstractQueueManager(dataStorage, dataAcquisitionConfig)
 {
     private readonly BlockingCollection<DataPoint?> _queue = new();
-    private readonly IDataStorage _dataStorage = dataStorageFactory(dataAcquisitionConfig);
     private readonly List<DataPoint> _dataBatch = [];
     private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
 
@@ -32,25 +31,25 @@ public class QueueManager(DataStorageFactory dataStorageFactory, DataAcquisition
             
                 if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
                 {
-                    await _dataStorage.SaveBatchAsync(_dataBatch);
+                    await dataStorage.SaveBatchAsync(_dataBatch);
                     _dataBatch.Clear();
                 }
             }
             else
             {
-                await _dataStorage.SaveAsync(data);
+                await dataStorage.SaveAsync(data);
             }
         }
 
         if (_dataBatch.Count > 0)
         {
-            await _dataStorage.SaveBatchAsync(_dataBatch);
+            await dataStorage.SaveBatchAsync(_dataBatch);
         }
     }
 
     public override void Complete()
     {
         _queue.CompleteAdding();
-        _dataStorage.DisposeAsync();
+        dataStorage.DisposeAsync();
     }
 }

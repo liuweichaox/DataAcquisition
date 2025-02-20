@@ -8,6 +8,14 @@ namespace WebAppSamples.Extensions;
 /// </summary>
 public static class SqLiteExtensions
 {
+    /// <summary>
+    /// 插入单条
+    /// </summary>
+    /// <param name="connection"></param>
+    /// <param name="tableName"></param>
+    /// <param name="data"></param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
     public static async Task<bool> InsertAsync(this SqliteConnection connection, string tableName, Dictionary<string, object> data)
     {
         try

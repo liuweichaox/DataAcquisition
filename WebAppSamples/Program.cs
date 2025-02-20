@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using WebAppSamples.Hubs;
 using WebAppSamples.Services.DataAcquisitionConfigs;
 using WebAppSamples.Services.DataStorages;
+using WebAppSamples.Services.Messages;
 using WebAppSamples.Services.PlcClients;
 using WebAppSamples.Services.QueueManagers;
 
@@ -13,15 +14,17 @@ builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {
     var hubContext = provider.GetService<IHubContext<DataHub>>();
+    var dataAcquisitionConfigService = new DataAcquisitionConfigService();
+    var plcClientFactory = new PlcClientFactory();
+    var dataStorageFactory = new DataStorageFactory();
+    var queueManagerFactory = new QueueManagerFactory();
+    var messageService = new MessageService(hubContext);
     return new DataAcquisitionService(
-        new DataAcquisitionConfigService(),
-        (ipAddress, port) => new PlcClient(ipAddress, port),
-        config => new SqLiteDataStorage(config),
-        (factory, config) => new QueueManager(factory, config),
-         async (message) =>
-        {
-            await hubContext.Clients.All.SendAsync("ReceiveMessage", message);
-        });
+        dataAcquisitionConfigService,
+        plcClientFactory,
+        dataStorageFactory,
+        queueManagerFactory,
+        messageService);
 });
 
 builder.Services.AddControllersWithViews();

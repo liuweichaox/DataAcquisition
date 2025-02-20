@@ -12,9 +12,9 @@ public class PlcClient : IPlcClient
 {
     private readonly MelsecA1ENet _plcClient;
     private readonly SemaphoreSlim _connectLock = new(1, 1);
-    public PlcClient(string ipAddress, int port)
+    public PlcClient(DataAcquisitionConfig config)
     {
-        _plcClient = new MelsecA1ENet(ipAddress, port);
+        _plcClient = new MelsecA1ENet(config.Plc.IpAddress, config.Plc.Port);
         _plcClient.ReceiveTimeOut = 2000;
         _plcClient.ConnectTimeOut = 2000;
     }

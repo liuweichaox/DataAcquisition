@@ -4,8 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Common;
 using DataAcquisition.Services.DataAcquisitionConfigs;
+using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
 using NCalc;
 
@@ -16,10 +16,10 @@ namespace DataAcquisition.Services.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService(
         IDataAcquisitionConfigService dataAcquisitionConfigService,
-        PlcClientFactory plcClientFactory,
-        DataStorageFactory dataStorageFactory,
-        QueueManagerFactory queueManagerFactory,
-        MessageHandle messageHandle)
+        IPlcClientFactory plcClientFactory,
+        IDataStorageFactory dataStorageFactory,
+        IQueueManagerFactory queueManagerFactory,
+        IMessageService messageService)
         : IDataAcquisitionService
     {
         /// <summary>
@@ -104,7 +104,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                    await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
 
@@ -131,19 +131,19 @@ namespace DataAcquisition.Services.DataAcquisitions
                 // 双重检查:若在等待期间已有客户端创建则直接返回
                 if (!_plcClients.ContainsKey(plcKey))
                 {
-                    var plcClient = plcClientFactory(config.Plc.IpAddress, config.Plc.Port);
+                    var plcClient = plcClientFactory.Create(config);
                     _plcClients.TryAdd(plcKey, plcClient);
 
                     var connect = await plcClient.ConnectServerAsync();
                     if (connect.IsSuccess)
                     {
                         _plcConnectionStatus[plcKey] = true;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
+                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
                     }
                     else
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
+                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
                     }
                 }
             }
@@ -158,7 +158,8 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// </summary>
         private void InitializeQueueManager(DataAcquisitionConfig config)
         {
-            _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory(dataStorageFactory, config));
+            var dataStorage = dataStorageFactory.Create(config);
+            _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config));
         }
 
         /// <summary>
@@ -187,7 +188,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (!pingResult.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
+                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
                             continue;
                         }
 
@@ -195,18 +196,18 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (connect.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = true;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
+                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
                         }
                         else
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
+                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                     finally
                     {
@@ -243,12 +244,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                         }
                         else
                         {
-                            messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
+                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                 }
 
@@ -263,7 +264,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             }
             catch (Exception ex)
             {
-                messageHandle($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
 

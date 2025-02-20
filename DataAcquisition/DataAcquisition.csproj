@@ -10,4 +10,8 @@
       <PackageReference Include="NCalcAsync" Version="5.4.0" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Compile Remove="Services\Messages\IMessageFactory.cs" />
+    </ItemGroup>
+
 </Project>
