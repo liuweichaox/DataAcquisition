@@ -124,7 +124,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 return;
             }
-            
+
             var plcClient = plcClientFactory.Create(config);
             _plcClients.TryAdd(plcKey, plcClient);
 
@@ -221,16 +221,17 @@ namespace DataAcquisition.Services.DataAcquisitions
                 var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
                 var plcClient = _plcClients[plcKey];
 
-                var operationResult = await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
+                var operationResult =
+                    await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
                 if (!operationResult.IsSuccess)
                 {
                     await messageService.SendAsync(
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
-                   return;
+                    return;
                 }
-                
+
                 var buffer = operationResult.Content;
-                
+
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
                     var data = new Dictionary<string, object>();
@@ -238,7 +239,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                     {
                         try
                         {
-                            var value =  ParseValue(plcClient, buffer, register.Index, register.ByteLength, register.DataType, register.Encoding);
+                            var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
+                                register.DataType, register.Encoding);
                             data[register.ColumnName] = value;
                         }
                         catch (Exception ex)
@@ -250,7 +252,7 @@ namespace DataAcquisition.Services.DataAcquisitions
 
                     if (data.Count > 0)
                     {
-                        var dataPoint = new DataPoint(registerGroup.TableName,   data);
+                        var dataPoint = new DataPoint(registerGroup.TableName, data);
                         if (_queueManagers.TryGetValue(config.Id, out var queueManager))
                         {
                             queueManager.EnqueueData(dataPoint);
@@ -268,20 +270,21 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType, string encoding)
+        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
+            string encoding)
         {
             var operations = new Dictionary<string, Func<object>>(StringComparer.OrdinalIgnoreCase)
             {
-                ["ushort"] =  () =>  plcClient.TransUInt16(buffer, length),
-                ["uint"] =  () => plcClient.TransUInt32(buffer, length),
-                ["ulong"] =  () => plcClient.TransUInt64(buffer, length),
-                ["short"] =  () => plcClient.TransInt16(buffer, length),
-                ["int"] =  () => plcClient.TransInt32(buffer, length),
-                ["long"] =  () => plcClient.TransInt64(buffer, length),
-                ["float"] =  () => plcClient.TransSingle(buffer, length),
-                ["double"] =  () => plcClient.TransDouble(buffer, length),
-                ["string"] =  () => plcClient.TransString(buffer, index, length, encoding),
-                ["bool"] =  () => plcClient.TransBool(buffer, length),
+                ["ushort"] = () => plcClient.TransUInt16(buffer, length),
+                ["uint"] = () => plcClient.TransUInt32(buffer, length),
+                ["ulong"] = () => plcClient.TransUInt64(buffer, length),
+                ["short"] = () => plcClient.TransInt16(buffer, length),
+                ["int"] = () => plcClient.TransInt32(buffer, length),
+                ["long"] = () => plcClient.TransInt64(buffer, length),
+                ["float"] = () => plcClient.TransSingle(buffer, length),
+                ["double"] = () => plcClient.TransDouble(buffer, length),
+                ["string"] = () => plcClient.TransString(buffer, index, length, encoding),
+                ["bool"] = () => plcClient.TransBool(buffer, length),
             };
 
             if (operations.TryGetValue(dataType, out var operation))
