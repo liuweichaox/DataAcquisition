@@ -23,29 +23,31 @@ namespace DataAcquisition.Services.DataAcquisitions
         : IDataAcquisitionService
     {
         /// <summary>
-        /// 信号量管理
-        /// </summary>
-        private readonly ConcurrentDictionary<string, SemaphoreSlim> _connectionLocks = new();
-        /// <summary>
         /// PLC 客户端管理
         /// </summary>
         private readonly ConcurrentDictionary<string, IPlcClient> _plcClients = new();
+
         /// <summary>
         /// PLC 连接状态管理
         /// </summary>
         private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
+
         /// <summary>
         /// 消息队列管理
         /// </summary>
         private readonly ConcurrentDictionary<string, IQueueManager> _queueManagers = new();
+
         /// <summary>
         /// 数据采集任务和取消令牌管理
         /// </summary>
-        private readonly ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> _dataTasks = new();
+        private readonly ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> _dataTasks =
+            new();
+
         /// <summary>
         /// 心跳检测任务和取消令牌管理
         /// </summary>
-        private readonly ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> _heartbeatTasks = new();
+        private readonly ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)>
+            _heartbeatTasks = new();
 
         /// <summary>
         /// 开始所有采集任务
@@ -82,10 +84,10 @@ namespace DataAcquisition.Services.DataAcquisitions
                     // 初始化 PLC 客户端和队列管理器
                     await CreatePlcClientAsync(config);
                     InitializeQueueManager(config);
-                    
+
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
-                    
+
                     // 循环采集数据，直到取消请求
                     while (!cts.Token.IsCancellationRequested)
                     {
@@ -94,7 +96,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         {
                             await DataCollectAsync(config);
                         }
-                        
+
                         await Task.Delay(config.CollectIntervaMs, cts.Token).ConfigureAwait(false);
                     }
                 }
@@ -104,7 +106,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                    await messageService.SendAsync(
+                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
 
@@ -122,34 +125,21 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 return;
             }
+            
+            var plcClient = plcClientFactory.Create(config);
+            _plcClients.TryAdd(plcKey, plcClient);
 
-            // 获取或创建对应的信号量，确保同一 PLC 不会并发连接
-            var semaphore = _connectionLocks.GetOrAdd(plcKey, _ => new SemaphoreSlim(1, 1));
-            await semaphore.WaitAsync();
-            try
+            var connect = await plcClient.ConnectServerAsync();
+            if (connect.IsSuccess)
             {
-                // 双重检查:若在等待期间已有客户端创建则直接返回
-                if (!_plcClients.ContainsKey(plcKey))
-                {
-                    var plcClient = plcClientFactory.Create(config);
-                    _plcClients.TryAdd(plcKey, plcClient);
-
-                    var connect = await plcClient.ConnectServerAsync();
-                    if (connect.IsSuccess)
-                    {
-                        _plcConnectionStatus[plcKey] = true;
-                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
-                    }
-                    else
-                    {
-                        _plcConnectionStatus[plcKey] = false;
-                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
-                    }
-                }
+                _plcConnectionStatus[plcKey] = true;
+                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
             }
-            finally
+            else
             {
-                semaphore.Release();
+                _plcConnectionStatus[plcKey] = false;
+                await messageService.SendAsync(
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
             }
         }
 
@@ -170,7 +160,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
             if (_heartbeatTasks.ContainsKey(plcKey))
                 return;
-            
+
             var hbCts = new CancellationTokenSource();
             var hbTask = Task.Run(async () =>
             {
@@ -188,7 +178,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (!pingResult.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
+                            await messageService.SendAsync(
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
                             continue;
                         }
 
@@ -196,18 +187,21 @@ namespace DataAcquisition.Services.DataAcquisitions
                         if (connect.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = true;
-                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
+                            await messageService.SendAsync(
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
                         }
                         else
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
+                            await messageService.SendAsync(
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        await messageService.SendAsync(
+                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                     finally
                     {
@@ -217,7 +211,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             }, hbCts.Token);
             _heartbeatTasks.TryAdd(plcKey, (hbTask, hbCts));
         }
-        
+
         /// <summary>
         /// 数据采集与异常处理
         /// </summary>
@@ -227,7 +221,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
                 var plcClient = _plcClients[plcKey];
-                
+
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
                     var data = new Dictionary<string, object>();
@@ -235,22 +229,25 @@ namespace DataAcquisition.Services.DataAcquisitions
                     {
                         try
                         {
-                            var result = await ParseValue(plcClient, register.DataAddress, register.DataLength, register.DataType);
+                            var result = await ParseValue(plcClient, register.DataAddress, register.DataLength,
+                                register.DataType);
                             if (result.IsSuccess)
                             {
                                 data[register.ColumnName] = await ContentHandle(register, result.Content);
                             }
                             else
                             {
-                                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
+                                await messageService.SendAsync(
+                                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
+                            await messageService.SendAsync(
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
                         }
                     }
-                    
+
                     if (data.Count > 0)
                     {
                         var dataPoint = new DataPoint(registerGroup.TableName, data);
@@ -260,11 +257,11 @@ namespace DataAcquisition.Services.DataAcquisitions
                         }
                     }
                 }
-                
             }
             catch (Exception ex)
             {
-                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                await messageService.SendAsync(
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
 
@@ -278,12 +275,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                 return content;
             }
 
-            var types = new[] { "ushort","uint", "ulong", "int", "long", "float", "double" };
+            var types = new[] { "ushort", "uint", "ulong", "int", "long", "float", "double" };
             if (!types.Contains(register.DataType))
             {
                 return content;
             }
-            
+
             var expression = new AsyncExpression(register.EvalExpression)
             {
                 Parameters =
@@ -291,7 +288,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                     ["value"] = content
                 }
             };
-            
+
             var value = await expression.EvaluateAsync();
             return value ?? 0;
         }
@@ -299,20 +296,21 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private async Task<OperationResult> ParseValue(IPlcClient plcClient, string dataAddress, ushort dataLength, string dataType)
+        private async Task<OperationResult> ParseValue(IPlcClient plcClient, string dataAddress, ushort dataLength,
+            string dataType)
         {
             var operations = new Dictionary<string, Func<Task<OperationResult>>>(StringComparer.OrdinalIgnoreCase)
             {
                 ["ushort"] = async () => OperationResult.From(await plcClient.ReadUInt16Async(dataAddress)),
-                ["uint"]   = async () => OperationResult.From(await plcClient.ReadUInt32Async(dataAddress)),
-                ["ulong"]  = async () => OperationResult.From(await plcClient.ReadUInt64Async(dataAddress)),
-                ["short"]  = async () => OperationResult.From(await plcClient.ReadInt16Async(dataAddress)),
-                ["int"]    = async () => OperationResult.From(await plcClient.ReadInt32Async(dataAddress)),
-                ["long"]   = async () => OperationResult.From(await plcClient.ReadInt64Async(dataAddress)),
-                ["float"]  = async () => OperationResult.From(await plcClient.ReadFloatAsync(dataAddress)),
+                ["uint"] = async () => OperationResult.From(await plcClient.ReadUInt32Async(dataAddress)),
+                ["ulong"] = async () => OperationResult.From(await plcClient.ReadUInt64Async(dataAddress)),
+                ["short"] = async () => OperationResult.From(await plcClient.ReadInt16Async(dataAddress)),
+                ["int"] = async () => OperationResult.From(await plcClient.ReadInt32Async(dataAddress)),
+                ["long"] = async () => OperationResult.From(await plcClient.ReadInt64Async(dataAddress)),
+                ["float"] = async () => OperationResult.From(await plcClient.ReadFloatAsync(dataAddress)),
                 ["double"] = async () => OperationResult.From(await plcClient.ReadDoubleAsync(dataAddress)),
                 ["string"] = async () => OperationResult.From(await plcClient.ReadStringAsync(dataAddress, dataLength)),
-                ["bool"]   = async () => OperationResult.From(await plcClient.ReadBoolAsync(dataAddress))
+                ["bool"] = async () => OperationResult.From(await plcClient.ReadBoolAsync(dataAddress))
             };
 
             if (operations.TryGetValue(dataType, out var operation))
@@ -344,6 +342,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 // 忽略取消异常
             }
+
             _dataTasks.Clear();
 
             // 取消心跳监控任务
@@ -360,20 +359,15 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 // 忽略取消异常
             }
-            _heartbeatTasks.Clear();
 
-            // 释放信号量
-            foreach (var semaphore in _connectionLocks.Values)
-            {
-                semaphore.Dispose();
-            }
-            _connectionLocks.Clear();
+            _heartbeatTasks.Clear();
 
             // 关闭并清理所有 PLC 客户端
             foreach (var plcClient in _plcClients.Values)
             {
                 await plcClient.ConnectCloseAsync();
             }
+
             _plcClients.Clear();
             _plcConnectionStatus.Clear();
 
@@ -382,6 +376,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 queueManager.Complete();
             }
+
             _queueManagers.Clear();
         }
 
