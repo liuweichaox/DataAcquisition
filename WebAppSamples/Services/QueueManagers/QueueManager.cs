@@ -1,16 +1,16 @@
 using System.Collections.Concurrent;
 using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
+using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
-using WebAppSamples.Services.DataStorages;
 
 namespace WebAppSamples.Services.QueueManagers;
 
 /// <summary>
 /// 消息队列里实现
 /// </summary>
-public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
-    : AbstractQueueManager(dataStorage, dataAcquisitionConfig)
+public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig, IMessageService messageService)
+    : AbstractQueueManager(dataStorage, dataAcquisitionConfig, messageService)
 {
     private readonly BlockingCollection<DataPoint?> _queue = new();
     private readonly List<DataPoint> _dataBatch = [];

@@ -159,7 +159,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         private void InitializeQueueManager(DataAcquisitionConfig config)
         {
             var dataStorage = dataStorageFactory.Create(config);
-            _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config));
+            _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageService));
         }
 
         /// <summary>

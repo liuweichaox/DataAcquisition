@@ -1,10 +1,11 @@
 ﻿using System.Threading.Tasks;
+using DataAcquisition.Services.Messages;
 
 namespace DataAcquisition.Services.QueueManagers;
 
 public abstract class AbstractQueueManager : IQueueManager
 {
-    public AbstractQueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig)
+    protected AbstractQueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig, IMessageService messageService)
     {
         Task.Run(ProcessQueueAsync);
     }

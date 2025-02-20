@@ -1,4 +1,6 @@
-﻿namespace DataAcquisition.Services.QueueManagers;
+﻿using DataAcquisition.Services.Messages;
+
+namespace DataAcquisition.Services.QueueManagers;
 
 /// <summary>
 /// <see cref="IQueueManager"/> 工厂
@@ -10,6 +12,7 @@ public interface IQueueManagerFactory
     /// </summary>
     /// <param name="dataStorage"></param>
     /// <param name="config"></param>
+    /// <param name="messageService"></param>
     /// <returns></returns>
-    IQueueManager Create(IDataStorage dataStorage, DataAcquisitionConfig config);
+    IQueueManager Create(IDataStorage dataStorage, DataAcquisitionConfig config, IMessageService messageService);
 }
