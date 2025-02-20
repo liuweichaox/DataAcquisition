@@ -2,7 +2,7 @@
   "Id": "d25fa504-15dc-4ecd-8b16-be6f2cdc1cd2",
   "IsEnabled": true,
   "DatabaseName": "dbo",
-  "CollectIntervaMs": 100,
+  "CollectIntervalMs": 100,
   "HeartbeatIntervalMs": 5000,
   "BatchSize": 100,
   "Plc": {

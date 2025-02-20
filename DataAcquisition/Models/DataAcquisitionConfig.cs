@@ -25,7 +25,7 @@ public class DataAcquisitionConfig
     /// <summary>
     /// 采集间隔时间（ms）
     /// </summary>
-    public int CollectIntervaMs { get; set; }
+    public int CollectIntervalMs { get; set; }
 
     /// <summary>
     /// 心跳检测间隔时间（ms）
