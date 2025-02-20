@@ -227,36 +227,40 @@ namespace DataAcquisition.Services.DataAcquisitions
             {
                 var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
                 var plcClient = _plcClients[plcKey];
-                var data = new Dictionary<string, object>();
                 
-                foreach (var register in config.Plc.Registers)
+                foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
-                    try
+                    var data = new Dictionary<string, object>();
+                    foreach (var register in registerGroup.Registers)
                     {
-                        var result = await ParseValue(plcClient, register.DataAddress, register.DataLength, register.DataType);
-                        if (result.IsSuccess)
+                        try
                         {
-                            data[register.ColumnName] = await ContentHandle(register, result.Content);
+                            var result = await ParseValue(plcClient, register.DataAddress, register.DataLength, register.DataType);
+                            if (result.IsSuccess)
+                            {
+                                data[register.ColumnName] = await ContentHandle(register, result.Content);
+                            }
+                            else
+                            {
+                                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{register.DataAddress}: {result.Message}");
+                            await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
                         }
                     }
-                    catch (Exception ex)
+                    
+                    if (data.Count > 0)
                     {
-                        await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{register.DataAddress}: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        var dataPoint = new DataPoint(registerGroup.TableName, data);
+                        if (_queueManagers.TryGetValue(config.Id, out var queueManager))
+                        {
+                            queueManager.EnqueueData(dataPoint);
+                        }
                     }
                 }
-
-                if (data.Count > 0)
-                {
-                    var dataPoint = new DataPoint(data);
-                    if (_queueManagers.TryGetValue(config.Id, out var queueManager))
-                    {
-                        queueManager.EnqueueData(dataPoint);
-                    }
-                }
+                
             }
             catch (Exception ex)
             {

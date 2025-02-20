@@ -23,11 +23,6 @@ public class DataAcquisitionConfig
     public string DatabaseName { get; set; }
 
     /// <summary>
-    /// 表名
-    /// </summary>
-    public string TableName { get; set; }
-
-    /// <summary>
     /// 采集间隔时间（ms）
     /// </summary>
     public int CollectIntervaMs { get; set; }
@@ -67,6 +62,22 @@ public class PlcConfig
     /// 端口
     /// </summary>
     public int Port { get; set; }
+    
+    /// <summary>
+    /// 寄存器分组
+    /// </summary>
+    public RegisterGroup[] RegisterGroups { get; set; }
+}
+
+/// <summary>
+/// 寄存器分组
+/// </summary>
+public class RegisterGroup
+{
+    /// <summary>
+    /// 表名
+    /// </summary>
+    public string TableName { get; set; }
     
     /// <summary>
     /// 采集位置配置

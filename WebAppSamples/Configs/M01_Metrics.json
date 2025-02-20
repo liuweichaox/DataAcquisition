@@ -2,7 +2,6 @@
   "Id": "d25fa504-15dc-4ecd-8b16-be6f2cdc1cd2",
   "IsEnabled": true,
   "DatabaseName": "dbo",
-  "TableName": "m01_metrics",
   "CollectIntervaMs": 100,
   "HeartbeatIntervalMs": 5000,
   "BatchSize": 100,
@@ -10,41 +9,44 @@
     "Code": "M01",
     "IpAddress": "192.168.1.1",
     "Port": 502,
-    "Registers": [
+    "RegisterGroups": [
       {
-        "ColumnName": "实时速度",
-        "DataAddress": "D6000",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  null
+        "TableName": "m01_metrics",
+        "Registers": [
+          {
+            "ColumnName": "实时速度",
+            "DataAddress": "D6000",
+            "DataLength": 1,
+            "DataType": "float",
+            "EvalExpression":  null
+          },
+          {
+            "ColumnName": "实时高度",
+            "DataAddress": "D6100",
+            "DataLength": 1,
+            "DataType": "float",
+            "EvalExpression":  null
+          }
+        ]
       },
       {
-        "ColumnName": "实时高度",
-        "DataAddress": "D6100",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  null
-      },
-      {
-        "ColumnName": "加速度",
-        "DataAddress": "D6200",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  null
-      },
-      {
-        "ColumnName": "气动压力",
-        "DataAddress": "D6300",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression":  "value / 1000.0"
-      },
-      {
-        "ColumnName": "编号",
-        "DataAddress": "D6400",
-        "DataLength": 10,
-        "DataType": "string",
-        "EvalExpression":  null
+        "TableName": "m02_metrics",
+        "Registers": [
+          {
+            "ColumnName": "实时速度",
+            "DataAddress": "D6200",
+            "DataLength": 1,
+            "DataType": "float",
+            "EvalExpression":  null
+          },
+          {
+            "ColumnName": "实时高度",
+            "DataAddress": "D6300",
+            "DataLength": 1,
+            "DataType": "float",
+            "EvalExpression":  null
+          }
+        ]
       }
     ]
   }

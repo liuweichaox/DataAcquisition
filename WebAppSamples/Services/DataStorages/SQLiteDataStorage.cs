@@ -20,15 +20,14 @@ public class SqLiteDataStorage : AbstractDataStorage
         _connection.Open();
     }
 
-    public override async Task SaveAsync(DataPoint? dataPoint)
+    public override async Task SaveAsync(DataPoint dataPoint)
     {
-        await _connection.InsertAsync(_config.TableName, dataPoint.Values);
+        await _connection.InsertAsync(dataPoint);
     }
 
-    public override async Task SaveBatchAsync(List<DataPoint?> dataPoints)
+    public override async Task SaveBatchAsync(List<DataPoint> dataPoints)
     {
-        var dataBatch = dataPoints.Select(x => x.Values).ToList();
-        await _connection.InsertBatchAsync(_config.TableName, dataBatch);
+        await _connection.InsertBatchAsync(dataPoints);
     }
 
     public override async ValueTask DisposeAsync()
