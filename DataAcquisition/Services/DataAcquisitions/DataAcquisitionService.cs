@@ -236,11 +236,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         var result = await ParseValue(plcClient, register.DataAddress, register.DataLength, register.DataType);
                         if (result.IsSuccess)
                         {
-                            var value = await ContentHandle(register, result.Content);
-                            if (value != null)
-                            {
-                                data[register.ColumnName] = value;
-                            }
+                            data[register.ColumnName] = await ContentHandle(register, result.Content);
                         }
                         else
                         {
@@ -271,13 +267,19 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 对读取到的数据进行表达式计算处理
         /// </summary>
-        private static async Task<object?> ContentHandle(Register register, object content)
+        private static async Task<object> ContentHandle(Register register, object content)
         {
             if (string.IsNullOrWhiteSpace(register.EvalExpression))
             {
                 return content;
             }
 
+            var types = new[] { "ushort","uint", "ulong", "int", "long", "float", "double" };
+            if (!types.Contains(register.DataType))
+            {
+                return content;
+            }
+            
             var expression = new AsyncExpression(register.EvalExpression)
             {
                 Parameters =
@@ -285,8 +287,9 @@ namespace DataAcquisition.Services.DataAcquisitions
                     ["value"] = content
                 }
             };
-
-            return await expression.EvaluateAsync();
+            
+            var value = await expression.EvaluateAsync();
+            return value ?? 0;
         }
 
         /// <summary>
