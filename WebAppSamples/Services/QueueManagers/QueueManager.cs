@@ -33,15 +33,6 @@ public class QueueManager(
     {
         foreach (var dataPoint in _queue.GetConsumingEnumerable())
         {
-            var hash = Sha256Utils.ComputeSha256HashForDictionary(dataPoint.Values);
-
-            if (IsDuplicateDataPoint(hash))
-            {
-                continue;
-            }
-
-            CacheDataPoint(hash, dataPoint.TableName);
-            
             var preprocessData = await PreprocessAsync(dataPoint);
 
             await StoreDataPointAsync(preprocessData);
@@ -52,17 +43,6 @@ public class QueueManager(
             await _dataStorage.SaveBatchAsync(_dataBatch);
         }
     }
-
-    private bool IsDuplicateDataPoint(string hash)
-    {
-        return _memoryCache.TryGetValue(hash, out _);
-    }
-
-    private void CacheDataPoint(string hash, string tableName)
-    {
-        _memoryCache.Set(hash, 1, TimeSpan.FromMinutes(30));
-    }
-    
     private async Task StoreDataPointAsync(DataPoint preprocessData)
     {
         if (_dataAcquisitionConfig.BatchSize > 1)
