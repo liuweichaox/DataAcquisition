@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Services.DataAcquisitionConfigs;
 using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
+using Microsoft.Extensions.ObjectPool;
 
 namespace DataAcquisition.Services.DataAcquisitions
 {
@@ -21,6 +22,11 @@ namespace DataAcquisition.Services.DataAcquisitions
         IMessageService messageService)
         : IDataAcquisitionService
     {
+        /// <summary>
+        /// 对象池
+        /// </summary>
+        private readonly ObjectPool<Dictionary<string, object>> _dataCachePool = 
+            new DefaultObjectPool<Dictionary<string, object>>(new DefaultPooledObjectPolicy<Dictionary<string, object>>(), Environment.ProcessorCount * 2);
         /// <summary>
         /// PLC 客户端管理
         /// </summary>
@@ -81,7 +87,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 try
                 {
                     // 初始化 PLC 客户端和队列管理器
-                    await CreatePlcClientAsync(config);
+                    var plcClient = await CreatePlcClientAsync(config);
                     InitializeQueueManager(config);
 
                     // 启动心跳监控任务（单独管理连接状态）
@@ -93,7 +99,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         // 如果 PLC 已连接则采集数据
                         if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
                         {
-                            await DataCollectAsync(config);
+                            DataCollect(config, plcClient);
                         }
 
                         await Task.Delay(config.CollectIntervalMs, cts.Token).ConfigureAwait(false);
@@ -116,16 +122,16 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private async Task CreatePlcClientAsync(DataAcquisitionConfig config)
+        private async Task<IPlcClient> CreatePlcClientAsync(DataAcquisitionConfig config)
         {
             var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
 
-            if (_plcClients.ContainsKey(plcKey))
+            if (_plcClients.TryGetValue(plcKey, out var plcClient))
             {
-                return;
+                return plcClient;
             }
 
-            var plcClient = plcClientFactory.Create(config);
+            plcClient = plcClientFactory.Create(config);
             _plcClients.TryAdd(plcKey, plcClient);
 
             var connect = await plcClient.ConnectServerAsync();
@@ -140,6 +146,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 await messageService.SendAsync(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
             }
+            return plcClient;
         }
 
         /// <summary>
@@ -214,86 +221,82 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 数据采集与异常处理
         /// </summary>
-        private async Task DataCollectAsync(DataAcquisitionConfig config)
+        private void DataCollect(DataAcquisitionConfig config, IPlcClient plcClient)
         {
             try
             {
-                var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-                var plcClient = _plcClients[plcKey];
-
-                var operationResult =
-                    await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
+                var operationResult = plcClient.Read(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
                 if (!operationResult.IsSuccess)
                 {
-                    await messageService.SendAsync(
+                    messageService.SendAsync(
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
                     return;
                 }
+                
+                ProcessBuffer(config, plcClient, operationResult.Content);
+            }
+            catch (Exception ex)
+            {
+                messageService.SendAsync(
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+            }
+        }
 
-                var buffer = operationResult.Content;
-
-                foreach (var registerGroup in config.Plc.RegisterGroups)
+        /// <summary>
+        /// 处理 PLC 字节数组
+        /// </summary>
+        /// <param name="config"></param>
+        /// <param name="plcClient"></param>
+        /// <param name="buffer"></param>
+        private void ProcessBuffer(DataAcquisitionConfig config, IPlcClient plcClient, byte[] buffer)
+        {
+            foreach (var registerGroup in config.Plc.RegisterGroups)
+            {
+                var localCache = _dataCachePool.Get();
+                localCache.Clear(); 
+                try
                 {
-                    var data = new Dictionary<string, object>();
                     foreach (var register in registerGroup.Registers)
                     {
-                        try
-                        {
-                            var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
-                                register.DataType, register.Encoding);
-                            data[register.ColumnName] = value;
-                        }
-                        catch (Exception ex)
-                        {
-                            await messageService.SendAsync(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取异常：{config.Plc.Code} 地址：{config.Plc.IpAddress} 索引位置：{register.Index}: {ex.Message} - StackTrace: {ex.StackTrace}");
-                        }
+                        var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
+                            register.DataType, register.Encoding);
+                        localCache[register.ColumnName] = value;
                     }
 
-                    if (data.Count > 0)
+                    if (localCache.Count > 0)
                     {
-                        var dataPoint = new DataPoint(registerGroup.TableName, data);
+                        var dataPoint = new DataPoint(registerGroup.TableName, localCache);
                         if (_queueManagers.TryGetValue(config.Id, out var queueManager))
                         {
                             queueManager.EnqueueData(dataPoint);
                         }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                await messageService.SendAsync(
-                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                finally
+                {
+                    _dataCachePool.Return(localCache);
+                }
             }
         }
 
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
-            string encoding)
+        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType, string encoding)
         {
-            var operations = new Dictionary<string, Func<object>>(StringComparer.OrdinalIgnoreCase)
+            switch (dataType.ToLowerInvariant())
             {
-                ["ushort"] = () => plcClient.TransUInt16(buffer, length),
-                ["uint"] = () => plcClient.TransUInt32(buffer, length),
-                ["ulong"] = () => plcClient.TransUInt64(buffer, length),
-                ["short"] = () => plcClient.TransInt16(buffer, length),
-                ["int"] = () => plcClient.TransInt32(buffer, length),
-                ["long"] = () => plcClient.TransInt64(buffer, length),
-                ["float"] = () => plcClient.TransSingle(buffer, length),
-                ["double"] = () => plcClient.TransDouble(buffer, length),
-                ["string"] = () => plcClient.TransString(buffer, index, length, encoding),
-                ["bool"] = () => plcClient.TransBool(buffer, length),
-            };
-
-            if (operations.TryGetValue(dataType, out var operation))
-            {
-                return operation();
-            }
-            else
-            {
-                throw new ArgumentException($"不支持的数据类型: {dataType}");
+                case "ushort": return plcClient.TransUInt16(buffer, length);
+                case "uint": return plcClient.TransUInt32(buffer, length);
+                case "ulong": return plcClient.TransUInt64(buffer, length);
+                case "short": return plcClient.TransInt16(buffer, length);
+                case "int": return plcClient.TransInt32(buffer, length);
+                case "long": return plcClient.TransInt64(buffer, length);
+                case "float": return plcClient.TransSingle(buffer, length);
+                case "double": return plcClient.TransDouble(buffer, length);
+                case "string": return plcClient.TransString(buffer, index, length, encoding);
+                case "bool": return plcClient.TransBool(buffer, length);
+                default: return null;
             }
         }
 
