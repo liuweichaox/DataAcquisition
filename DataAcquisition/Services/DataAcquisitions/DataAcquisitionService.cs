@@ -25,8 +25,10 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 对象池
         /// </summary>
-        private readonly ObjectPool<Dictionary<string, object>> _dataCachePool = 
-            new DefaultObjectPool<Dictionary<string, object>>(new DefaultPooledObjectPolicy<Dictionary<string, object>>(), Environment.ProcessorCount * 2);
+        private readonly ObjectPool<Dictionary<string, object>> _dataCachePool =
+            new DefaultObjectPool<Dictionary<string, object>>(
+                new DefaultPooledObjectPolicy<Dictionary<string, object>>(), Environment.ProcessorCount * 2);
+
         /// <summary>
         /// PLC 客户端管理
         /// </summary>
@@ -146,6 +148,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 await messageService.SendAsync(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
             }
+
             return plcClient;
         }
 
@@ -232,7 +235,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
                     return;
                 }
-                
+
                 ProcessBuffer(config, plcClient, operationResult.Content);
             }
             catch (Exception ex)
@@ -253,7 +256,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             foreach (var registerGroup in config.Plc.RegisterGroups)
             {
                 var localCache = _dataCachePool.Get();
-                localCache.Clear(); 
+                localCache.Clear();
                 try
                 {
                     foreach (var register in registerGroup.Registers)
@@ -282,7 +285,8 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType, string encoding)
+        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
+            string encoding)
         {
             switch (dataType.ToLowerInvariant())
             {

@@ -11,7 +11,7 @@ public class DataAcquisitionConfig
     /// 唯一标识
     /// </summary>
     public string Id { get; set; }
-    
+
     /// <summary>
     /// 是否启用
     /// </summary>
@@ -36,7 +36,7 @@ public class DataAcquisitionConfig
     /// 批量保存的数据
     /// </summary>
     public int BatchSize { get; set; }
-    
+
     /// <summary>
     /// PLC 配置
     /// </summary>
@@ -62,17 +62,17 @@ public class PlcConfig
     /// 端口
     /// </summary>
     public int Port { get; set; }
-    
+
     /// <summary>
     /// 寄存器地址
     /// </summary>
     public string RegisterByteAddress { get; set; }
-    
+
     /// <summary>
     /// 字节长度
     /// </summary>
     public ushort RegisterByteLength { get; set; }
-    
+
     /// <summary>
     /// 寄存器分组
     /// </summary>
@@ -88,7 +88,7 @@ public class RegisterGroup
     /// 表名
     /// </summary>
     public string TableName { get; set; }
-    
+
     /// <summary>
     /// 采集位置配置
     /// </summary>
@@ -104,17 +104,17 @@ public class Register
     /// 列名
     /// </summary>
     public string ColumnName { get; set; }
-    
+
     /// <summary>
     /// 索引位置
     /// </summary>
     public int Index { get; set; }
-    
+
     /// <summary>
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
-    
+
     /// <summary>
     /// byte 数组的长度
     /// </summary>
@@ -124,7 +124,7 @@ public class Register
     /// 字符串编码格式
     /// </summary>
     public string Encoding { get; set; }
-    
+
     /// <summary>
     /// 数据表达式计算
     /// </summary>

@@ -12,6 +12,7 @@ public class SqLiteDataStorage : AbstractDataStorage
 {
     private readonly SqliteConnection _connection;
     private readonly DataAcquisitionConfig _config;
+
     public SqLiteDataStorage(DataAcquisitionConfig config) : base(config)
     {
         _config = config;

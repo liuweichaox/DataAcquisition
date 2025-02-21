@@ -10,7 +10,10 @@ namespace WebAppSamples.Services.QueueManagers;
 /// <summary>
 /// 消息队列里实现
 /// </summary>
-public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig, IMessageService messageService)
+public class QueueManager(
+    IDataStorage dataStorage,
+    DataAcquisitionConfig dataAcquisitionConfig,
+    IMessageService messageService)
     : AbstractQueueManager(dataStorage, dataAcquisitionConfig, messageService)
 {
     private readonly BlockingCollection<DataPoint?> _queue = new();
@@ -27,12 +30,12 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
     {
         foreach (var data in _queue.GetConsumingEnumerable())
         {
-           var preprocessData= await PreprocessAsync(data);
-            
+            var preprocessData = await PreprocessAsync(data);
+
             if (_dataAcquisitionConfig.BatchSize > 1)
             {
                 _dataBatch.Add(preprocessData);
-            
+
                 if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
                 {
                     await _dataStorage.SaveBatchAsync(_dataBatch);
@@ -53,15 +56,16 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
 
     private async Task<DataPoint> PreprocessAsync(DataPoint dataPoint)
     {
-        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x=>x.TableName == dataPoint.TableName);
+        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == dataPoint.TableName);
         foreach (var kv in dataPoint.Values)
         {
-            var register = config?.Registers.SingleOrDefault(x=>x.ColumnName == kv.Key);
+            var register = config?.Registers.SingleOrDefault(x => x.ColumnName == kv.Key);
             if (register != null)
             {
                 dataPoint.Values[kv.Key] = await EvaluateAsync(register, kv.Value);
             }
         }
+
         return dataPoint;
     }
 
@@ -72,7 +76,7 @@ public class QueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAc
         {
             return content;
         }
-        
+
         var expression = new AsyncExpression(register.EvalExpression)
         {
             Parameters =

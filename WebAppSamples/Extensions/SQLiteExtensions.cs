@@ -21,19 +21,19 @@ public static class SqLiteExtensions
         try
         {
             var columns = string.Join(", ", data.Values.Keys.Select(k => $"`{k}`"));
-            
+
             var paramMapping = data.Values.Keys.ToDictionary(
                 key => key,
                 key => Regex.Replace(key, @"[^\w]+", "_").Trim('_')
             );
-            
+
             var parameters = string.Join(", ", paramMapping.Values.Select(k => $"@{k}"));
 
             var sql = $"INSERT INTO `{data.TableName}` ({columns}) VALUES ({parameters})";
 
             await using var command = connection.CreateCommand();
             command.CommandText = sql;
-            
+
             foreach (var kvp in paramMapping)
             {
                 command.Parameters.AddWithValue($"@{kvp.Value}", data.Values[kvp.Key] ?? DBNull.Value);

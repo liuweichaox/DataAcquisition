@@ -10,6 +10,6 @@ public class DataPoint(string tableName, Dictionary<string, object> values)
 {
     public DateTime Timestamp => DateTime.Now;
     public string TableName => tableName;
-    
-    public Dictionary<string,object> Values { get; set; } = values;
+
+    public Dictionary<string, object> Values { get; set; } = values;
 }

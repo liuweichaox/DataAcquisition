@@ -12,13 +12,14 @@ namespace WebAppSamples.Services.PlcClients;
 public class PlcClient : IPlcClient
 {
     private readonly MelsecA1ENet _plcClient;
+
     public PlcClient(DataAcquisitionConfig config)
     {
         _plcClient = new MelsecA1ENet(config.Plc.IpAddress, config.Plc.Port);
         _plcClient.ReceiveTimeOut = 2000;
         _plcClient.ConnectTimeOut = 2000;
     }
-    
+
     public async Task<OperationResult<bool>> ConnectServerAsync()
     {
         var result = await _plcClient.ConnectServerAsync();
@@ -38,15 +39,16 @@ public class PlcClient : IPlcClient
             Message = result.Message
         };
     }
-    
+
     public async Task<OperationResult<bool>> IpAddressPingAsync()
     {
-        var isSuccess = await Task.Run(()=>_plcClient.IpAddressPing() == IPStatus.Success);
+        var isSuccess = await Task.Run(() => _plcClient.IpAddressPing() == IPStatus.Success);
         return new OperationResult<bool>()
-        { 
+        {
             IsSuccess = isSuccess
         };
     }
+
     public OperationResult<byte[]> Read(string address, ushort length)
     {
         var result = _plcClient.Read(address, length);
@@ -103,7 +105,7 @@ public class PlcClient : IPlcClient
         var encodingObj = Encoding.GetEncoding(encoding);
         return _plcClient.ByteTransform.TransString(buffer, index, length, encodingObj);
     }
-    
+
     public bool TransBool(byte[] buffer, int length)
     {
         return _plcClient.ByteTransform.TransBool(buffer, length);

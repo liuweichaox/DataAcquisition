@@ -4,7 +4,7 @@ using WebAppSamples.Hubs;
 
 namespace WebAppSamples.Services.Messages;
 
-public class MessageService(IHubContext<DataHub> hubContext): IMessageService
+public class MessageService(IHubContext<DataHub> hubContext) : IMessageService
 {
     public async Task SendAsync(string message)
     {

@@ -17,10 +17,10 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
     [HttpPost]
     public IActionResult StartCollectionTasks()
     {
-         dataAcquisitionService.StartCollectionTasks();
-         return Ok("开始数据采集任务");
+        dataAcquisitionService.StartCollectionTasks();
+        return Ok("开始数据采集任务");
     }
-    
+
     /// <summary>
     /// 停止数据采集任务
     /// </summary>
