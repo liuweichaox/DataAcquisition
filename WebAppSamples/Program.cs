@@ -1,5 +1,6 @@
 using DataAcquisition.Services.DataAcquisitions;
 using Microsoft.AspNetCore.SignalR;
+using WebAppSamples;
 using WebAppSamples.Hubs;
 using WebAppSamples.Services.DataAcquisitionConfigs;
 using WebAppSamples.Services.DataStorages;
@@ -30,6 +31,7 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
+ServiceLocator.Configure(app.Services);
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

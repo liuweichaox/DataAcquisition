@@ -3,7 +3,9 @@ using DataAcquisition.Models;
 using DataAcquisition.Services.DataStorages;
 using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
+using Microsoft.Extensions.Caching.Memory;
 using NCalc;
+using WebAppSamples.Hubs;
 
 namespace WebAppSamples.Services.QueueManagers;
 
@@ -20,6 +22,7 @@ public class QueueManager(
     private readonly List<DataPoint> _dataBatch = [];
     private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
     private readonly IDataStorage _dataStorage = dataStorage;
+    private readonly IMemoryCache _memoryCache = ServiceLocator.GetService<IMemoryCache>();
 
     public override void EnqueueData(DataPoint dataPoint)
     {
@@ -28,29 +31,53 @@ public class QueueManager(
 
     protected override async Task ProcessQueueAsync()
     {
-        foreach (var data in _queue.GetConsumingEnumerable())
+        foreach (var dataPoint in _queue.GetConsumingEnumerable())
         {
-            var preprocessData = await PreprocessAsync(data);
+            var hash = Sha256Utils.ComputeSha256HashForDictionary(dataPoint.Values);
 
-            if (_dataAcquisitionConfig.BatchSize > 1)
+            if (IsDuplicateDataPoint(hash))
             {
-                _dataBatch.Add(preprocessData);
+                continue;
+            }
 
-                if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
-                {
-                    await _dataStorage.SaveBatchAsync(_dataBatch);
-                    _dataBatch.Clear();
-                }
-            }
-            else
-            {
-                await _dataStorage.SaveAsync(preprocessData);
-            }
+            CacheDataPoint(hash, dataPoint.TableName);
+            
+            var preprocessData = await PreprocessAsync(dataPoint);
+
+            await StoreDataPointAsync(preprocessData);
         }
 
         if (_dataBatch.Count > 0)
         {
             await _dataStorage.SaveBatchAsync(_dataBatch);
+        }
+    }
+
+    private bool IsDuplicateDataPoint(string hash)
+    {
+        return _memoryCache.TryGetValue(hash, out _);
+    }
+
+    private void CacheDataPoint(string hash, string tableName)
+    {
+        _memoryCache.Set(hash, 1, TimeSpan.FromMinutes(30));
+    }
+    
+    private async Task StoreDataPointAsync(DataPoint preprocessData)
+    {
+        if (_dataAcquisitionConfig.BatchSize > 1)
+        {
+            _dataBatch.Add(preprocessData);
+
+            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+            {
+                await _dataStorage.SaveBatchAsync(_dataBatch);
+                _dataBatch.Clear();
+            }
+        }
+        else
+        {
+            await _dataStorage.SaveAsync(preprocessData);
         }
     }
 
