@@ -22,6 +22,11 @@ namespace DataAcquisition.Services.DataAcquisitions
         IMessageService messageService)
         : IDataAcquisitionService
     {
+        /// <summary>
+        /// 数据点对象池
+        /// </summary>
+        private static readonly ObjectPool<Dictionary<string, object>> _dataCachePool = 
+            new DefaultObjectPool<Dictionary<string, object>>(new DictionaryPoolPolicy(), Environment.ProcessorCount * 2);
 
         /// <summary>
         /// PLC 客户端管理
@@ -249,21 +254,28 @@ namespace DataAcquisition.Services.DataAcquisitions
         {
             foreach (var registerGroup in config.Plc.RegisterGroups)
             {
-                var data = new Dictionary<string, object>();
-                foreach (var register in registerGroup.Registers)
+                var localCache = _dataCachePool.Get();
+                try
                 {
-                    var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
-                        register.DataType, register.Encoding);
-                    data[register.ColumnName] = value;
-                }
-
-                if (data.Count > 0)
-                {
-                    var dataPoint = new DataPoint(registerGroup.TableName, data);
-                    if (_queueManagers.TryGetValue(config.Id, out var queueManager))
+                    foreach (var register in registerGroup.Registers)
                     {
-                        queueManager.EnqueueData(dataPoint);
+                        var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
+                            register.DataType, register.Encoding);
+                        localCache[register.ColumnName] = value;
                     }
+
+                    if (localCache.Count > 0)
+                    {
+                        var dataPoint = new DataPoint(registerGroup.TableName, localCache);
+                        if (_queueManagers.TryGetValue(config.Id, out var queueManager))
+                        {
+                            queueManager.EnqueueData(dataPoint);
+                        }
+                    }
+                }
+                finally
+                {
+                    _dataCachePool.Return(localCache);
                 }
             }
         }
