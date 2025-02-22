@@ -33,9 +33,16 @@ public class QueueManager(
     {
         foreach (var dataPoint in _queue.GetConsumingEnumerable())
         {
-            var preprocessData = await PreprocessAsync(dataPoint);
+            try
+            {
+                var preprocessData = await PreprocessAsync(dataPoint);
 
-            await StoreDataPointAsync(preprocessData);
+                await StoreDataPointAsync(preprocessData);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         if (_dataBatch.Count > 0)
