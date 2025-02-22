@@ -23,12 +23,6 @@ namespace DataAcquisition.Services.DataAcquisitions
         : IDataAcquisitionService
     {
         /// <summary>
-        /// 数据点对象池
-        /// </summary>
-        private static readonly ObjectPool<Dictionary<string, object>> _dataCachePool = 
-            new DefaultObjectPool<Dictionary<string, object>>(new DictionaryPoolPolicy(), Environment.ProcessorCount * 2);
-
-        /// <summary>
         /// PLC 客户端管理
         /// </summary>
         private readonly ConcurrentDictionary<string, IPlcClient> _plcClients = new();
@@ -254,28 +248,21 @@ namespace DataAcquisition.Services.DataAcquisitions
         {
             foreach (var registerGroup in config.Plc.RegisterGroups)
             {
-                var localCache = _dataCachePool.Get();
-                try
+                var data = new Dictionary<string, object>();
+                foreach (var register in registerGroup.Registers)
                 {
-                    foreach (var register in registerGroup.Registers)
-                    {
-                        var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
-                            register.DataType, register.Encoding);
-                        localCache[register.ColumnName] = value;
-                    }
-
-                    if (localCache.Count > 0)
-                    {
-                        var dataPoint = new DataPoint(registerGroup.TableName, localCache);
-                        if (_queueManagers.TryGetValue(config.Id, out var queueManager))
-                        {
-                            queueManager.EnqueueData(dataPoint);
-                        }
-                    }
+                    var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
+                        register.DataType, register.Encoding);
+                    data[register.ColumnName] = value;
                 }
-                finally
+
+                if (data.Count > 0)
                 {
-                    _dataCachePool.Return(localCache);
+                    var dataPoint = new DataPoint(registerGroup.TableName, data);
+                    if (_queueManagers.TryGetValue(config.Id, out var queueManager))
+                    {
+                        queueManager.EnqueueData(dataPoint);
+                    }
                 }
             }
         }
