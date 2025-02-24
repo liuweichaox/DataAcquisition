@@ -221,43 +221,16 @@ namespace DataAcquisition.Services.DataAcquisitions
         {
             try
             {
-                var sensorResult= await plcClient.ReadAsync("D6000", 60);
-                if (!sensorResult.IsSuccess)
-                {
-                    _ = messageService.SendAsync(
-                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 D6000 失败：{config.Plc.Code}");
-                }
-
-                byte[] sensorBuffer = sensorResult.Content;
-                byte[] recipeBuffer = [];
-                var recipeFlag1 = TransValue(plcClient, sensorBuffer, 16, 0, "short", null);//d6008
-                var recipeFlag2 = TransValue(plcClient, sensorBuffer, 56, 0, "short", null);//d6028
-                var recipeFlag3 = TransValue(plcClient, sensorBuffer, 96, 0, "short", null);//d6048
-                var hasRecipe = recipeFlag1 > 0 || recipeFlag2 > 0 && recipeFlag3 > 0;
-                if (hasRecipe)
-                {
-                    var recipeResult = await plcClient.ReadAsync("D6100", 200);
-                    if (!recipeResult.IsSuccess)
-                    {
-                        _ = messageService.SendAsync(
-                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 D6100 失败：{config.Plc.Code}");
-                    }
-                    recipeBuffer =  recipeResult.Content;
-                }
-
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
-                    byte[] buffer = [];
-                    if (registerGroup.TableName.EndsWith("sensor"))
+                    var operationResult = await plcClient.ReadAsync(registerGroup.BatchReadAddress, registerGroup.BatchReadLength);
+                    if (!operationResult.IsSuccess)
                     {
-                        buffer = sensorBuffer;
+                        _ = messageService.SendAsync(
+                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {registerGroup.BatchReadAddress} 失败");
                     }
-
-                    if (registerGroup.TableName.EndsWith("recipe"))
-                    {
-                        buffer = recipeBuffer;
-                    }
-
+                    var buffer = operationResult.Content;
+                    
                     if (buffer.Length == 0)
                     {
                         continue;

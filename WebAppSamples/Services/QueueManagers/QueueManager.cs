@@ -52,19 +52,12 @@ public class QueueManager(
     }
     private async Task StoreDataPointAsync(DataPoint preprocessData)
     {
-        if (_dataAcquisitionConfig.BatchSize > 1)
-        {
-            _dataBatch.Add(preprocessData);
+        _dataBatch.Add(preprocessData);
 
-            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
-            {
-                await _dataStorage.SaveBatchAsync(_dataBatch);
-                _dataBatch.Clear();
-            }
-        }
-        else
+        if (_dataBatch.Count >= 100)
         {
-            await _dataStorage.SaveAsync(preprocessData);
+            await _dataStorage.SaveBatchAsync(_dataBatch);
+            _dataBatch.Clear();
         }
     }
 
