@@ -83,7 +83,7 @@ public class RegisterGroup
     /// 批量读取字节数组信息地址
     /// </summary>
     public ushort BatchReadLength { get; set; }
-
+    
     /// <summary>
     /// 采集位置配置
     /// </summary>
@@ -113,7 +113,7 @@ public class Register
     /// <summary>
     /// 字符串 byte 数组长度
     /// </summary>
-    public int StringByteLength { get; set; }
+    public int? StringByteLength { get; set; }
     
     /// <summary>
     /// 仅用于字符串,字符串编码格式
