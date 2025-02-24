@@ -49,9 +49,9 @@ public class PlcClient : IPlcClient
         };
     }
 
-    public OperationResult<byte[]> Read(string address, ushort length)
+    public async Task<OperationResult<byte[]>> ReadAsync(string address, ushort length)
     {
-        var result = _plcClient.Read(address, length);
+        var result = await _plcClient.ReadAsync(address, length);
         return new OperationResult<byte[]>()
         {
             IsSuccess = result.IsSuccess,

@@ -94,7 +94,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         // 如果 PLC 已连接则采集数据
                         if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
                         {
-                            DataCollect(config, plcClient, queueManager);
+                            await DataCollectAsync(config, plcClient, queueManager);
                         }
 
                         await Task.Delay(config.CollectIntervalMs, cts.Token).ConfigureAwait(false);
@@ -217,14 +217,14 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 数据采集与异常处理
         /// </summary>
-        private void DataCollect(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager)
+        private async Task DataCollectAsync(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager)
         {
             try
             {
-                var operationResult = plcClient.Read(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
+                var operationResult = await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
                 if (!operationResult.IsSuccess)
                 {
-                    messageService.SendAsync(
+                    _ = messageService.SendAsync(
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
                     return;
                 }
@@ -233,7 +233,7 @@ namespace DataAcquisition.Services.DataAcquisitions
             }
             catch (Exception ex)
             {
-                messageService.SendAsync(
+                _= messageService.SendAsync(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
