@@ -118,7 +118,7 @@ public class Register
     /// <summary>
     /// byte 数组的长度
     /// </summary>
-    public int ByteLength { get; set; }
+    public int StringByteLength { get; set; }
 
     /// <summary>
     /// 字符串编码格式

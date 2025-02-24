@@ -19,7 +19,7 @@
             "ColumnName": "速度",
             "Index": 4,
             "DataType": "float",
-            "ByteLength": 4,
+            "StringByteLength": null,
             "Encoding": null,
             "EvalExpression":  null
           },
@@ -27,7 +27,7 @@
             "ColumnName": "高度",
             "Index": 8,
             "DataType": "float",
-            "ByteLength": 4,
+            "StringByteLength": null,
             "Encoding": null,
             "EvalExpression":  null
           }
@@ -40,7 +40,7 @@
             "ColumnName": "温度",
             "Index": 12,
             "DataType": "float",
-            "ByteLength": 4,
+            "StringByteLength": null,
             "Encoding": null,
             "EvalExpression":  null
           },
@@ -48,7 +48,7 @@
             "ColumnName": "压力",
             "Index": 16,
             "DataType": "float",
-            "ByteLength": 4,
+            "StringByteLength": null,
             "Encoding": null,
             "EvalExpression":  null
           }

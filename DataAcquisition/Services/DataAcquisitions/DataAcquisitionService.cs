@@ -252,7 +252,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 var data = new Dictionary<string, object>();
                 foreach (var register in registerGroup.Registers)
                 {
-                    var value = ParseValue(plcClient, buffer, register.Index, register.ByteLength,
+                    var value = ParseValue(plcClient, buffer, register.Index, register.StringByteLength,
                         register.DataType, register.Encoding);
                     data[register.ColumnName] = value;
                 }
