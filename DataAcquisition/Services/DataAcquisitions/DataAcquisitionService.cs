@@ -83,7 +83,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 {
                     // 初始化 PLC 客户端和队列管理器
                     var plcClient = await CreatePlcClientAsync(config);
-                    InitializeQueueManager(config);
+                    var queueManager= CreateQueueManager(config);
 
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
@@ -94,7 +94,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                         // 如果 PLC 已连接则采集数据
                         if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
                         {
-                            DataCollect(config, plcClient);
+                            DataCollect(config, plcClient, queueManager);
                         }
 
                         await Task.Delay(config.CollectIntervalMs, cts.Token).ConfigureAwait(false);
@@ -146,12 +146,12 @@ namespace DataAcquisition.Services.DataAcquisitions
         }
 
         /// <summary>
-        /// 初始化队列管理器（数据入库、缓冲处理等）
+        /// 创建队列管理器（数据入库、缓冲处理等）
         /// </summary>
-        private void InitializeQueueManager(DataAcquisitionConfig config)
+        private IQueueManager CreateQueueManager(DataAcquisitionConfig config)
         {
             var dataStorage = dataStorageFactory.Create(config);
-            _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageService));
+            return _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageService));
         }
 
         /// <summary>
@@ -217,7 +217,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// <summary>
         /// 数据采集与异常处理
         /// </summary>
-        private void DataCollect(DataAcquisitionConfig config, IPlcClient plcClient)
+        private void DataCollect(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager)
         {
             try
             {
@@ -229,7 +229,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                     return;
                 }
 
-                ProcessBuffer(config, plcClient, operationResult.Content);
+                ProcessBuffer(config, plcClient, queueManager, operationResult.Content);
             }
             catch (Exception ex)
             {
@@ -243,8 +243,9 @@ namespace DataAcquisition.Services.DataAcquisitions
         /// </summary>
         /// <param name="config"></param>
         /// <param name="plcClient"></param>
+        /// <param name="queueManager"></param>
         /// <param name="buffer"></param>
-        private void ProcessBuffer(DataAcquisitionConfig config, IPlcClient plcClient, byte[] buffer)
+        private void ProcessBuffer(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager, byte[] buffer)
         {
             foreach (var registerGroup in config.Plc.RegisterGroups)
             {
@@ -256,14 +257,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                     data[register.ColumnName] = value;
                 }
 
-                if (data.Count > 0)
-                {
-                    var dataPoint = new DataPoint(registerGroup.TableName, data);
-                    if (_queueManagers.TryGetValue(config.Id, out var queueManager))
-                    {
-                        queueManager.EnqueueData(dataPoint);
-                    }
-                }
+                var dataPoint = new DataPoint(registerGroup.TableName, data);
+                queueManager.EnqueueData(dataPoint);
             }
         }
 
@@ -273,7 +268,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
-            switch (dataType.ToLowerInvariant())
+            switch (dataType.ToLower())
             {
                 case "ushort": return plcClient.TransUInt16(buffer, length);
                 case "uint": return plcClient.TransUInt32(buffer, length);
