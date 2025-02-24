@@ -221,15 +221,59 @@ namespace DataAcquisition.Services.DataAcquisitions
         {
             try
             {
-                var operationResult = await plcClient.ReadAsync(config.Plc.RegisterByteAddress, config.Plc.RegisterByteLength);
-                if (!operationResult.IsSuccess)
+                var sensorResult= await plcClient.ReadAsync("D6000", 60);
+                if (!sensorResult.IsSuccess)
                 {
                     _ = messageService.SendAsync(
-                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取失败：{config.Plc.Code} 地址：{config.Plc.RegisterByteAddress}, 长度: {operationResult.Message}");
-                    return;
+                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 D6000 失败：{config.Plc.Code}");
                 }
 
-                ProcessBuffer(config, plcClient, queueManager, operationResult.Content);
+                byte[] sensorBuffer = sensorResult.Content;
+                byte[] recipeBuffer = [];
+                var recipeFlag1 = TransValue(plcClient, sensorBuffer, 16, 0, "short", null);//d6008
+                var recipeFlag2 = TransValue(plcClient, sensorBuffer, 56, 0, "short", null);//d6028
+                var recipeFlag3 = TransValue(plcClient, sensorBuffer, 96, 0, "short", null);//d6048
+                var hasRecipe = recipeFlag1 > 0 || recipeFlag2 > 0 && recipeFlag3 > 0;
+                if (hasRecipe)
+                {
+                    var recipeResult = await plcClient.ReadAsync("D6100", 200);
+                    if (!recipeResult.IsSuccess)
+                    {
+                        _ = messageService.SendAsync(
+                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 D6100 失败：{config.Plc.Code}");
+                    }
+                    recipeBuffer =  recipeResult.Content;
+                }
+
+                foreach (var registerGroup in config.Plc.RegisterGroups)
+                {
+                    byte[] buffer = [];
+                    if (registerGroup.TableName.EndsWith("sensor"))
+                    {
+                        buffer = sensorBuffer;
+                    }
+
+                    if (registerGroup.TableName.EndsWith("recipe"))
+                    {
+                        buffer = recipeBuffer;
+                    }
+
+                    if (buffer.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    var dataPoint = new DataPoint(registerGroup.TableName);
+                        
+                    foreach (var register in registerGroup.Registers)
+                    {
+                        var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength,
+                            register.DataType, register.Encoding);
+                        dataPoint.Values.TryAdd(register.ColumnName, value);
+                    }
+
+                    queueManager.EnqueueData(dataPoint);
+                }
             }
             catch (Exception ex)
             {
@@ -237,35 +281,11 @@ namespace DataAcquisition.Services.DataAcquisitions
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
-
-        /// <summary>
-        /// 处理 PLC 字节数组
-        /// </summary>
-        /// <param name="config"></param>
-        /// <param name="plcClient"></param>
-        /// <param name="queueManager"></param>
-        /// <param name="buffer"></param>
-        private void ProcessBuffer(DataAcquisitionConfig config, IPlcClient plcClient, IQueueManager queueManager, byte[] buffer)
-        {
-            foreach (var registerGroup in config.Plc.RegisterGroups)
-            {
-                var data = new Dictionary<string, object>();
-                foreach (var register in registerGroup.Registers)
-                {
-                    var value = ParseValue(plcClient, buffer, register.Index, register.StringByteLength,
-                        register.DataType, register.Encoding);
-                    data[register.ColumnName] = value;
-                }
-
-                var dataPoint = new DataPoint(registerGroup.TableName, data);
-                queueManager.EnqueueData(dataPoint);
-            }
-        }
-
+        
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
-        private object ParseValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
+        private dynamic TransValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             switch (dataType.ToLower())
@@ -283,7 +303,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 default: return null;
             }
         }
-
+        
         /// <summary>
         /// 停止所有数据采集任务并释放相关资源
         /// </summary>

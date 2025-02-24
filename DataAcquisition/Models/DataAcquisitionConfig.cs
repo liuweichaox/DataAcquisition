@@ -33,11 +33,6 @@ public class DataAcquisitionConfig
     public int HeartbeatIntervalMs { get; set; }
 
     /// <summary>
-    /// 批量保存的数据
-    /// </summary>
-    public int BatchSize { get; set; }
-
-    /// <summary>
     /// PLC 配置
     /// </summary>
     public PlcConfig Plc { get; set; }
@@ -64,16 +59,6 @@ public class PlcConfig
     public int Port { get; set; }
 
     /// <summary>
-    /// 寄存器地址
-    /// </summary>
-    public string RegisterByteAddress { get; set; }
-
-    /// <summary>
-    /// 字节长度
-    /// </summary>
-    public ushort RegisterByteLength { get; set; }
-
-    /// <summary>
     /// 寄存器分组
     /// </summary>
     public RegisterGroup[] RegisterGroups { get; set; }
@@ -88,6 +73,16 @@ public class RegisterGroup
     /// 表名
     /// </summary>
     public string TableName { get; set; }
+    
+    /// <summary>
+    /// 批量读取字节数组信息地址
+    /// </summary>
+    public string BatchReadAddress { get; set; }
+    
+    /// <summary>
+    /// 批量读取字节数组信息地址
+    /// </summary>
+    public ushort BatchReadLength { get; set; }
 
     /// <summary>
     /// 采集位置配置
@@ -104,24 +99,24 @@ public class Register
     /// 列名
     /// </summary>
     public string ColumnName { get; set; }
-
-    /// <summary>
-    /// 索引位置
-    /// </summary>
-    public int Index { get; set; }
-
+    
     /// <summary>
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
-
+    
     /// <summary>
-    /// byte 数组的长度
+    /// 索引位置
+    /// </summary>
+    public int Index { get; set; }
+    
+    /// <summary>
+    /// 字符串 byte 数组长度
     /// </summary>
     public int StringByteLength { get; set; }
-
+    
     /// <summary>
-    /// 字符串编码格式
+    /// 仅用于字符串,字符串编码格式
     /// </summary>
     public string Encoding { get; set; }
 
