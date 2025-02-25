@@ -1,6 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Publish WebAppSamples to folder" type="DotNetFolderPublish" factoryName="Publish to folder">
-    <riderPublish configuration="Release" platform="Any CPU" runtime="osx-arm64" self_contained="true" target_folder="$PROJECT_DIR$/WebAppSamples/bin/Release/net8.0/osx-arm64/publish" target_framework="net8.0" uuid_high="-7018675132944461894" uuid_low="-7028593748940649859" />
-    <method v="2" />
-  </configuration>
-</component>
