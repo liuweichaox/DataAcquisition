@@ -58,14 +58,14 @@ namespace DataAcquisition.Services.DataAcquisitions
             foreach (var config in dataAcquisitionConfigs)
             {
                 if (!config.IsEnabled) continue;
-                StartCollectionTask(config);
+                Work(config);
             }
         }
 
         /// <summary>
         /// 启动单个采集任务（如果任务已存在则直接返回）
         /// </summary>
-        private void StartCollectionTask(DataAcquisitionConfig config)
+        private void Work(DataAcquisitionConfig config)
         {
             if (_dataTasks.ContainsKey(config.Id))
             {
@@ -236,15 +236,16 @@ namespace DataAcquisition.Services.DataAcquisitions
                         continue;
                     }
 
-                    var dataPoint = new DataPoint(registerGroup.TableName);
-                        
-                    foreach (var register in registerGroup.Registers)
+                    _ = Task.Run(() =>
                     {
-                        var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
-                        dataPoint.Values.TryAdd(register.ColumnName, value);
-                    }
-
-                    queueManager.EnqueueData(dataPoint);
+                        var dataPoint = new DataPoint(registerGroup.TableName);
+                        foreach (var register in registerGroup.Registers)
+                        {
+                            var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
+                            dataPoint.Values.TryAdd(register.ColumnName, value);
+                        }
+                        queueManager.EnqueueData(dataPoint);
+                    });
                 }
             }
             catch (Exception ex)

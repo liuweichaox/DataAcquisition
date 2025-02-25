@@ -11,5 +11,5 @@ public class DataPoint(string tableName)
 {
     public DateTime Timestamp => DateTime.Now;
     public string TableName => tableName;
-    public ConcurrentDictionary<string, dynamic> Values => new();
+    public ConcurrentDictionary<string, dynamic> Values { get; set; } = new();
 }

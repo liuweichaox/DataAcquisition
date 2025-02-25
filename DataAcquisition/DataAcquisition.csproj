@@ -12,6 +12,15 @@
 
     <ItemGroup>
       <Compile Remove="Services\Messages\IMessageFactory.cs" />
+      <Compile Remove="Converters\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Converters\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Converters\**" />
     </ItemGroup>
 
 </Project>
