@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using DataAcquisition.Services.DataAcquisitionConfigs;
 using DataAcquisition.Services.Messages;
 using DataAcquisition.Services.QueueManagers;
-using Microsoft.Extensions.ObjectPool;
 
 namespace DataAcquisition.Services.DataAcquisitions
 {
