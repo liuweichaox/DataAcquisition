@@ -229,7 +229,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 }
 
                 byte[] buffer = operationResult.Content;
-
+                DateTime timestamp = DateTime.Now;
                 if (buffer.Length == 0)
                 {
                     return;
@@ -237,7 +237,7 @@ namespace DataAcquisition.Services.DataAcquisitions
 
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
-                    var dataPoint = new DataPoint(registerGroup.TableName);
+                    var dataPoint = new DataPoint(timestamp, registerGroup.TableName);
                     foreach (var register in registerGroup.Registers)
                     {
                         var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
