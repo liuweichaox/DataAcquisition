@@ -10,7 +10,7 @@ using WebAppSamples.Services.QueueManagers;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+builder.WebHost.UseUrls("http://*:5000");
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {

@@ -52,11 +52,12 @@ public class QueueManager(
     }
     private async Task StoreDataPointAsync(DataPoint preprocessData)
     {
-        if (_dataAcquisitionConfig.BatchSize > 1)
+        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == preprocessData.TableName);
+        if (config.BatchSize > 1)
         {
             _dataBatch.Add(preprocessData);
 
-            if (_dataBatch.Count >= _dataAcquisitionConfig.BatchSize)
+            if (_dataBatch.Count >= config.BatchSize)
             {
                 await _dataStorage.SaveBatchAsync(_dataBatch);
                 _dataBatch.Clear();

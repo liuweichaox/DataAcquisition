@@ -9,7 +9,7 @@ namespace DataAcquisition.Models;
 /// </summary>
 public class DataPoint(string tableName)
 {
-    public DateTime Timestamp => DateTime.Now;
+    public DateTime Timestamp { get; set; } = DateTime.Now;
     public string TableName => tableName;
     public ConcurrentDictionary<string, dynamic> Values => new();
 }

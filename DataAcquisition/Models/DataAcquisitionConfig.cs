@@ -18,11 +18,6 @@ public class DataAcquisitionConfig
     public bool IsEnabled { get; set; }
 
     /// <summary>
-    /// 数据库名称
-    /// </summary>
-    public string DatabaseName { get; set; }
-
-    /// <summary>
     /// 采集间隔时间（ms）
     /// </summary>
     public int CollectIntervalMs { get; set; }
@@ -57,6 +52,16 @@ public class PlcConfig
     /// 端口
     /// </summary>
     public int Port { get; set; }
+    
+    /// <summary>
+    /// 批量读取字节数组信息地址
+    /// </summary>
+    public string BatchReadAddress { get; set; }
+    
+    /// <summary>
+    /// 批量读取字节数组信息地址
+    /// </summary>
+    public ushort BatchReadLength { get; set; }
 
     /// <summary>
     /// 寄存器分组
@@ -75,14 +80,9 @@ public class RegisterGroup
     public string TableName { get; set; }
     
     /// <summary>
-    /// 批量读取字节数组信息地址
+    /// 批量大小
     /// </summary>
-    public string BatchReadAddress { get; set; }
-    
-    /// <summary>
-    /// 批量读取字节数组信息地址
-    /// </summary>
-    public ushort BatchReadLength { get; set; }
+    public int BatchSize { get; set; }
 
     /// <summary>
     /// 采集位置配置

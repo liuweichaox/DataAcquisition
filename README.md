@@ -37,24 +37,60 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 ```json
 {
-  "Id": "ad3a076e-3d26-4b87-9d8d-24b42ab0cd3c",
+  "Id": "d25fa504-15dc-4ecd-8b16-be6f2cdc1cd2",
   "IsEnabled": true,
-  "DatabaseName": "dbo",
-  "TableName": "m01_metrics",
   "CollectIntervalMs": 100,
   "HeartbeatIntervalMs": 5000,
-  "BatchSize": 100,
   "Plc": {
     "Code": "M01",
     "IpAddress": "192.168.1.1",
     "Port": 502,
-    "Registers": [
+    "BatchReadAddress": "D6000",
+    "BatchReadLength": 100,
+    "RegisterGroups": [
       {
-        "ColumnName": "实时速度",
-        "DataAddress": "D6000",
-        "DataLength": 1,
-        "DataType": "float",
-        "EvalExpression": "value / 1000.0"
+        "TableName": "m01_metrics",
+        "BatchSize": 100,
+        "Registers": [
+          {
+            "ColumnName": "速度",
+            "Index": 4,
+            "DataType": "float",
+            "StringByteLength": 0,
+            "Encoding": null,
+            "EvalExpression":  null
+          },
+          {
+            "ColumnName": "高度",
+            "Index": 8,
+            "DataType": "float",
+            "StringByteLength": 0,
+            "Encoding": null,
+            "EvalExpression":  null
+          }
+        ]
+      },
+      {
+        "TableName": "m02_metrics",
+        "BatchSize": 50,
+        "Registers": [
+          {
+            "ColumnName": "温度",
+            "Index": 12,
+            "DataType": "float",
+            "StringByteLength": 0,
+            "Encoding": null,
+            "EvalExpression":  null
+          },
+          {
+            "ColumnName": "压力",
+            "Index": 16,
+            "DataType": "float",
+            "StringByteLength": 0,
+            "Encoding": null,
+            "EvalExpression":  null
+          }
+        ]
       }
     ]
   }
@@ -64,22 +100,25 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 #### 配置文件解析
 
 - **Id**: 唯一标识符，用于区分不同的配置。
-- **IsEnabled**：启用该配置项，`true` 为启用，`false` 为禁用。
-- **DatabaseName**：数据存储的数据库名称。
-- **TableName**：存储数据的数据库表名。
-- **CollectIntervalMs**：数据采集的频率，单位为毫秒。
-- **HeartbeatIntervalMs**：心跳检测的频率，单位为毫秒。
-- **BatchSize**：每次批量存储的数据量。
-- **Plc**：PLC 配置信息，定义 PLC 的 IP 地址、端口和数据寄存器。
-  - **Code**：PLC 的唯一代码。
-  - **IpAddress**：PLC 的 IP 地址。
-  - **Port**：PLC 的端口号，通常为 `502`（Modbus TCP 默认端口）。
-  - **Registers**：包含要采集的数据寄存器的信息。
-    - **ColumnName**：对应数据库中的列名。
-    - **DataAddress**：寄存器地址。
-    - **DataLength**：数据长度。
-    - **DataType**：数据类型，支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`bool`。
-    - **EvalExpression**：可选的表达式字段，用于对数据进行处理或转换。value 为寄存器读取到的值。
+- **IsEnabled**: 是否启用该配置。
+- **CollectIntervalMs**: 数据采集间隔（毫秒）。
+- **HeartbeatIntervalMs**: 心跳间隔（毫秒）。
+- **Plc**: PLC 配置信息。
+  - **Code**: PLC 代码。
+  - **IpAddress**: PLC IP 地址。
+  - **Port**: PLC 端口。
+  - **BatchReadAddress**: 批量读取的起始地址。
+  - **BatchReadLength**: 批量读取的长度。
+  - **RegisterGroups**: 寄存器组配置。
+    - **TableName**: 数据表名称。
+    - **BatchSize**: 批量插入数据量大小。
+    - **Registers**: 寄存器配置。
+      - **ColumnName**: 数据库列名。
+      - **Index**: 寄存器索引。
+      - **DataType**: 数据类型（支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`bool`）。
+      - **StringByteLength**: 字符串字节长度（仅适用于字符串类型）。
+      - **Encoding**: 编码（仅适用于字符串类型）。
+      - **EvalExpression**: 计算表达式（可选，示例 `value / 1000`， 其中 value 代表当前值）
 
 ---
 

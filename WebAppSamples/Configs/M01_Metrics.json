@@ -1,25 +1,24 @@
 ﻿{
   "Id": "d25fa504-15dc-4ecd-8b16-be6f2cdc1cd2",
   "IsEnabled": true,
-  "DatabaseName": "dbo",
   "CollectIntervalMs": 100,
   "HeartbeatIntervalMs": 5000,
-  "BatchSize": 100,
   "Plc": {
     "Code": "M01",
     "IpAddress": "192.168.1.1",
     "Port": 502,
-    "RegisterByteAddress": "D6000",
-    "RegisterByteLength": 100,
+    "BatchReadAddress": "D6000",
+    "BatchReadLength": 100,
     "RegisterGroups": [
       {
         "TableName": "m01_metrics",
+        "BatchSize": 100,
         "Registers": [
           {
             "ColumnName": "速度",
             "Index": 4,
             "DataType": "float",
-            "StringByteLength": null,
+            "StringByteLength": 0,
             "Encoding": null,
             "EvalExpression":  null
           },
@@ -27,7 +26,7 @@
             "ColumnName": "高度",
             "Index": 8,
             "DataType": "float",
-            "StringByteLength": null,
+            "StringByteLength": 0,
             "Encoding": null,
             "EvalExpression":  null
           }
@@ -35,12 +34,13 @@
       },
       {
         "TableName": "m02_metrics",
+        "BatchSize": 50,
         "Registers": [
           {
             "ColumnName": "温度",
             "Index": 12,
             "DataType": "float",
-            "StringByteLength": null,
+            "StringByteLength": 0,
             "Encoding": null,
             "EvalExpression":  null
           },
@@ -48,7 +48,7 @@
             "ColumnName": "压力",
             "Index": 16,
             "DataType": "float",
-            "StringByteLength": null,
+            "StringByteLength": 0,
             "Encoding": null,
             "EvalExpression":  null
           }
