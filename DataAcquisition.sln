@@ -2,7 +2,7 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition", "DataAcquisition\DataAcquisition.csproj", "{C1ABCED8-9BEE-45FA-BB8B-5B763432799E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAppSamples", "WebAppSamples\WebAppSamples.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisitionGateway", "DataAcquisitionGateway\DataAcquisitionGateway.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
