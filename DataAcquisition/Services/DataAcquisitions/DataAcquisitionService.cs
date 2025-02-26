@@ -228,8 +228,8 @@ namespace DataAcquisition.Services.DataAcquisitions
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.BatchReadAddress} 失败：{config.Plc.Code}");
                 }
 
-                byte[] buffer = operationResult.Content;
-                DateTime timestamp = DateTime.Now;
+                var buffer = operationResult.Content;
+                var timestamp = DateTime.Now;
                 if (buffer.Length == 0)
                 {
                     return;
