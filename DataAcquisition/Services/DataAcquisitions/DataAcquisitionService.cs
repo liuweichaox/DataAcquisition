@@ -238,17 +238,12 @@ namespace DataAcquisition.Services.DataAcquisitions
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
                     var dataPoint = new DataPoint(registerGroup.TableName);
-
                     foreach (var register in registerGroup.Registers)
                     {
-                        var dataPoint = new DataPoint(registerGroup.TableName);
-                        foreach (var register in registerGroup.Registers)
-                        {
-                            var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
-                            dataPoint.Values.TryAdd(register.ColumnName, value);
-                        }
-                        queueManager.EnqueueData(dataPoint);
-                    });
+                        var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
+                        dataPoint.Values.TryAdd(register.ColumnName, value);
+                    }
+                    queueManager.EnqueueData(dataPoint);
                 }
             }
             catch (Exception ex)
