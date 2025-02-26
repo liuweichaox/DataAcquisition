@@ -60,44 +60,44 @@ public class PlcClient : IPlcClient
         };
     }
 
-    public ushort TransUInt16(byte[] buffer, int length)
+    public ushort TransUInt16(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransUInt16(buffer, length);
+        return _plcClient.ByteTransform.TransUInt16(buffer, index);
     }
 
-    public uint TransUInt32(byte[] buffer, int length)
+    public uint TransUInt32(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransUInt32(buffer, length);
+        return _plcClient.ByteTransform.TransUInt32(buffer, index);
     }
 
-    public ulong TransUInt64(byte[] buffer, int length)
+    public ulong TransUInt64(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransUInt64(buffer, length);
+        return _plcClient.ByteTransform.TransUInt64(buffer, index);
     }
 
-    public short TransInt16(byte[] buffer, int length)
+    public short TransInt16(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransInt16(buffer, length);
+        return _plcClient.ByteTransform.TransInt16(buffer, index);
     }
 
-    public int TransInt32(byte[] buffer, int length)
+    public int TransInt32(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransInt32(buffer, length);
+        return _plcClient.ByteTransform.TransInt32(buffer, index);
     }
 
-    public long TransInt64(byte[] buffer, int length)
+    public long TransInt64(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransInt64(buffer, length);
+        return _plcClient.ByteTransform.TransInt64(buffer, index);
     }
 
-    public float TransSingle(byte[] buffer, int length)
+    public float TransSingle(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransSingle(buffer, length);
+        return _plcClient.ByteTransform.TransSingle(buffer, index);
     }
 
-    public double TransDouble(byte[] buffer, int length)
+    public double TransDouble(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransDouble(buffer, length);
+        return _plcClient.ByteTransform.TransDouble(buffer, index);
     }
 
     public string TransString(byte[] buffer, int index, int length, string encoding)
@@ -106,8 +106,8 @@ public class PlcClient : IPlcClient
         return _plcClient.ByteTransform.TransString(buffer, index, length, encodingObj);
     }
 
-    public bool TransBool(byte[] buffer, int length)
+    public bool TransBool(byte[] buffer, int index)
     {
-        return _plcClient.ByteTransform.TransBool(buffer, length);
+        return _plcClient.ByteTransform.TransBool(buffer, index);
     }
 }

@@ -37,65 +37,65 @@ public interface IPlcClient
     /// 转换字节为 ushort
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    ushort TransUInt16(byte[] buffer, int length);
+    ushort TransUInt16(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 uint
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    uint TransUInt32(byte[] buffer, int length);
+    uint TransUInt32(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 ulong
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    ulong TransUInt64(byte[] buffer, int length);
+    ulong TransUInt64(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 short
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    short TransInt16(byte[] buffer, int length);
+    short TransInt16(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 int
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    int TransInt32(byte[] buffer, int length);
+    int TransInt32(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 long
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    long TransInt64(byte[] buffer, int length);
+    long TransInt64(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 float
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    float TransSingle(byte[] buffer, int length);
+    float TransSingle(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 double
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    double TransDouble(byte[] buffer, int length);
+    double TransDouble(byte[] buffer, int index);
 
     /// <summary>
     /// 转换字节为 string
@@ -111,7 +111,7 @@ public interface IPlcClient
     /// 转换字节为 bool
     /// </summary>
     /// <param name="buffer"></param>
-    /// <param name="length"></param>
+    /// <param name="index"></param>
     /// <returns></returns>
-    bool TransBool(byte[] buffer, int length);
+    bool TransBool(byte[] buffer, int index);
 }

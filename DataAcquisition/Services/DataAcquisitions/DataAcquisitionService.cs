@@ -58,14 +58,14 @@ namespace DataAcquisition.Services.DataAcquisitions
             foreach (var config in dataAcquisitionConfigs)
             {
                 if (!config.IsEnabled) continue;
-                StartCollectionTask(config);
+                Work(config);
             }
         }
 
         /// <summary>
         /// 启动单个采集任务（如果任务已存在则直接返回）
         /// </summary>
-        private void StartCollectionTask(DataAcquisitionConfig config)
+        private void Work(DataAcquisitionConfig config)
         {
             if (_dataTasks.ContainsKey(config.Id))
             {
@@ -83,7 +83,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 {
                     // 初始化 PLC 客户端和队列管理器
                     var plcClient = await CreatePlcClientAsync(config);
-                    var queueManager= CreateQueueManager(config);
+                    var queueManager = CreateQueueManager(config);
 
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
@@ -221,7 +221,7 @@ namespace DataAcquisition.Services.DataAcquisitions
         {
             try
             {
-                var operationResult= await plcClient.ReadAsync(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
+                var operationResult = await plcClient.ReadAsync(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
                 if (!operationResult.IsSuccess)
                 {
                     _ = messageService.SendAsync(
@@ -229,33 +229,35 @@ namespace DataAcquisition.Services.DataAcquisitions
                 }
 
                 byte[] buffer = operationResult.Content;
-                
+
                 if (buffer.Length == 0)
                 {
                     return;
                 }
-                
+
                 foreach (var registerGroup in config.Plc.RegisterGroups)
                 {
                     var dataPoint = new DataPoint(registerGroup.TableName);
-                        
+
                     foreach (var register in registerGroup.Registers)
                     {
-                        var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength,
-                            register.DataType, register.Encoding);
-                        dataPoint.Values.TryAdd(register.ColumnName, value);
-                    }
-
-                    queueManager.EnqueueData(dataPoint);
+                        var dataPoint = new DataPoint(registerGroup.TableName);
+                        foreach (var register in registerGroup.Registers)
+                        {
+                            var value = TransValue(plcClient, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
+                            dataPoint.Values.TryAdd(register.ColumnName, value);
+                        }
+                        queueManager.EnqueueData(dataPoint);
+                    });
                 }
             }
             catch (Exception ex)
             {
-                _= messageService.SendAsync(
+                _ = messageService.SendAsync(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
-        
+
         /// <summary>
         /// 根据数据类型映射对应的读取操作
         /// </summary>
@@ -277,7 +279,7 @@ namespace DataAcquisition.Services.DataAcquisitions
                 default: return null;
             }
         }
-        
+
         /// <summary>
         /// 停止所有数据采集任务并释放相关资源
         /// </summary>
