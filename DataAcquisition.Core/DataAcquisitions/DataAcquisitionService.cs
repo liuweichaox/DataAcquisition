@@ -95,7 +95,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                         // 如果 PLC 已连接则采集数据
                         if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
                         {
-                            await DataCollectAsync(config, plcClient, queueManager);
+                            DataCollect(config, plcClient, queueManager);
                         }
 
                         await Task.Delay(config.CollectIntervalMs, cts.Token).ConfigureAwait(false);
@@ -218,11 +218,11 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 数据采集与异常处理
         /// </summary>
-        private async Task DataCollectAsync(DataAcquisitionConfig config, IPlcDriver plcDriver, IQueueManager queueManager)
+        private void DataCollect(DataAcquisitionConfig config, IPlcDriver plcDriver, IQueueManager queueManager)
         {
             try
             {
-                var operationResult = await plcDriver.ReadAsync(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
+                var operationResult = plcDriver.Read(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
                 if (!operationResult.IsSuccess)
                 {
                     _ = messageSendDelegate(

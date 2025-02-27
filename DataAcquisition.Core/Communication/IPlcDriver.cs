@@ -32,7 +32,7 @@ public interface IPlcDriver
     /// <param name="address"></param>
     /// <param name="length"></param>
     /// <returns></returns>
-    Task<OperationResult<byte[]>> ReadAsync(string address, ushort length);
+    OperationResult<byte[]> Read(string address, ushort length);
 
     /// <summary>
     /// 转换字节为 ushort
