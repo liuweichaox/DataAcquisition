@@ -26,6 +26,21 @@ public class DataAcquisitionConfig
     /// 心跳检测间隔时间（ms）
     /// </summary>
     public int HeartbeatIntervalMs { get; set; }
+    
+    /// <summary>
+    /// 驱动类型
+    /// </summary>
+    public string DriverType { get; set; }
+    
+    /// <summary>
+    /// 数据库类型
+    /// </summary>
+    public string StorageType { get; set; }
+    
+    /// <summary>
+    /// 连接字符串
+    /// </summary>
+    public string ConnectionString { get; set; }
 
     /// <summary>
     /// PLC 配置
@@ -52,16 +67,6 @@ public class PlcConfig
     /// 端口
     /// </summary>
     public int Port { get; set; }
-
-    /// <summary>
-    /// 驱动类型
-    /// </summary>
-    public string DriverType { get; set; }
-    
-    /// <summary>
-    /// 数据库类型
-    /// </summary>
-    public string DataStorageType { get; set; }
 
     /// <summary>
     /// 批量读取字节数组信息地址

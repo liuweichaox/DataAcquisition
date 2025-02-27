@@ -18,8 +18,7 @@ public class SqLiteDataStorage : AbstractDataStorage
     public SqLiteDataStorage(DataAcquisitionConfig config) : base(config)
     {
         _config = config;
-        var dbPath = Path.Combine(AppContext.BaseDirectory, $"local.sqlite");
-        _connection = new SqliteConnection($@"Data Source={dbPath};");
+        _connection = new SqliteConnection(config.ConnectionString);
         _connection.Open();
     }
 

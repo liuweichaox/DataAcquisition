@@ -127,7 +127,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 return plcClient;
             }
 
-            plcClient = plcDriverFactory.Create(config, config.Plc.DriverType);
+            plcClient = plcDriverFactory.Create(config);
             _plcClients.TryAdd(plcKey, plcClient);
 
             var connect = await plcClient.ConnectServerAsync();
@@ -151,7 +151,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private IQueueManager CreateQueueManager(DataAcquisitionConfig config)
         {
-            var dataStorage = dataStorageFactory.Create(config, config.Plc.DataStorageType);
+            var dataStorage = dataStorageFactory.Create(config);
             return _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageSendDelegate));
         }
 

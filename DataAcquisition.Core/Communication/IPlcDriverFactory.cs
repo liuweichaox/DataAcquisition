@@ -9,7 +9,6 @@ public interface IPlcDriverFactory
     /// 创建
     /// </summary>
     /// <param name="config"></param>
-    /// <param name="type"></param>
     /// <returns></returns>
-    IPlcDriver Create(DataAcquisitionConfig config, string type);
+    IPlcDriver Create(DataAcquisitionConfig config);
 }
