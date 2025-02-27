@@ -110,6 +110,16 @@ public class MelsecA1ENetPlcDriver : IPlcDriver
         return _plcClient.ByteTransform.TransBool(buffer, index);
     }
 
+    public OperationResult WriteUInt16(string address, ushort value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
     public OperationResult WriteUInt32(string address, uint value)
     {
         var result = _plcClient.Write(address, value);
