@@ -12,6 +12,10 @@
       </None>
       <None Remove="Services\PlcClients\**" />
       <None Remove="Services\DataStorages\**" />
+      <None Remove="Services\QueueManagers\**" />
+      <None Remove="Services\DataAcquisitionConfigs\**" />
+      <None Remove="Services\Messages\**" />
+      <None Remove="Services\**" />
     </ItemGroup>
 
     <ItemGroup>
@@ -27,16 +31,29 @@
     <ItemGroup>
       <Compile Remove="Services\PlcClients\**" />
       <Compile Remove="Services\DataStorages\**" />
+      <Compile Remove="Services\QueueManagers\**" />
+      <Compile Remove="Services\DataAcquisitionConfigs\**" />
+      <Compile Remove="Services\Messages\**" />
+      <Compile Remove="Services\MessageService.cs" />
+      <Compile Remove="Services\**" />
     </ItemGroup>
 
     <ItemGroup>
       <EmbeddedResource Remove="Services\PlcClients\**" />
       <EmbeddedResource Remove="Services\DataStorages\**" />
+      <EmbeddedResource Remove="Services\QueueManagers\**" />
+      <EmbeddedResource Remove="Services\DataAcquisitionConfigs\**" />
+      <EmbeddedResource Remove="Services\Messages\**" />
+      <EmbeddedResource Remove="Services\**" />
     </ItemGroup>
 
     <ItemGroup>
       <Content Remove="Services\PlcClients\**" />
       <Content Remove="Services\DataStorages\**" />
+      <Content Remove="Services\QueueManagers\**" />
+      <Content Remove="Services\DataAcquisitionConfigs\**" />
+      <Content Remove="Services\Messages\**" />
+      <Content Remove="Services\**" />
     </ItemGroup>
 
 </Project>

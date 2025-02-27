@@ -2,7 +2,7 @@
 using DataAcquisition.Gateway.Hubs;
 using Microsoft.AspNetCore.SignalR;
 
-namespace DataAcquisition.Gateway.Services.Messages;
+namespace DataAcquisition.Gateway.Services;
 
 public class MessageService(IHubContext<DataHub> hubContext) : IMessageService
 {

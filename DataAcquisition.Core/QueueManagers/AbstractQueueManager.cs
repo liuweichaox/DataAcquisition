@@ -1,13 +1,13 @@
 ﻿using System.Threading.Tasks;
 using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Messages;
+using DataAcquisition.Core.Delegates;
 
 namespace DataAcquisition.Core.QueueManagers;
 
 public abstract class AbstractQueueManager : IQueueManager
 {
     protected AbstractQueueManager(IDataStorage dataStorage, DataAcquisitionConfig dataAcquisitionConfig,
-        IMessageService messageService)
+        MessageSendDelegate messageSendDelegate)
     {
         Task.Run(ProcessQueueAsync);
     }

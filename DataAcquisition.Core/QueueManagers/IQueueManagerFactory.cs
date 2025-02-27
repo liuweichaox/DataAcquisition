@@ -1,5 +1,5 @@
 ﻿using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Messages;
+using DataAcquisition.Core.Delegates;
 
 namespace DataAcquisition.Core.QueueManagers;
 
@@ -13,7 +13,7 @@ public interface IQueueManagerFactory
     /// </summary>
     /// <param name="dataStorage"></param>
     /// <param name="config"></param>
-    /// <param name="messageService"></param>
+    /// <param name="messageSendDelegate"></param>
     /// <returns></returns>
-    IQueueManager Create(IDataStorage dataStorage, DataAcquisitionConfig config, IMessageService messageService);
+    IQueueManager Create(IDataStorage dataStorage, DataAcquisitionConfig config, MessageSendDelegate messageSendDelegate);
 }

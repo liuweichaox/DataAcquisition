@@ -10,6 +10,7 @@
       <PackageReference Include="HslCommunication" Version="12.2.0" />
       <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
       <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.2" />
+      <PackageReference Include="MySqlConnector" Version="2.4.0" />
       <PackageReference Include="NCalcAsync" Version="5.4.0" />
       <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
     </ItemGroup>
@@ -28,10 +29,6 @@
     <ItemGroup>
       <None Remove="Converters\**" />
       <None Remove="Services\**" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="PlcClients\" />
     </ItemGroup>
 
 </Project>

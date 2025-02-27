@@ -1,12 +1,13 @@
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Messages;
-using DataAcquisition.Core.Models;
-using DataAcquisition.Core.QueueManagers;
-using Microsoft.Extensions.Caching.Memory;
+using DataAcquisition.Core.Delegates;
 using NCalc;
 
-namespace DataAcquisition.Gateway.Services.QueueManagers;
+namespace DataAcquisition.Core.QueueManagers;
 
 /// <summary>
 /// 消息队列里实现
@@ -14,14 +15,13 @@ namespace DataAcquisition.Gateway.Services.QueueManagers;
 public class QueueManager(
     IDataStorage dataStorage,
     DataAcquisitionConfig dataAcquisitionConfig,
-    IMessageService messageService)
-    : AbstractQueueManager(dataStorage, dataAcquisitionConfig, messageService)
+    MessageSendDelegate messageSendDelegate)
+    : AbstractQueueManager(dataStorage, dataAcquisitionConfig, messageSendDelegate)
 {
     private readonly BlockingCollection<DataPoint?> _queue = new();
     private readonly List<DataPoint> _dataBatch = [];
     private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
     private readonly IDataStorage _dataStorage = dataStorage;
-    private readonly IMemoryCache _memoryCache = ServiceLocator.GetService<IMemoryCache>();
 
     public override void EnqueueData(DataPoint dataPoint)
     {
@@ -70,39 +70,38 @@ public class QueueManager(
 
     private async Task<DataPoint> PreprocessAsync(DataPoint dataPoint)
     {
-        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == dataPoint.TableName);
-        foreach (var kv in dataPoint.Values)
-        {
-            var register = config?.Registers.SingleOrDefault(x => x.ColumnName == kv.Key);
-            if (register != null)
-            {
-                dataPoint.Values[kv.Key] = await EvaluateAsync(register, kv.Value);
-            }
-        }
+        dataPoint = await EvalExpressionAsync(dataPoint);
 
         return dataPoint;
     }
 
-    private async Task<object> EvaluateAsync(Register register, object content)
+    private bool IsNumberType(object value)
     {
-        var types = new[] { "ushort", "uint", "ulong", "int", "long", "float", "double" };
-        if (!types.Contains(register.DataType))
+        return value is ushort or uint or ulong or short or int or long or float or double;
+    }
+    
+    private async Task<DataPoint> EvalExpressionAsync(DataPoint dataPoint)
+    {
+        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == dataPoint.TableName);
+        foreach (var kv in dataPoint.Values)
         {
-            return content;
+            if (!IsNumberType(kv.Value)) continue;
+            var register = config?.Registers.SingleOrDefault(x => x.ColumnName == kv.Key);
+            if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
+            var expression = new AsyncExpression(register.EvalExpression)
+            {
+                Parameters =
+                {
+                    ["value"] = kv.Value
+                }
+            };
+
+            var value = await expression.EvaluateAsync();
+            dataPoint.Values[kv.Key] = value ?? 0;
         }
 
-        var expression = new AsyncExpression(register.EvalExpression)
-        {
-            Parameters =
-            {
-                ["value"] = content
-            }
-        };
-
-        var value = await expression.EvaluateAsync();
-        return value ?? 0;
+        return dataPoint;
     }
-
     public override void Complete()
     {
         _queue.CompleteAdding();

@@ -1,12 +1,12 @@
 using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.DataAcquisitionConfigs;
 using DataAcquisition.Core.DataAcquisitions;
 using DataAcquisition.Core.DataStorages;
+using DataAcquisition.Core.Delegates;
+using DataAcquisition.Core.QueueManagers;
 using Microsoft.AspNetCore.SignalR;
 using DataAcquisition.Gateway;
 using DataAcquisition.Gateway.Hubs;
-using DataAcquisition.Gateway.Services.DataAcquisitionConfigs;
-using DataAcquisition.Gateway.Services.Messages;
-using DataAcquisition.Gateway.Services.QueueManagers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,13 +19,13 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
     var plcClientFactory = new PlcClientFactory();
     var dataStorageFactory = new DataStorageFactory();
     var queueManagerFactory = new QueueManagerFactory();
-    var messageService = new MessageService(hubContext);
+    Task SendDelegate(string message) => hubContext.Clients.All.SendAsync("ReceiveMessage", message);
     return new DataAcquisitionService(
         dataAcquisitionConfigService,
         plcClientFactory,
         dataStorageFactory,
         queueManagerFactory,
-        messageService);
+        SendDelegate);
 });
 
 builder.Services.AddControllersWithViews();

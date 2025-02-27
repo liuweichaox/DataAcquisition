@@ -1,12 +1,19 @@
-﻿using System.Text.Json;
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
+using System.Threading.Tasks;
 
-namespace DataAcquisition.Gateway.Utils;
+namespace DataAcquisition.Core.DataAcquisitionConfigs;
 
-/// <summary>
-/// JSON 工具类
-/// </summary>
-public static class JsonUtils
+public class DataAcquisitionConfigService : IDataAcquisitionConfigService
 {
+    public async Task<List<DataAcquisitionConfig>> GetConfigs()
+    {
+        var dataAcquisitionConfigs = await LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs");
+        return dataAcquisitionConfigs;
+    }
+    
     /// <summary>
     /// 异步加载 JSON 配置文件
     /// </summary>
@@ -15,7 +22,7 @@ public static class JsonUtils
     /// <returns>反序列化后的对象</returns>
     private static async Task<T> LoadConfigAsync<T>(string filePath)
     {
-        await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open,
+        using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open,
             FileAccess.Read);
         return await JsonSerializer.DeserializeAsync<T>(stream);
     }
@@ -26,7 +33,7 @@ public static class JsonUtils
     /// <typeparam name="T">要反序列化的目标类型</typeparam>
     /// <param name="directoryPath">目录路径</param>
     /// <returns>包含所有 JSON 文件内容的列表</returns>
-    public static async Task<List<T>> LoadAllJsonFilesAsync<T>(string directoryPath)
+    private static async Task<List<T>> LoadAllJsonFilesAsync<T>(string directoryPath)
     {
         var results = new List<T>();
 

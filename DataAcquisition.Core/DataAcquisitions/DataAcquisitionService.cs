@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DataAcquisitionConfigs;
 using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Messages;
+using DataAcquisition.Core.Delegates;
 using DataAcquisition.Core.QueueManagers;
 
 namespace DataAcquisition.Core.DataAcquisitions
@@ -20,7 +20,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         IPlcClientFactory plcClientFactory,
         IDataStorageFactory dataStorageFactory,
         IQueueManagerFactory queueManagerFactory,
-        IMessageService messageService)
+        MessageSendDelegate messageSendDelegate)
         : IDataAcquisitionService
     {
         /// <summary>
@@ -107,7 +107,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    await messageService.SendAsync(
+                    await messageSendDelegate(
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
@@ -134,12 +134,12 @@ namespace DataAcquisition.Core.DataAcquisitions
             if (connect.IsSuccess)
             {
                 _plcConnectionStatus[plcKey] = true;
-                await messageService.SendAsync($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
+                await messageSendDelegate($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
             }
             else
             {
                 _plcConnectionStatus[plcKey] = false;
-                await messageService.SendAsync(
+                await messageSendDelegate(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
             }
 
@@ -152,7 +152,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private IQueueManager CreateQueueManager(DataAcquisitionConfig config)
         {
             var dataStorage = dataStorageFactory.Create(config, config.Plc.DataStorageType);
-            return _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageService));
+            return _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageSendDelegate));
         }
 
         /// <summary>
@@ -181,7 +181,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                         if (!pingResult.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            await messageService.SendAsync(
+                            await messageSendDelegate(
                                 $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
                             continue;
                         }
@@ -190,20 +190,20 @@ namespace DataAcquisition.Core.DataAcquisitions
                         if (connect.IsSuccess)
                         {
                             _plcConnectionStatus[plcKey] = true;
-                            await messageService.SendAsync(
+                            await messageSendDelegate(
                                 $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
                         }
                         else
                         {
                             _plcConnectionStatus[plcKey] = false;
-                            await messageService.SendAsync(
+                            await messageSendDelegate(
                                 $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcConnectionStatus[plcKey] = false;
-                        await messageService.SendAsync(
+                        await messageSendDelegate(
                             $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                     finally
@@ -225,7 +225,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 var operationResult = await plcDriver.ReadAsync(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
                 if (!operationResult.IsSuccess)
                 {
-                    _ = messageService.SendAsync(
+                    _ = messageSendDelegate(
                         $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.BatchReadAddress} 失败：{config.Plc.Code}");
                 }
 
@@ -249,7 +249,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             }
             catch (Exception ex)
             {
-                _ = messageService.SendAsync(
+                _ = messageSendDelegate(
                     $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
