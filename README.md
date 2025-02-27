@@ -130,17 +130,17 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {
     var hubContext = provider.GetService<IHubContext<DataHub>>();
-    var dataAcquisitionConfigService = new DataAcquisitionConfigService(); // 配置服务：负责读取和解析数据采集配置（例如，频率、数据存储等）
-    var plcClientFactory = new PlcClientFactory(); // PLC 客户端工厂：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC
-    var dataStorageFactory = new DataStorageFactory(); // 数据存储工厂：初始化数据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储
-    var queueManagerFactory = new QueueManagerFactory(); // 消息队列管理器工厂：初始化消息队列管理器，支持 RabbitMQ 或 Kafka
-    var messageService = new MessageService(hubContext); // 消息服务：负责处理数据采集异常消息，支持日志记录或报警
+    var dataAcquisitionConfigService = new DataAcquisitionConfigService();
+    var plcClientFactory = new PlcClientFactory();
+    var dataStorageFactory = new DataStorageFactory();
+    var queueManagerFactory = new QueueManagerFactory();
+    Task SendDelegate(string message) => hubContext.Clients.All.SendAsync("ReceiveMessage", message);
     return new DataAcquisitionService(
         dataAcquisitionConfigService,
         plcClientFactory,
         dataStorageFactory,
         queueManagerFactory,
-        messageService);
+        SendDelegate);
 });
 ```
 

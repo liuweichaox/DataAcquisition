@@ -114,4 +114,85 @@ public interface IPlcDriver
     /// <param name="index"></param>
     /// <returns></returns>
     bool TransBool(byte[] buffer, int index);
+
+    /// <summary>
+    /// 写入 UInt16
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteUInt16(string address, ushort value);
+
+    /// <summary>
+    /// 写入 UInt32
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteUInt32(string address, uint value);
+
+    /// <summary>
+    /// 写入 UInt64
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteUInt64(string address, ulong value);
+
+    /// <summary>
+    /// 写入 Int16
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteInt16(string address, short value);
+
+    /// <summary>
+    /// 写入 Int32
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteInt32(string address, int value);
+
+    /// <summary>
+    /// 写入 Int64
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteInt64(string address, long value);
+
+    /// <summary>
+    /// 写入 float
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteSingle(string address, float value);
+
+    /// <summary>
+    /// 写入 double
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteDouble(string address, double value);
+
+    /// <summary>
+    /// 写入 string
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <param name="encoding"></param>
+    /// <returns></returns>
+    OperationResult WriteString(string address, string value, Encoding encoding);
+
+    /// <summary>
+    /// 写入 bool
+    /// </summary>
+    /// <param name="address"></param>
+    /// <param name="value"></param>
+    /// <returns></returns>
+    OperationResult WriteBool(string address, bool value);
 }

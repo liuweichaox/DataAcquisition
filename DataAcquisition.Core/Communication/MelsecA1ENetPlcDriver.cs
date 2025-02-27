@@ -109,4 +109,94 @@ public class MelsecA1ENetPlcDriver : IPlcDriver
     {
         return _plcClient.ByteTransform.TransBool(buffer, index);
     }
+
+    public OperationResult WriteUInt32(string address, uint value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteUInt64(string address, ulong value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteInt16(string address, short value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteInt32(string address, int value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteInt64(string address, long value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteSingle(string address, float value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteDouble(string address, double value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteString(string address, string value, Encoding encoding)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
+
+    public OperationResult WriteBool(string address, bool value)
+    {
+        var result = _plcClient.Write(address, value);
+        return new OperationResult()
+        {
+            IsSuccess = result.IsSuccess,
+            Message = result.Message,
+        };
+    }
 }
