@@ -16,7 +16,7 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 {
     var hubContext = provider.GetService<IHubContext<DataHub>>();
     var dataAcquisitionConfigService = new DataAcquisitionConfigService();
-    var plcClientFactory = new PlcClientFactory();
+    var plcClientFactory = new PlcDriverFactory();
     var dataStorageFactory = new DataStorageFactory();
     var queueManagerFactory = new QueueManagerFactory();
     Task SendDelegate(string message) => hubContext.Clients.All.SendAsync("ReceiveMessage", message);

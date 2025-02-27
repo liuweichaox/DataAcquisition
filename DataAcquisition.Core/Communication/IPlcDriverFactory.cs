@@ -3,7 +3,7 @@
 /// <summary>
 /// <see cref="IPlcDriver"/> 工厂
 /// </summary>
-public interface IPlcClientFactory
+public interface IPlcDriverFactory
 {
     /// <summary>
     /// 创建

@@ -17,7 +17,7 @@ namespace DataAcquisition.Core.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService(
         IDataAcquisitionConfigService dataAcquisitionConfigService,
-        IPlcClientFactory plcClientFactory,
+        IPlcDriverFactory plcDriverFactory,
         IDataStorageFactory dataStorageFactory,
         IQueueManagerFactory queueManagerFactory,
         MessageSendDelegate messageSendDelegate)
@@ -127,7 +127,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 return plcClient;
             }
 
-            plcClient = plcClientFactory.Create(config, config.Plc.DriverType);
+            plcClient = plcDriverFactory.Create(config, config.Plc.DriverType);
             _plcClients.TryAdd(plcKey, plcClient);
 
             var connect = await plcClient.ConnectServerAsync();

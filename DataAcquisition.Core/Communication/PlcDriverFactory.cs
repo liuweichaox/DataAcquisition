@@ -2,7 +2,7 @@
 
 namespace DataAcquisition.Core.Communication;
 
-public class PlcClientFactory : IPlcClientFactory
+public class PlcDriverFactory : IPlcDriverFactory
 {
     public IPlcDriver Create(DataAcquisitionConfig config, string type)
     {
