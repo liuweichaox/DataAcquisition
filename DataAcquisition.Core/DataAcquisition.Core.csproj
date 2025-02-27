@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="HslCommunication" Version="12.2.0" />
+      <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+      <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.2" />
+      <PackageReference Include="NCalcAsync" Version="5.4.0" />
+      <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Remove="Services\Messages\IMessageFactory.cs" />
+      <Compile Remove="Converters\**" />
+      <Compile Remove="Services\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Remove="Converters\**" />
+      <EmbeddedResource Remove="Services\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Converters\**" />
+      <None Remove="Services\**" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="PlcClients\" />
+    </ItemGroup>
+
+</Project>
