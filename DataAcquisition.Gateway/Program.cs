@@ -27,6 +27,7 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
         queueManagerFactory,
         SendDelegate);
 });
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
 
 builder.Services.AddControllersWithViews();
 

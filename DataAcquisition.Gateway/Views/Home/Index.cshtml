@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>数据采集控制</title>
+    <title>数据采集网关</title>
     <script src="/js/vue.global.js"></script>
     <script src="/js/signalr.min.js"></script>
     <style>
@@ -89,7 +89,7 @@
 <body>
 
 <div id="app" class="container">
-    <h2>数据采集控制</h2>
+    <h2>数据采集网关</h2>
     <button v-on:click="startCollection" :disabled="loading">开始采集</button>
     <button v-on:click="stopCollection" :disabled="loading">停止采集</button>
     <p v-if="message">{{ message }}</p>
@@ -124,38 +124,6 @@
                 });
             };
 
-            const startCollection = async () => {
-                loading.value = true;
-                message.value = '正在启动数据采集...';
-                try {
-                    const response = await fetch('/api/DataAcquisition/StartCollectionTasks', {
-                        method: 'POST',
-                    });
-                    message.value = response.ok ? '数据采集已启动！' : '启动失败';
-                    updateMessages(message.value); // 将启动状态添加到消息历史
-                } catch (error) {
-                    message.value = '请求失败，请检查服务器连接！';
-                    updateMessages(message.value);
-                }
-                loading.value = false;
-            };
-
-            const stopCollection = async () => {
-                loading.value = true;
-                message.value = '正在停止数据采集...';
-                try {
-                    const response = await fetch('/api/DataAcquisition/StopCollectionTasks', {
-                        method: 'POST',
-                    });
-                    message.value = response.ok ? '数据采集已停止！' : '停止失败';
-                    updateMessages(message.value); // 将停止状态添加到消息历史
-                } catch (error) {
-                    message.value = '请求失败，请检查服务器连接！';
-                    updateMessages(message.value);
-                }
-                loading.value = false;
-            };
-
             // 设置 SignalR 连接
             onMounted(() => {
                 connection = new signalR.HubConnectionBuilder()
@@ -168,9 +136,9 @@
                 });
 
                 connection.start().then(() => {
-                    console.log('SignalR 连接已打开');
+                    updateMessages('SignalR 连接已打开');
                 }).catch(err => {
-                    console.error('SignalR 连接失败', err);
+                    updateMessagesr('SignalR 连接失败', err);
                 });
             });
 
@@ -184,9 +152,7 @@
             return {
                 loading,
                 message,
-                messageHistory,
-                startCollection,
-                stopCollection
+                messageHistory
             };
         }
     }).mount('#app');

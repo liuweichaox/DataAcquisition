@@ -72,9 +72,8 @@ namespace DataAcquisition.Core.DataAcquisitions
             {
                 return;
             }
-
-            var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-            _plcConnectionStatus[plcKey] = false;
+            
+            _plcConnectionStatus[config.Plc.Code] = false;
 
             var cts = new CancellationTokenSource();
 
@@ -93,7 +92,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                     while (!cts.Token.IsCancellationRequested)
                     {
                         // 如果 PLC 已连接则采集数据
-                        if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
+                        if (_plcConnectionStatus.TryGetValue(config.Plc.Code, out var isConnected) && isConnected)
                         {
                             DataCollect(config, plcClient, queueManager);
                         }
@@ -120,27 +119,25 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private async Task<IPlcDriver> CreatePlcClientAsync(DataAcquisitionConfig config)
         {
-            var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-
-            if (_plcClients.TryGetValue(plcKey, out var plcClient))
+            if (_plcClients.TryGetValue(config.Plc.Code, out var plcClient))
             {
                 return plcClient;
             }
 
             plcClient = plcDriverFactory.Create(config);
-            _plcClients.TryAdd(plcKey, plcClient);
+            _plcClients.TryAdd(config.Plc.Code, plcClient);
 
             var connect = await plcClient.ConnectServerAsync();
             if (connect.IsSuccess)
             {
-                _plcConnectionStatus[plcKey] = true;
-                await messageSendDelegate($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 成功");
+                _plcConnectionStatus[config.Plc.Code] = true;
+                await messageSendDelegate($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {config.Plc.Code} 成功");
             }
             else
             {
-                _plcConnectionStatus[plcKey] = false;
+                _plcConnectionStatus[config.Plc.Code] = false;
                 await messageSendDelegate(
-                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {plcKey} 失败: {connect.Message}");
+                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {config.Plc.Code} 失败: {connect.Message}");
             }
 
             return plcClient;
@@ -160,8 +157,8 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private void StartHeartbeatMonitor(DataAcquisitionConfig config)
         {
-            var plcKey = $"{config.Plc.IpAddress}:{config.Plc.Port}";
-            if (_heartbeatTasks.ContainsKey(plcKey))
+            
+            if (_heartbeatTasks.ContainsKey(config.Plc.Code))
                 return;
 
             var hbCts = new CancellationTokenSource();
@@ -171,40 +168,40 @@ namespace DataAcquisition.Core.DataAcquisitions
                 {
                     try
                     {
-                        if (_plcConnectionStatus.TryGetValue(plcKey, out var isConnected) && isConnected)
+                        if (_plcConnectionStatus.TryGetValue(config.Plc.Code, out var isConnected) && isConnected)
                         {
                             continue;
                         }
 
-                        var plcClient = _plcClients[plcKey];
+                        var plcClient = _plcClients[config.Plc.Code];
                         var pingResult = await plcClient.IpAddressPingAsync();
                         if (!pingResult.IsSuccess)
                         {
-                            _plcConnectionStatus[plcKey] = false;
+                            _plcConnectionStatus[config.Plc.Code] = false;
                             await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 设备不可达");
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 设备不可达");
                             continue;
                         }
 
                         var connect = await plcClient.ConnectServerAsync();
                         if (connect.IsSuccess)
                         {
-                            _plcConnectionStatus[plcKey] = true;
+                            _plcConnectionStatus[config.Plc.Code] = true;
                             await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 恢复连接");
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 恢复连接");
                         }
                         else
                         {
-                            _plcConnectionStatus[plcKey] = false;
+                            _plcConnectionStatus[config.Plc.Code] = false;
                             await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接失败，等待下次检测...");
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 连接失败，等待下次检测...");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _plcConnectionStatus[plcKey] = false;
+                        _plcConnectionStatus[config.Plc.Code] = false;
                         await messageSendDelegate(
-                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{plcKey} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
+                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
                     }
                     finally
                     {
@@ -212,7 +209,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                     }
                 }
             }, hbCts.Token);
-            _heartbeatTasks.TryAdd(plcKey, (hbTask, hbCts));
+            _heartbeatTasks.TryAdd(config.Plc.Code, (hbTask, hbCts));
         }
 
         /// <summary>
