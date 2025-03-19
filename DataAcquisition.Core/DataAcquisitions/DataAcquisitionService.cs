@@ -68,7 +68,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private void Work(DataAcquisitionConfig config)
         {
-            if (_dataTasks.ContainsKey(config.Id))
+            if (_dataTasks.ContainsKey(config.Plc.Code))
             {
                 return;
             }
@@ -111,7 +111,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
             }, cts.Token);
 
-            _dataTasks.TryAdd(config.Id, (task, cts));
+            _dataTasks.TryAdd(config.Plc.Code, (task, cts));
         }
 
         /// <summary>
@@ -149,7 +149,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private IQueueManager CreateQueueManager(DataAcquisitionConfig config)
         {
             var dataStorage = dataStorageFactory.Create(config);
-            return _queueManagers.GetOrAdd(config.Id, _ => queueManagerFactory.Create(dataStorage, config, messageSendDelegate));
+            return _queueManagers.GetOrAdd(config.Plc.Code, _ => queueManagerFactory.Create(dataStorage, config, messageSendDelegate));
         }
 
         /// <summary>
