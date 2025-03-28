@@ -8,11 +8,6 @@ namespace DataAcquisition.Core.Models;
 public class DataAcquisitionConfig
 {
     /// <summary>
-    /// 唯一标识
-    /// </summary>
-    public string Id { get; set; }
-
-    /// <summary>
     /// 是否启用
     /// </summary>
     public bool IsEnabled { get; set; }
