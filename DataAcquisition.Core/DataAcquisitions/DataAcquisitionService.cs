@@ -168,11 +168,6 @@ namespace DataAcquisition.Core.DataAcquisitions
                 {
                     try
                     {
-                        if (_plcConnectionStatus.TryGetValue(config.Plc.Code, out var isConnected) && isConnected)
-                        {
-                            continue;
-                        }
-
                         var plcClient = _plcClients[config.Plc.Code];
                         var pingResult = await plcClient.IpAddressPingAsync();
                         if (!pingResult.IsSuccess)
@@ -188,7 +183,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                         {
                             _plcConnectionStatus[config.Plc.Code] = true;
                             await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 恢复连接");
+                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 正常");
                         }
                         else
                         {
