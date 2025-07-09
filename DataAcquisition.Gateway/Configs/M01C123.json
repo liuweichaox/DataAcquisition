@@ -43,8 +43,7 @@
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
