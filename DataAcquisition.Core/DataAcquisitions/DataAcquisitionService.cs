@@ -142,15 +142,23 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             ReadPlcValue(plcClient, trigger.Register, trigger.DataType);
                                     if (ShouldSample(trigger.Mode, prevVal, currVal))
                                     {
-                                        var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
-                                        var buffer = batchData.Content;
-                                        var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
-                                        foreach (var dataPoint in module.DataPoints)
+                                        try
                                         {
-                                            var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                            dataMessage.Values[dataPoint.ColumnName] = value;
+                                            var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
+                                            var buffer = batchData.Content;
+                                            var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                            foreach (var dataPoint in module.DataPoints)
+                                            {
+                                                var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                dataMessage.Values[dataPoint.ColumnName] = value;
+                                            }
+                                            queueManager.EnqueueData(dataMessage);
                                         }
-                                        queueManager.EnqueueData(dataMessage);
+                                        catch (Exception ex)
+                                        {
+                                            _ = _messageService.SendAsync($"[{config.Code}:{module.TableName}]采集异常: {ex.Message}");
+                                        }
+                                        prevVal = currVal;
                                     }
                                 }
                             }
