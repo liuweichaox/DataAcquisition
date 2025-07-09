@@ -151,24 +151,16 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 在 `Startup.cs` 中配置 `IDataAcquisitionService` 实例，负责管理数据采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IMessageService, MessageService>();
-builder.Services.AddSingleton<IPlcDriverFactory, PlcDriverFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueManagerFactory, QueueManagerFactory>();
-builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+builder.Services.AddSingleton<IMessageService, MessageService>(); // 消息服务
+builder.Services.AddSingleton<IPlcDriverFactory, PlcDriverFactory>(); // PLC 驱动工厂
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>(); // 数据存储工厂
+builder.Services.AddSingleton<IQueueManagerFactory, QueueManagerFactory>(); // 消息队列工厂
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>(); // 数据采集服务
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>(); // 数据处理服务
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>(); // 设备配置服务
 
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
+builder.Services.AddHostedService<DataAcquisitionHostedService>(); // 数据采集托管服务
 ```
-
-### 配置解释
-
-- **`IDataAcquisitionConfigService dataAcquisitionConfigService`**：配置服务，负责读取和解析数据采集的配置文件（例如，采集频率、数据存储方式等）。
-- **`IPlcClientFactory plcClientFactory`**：初始化 PLC 客户端，通过 IP 地址和端口连接到 PLC。
-- **`IDataStorageFactory dataStorageFactory`**：初始化据存储服务，用于采集的数据存储到数据库，支持本地存储和云存储。
-- **`IQueueManagerFactory queueManagerFactory`**：初始化消息队列管理器，支持 RabbitMQ 或 Kafka。
-- **`IMessageService messageService`**： 数据采集异常消息处理委托，可以用于日志记录或报警。
 
 ---
 
