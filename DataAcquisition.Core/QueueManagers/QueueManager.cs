@@ -41,15 +41,7 @@ public class QueueManager: AbstractQueueManager
         {
             try
             {
-                if (!IsNonZeroData(dataMessage))
-                {
-                    continue;
-                }
-
-                if (dataMessage.DataMessageType != DataMessageType.NewBatch && dataMessage.DataMessageType != DataMessageType.UpdateBatch)
-                {
-                    await _dataProcessingService.ExecuteAsync(dataMessage);
-                }
+                await _dataProcessingService.ExecuteAsync(dataMessage);
                 
                 await StoreDataPointAsync(dataMessage);
             }
@@ -70,59 +62,7 @@ public class QueueManager: AbstractQueueManager
     
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        if (dataMessage.DataMessageType == DataMessageType.Sensor)
-        {
-            var dataBatch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => []);
-            dataBatch.Add(dataMessage);
-
-            if (dataBatch.Count >= 10)
-            {
-                await _dataStorage.SaveBatchAsync(dataBatch);
-                await _messageService.SendAsync($"{dataMessage.TableName} 新增 10 条实时数据");
-                _dataBatchMap[dataMessage.TableName] = [];
-            }
-        }
-        else if (dataMessage.DataMessageType == DataMessageType.Recipe)
-        {
-            await _messageService.SendAsync($"新配方: {JsonConvert.SerializeObject(new 
-            {
-                dataMessage.TableName,
-                dataMessage.Values
-            }, Formatting.Indented)}");
-            
-            await _dataStorage.SaveAsync(dataMessage);
-            
-        } else if (dataMessage.DataMessageType == DataMessageType.NewBatch)
-        {
-            await _messageService.SendAsync($"新批次: {JsonConvert.SerializeObject(new 
-            {
-                dataMessage.TableName,
-                dataMessage.Values
-            }, Formatting.Indented)}");
-            
-            await _dataStorage.SaveAsync(dataMessage);
-            
-        } else if (dataMessage.DataMessageType == DataMessageType.UpdateBatch)
-        {
-            await _messageService.SendAsync($"更新批次: {JsonConvert.SerializeObject(new 
-            {
-                dataMessage.TableName,
-                dataMessage.Values
-            }, Formatting.Indented)}");
-
-            var sql = $"UPDATE {dataMessage.TableName} SET end_time = @end_time WHERE batch_sequence = @batch_sequence";
-            var param = new
-            {
-                end_time = dataMessage.Values["end_time"],
-                batch_sequence = dataMessage.Values["batch_sequence"]
-            };
-            await _dataStorage.ExecuteAsync(sql, param);
-        } 
-    }
-    
-    private static bool IsNonZeroData(DataMessage message)
-    {
-        return !message.Values.All(x => x.Value == null || (DataTypeUtils.IsNumberType(x.Value) && x.Value == 0));
+        await _dataStorage.SaveAsync(dataMessage);
     }
     
     public override void Dispose()
