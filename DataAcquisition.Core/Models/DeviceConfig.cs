@@ -64,7 +64,7 @@ public class DeviceConfig
 public enum TriggerMode
 {
     /// <summary>
-    /// 一直触发
+    /// 无条件触发
     /// </summary>
     Always,
     /// <summary>
