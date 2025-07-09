@@ -56,6 +56,9 @@
       <Content Remove="Services\PlcClients\**" />
       <Content Remove="Services\QueueManagers\**" />
       <Content Remove="Logging\**" />
+      <Content Update="Configs\M01C123.json">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>
