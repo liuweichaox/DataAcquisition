@@ -161,7 +161,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             }
                                             catch (Exception ex)
                                             {
-                                                _ = _messageService.SendAsync($"[{config.Code}:{module.TableName}]采集异常: {ex.Message}");
+                                                _ = _messageService.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
                                             }
                                             prevVal = currVal;
                                         }
