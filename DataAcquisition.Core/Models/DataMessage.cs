@@ -7,9 +7,10 @@ namespace DataAcquisition.Core.Models;
 /// <summary>
 /// 数据点
 /// </summary>
-public class DataPoint(DateTime timestamp,string tableName)
+public class DataMessage(DateTime timestamp, string tableName, List<DataPoint>? dataPoints = null)
 {
     public DateTime Timestamp => timestamp;
     public string TableName => tableName;
-    public ConcurrentDictionary<string, dynamic> Values { get; set; } = new();
+    public List<DataPoint>? DataPoints => dataPoints;
+    public ConcurrentDictionary<string, dynamic> Values { get; } = new();
 }

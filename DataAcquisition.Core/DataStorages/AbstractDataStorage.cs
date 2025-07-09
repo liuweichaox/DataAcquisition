@@ -1,11 +1,15 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DataAcquisition.Core.DataStorages;
 
-public abstract class AbstractDataStorage(DataAcquisitionConfig config) : IDataStorage
+public abstract class AbstractDataStorage : IDataStorage
 {
-    public abstract Task SaveAsync(DataPoint dataPoint);
-    public abstract Task SaveBatchAsync(List<DataPoint> dataPoints);
-    public abstract void Dispose();
+    protected AbstractDataStorage(string connectionString)
+    {
+    }
+
+    public abstract Task SaveAsync(DataMessage dataMessage);
+    public abstract Task SaveBatchAsync(List<DataMessage> dataPoints);
+    public abstract Task ExecuteAsync(string sql, object? param = null);
 }

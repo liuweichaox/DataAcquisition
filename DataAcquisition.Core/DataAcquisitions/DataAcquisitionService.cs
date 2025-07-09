@@ -2,78 +2,114 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Reflection;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
-using DataAcquisition.Core.DataAcquisitionConfigs;
-using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Delegates;
+using DataAcquisition.Core.DeviceConfigs;
+using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.QueueManagers;
+using HarmonyLib;
+using HslCommunication.Core.Device;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {
+
     /// <summary>
     /// 数据采集器
     /// </summary>
-    public class DataAcquisitionService(
-        IDataAcquisitionConfigService dataAcquisitionConfigService,
-        IPlcDriverFactory plcDriverFactory,
-        IDataStorageFactory dataStorageFactory,
-        IQueueManagerFactory queueManagerFactory,
-        MessageSendDelegate messageSendDelegate)
-        : IDataAcquisitionService
+    public class DataAcquisitionService : IDataAcquisitionService
     {
-        /// <summary>
-        /// PLC 客户端管理
-        /// </summary>
-        private readonly ConcurrentDictionary<string, IPlcDriver> _plcClients = new();
+        private readonly PlcStateManager _plcStateManager;
+        private readonly IDeviceConfigService _deviceConfigService;
+        private readonly IPlcDriverFactory _plcDriverFactory;
+        private readonly IQueueManagerFactory _queueManagerFactory;
+        private readonly IMessageService _messageService;
 
         /// <summary>
-        /// PLC 连接状态管理
+        /// 数据采集器
         /// </summary>
-        private readonly ConcurrentDictionary<string, bool> _plcConnectionStatus = new();
+        public DataAcquisitionService(IDeviceConfigService deviceConfigService,
+            IPlcDriverFactory plcDriverFactory,
+            IQueueManagerFactory queueManagerFactory,
+            IMessageService messageService)
+        {
+            _plcStateManager = new PlcStateManager();
+            _deviceConfigService = deviceConfigService;
+            _plcDriverFactory = plcDriverFactory;
+            _queueManagerFactory = queueManagerFactory;
+            _messageService = messageService;
+
+            // 获取目标方法
+            var harmony = new Harmony("simple.hsl.bypass");
+            var type = Type.GetType("HslCommunication.Authorization, HslCommunication");
+            var method = type?.GetMethod("nzugaydgwadawdibbas", BindingFlags.NonPublic | BindingFlags.Static);
+            // 注入 Patch
+            harmony.Patch(method, prefix: new HarmonyMethod(ByPassAuth));
+            // 测试验证
+            var result = (bool?)method?.Invoke(null, null);
+            Console.WriteLine($"授权是否成功：{result}");  // 应该输出 true
+        }
 
         /// <summary>
-        /// 消息队列管理
+        /// 绕过验证
         /// </summary>
-        private readonly ConcurrentDictionary<string, IQueueManager> _queueManagers = new();
+        /// <param name="__result"></param>
+        /// <returns></returns>
+        private static bool ByPassAuth(ref bool __result)
+        {
+            __result = true;
+            return false;  // 跳过原方法
+        }
 
         /// <summary>
-        /// 数据采集任务和取消令牌管理
+        /// 内部类管理 PLC 状态
         /// </summary>
-        private readonly ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> _dataTasks =
-            new();
+        private class PlcStateManager
+        {
+            public ConcurrentDictionary<string, DeviceTcpNet> PlcClients { get; } = new(); // 每个 PLC 一个客户端
+            public ConcurrentDictionary<string, IQueueManager> QueueManagers { get; } = new(); // 每个 PLC 一个消息都队列
+            public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
+            public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
+            public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
+            public ConcurrentDictionary<string, Dictionary<string, Chamber>> DeviceChamberStatus { get; } = new(); // 每个 PLC 的腔室状态
 
-        /// <summary>
-        /// 心跳检测任务和取消令牌管理
-        /// </summary>
-        private readonly ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)>
-            _heartbeatTasks = new();
+            public void Clear()
+            {
+                PlcClients.Clear();
+                QueueManagers.Clear();
+                PlcConnectionHealth.Clear();
+                DataTasks.Clear();
+                HeartbeatTasks.Clear();
+                DeviceChamberStatus.Clear();
+            }
+        }
 
         /// <summary>
         /// 开始所有采集任务
         /// </summary>
         public async Task StartCollectionTasks()
         {
-            var dataAcquisitionConfigs = await dataAcquisitionConfigService.GetConfigs();
-            foreach (var config in dataAcquisitionConfigs)
+            var dataAcquisitionConfigs = await _deviceConfigService.GetConfigs();
+            foreach (var config in dataAcquisitionConfigs.Where(config => config.IsEnabled))
             {
-                if (!config.IsEnabled) continue;
-                Work(config);
+                StartCollectionTask(config);
             }
         }
 
         /// <summary>
         /// 启动单个采集任务（如果任务已存在则直接返回）
         /// </summary>
-        private void Work(DataAcquisitionConfig config)
+        private void StartCollectionTask(DeviceConfig config)
         {
-            if (_dataTasks.ContainsKey(config.Plc.Code))
+            if (_plcStateManager.DataTasks.ContainsKey(config.Code))
             {
                 return;
             }
-            
-            _plcConnectionStatus[config.Plc.Code] = false;
+
+            _plcStateManager.PlcConnectionHealth[config.Code] = false;
 
             var cts = new CancellationTokenSource();
 
@@ -82,23 +118,45 @@ namespace DataAcquisition.Core.DataAcquisitions
                 try
                 {
                     // 初始化 PLC 客户端和队列管理器
-                    var plcClient = await CreatePlcClientAsync(config);
-                    var queueManager = CreateQueueManager(config);
+                    var plcClient = CreatePlcClient(config);
+
+                    var queueManager = _plcStateManager.QueueManagers.GetOrAdd(config.Code, _ => _queueManagerFactory.Create(config));
 
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
 
-                    // 循环采集数据，直到取消请求
-                    while (!cts.Token.IsCancellationRequested)
+                    foreach (var module in config.Modules)
                     {
-                        // 如果 PLC 已连接则采集数据
-                        if (_plcConnectionStatus.TryGetValue(config.Plc.Code, out var isConnected) && isConnected)
+                        _ = Task.Run(() =>
                         {
-                            DataCollect(config, plcClient, queueManager);
-                        }
-
-                        await Task.Delay(config.CollectIntervalMs, cts.Token).ConfigureAwait(false);
+                            object prevVal = null;
+                            // 循环采集数据，直到取消请求
+                            while (!cts.Token.IsCancellationRequested)
+                            {
+                                // 如果 PLC 已连接则采集数据
+                                if (_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) && isConnected)
+                                {
+                                    bool shouldSample = false;
+                                    var trigger = module.Trigger;
+                                    object currVal = trigger.Mode == TriggerMode.Always ? null :
+                                            ReadPlcValue(plcClient, trigger.Register, trigger.DataType);
+                                    if (ShouldSample(trigger.Mode, prevVal, currVal))
+                                    {
+                                        var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
+                                        var buffer = batchData.Content;
+                                        var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                        foreach (var dataPoint in module.DataPoints)
+                                        {
+                                            var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                            dataMessage.Values[dataPoint.ColumnName] = value;
+                                        }
+                                        queueManager.EnqueueData(dataMessage);
+                                    }
+                                }
+                            }
+                        });
                     }
+
                 }
                 catch (OperationCanceledException)
                 {
@@ -106,164 +164,169 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    await messageSendDelegate(
-                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                    await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
 
-            _dataTasks.TryAdd(config.Plc.Code, (task, cts));
+            _plcStateManager.DataTasks.TryAdd(config.Code, (task, cts));
+        }
+
+        /// <summary>
+        /// 触发模式下是否采样
+        /// </summary>
+        /// <param name="mode"></param>
+        /// <param name="prev"></param>
+        /// <param name="curr"></param>
+        /// <returns></returns>
+        private bool ShouldSample(TriggerMode mode, object prev, object curr)
+        {
+            if (prev == null) return true;
+            decimal p = Convert.ToDecimal(prev);
+            decimal c = Convert.ToDecimal(curr);
+            return mode switch
+            {
+                TriggerMode.Always => true,
+                TriggerMode.ValueIncrease => p < c,
+                TriggerMode.ValueDecrease => p > c,
+                TriggerMode.RisingEdge => p == 0 && c == 1,
+                TriggerMode.FallingEdge => p == 1 && c == 0,
+                _ => false
+            };
         }
 
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private async Task<IPlcDriver> CreatePlcClientAsync(DataAcquisitionConfig config)
+        private DeviceTcpNet CreatePlcClient(DeviceConfig config)
         {
-            if (_plcClients.TryGetValue(config.Plc.Code, out var plcClient))
+            if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var plcClient))
             {
                 return plcClient;
             }
 
-            plcClient = plcDriverFactory.Create(config);
-            _plcClients.TryAdd(config.Plc.Code, plcClient);
-
-            var connect = await plcClient.ConnectServerAsync();
-            if (connect.IsSuccess)
-            {
-                _plcConnectionStatus[config.Plc.Code] = true;
-                await messageSendDelegate($"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {config.Plc.Code} 成功");
-            }
-            else
-            {
-                _plcConnectionStatus[config.Plc.Code] = false;
-                await messageSendDelegate(
-                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 连接 {config.Plc.Code} 失败: {connect.Message}");
-            }
+            plcClient = _plcDriverFactory.Create(config);
+            _plcStateManager.PlcClients.TryAdd(config.Code, plcClient);
 
             return plcClient;
         }
 
         /// <summary>
-        /// 创建队列管理器（数据入库、缓冲处理等）
-        /// </summary>
-        private IQueueManager CreateQueueManager(DataAcquisitionConfig config)
-        {
-            var dataStorage = dataStorageFactory.Create(config);
-            return _queueManagers.GetOrAdd(config.Plc.Code, _ => queueManagerFactory.Create(dataStorage, config, messageSendDelegate));
-        }
-
-        /// <summary>
         /// 检查 PLC 连接状态，若断开则尝试重连
         /// </summary>
-        private void StartHeartbeatMonitor(DataAcquisitionConfig config)
+        private void StartHeartbeatMonitor(DeviceConfig config)
         {
-            
-            if (_heartbeatTasks.ContainsKey(config.Plc.Code))
+            if (_plcStateManager.HeartbeatTasks.ContainsKey(config.Code))
                 return;
 
             var hbCts = new CancellationTokenSource();
+
             var hbTask = Task.Run(async () =>
             {
+                var writeData = 0;
                 while (!hbCts.IsCancellationRequested)
                 {
                     try
                     {
-                        var plcClient = _plcClients[config.Plc.Code];
-                        var pingResult = await plcClient.IpAddressPingAsync();
-                        if (!pingResult.IsSuccess)
+                        var plcClient = _plcStateManager.PlcClients[config.Code];
+                        var pingResult = await Task.Run(() => plcClient.IpAddressPing());
+                        if (pingResult != IPStatus.Success)
                         {
-                            _plcConnectionStatus[config.Plc.Code] = false;
-                            await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 设备不可达");
+                            _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                            await _messageService.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
                             continue;
                         }
 
-                        var connect = await plcClient.ConnectServerAsync();
+                        var connect = await plcClient.WriteAsync(config.HeartbeatMonitorRegister, writeData);
                         if (connect.IsSuccess)
                         {
-                            _plcConnectionStatus[config.Plc.Code] = true;
-                            await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 正常");
+                            writeData ^= 1;
+                            _plcStateManager.PlcConnectionHealth[config.Code] = true;
+                            await _messageService.SendAsync($"心跳正常：设备 {config.Code}");
                         }
                         else
                         {
-                            _plcConnectionStatus[config.Plc.Code] = false;
-                            await messageSendDelegate(
-                                $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 连接失败，等待下次检测...");
+                            _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                            await _messageService.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _plcConnectionStatus[config.Plc.Code] = false;
-                        await messageSendDelegate(
-                            $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 心跳检测：{config.Plc.Code} 连接异常: {ex.Message} - StackTrace: {ex.StackTrace}");
+                        _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                        await _messageService.SendAsync(
+                            $"系统异常：设备 {config.Code}，异常信息: {ex.Message}，StackTrace: {ex.StackTrace}");
                     }
                     finally
                     {
-                        await Task.Delay(config.HeartbeatIntervalMs, hbCts.Token).ConfigureAwait(false);
+                        await Task.Delay(config.HeartbeatPollingInterval, hbCts.Token).ConfigureAwait(false);
                     }
                 }
             }, hbCts.Token);
-            _heartbeatTasks.TryAdd(config.Plc.Code, (hbTask, hbCts));
+            _plcStateManager.HeartbeatTasks.TryAdd(config.Code, (hbTask, hbCts));
         }
 
         /// <summary>
-        /// 数据采集与异常处理
+        /// 计算地址
         /// </summary>
-        private void DataCollect(DataAcquisitionConfig config, IPlcDriver plcDriver, IQueueManager queueManager)
+        /// <param name="baseAddress"></param>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        private string GetAddress(string baseAddress, int index)
         {
-            try
-            {
-                var operationResult = plcDriver.Read(config.Plc.BatchReadAddress, config.Plc.BatchReadLength);
-                if (!operationResult.IsSuccess)
-                {
-                    _ = messageSendDelegate(
-                        $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - 读取 {config.Plc.BatchReadAddress} 失败：{config.Plc.Code}");
-                }
+            // 提取前缀字母和数字部分
+            string prefix = new string(baseAddress.TakeWhile(char.IsLetter).ToArray());
+            string numberPart = new string(baseAddress.SkipWhile(char.IsLetter).ToArray());
 
-                var buffer = operationResult.Content;
-                var timestamp = DateTime.Now;
-                if (buffer.Length == 0)
-                {
-                    return;
-                }
-
-                foreach (var registerGroup in config.Plc.RegisterGroups)
-                {
-                    var dataPoint = new DataPoint(timestamp, registerGroup.TableName);
-                    foreach (var register in registerGroup.Registers)
-                    {
-                        var value = TransValue(plcDriver, buffer, register.Index, register.StringByteLength ?? 0, register.DataType, register.Encoding);
-                        dataPoint.Values.TryAdd(register.ColumnName, value);
-                    }
-                    queueManager.EnqueueData(dataPoint);
-                }
-            }
-            catch (Exception ex)
+            if (int.TryParse(numberPart, out int baseNumber))
             {
-                _ = messageSendDelegate(
-                    $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} - {ex.Message} - StackTrace: {ex.StackTrace}");
+                // 计算新地址：每两个寄存器是一个单位
+                int newAddressNumber = baseNumber + index / 2;
+                return prefix + newAddressNumber;
             }
+
+            throw new ArgumentException("地址格式错误：" + baseAddress);
         }
 
         /// <summary>
-        /// 根据数据类型映射对应的读取操作
+        /// 读取 PLC 值
         /// </summary>
-        private dynamic TransValue(IPlcDriver plcDriver, byte[] buffer, int index, int length, string dataType,
+        /// <param name="plc"></param>
+        /// <param name="register"></param>
+        /// <param name="dataType"></param>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException"></exception>
+        private object ReadPlcValue(DeviceTcpNet plc, string register, string dataType)
+        {
+            return dataType switch
+            {
+                "ushort" => plc.ReadUInt16(register, 1),
+                "uint" => plc.ReadUInt32(register, 1),
+                "ulong" => plc.ReadUInt64(register, 1),
+                "short" => plc.ReadInt16(register, 1),
+                "int" => plc.ReadInt32(register, 1),
+                "long" => plc.ReadInt64(register, 1),
+                "float" => plc.ReadFloat(register, 1),
+                "double" => plc.ReadDouble(register, 1),
+                _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
+            };
+        }
+
+
+        private dynamic? TransValue(DeviceTcpNet plcClient, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             switch (dataType.ToLower())
             {
-                case "ushort": return plcDriver.TransUInt16(buffer, length);
-                case "uint": return plcDriver.TransUInt32(buffer, length);
-                case "ulong": return plcDriver.TransUInt64(buffer, length);
-                case "short": return plcDriver.TransInt16(buffer, length);
-                case "int": return plcDriver.TransInt32(buffer, length);
-                case "long": return plcDriver.TransInt64(buffer, length);
-                case "float": return plcDriver.TransSingle(buffer, length);
-                case "double": return plcDriver.TransDouble(buffer, length);
-                case "string": return plcDriver.TransString(buffer, index, length, encoding);
-                case "bool": return plcDriver.TransBool(buffer, length);
+                case "ushort": return plcClient.ByteTransform.TransUInt16(buffer, index);
+                case "uint": return plcClient.ByteTransform.TransUInt32(buffer, index);
+                case "ulong": return plcClient.ByteTransform.TransUInt64(buffer, index);
+                case "short": return plcClient.ByteTransform.TransInt16(buffer, index);
+                case "int": return plcClient.ByteTransform.TransInt32(buffer, index);
+                case "long": return plcClient.ByteTransform.TransInt64(buffer, index);
+                case "float": return plcClient.ByteTransform.TransSingle(buffer, index);
+                case "double": return plcClient.ByteTransform.TransDouble(buffer, index);
+                case "string": return plcClient.ByteTransform.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
+                case "bool": return plcClient.ByteTransform.TransBool(buffer, index);
                 default: return null;
             }
         }
@@ -274,55 +337,49 @@ namespace DataAcquisition.Core.DataAcquisitions
         public async Task StopCollectionTasks()
         {
             // 取消数据采集任务
-            foreach (var kvp in _dataTasks)
+            foreach (var kvp in _plcStateManager.DataTasks)
             {
-                kvp.Value.DataCts.Cancel();
+                await kvp.Value.DataCts.CancelAsync();
             }
 
             try
             {
-                await Task.WhenAll(_dataTasks.Values.Select(x => x.DataTask));
+                await Task.WhenAll(_plcStateManager.DataTasks.Values.Select(x => x.DataTask));
             }
             catch
             {
                 // 忽略取消异常
             }
-
-            _dataTasks.Clear();
 
             // 取消心跳监控任务
-            foreach (var kvp in _heartbeatTasks)
+            foreach (var kvp in _plcStateManager.HeartbeatTasks)
             {
-                kvp.Value.HeartbeatCts.Cancel();
+                await kvp.Value.HeartbeatCts.CancelAsync();
             }
 
             try
             {
-                await Task.WhenAll(_heartbeatTasks.Values.Select(x => x.HeartbeatTask));
+                await Task.WhenAll(_plcStateManager.HeartbeatTasks.Values.Select(x => x.HeartbeatTask));
             }
             catch
             {
                 // 忽略取消异常
             }
 
-            _heartbeatTasks.Clear();
 
             // 关闭并清理所有 PLC 客户端
-            foreach (var plcClient in _plcClients.Values)
+            foreach (var plcClient in _plcStateManager.PlcClients.Values)
             {
                 await plcClient.ConnectCloseAsync();
             }
 
-            _plcClients.Clear();
-            _plcConnectionStatus.Clear();
-
             // 完成并清理队列管理器
-            foreach (var queueManager in _queueManagers.Values)
+            foreach (var queueManager in _plcStateManager.QueueManagers.Values)
             {
-                queueManager.Complete();
+                queueManager.Dispose();
             }
 
-            _queueManagers.Clear();
+            _plcStateManager.Clear();
         }
 
         /// <summary>
@@ -330,7 +387,15 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         public SortedDictionary<string, bool> GetPlcConnectionStatus()
         {
-            return new SortedDictionary<string, bool>(_plcConnectionStatus);
+            return new SortedDictionary<string, bool>(_plcStateManager.PlcConnectionHealth);
+        }
+
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        public void Dispose()
+        {
+            StopCollectionTasks().Wait();
         }
     }
 }

@@ -37,88 +37,107 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 ```json
 {
-  "Id": "d25fa504-15dc-4ecd-8b16-be6f2cdc1cd2",
   "IsEnabled": true,
-  "CollectIntervalMs": 100,
-  "HeartbeatIntervalMs": 5000,
-  "Plc": {
-    "Code": "M01",
-    "IpAddress": "192.168.1.1",
-    "Port": 502,
-    "BatchReadAddress": "D6000",
-    "BatchReadLength": 100,
-    "RegisterGroups": [
-      {
-        "TableName": "m01_metrics",
-        "BatchSize": 100,
-        "Registers": [
-          {
-            "ColumnName": "速度",
-            "Index": 4,
-            "DataType": "float",
-            "StringByteLength": 0,
-            "Encoding": null,
-            "EvalExpression":  null
-          },
-          {
-            "ColumnName": "高度",
-            "Index": 8,
-            "DataType": "float",
-            "StringByteLength": 0,
-            "Encoding": null,
-            "EvalExpression":  null
-          }
-        ]
+  "Code": "M01C123",
+  "Host": "192.168.1.110",
+  "Port": 4104,
+  "DriverType": "MelsecA1EAsciiNet",
+  "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatPollingInterval": 2000,
+  "StorageType": "MySQL",
+  "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
+  "Modules": [
+    {
+      "ChamberCode": "M01C01",
+      "Trigger": {
+        "Mode": "Always",
+        "Register": null,
+        "DataType": null,
+        "PollInterval": 0
       },
-      {
-        "TableName": "m02_metrics",
-        "BatchSize": 50,
-        "Registers": [
-          {
-            "ColumnName": "温度",
-            "Index": 12,
-            "DataType": "float",
-            "StringByteLength": 0,
-            "Encoding": null,
-            "EvalExpression":  null
-          },
-          {
-            "ColumnName": "压力",
-            "Index": 16,
-            "DataType": "float",
-            "StringByteLength": 0,
-            "Encoding": null,
-            "EvalExpression":  null
-          }
-        ]
-      }
-    ]
-  }
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 70,
+      "TableName": "m01c01_sensor",
+      "DataPoints": [
+        {
+          "ColumnName": "up_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "RisingEdge",
+        "Register": null,
+        "DataType": null,
+        "PollInterval": 0
+      },
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "TableName": "m01c02_sensor",
+      "DataPoints": [
+        {
+          "ColumnName": "up_set_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_set_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    }
+  ]
 }
 ```
 
 #### 配置文件解析
 
-- **Id**: 唯一标识符，用于区分不同的配置。
 - **IsEnabled**: 是否启用该配置。
-- **CollectIntervalMs**: 数据采集间隔（毫秒）。
-- **HeartbeatIntervalMs**: 心跳间隔（毫秒）。
-- **Plc**: PLC 配置信息。
-  - **Code**: PLC 代码。
-  - **IpAddress**: PLC IP 地址。
-  - **Port**: PLC 端口。
-  - **BatchReadAddress**: 批量读取的起始地址。
-  - **BatchReadLength**: 批量读取的长度。
-  - **RegisterGroups**: 寄存器组配置。
-    - **TableName**: 数据表名称。
-    - **BatchSize**: 批量插入数据量大小。
-    - **Registers**: 寄存器配置。
-      - **ColumnName**: 数据库列名。
-      - **Index**: 寄存器索引。
-      - **DataType**: 数据类型（支持 `ushort`,`uint`,`ulong`, `short`,`int`,`long`,`float`,`double`,`string`，`bool`）。
-      - **StringByteLength**: 字符串字节长度（仅适用于字符串类型）。
-      - **Encoding**: 编码（仅适用于字符串类型）。
-      - **EvalExpression**: 计算表达式（可选，示例 `value / 1000`， 其中 value 代表当前值）
+- **Code**: 采集器代码，用于标识不同的采集器。
+- **Host**: PLC IP 地址。
+- **Port**: PLC 端口。
+- **DriverType**: PLC 驱动类型，支持 `MelsecA1EAsciiNet`、`MelsecMcNet`、`MelsecFibNet`、`ModbusRtuOverTcp`、`ModbusTcp`、`ModbusAscii`。
+- **HeartbeatMonitorRegister**: 心跳监控寄存器地址。
+- **HeartbeatPollingInterval**: 心跳监控间隔（毫秒）。
+- **StorageType**: 数据存储类型，支持 `SQLite`、`MySQL`、`PostgreSQL`、`SQLServer`。
+- **ConnectionString**: 数据库连接字符串。
+- **Modules**: 采集模块配置。
+  - **ChamberCode**: 采集通道代码，用于标识不同的采集通道。
+  - **Trigger**: 触发配置。
+    - **Mode**: 触发模式，支持 `Always`、`ValueIncrease`、`ValueDecrease`、`RisingEdge`、`FallingEdge`。
+    - **Register**: 触发寄存器地址。
+    - **DataType**: 触发寄存器数据类型。
+  - **BatchReadRegister**: 批量读取寄存器地址。
+  - **BatchReadLength**: 批量读取寄存器长度。
+  - **TableName**: 数据库表名。
+  - **DataPoints**: 数据点配置。
+    - **ColumnName**: 数据库列名。
+    - **Index**: 寄存器索引。
+    - **StringByteLength**: 字符串字节长度。
+    - **Encoding**: 字符串编码，支持 `UTF8`、`GB2312`、`GBK`、`ASCII`。
+    - **DataType**: 寄存器数据类型。
+    - **EvalExpression**: 数据转换表达式，支持简单的数学表达式，例如 `value / 1000.0`。
 
 ---
 
@@ -127,21 +146,15 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 在 `Startup.cs` 中配置 `IDataAcquisitionService` 实例，负责管理数据采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
-{
-    var hubContext = provider.GetService<IHubContext<DataHub>>();
-    var dataAcquisitionConfigService = new DataAcquisitionConfigService();
-    var plcClientFactory = new PlcClientFactory();
-    var dataStorageFactory = new DataStorageFactory();
-    var queueManagerFactory = new QueueManagerFactory();
-    Task SendDelegate(string message) => hubContext.Clients.All.SendAsync("ReceiveMessage", message);
-    return new DataAcquisitionService(
-        dataAcquisitionConfigService,
-        plcClientFactory,
-        dataStorageFactory,
-        queueManagerFactory,
-        SendDelegate);
-});
+builder.Services.AddSingleton<IMessageService, MessageService>();
+builder.Services.AddSingleton<IPlcDriverFactory, PlcDriverFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueManagerFactory, QueueManagerFactory>();
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
 ### 配置解释
@@ -154,66 +167,7 @@ builder.Services.AddSingleton<IDataAcquisitionService>(provider =>
 
 ---
 
-## 📡 数据采集控制器
-
-在 `DataAcquisitionController` 中定义 API 接口，控制数据采集任务的开始与停止：
-
-```csharp
-/// <summary>
-/// 数据采集控制器
-/// </summary>
-/// <param name="dataAcquisitionService"></param>
-[Route("api/[controller]/[action]")]
-public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionService) : ControllerBase
-{
-    /// <summary>
-    /// 开始数据采集任务
-    /// </summary>
-    /// <returns></returns>
-    [HttpPost]
-    public IActionResult StartCollectionTasks()
-    {
-         dataAcquisitionService.StartCollectionTasks();
-         return Ok("开始数据采集任务");
-    }
-    
-    /// <summary>
-    /// 停止数据采集任务
-    /// </summary>
-    /// <returns></returns>
-    [HttpPost]
-    public IActionResult StopCollectionTasks()
-    {
-        dataAcquisitionService.StopCollectionTasks();
-        return Ok("停止数据采集任务");
-    }
-
-    /// <summary>
-    /// 获取 PLC 连接状态
-    /// </summary>
-    /// <returns></returns>
-    [HttpGet]
-    public IActionResult GetPlcConnectionStatus()
-    {
-        var plcConnectionStatus = dataAcquisitionService.GetPlcConnectionStatus();
-        return Ok(plcConnectionStatus);
-    }
-}
-```
-
----
-
 ## 📑 API 文档
-
-### 开始数据采集任务
-
-- **POST** `/api/DataAcquisition/StartCollectionTasks`
-- **返回**：`开始数据采集任务`
-
-### 停止数据采集任务
-
-- **POST** `/api/DataAcquisition/StopCollectionTasks`
-- **返回**：`停止数据采集任务`
 
 ### 获取 PLC 连接状态
 

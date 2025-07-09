@@ -4,24 +4,17 @@
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
+        <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
+        <PackageIcon>favicon.ico</PackageIcon>
+        <RootNamespace>DataAcquisition.Gateway</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>
-      <None Include="Configs\M01_Metrics.json">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-      <None Remove="Services\PlcClients\**" />
-      <None Remove="Services\DataStorages\**" />
-      <None Remove="Services\QueueManagers\**" />
-      <None Remove="Services\DataAcquisitionConfigs\**" />
-      <None Remove="Services\Messages\**" />
-      <None Remove="Services\**" />
-    </ItemGroup>
-
-    <ItemGroup>
+      <PackageReference Include="Dapper" Version="2.1.66" />
       <PackageReference Include="HslCommunication" Version="12.2.0" />
       <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
       <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
+      <PackageReference Include="MySqlConnector" Version="2.4.0" />
     </ItemGroup>
 
     <ItemGroup>
@@ -29,31 +22,40 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Remove="Services\PlcClients\**" />
-      <Compile Remove="Services\DataStorages\**" />
-      <Compile Remove="Services\QueueManagers\**" />
+      <None Include="wwwroot\favicon.ico" />
+      <None Remove="Services\DataAcquisitionConfigs\**" />
+      <None Remove="Services\DataStorages\**" />
+      <None Remove="Services\Messages\**" />
+      <None Remove="Services\PlcClients\**" />
+      <None Remove="Services\QueueManagers\**" />
+      <None Remove="Logging\**" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Compile Remove="Services\DataAcquisitionConfigs\**" />
+      <Compile Remove="Services\DataStorages\**" />
       <Compile Remove="Services\Messages\**" />
-      <Compile Remove="Services\MessageService.cs" />
-      <Compile Remove="Services\**" />
+      <Compile Remove="Services\PlcClients\**" />
+      <Compile Remove="Services\QueueManagers\**" />
+      <Compile Remove="Logging\**" />
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Remove="Services\PlcClients\**" />
-      <EmbeddedResource Remove="Services\DataStorages\**" />
-      <EmbeddedResource Remove="Services\QueueManagers\**" />
       <EmbeddedResource Remove="Services\DataAcquisitionConfigs\**" />
+      <EmbeddedResource Remove="Services\DataStorages\**" />
       <EmbeddedResource Remove="Services\Messages\**" />
-      <EmbeddedResource Remove="Services\**" />
+      <EmbeddedResource Remove="Services\PlcClients\**" />
+      <EmbeddedResource Remove="Services\QueueManagers\**" />
+      <EmbeddedResource Remove="Logging\**" />
     </ItemGroup>
 
     <ItemGroup>
-      <Content Remove="Services\PlcClients\**" />
-      <Content Remove="Services\DataStorages\**" />
-      <Content Remove="Services\QueueManagers\**" />
       <Content Remove="Services\DataAcquisitionConfigs\**" />
+      <Content Remove="Services\DataStorages\**" />
       <Content Remove="Services\Messages\**" />
-      <Content Remove="Services\**" />
+      <Content Remove="Services\PlcClients\**" />
+      <Content Remove="Services\QueueManagers\**" />
+      <Content Remove="Logging\**" />
     </ItemGroup>
 
 </Project>

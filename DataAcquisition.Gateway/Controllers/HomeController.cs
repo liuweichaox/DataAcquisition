@@ -1,3 +1,4 @@
+using DataAcquisition.Core.Utils;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Gateway.Controllers;

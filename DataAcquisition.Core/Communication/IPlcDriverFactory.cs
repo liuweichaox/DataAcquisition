@@ -1,7 +1,9 @@
-﻿namespace DataAcquisition.Core.Communication;
+﻿using HslCommunication.Core.Device;
+
+namespace DataAcquisition.Core.Communication;
 
 /// <summary>
-/// <see cref="IPlcDriver"/> 工厂
+/// <see cref="DeviceTcpNet"/> 工厂
 /// </summary>
 public interface IPlcDriverFactory
 {
@@ -10,5 +12,5 @@ public interface IPlcDriverFactory
     /// </summary>
     /// <param name="config"></param>
     /// <returns></returns>
-    IPlcDriver Create(DataAcquisitionConfig config);
+    DeviceTcpNet Create(DeviceConfig config);
 }

@@ -1,9 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace DataAcquisition.Core.DataAcquisitions;
 
-public interface IDataAcquisitionService
+public interface IDataAcquisitionService: IDisposable
 {
     /// <summary>
     /// 开始采集任务

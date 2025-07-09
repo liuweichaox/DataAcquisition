@@ -1,0 +1,73 @@
+﻿{
+  "IsEnabled": true,
+  "Code": "M01C123",
+  "Host": "192.168.1.110",
+  "Port": 4104,
+  "DriverType": "MelsecA1EAsciiNet",
+  "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatPollingInterval": 2000,
+  "StorageType": "MySQL",
+  "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
+  "Modules": [
+    {
+      "ChamberCode": "M01C01",
+      "Trigger": {
+        "Mode": "Always",
+        "Register": null,
+        "DataType": null,
+        "PollInterval": 0
+      },
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 70,
+      "TableName": "m01c01_sensor",
+      "DataPoints": [
+        {
+          "ColumnName": "up_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "RisingEdge",
+        "Register": null,
+        "DataType": null,
+        "PollInterval": 0
+      },
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "TableName": "m01c02_sensor",
+      "DataPoints": [
+        {
+          "ColumnName": "up_set_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_set_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    }
+  ]
+}

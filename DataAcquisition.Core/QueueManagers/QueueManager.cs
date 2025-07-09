@@ -3,108 +3,130 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Delegates;
-using NCalc;
+using DataAcquisition.Core.Messages;
+using DataAcquisition.Core.Utils;
+using Microsoft.Extensions.Caching.Memory;
+using Newtonsoft.Json;
 
 namespace DataAcquisition.Core.QueueManagers;
 
 /// <summary>
-/// 消息队列里实现
+/// 消息队列实现
 /// </summary>
-public class QueueManager(
-    IDataStorage dataStorage,
-    DataAcquisitionConfig dataAcquisitionConfig,
-    MessageSendDelegate messageSendDelegate)
-    : AbstractQueueManager(dataStorage, dataAcquisitionConfig, messageSendDelegate)
+public class QueueManager: AbstractQueueManager
 {
-    private readonly BlockingCollection<DataPoint?> _queue = new();
-    private readonly List<DataPoint> _dataBatch = [];
-    private readonly DataAcquisitionConfig _dataAcquisitionConfig = dataAcquisitionConfig;
-    private readonly IDataStorage _dataStorage = dataStorage;
-
-    public override void EnqueueData(DataPoint dataPoint)
+    private readonly IDataStorage _dataStorage;
+    private readonly IMemoryCache _memoryCache;
+    private readonly IDataProcessingService _dataProcessingService;
+    private readonly IMessageService _messageService;
+    private readonly BlockingCollection<DataMessage> _queue = new();
+    private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
+    public QueueManager(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessageService messageService)
     {
-        _queue.Add(dataPoint);
+        _dataStorage = dataStorage;
+        _memoryCache = memoryCache;
+        _dataProcessingService = dataProcessingService;
+        _messageService = messageService;
     }
 
+    public override void EnqueueData(DataMessage dataMessage)
+    {
+        _queue.Add(dataMessage);
+    }
     protected override async Task ProcessQueueAsync()
     {
-        foreach (var dataPoint in _queue.GetConsumingEnumerable())
+        foreach (var dataMessage in _queue.GetConsumingEnumerable())
         {
             try
             {
-                var preprocessData = await PreprocessAsync(dataPoint);
+                if (!IsNonZeroData(dataMessage))
+                {
+                    continue;
+                }
 
-                await StoreDataPointAsync(preprocessData);
+                if (dataMessage.DataMessageType != DataMessageType.NewBatch && dataMessage.DataMessageType != DataMessageType.UpdateBatch)
+                {
+                    await _dataProcessingService.ExecuteAsync(dataMessage);
+                }
+                
+                await StoreDataPointAsync(dataMessage);
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Console.WriteLine(e);
+                await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
 
-        if (_dataBatch.Count > 0)
+        foreach (var kv in _dataBatchMap)
         {
-            await _dataStorage.SaveBatchAsync(_dataBatch);
-        }
-    }
-    private async Task StoreDataPointAsync(DataPoint preprocessData)
-    {
-        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == preprocessData.TableName);
-        if (config.BatchSize > 1)
-        {
-            _dataBatch.Add(preprocessData);
-
-            if (_dataBatch.Count >= config.BatchSize)
+            if (kv.Value.Any())
             {
-                await _dataStorage.SaveBatchAsync(_dataBatch);
-                _dataBatch.Clear();
+                await _dataStorage.SaveBatchAsync(kv.Value);
             }
         }
-        else
-        {
-            await _dataStorage.SaveAsync(preprocessData);
-        }
-    }
-
-    private async Task<DataPoint> PreprocessAsync(DataPoint dataPoint)
-    {
-        dataPoint = await EvalExpressionAsync(dataPoint);
-
-        return dataPoint;
-    }
-
-    private bool IsNumberType(object value)
-    {
-        return value is ushort or uint or ulong or short or int or long or float or double;
     }
     
-    private async Task<DataPoint> EvalExpressionAsync(DataPoint dataPoint)
+    private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        var config = _dataAcquisitionConfig.Plc.RegisterGroups.SingleOrDefault(x => x.TableName == dataPoint.TableName);
-        foreach (var kv in dataPoint.Values)
+        if (dataMessage.DataMessageType == DataMessageType.Sensor)
         {
-            if (!IsNumberType(kv.Value)) continue;
-            var register = config?.Registers.SingleOrDefault(x => x.ColumnName == kv.Key);
-            if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
-            var expression = new AsyncExpression(register.EvalExpression)
+            var dataBatch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => []);
+            dataBatch.Add(dataMessage);
+
+            if (dataBatch.Count >= 10)
             {
-                Parameters =
-                {
-                    ["value"] = kv.Value
-                }
-            };
-
-            var value = await expression.EvaluateAsync();
-            dataPoint.Values[kv.Key] = value ?? 0;
+                await _dataStorage.SaveBatchAsync(dataBatch);
+                await _messageService.SendAsync($"{dataMessage.TableName} 新增 10 条实时数据");
+                _dataBatchMap[dataMessage.TableName] = [];
+            }
         }
+        else if (dataMessage.DataMessageType == DataMessageType.Recipe)
+        {
+            await _messageService.SendAsync($"新配方: {JsonConvert.SerializeObject(new 
+            {
+                dataMessage.TableName,
+                dataMessage.Values
+            }, Formatting.Indented)}");
+            
+            await _dataStorage.SaveAsync(dataMessage);
+            
+        } else if (dataMessage.DataMessageType == DataMessageType.NewBatch)
+        {
+            await _messageService.SendAsync($"新批次: {JsonConvert.SerializeObject(new 
+            {
+                dataMessage.TableName,
+                dataMessage.Values
+            }, Formatting.Indented)}");
+            
+            await _dataStorage.SaveAsync(dataMessage);
+            
+        } else if (dataMessage.DataMessageType == DataMessageType.UpdateBatch)
+        {
+            await _messageService.SendAsync($"更新批次: {JsonConvert.SerializeObject(new 
+            {
+                dataMessage.TableName,
+                dataMessage.Values
+            }, Formatting.Indented)}");
 
-        return dataPoint;
+            var sql = $"UPDATE {dataMessage.TableName} SET end_time = @end_time WHERE batch_sequence = @batch_sequence";
+            var param = new
+            {
+                end_time = dataMessage.Values["end_time"],
+                batch_sequence = dataMessage.Values["batch_sequence"]
+            };
+            await _dataStorage.ExecuteAsync(sql, param);
+        } 
     }
-    public override void Complete()
+    
+    private static bool IsNonZeroData(DataMessage message)
+    {
+        return !message.Values.All(x => x.Value == null || (DataTypeUtils.IsNumberType(x.Value) && x.Value == 0));
+    }
+    
+    public override void Dispose()
     {
         _queue.CompleteAdding();
-        _dataStorage.Dispose();
     }
 }

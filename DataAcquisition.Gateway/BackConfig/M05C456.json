@@ -1,0 +1,16 @@
+﻿{
+  "IsEnabled": true,
+  "DatabaseName": "dbo",
+  "CollectIntervalMs": 1,
+  "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatIntervalMs": 2000,
+  "DriverType": "MelsecA1ENet",
+  "StorageType": "MySQL",
+  "ConnectionString": "Server=192.168.0.110;Database=dbo;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
+  "Plc": {
+    "Code": "M05C456",
+    "IpAddress": "192.168.1.31",
+    "Port": 1032,
+    "RegisterGroups": []
+  }
+}

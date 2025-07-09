@@ -1,11 +1,9 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 
-namespace DataAcquisition.Gateway.Hubs;
-
-public class DataHub : Hub
+namespace DataAcquisition.Gateway.Hubs
 {
-    public async Task SendMessage(string message)
+    public class DataHub : Hub
     {
-        await Clients.All.SendAsync("ReceiveMessage", message);
+       
     }
 }

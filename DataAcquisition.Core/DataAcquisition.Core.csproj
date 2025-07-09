@@ -3,32 +3,31 @@
     <PropertyGroup>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
-        <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
+        <TargetFramework>net8.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
+      <PackageReference Include="Dapper" Version="2.1.66" />
       <PackageReference Include="HslCommunication" Version="12.2.0" />
+      <PackageReference Include="Lib.Harmony" Version="2.3.6" />
       <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.2" />
-      <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.2" />
+      <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
       <PackageReference Include="MySqlConnector" Version="2.4.0" />
       <PackageReference Include="NCalcAsync" Version="5.4.0" />
-      <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.6.0" />
     </ItemGroup>
 
     <ItemGroup>
       <Compile Remove="Services\Messages\IMessageFactory.cs" />
-      <Compile Remove="Converters\**" />
       <Compile Remove="Services\**" />
+      <Compile Remove="Messages\IMessageFactory.cs" />
+      <Compile Remove="Models\OperationResult.cs" />
     </ItemGroup>
 
     <ItemGroup>
-      <EmbeddedResource Remove="Converters\**" />
       <EmbeddedResource Remove="Services\**" />
     </ItemGroup>
 
     <ItemGroup>
-      <None Remove="Converters\**" />
       <None Remove="Services\**" />
     </ItemGroup>
-
 </Project>

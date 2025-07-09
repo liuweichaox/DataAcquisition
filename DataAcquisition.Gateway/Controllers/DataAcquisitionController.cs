@@ -6,30 +6,13 @@ namespace DataAcquisition.Gateway.Controllers;
 /// <summary>
 /// 数据采集控制器
 /// </summary>
-/// <param name="dataAcquisitionService"></param>
 [Route("api/[controller]/[action]")]
-public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionService) : ControllerBase
+public class DataAcquisitionController: ControllerBase
 {
-    /// <summary>
-    /// 开始数据采集任务
-    /// </summary>
-    /// <returns></returns>
-    [HttpPost]
-    public IActionResult StartCollectionTasks()
+    private readonly IDataAcquisitionService _dataAcquisitionService;
+    public DataAcquisitionController(IDataAcquisitionService dataAcquisitionService)
     {
-        dataAcquisitionService.StartCollectionTasks();
-        return Ok("开始数据采集任务");
-    }
-
-    /// <summary>
-    /// 停止数据采集任务
-    /// </summary>
-    /// <returns></returns>
-    [HttpPost]
-    public IActionResult StopCollectionTasks()
-    {
-        dataAcquisitionService.StopCollectionTasks();
-        return Ok("停止数据采集任务");
+        _dataAcquisitionService = dataAcquisitionService;
     }
     
     /// <summary>
@@ -39,7 +22,7 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
     [HttpGet]
     public IActionResult GetPlcConnectionStatus()
     {
-        var plcConnectionStatus = dataAcquisitionService.GetPlcConnectionStatus();
+        var plcConnectionStatus = _dataAcquisitionService.GetPlcConnectionStatus();
         return Ok(plcConnectionStatus);
     }
 }

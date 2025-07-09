@@ -12,17 +12,20 @@ public interface IDataStorage
     /// <summary>
     /// 保存
     /// </summary>
-    /// <param name="dataPoint"></param>
-    Task SaveAsync(DataPoint dataPoint);
+    /// <param name="dataMessage"></param>
+    Task SaveAsync(DataMessage dataMessage);
     
     /// <summary>
     /// 批量保存
     /// </summary>
     /// <param name="dataPoints"></param>
-    Task SaveBatchAsync(List<DataPoint> dataPoints);
+    Task SaveBatchAsync(List<DataMessage> dataPoints);
 
     /// <summary>
-    /// 释放资源
+    /// 执行SQL
     /// </summary>
-    void Dispose();
+    /// <param name="sql"></param>
+    /// <param name="param"></param>
+    /// <returns></returns>
+    Task ExecuteAsync(string sql, object? param = null);
 }

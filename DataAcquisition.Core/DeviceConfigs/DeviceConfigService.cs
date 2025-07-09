@@ -4,13 +4,13 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Core.DataAcquisitionConfigs;
+namespace DataAcquisition.Core.DeviceConfigs;
 
-public class DataAcquisitionConfigService : IDataAcquisitionConfigService
+public class DeviceConfigService : IDeviceConfigService
 {
-    public async Task<List<DataAcquisitionConfig>> GetConfigs()
+    public async Task<List<DeviceConfig>> GetConfigs()
     {
-        var dataAcquisitionConfigs = await LoadAllJsonFilesAsync<DataAcquisitionConfig>("Configs");
+        var dataAcquisitionConfigs = await LoadAllJsonFilesAsync<DeviceConfig>("Configs");
         return dataAcquisitionConfigs;
     }
     
@@ -22,7 +22,7 @@ public class DataAcquisitionConfigService : IDataAcquisitionConfigService
     /// <returns>反序列化后的对象</returns>
     private static async Task<T> LoadConfigAsync<T>(string filePath)
     {
-        using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open,
+        await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open,
             FileAccess.Read);
         return await JsonSerializer.DeserializeAsync<T>(stream);
     }
