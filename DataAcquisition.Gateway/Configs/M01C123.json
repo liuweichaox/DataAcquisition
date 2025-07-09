@@ -14,8 +14,7 @@
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
