@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace DataAcquisition.Core.Models;
 
@@ -93,6 +94,7 @@ public class Trigger
     /// <summary>
     /// 触发模式
     /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
     public TriggerMode Mode { get; set; }
 
     /// <summary>
