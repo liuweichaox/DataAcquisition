@@ -33,6 +33,36 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 在 `Configs` 文件夹中，每个表对应一个独立的 JSON 文件，您可以根据需要修改配置。配置文件定义了 PLC 信息、寄存器地址、数据类型等内容。
 
+#### 配置文件定义
+
+- **IsEnabled**: 是否启用该配置。
+- **Code**: 采集器代码，用于标识不同的采集器。
+- **Host**: PLC IP 地址。
+- **Port**: PLC 端口。
+- **DriverType**: PLC 驱动类型，支持 `MelsecA1ENet`、`MelsecA1EAsciiNet`、`InovanceTcpNet`。
+- **HeartbeatMonitorRegister**: 心跳监控寄存器地址。
+- **HeartbeatPollingInterval**: 心跳监控间隔（毫秒）。
+- **StorageType**: 数据存储类型，支持 `SQLite`、`MySQL`、`PostgreSQL`、`SQLServer`。
+- **ConnectionString**: 数据库连接字符串。
+- **Modules**: 采集模块配置。
+  - **ChamberCode**: 采集通道代码，用于标识不同的采集通道。
+  - **Trigger**: 触发配置。
+    - **Mode**: 触发模式，支持 `Always`（一直触发）、`ValueIncrease`（数值增加时触发）、`ValueDecrease`（数值减少触发）、`RisingEdge`（上升沿触发(表示从 0 变成 1 时采集)）、`FallingEdge`（下降沿触发(表示从 1 变成 0 时采集)）。
+    - **Register**: 触发寄存器地址。
+    - **DataType**: 触发寄存器数据类型。
+  - **BatchReadRegister**: 批量读取寄存器地址。
+  - **BatchReadLength**: 批量读取寄存器长度。
+  - **TableName**: 数据库表名。
+  - **DataPoints**: 数据点配置。
+    - **ColumnName**: 数据库列名。
+    - **Index**: 寄存器索引。
+    - **StringByteLength**: 字符串字节长度。
+    - **Encoding**: 字符串编码，支持 `UTF8`、`GB2312`、`GBK`、`ASCII`。
+    - **DataType**: 寄存器数据类型。
+    - **EvalExpression**: 数据转换表达式，支持简单的数学表达式，例如 `value / 1000.0`。
+
+---
+
 **示例配置** (`Configs/M01_Metrics.json`):
 
 ```json
@@ -110,36 +140,6 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   ]
 }
 ```
-
-#### 配置文件解析
-
-- **IsEnabled**: 是否启用该配置。
-- **Code**: 采集器代码，用于标识不同的采集器。
-- **Host**: PLC IP 地址。
-- **Port**: PLC 端口。
-- **DriverType**: PLC 驱动类型，支持 `MelsecA1EAsciiNet`、`MelsecMcNet`、`MelsecFibNet`、`ModbusRtuOverTcp`、`ModbusTcp`、`ModbusAscii`。
-- **HeartbeatMonitorRegister**: 心跳监控寄存器地址。
-- **HeartbeatPollingInterval**: 心跳监控间隔（毫秒）。
-- **StorageType**: 数据存储类型，支持 `SQLite`、`MySQL`、`PostgreSQL`、`SQLServer`。
-- **ConnectionString**: 数据库连接字符串。
-- **Modules**: 采集模块配置。
-  - **ChamberCode**: 采集通道代码，用于标识不同的采集通道。
-  - **Trigger**: 触发配置。
-    - **Mode**: 触发模式，支持 `Always`、`ValueIncrease`、`ValueDecrease`、`RisingEdge`、`FallingEdge`。
-    - **Register**: 触发寄存器地址。
-    - **DataType**: 触发寄存器数据类型。
-  - **BatchReadRegister**: 批量读取寄存器地址。
-  - **BatchReadLength**: 批量读取寄存器长度。
-  - **TableName**: 数据库表名。
-  - **DataPoints**: 数据点配置。
-    - **ColumnName**: 数据库列名。
-    - **Index**: 寄存器索引。
-    - **StringByteLength**: 字符串字节长度。
-    - **Encoding**: 字符串编码，支持 `UTF8`、`GB2312`、`GBK`、`ASCII`。
-    - **DataType**: 寄存器数据类型。
-    - **EvalExpression**: 数据转换表达式，支持简单的数学表达式，例如 `value / 1000.0`。
-
----
 
 ## ⚙️ 配置 `DataAcquisitionService`
 
