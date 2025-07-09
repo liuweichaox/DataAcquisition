@@ -48,7 +48,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   - **ChamberCode**: 采集通道代码，用于标识不同的采集通道。
   - **Trigger**: 触发配置。
     - **Mode**: 触发模式，支持:
-      - `Always`：一直触发
+      - `Always`：无条件触发
       - `ValueIncrease`：数值增加时触发
       - `ValueDecrease`：数值减少触发
       - `RisingEdge`：上升沿触发（表示从 0 变成 1 时采集）
