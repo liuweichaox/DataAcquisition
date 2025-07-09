@@ -74,7 +74,6 @@ namespace DataAcquisition.Core.DataAcquisitions
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
-            public ConcurrentDictionary<string, Dictionary<string, Chamber>> DeviceChamberStatus { get; } = new(); // 每个 PLC 的腔室状态
             public readonly ConcurrentDictionary<string, object> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
 
 
@@ -85,7 +84,6 @@ namespace DataAcquisition.Core.DataAcquisitions
                 PlcConnectionHealth.Clear();
                 DataTasks.Clear();
                 HeartbeatTasks.Clear();
-                DeviceChamberStatus.Clear();
                 PlcLocks.Clear();
             }
         }
