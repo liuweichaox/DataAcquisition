@@ -75,6 +75,8 @@ namespace DataAcquisition.Core.DataAcquisitions
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
             public ConcurrentDictionary<string, Dictionary<string, Chamber>> DeviceChamberStatus { get; } = new(); // 每个 PLC 的腔室状态
+            public readonly ConcurrentDictionary<string, object> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
+
 
             public void Clear()
             {
@@ -84,6 +86,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 DataTasks.Clear();
                 HeartbeatTasks.Clear();
                 DeviceChamberStatus.Clear();
+                PlcLocks.Clear();
             }
         }
 
@@ -138,33 +141,38 @@ namespace DataAcquisition.Core.DataAcquisitions
                                 {
                                     bool shouldSample = false;
                                     var trigger = module.Trigger;
-                                    object currVal = trigger.Mode == TriggerMode.Always ? null :
-                                            ReadPlcValue(plcClient, trigger.Register, trigger.DataType);
-                                    if (ShouldSample(trigger.Mode, prevVal, currVal))
+                                    object currVal = null;
+
+                                    lock (_plcStateManager.PlcLocks[config.Code])
                                     {
-                                        try
+                                        currVal = trigger.Mode == TriggerMode.Always ? null :
+                                                ReadPlcValue(plcClient, trigger.Register, trigger.DataType);
+                                        if (ShouldSample(trigger.Mode, prevVal, currVal))
                                         {
-                                            var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
-                                            var buffer = batchData.Content;
-                                            var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
-                                            foreach (var dataPoint in module.DataPoints)
+                                            try
                                             {
-                                                var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                                dataMessage.Values[dataPoint.ColumnName] = value;
+                                                var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
+                                                var buffer = batchData.Content;
+                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                                foreach (var dataPoint in module.DataPoints)
+                                                {
+                                                    var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                    dataMessage.Values[dataPoint.ColumnName] = value;
+                                                }
+                                                queueManager.EnqueueData(dataMessage);
                                             }
-                                            queueManager.EnqueueData(dataMessage);
+                                            catch (Exception ex)
+                                            {
+                                                _ = _messageService.SendAsync($"[{config.Code}:{module.TableName}]采集异常: {ex.Message}");
+                                            }
+                                            prevVal = currVal;
                                         }
-                                        catch (Exception ex)
-                                        {
-                                            _ = _messageService.SendAsync($"[{config.Code}:{module.TableName}]采集异常: {ex.Message}");
-                                        }
-                                        prevVal = currVal;
                                     }
                                 }
                             }
+
                         });
                     }
-
                 }
                 catch (OperationCanceledException)
                 {
@@ -214,7 +222,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
             plcClient = _plcDriverFactory.Create(config);
             _plcStateManager.PlcClients.TryAdd(config.Code, plcClient);
-
+            _plcStateManager.PlcLocks.TryAdd(config.Code, new object());
             return plcClient;
         }
 
@@ -270,29 +278,6 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
             }, hbCts.Token);
             _plcStateManager.HeartbeatTasks.TryAdd(config.Code, (hbTask, hbCts));
-        }
-
-        /// <summary>
-        /// 计算地址
-        /// </summary>
-        /// <param name="baseAddress"></param>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        private string GetAddress(string baseAddress, int index)
-        {
-            // 提取前缀字母和数字部分
-            string prefix = new string(baseAddress.TakeWhile(char.IsLetter).ToArray());
-            string numberPart = new string(baseAddress.SkipWhile(char.IsLetter).ToArray());
-
-            if (int.TryParse(numberPart, out int baseNumber))
-            {
-                // 计算新地址：每两个寄存器是一个单位
-                int newAddressNumber = baseNumber + index / 2;
-                return prefix + newAddressNumber;
-            }
-
-            throw new ArgumentException("地址格式错误：" + baseAddress);
         }
 
         /// <summary>
