@@ -192,7 +192,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="prev"></param>
         /// <param name="curr"></param>
         /// <returns></returns>
-        private bool ShouldSample(TriggerMode mode, object prev, object curr)
+        internal bool ShouldSample(TriggerMode mode, object prev, object curr)
         {
             if (prev == null) return true;
             decimal p = Convert.ToDecimal(prev);
