@@ -168,6 +168,12 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>(); // 数据采�
 
 ---
 
+## 🧩 自定义协议插件
+
+系统支持扩展 PLC 协议，具体可参见 [自定义协议插件开发指南](docs/custom-driver.md)。
+
+---
+
 ## 🤝 贡献
 
 如果您想为该项目贡献代码，欢迎提交 Pull Request！在提交之前，请确保代码通过了所有单元测试，并且没有引入任何破坏性变化。

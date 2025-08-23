@@ -1,38 +1,54 @@
-﻿using System;
-using HslCommunication.Core;
+using System;
+using System.Linq;
 using HslCommunication.Core.Device;
-using HslCommunication.Profinet.Inovance;
-using HslCommunication.Profinet.Melsec;
 
 namespace DataAcquisition.Core.Communication;
 
+/// <summary>
+/// 通过反射或依赖注入创建 PLC 驱动实例。
+/// </summary>
 public class PlcDriverFactory : IPlcDriverFactory
 {
+    private readonly IServiceProvider _serviceProvider;
+
+    public PlcDriverFactory(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider;
+    }
+
     public DeviceTcpNet Create(DeviceConfig config)
     {
-        return config.DriverType switch
+        var driverType = Type.GetType(config.DriverType, false);
+        driverType ??= AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(a => a.GetTypes())
+            .FirstOrDefault(t => typeof(DeviceTcpNet).IsAssignableFrom(t) &&
+                                 t.Name.Equals(config.DriverType, StringComparison.OrdinalIgnoreCase));
+
+        if (driverType is null)
         {
-            "MelsecA1ENet" => new MelsecA1ENet(config.Host, config.Port)
+            throw new InvalidOperationException($"未找到名为 {config.DriverType} 的 PLC 驱动，请确认已引用对应协议插件。");
+        }
+
+        try
+        {
+            if (_serviceProvider.GetService(driverType) is DeviceTcpNet serviceInstance)
             {
-                ReceiveTimeOut = 2000,
-                ConnectTimeOut = 2000
-            },
-            "MelsecA1EAsciiNet" =>new MelsecA1EAsciiNet(config.Host, config.Port) 
-            {
-                ReceiveTimeOut = 2000,
-                ConnectTimeOut = 2000
-            },
-            "InovanceTcpNet"=> new InovanceTcpNet(config.Host, config.Port)
-            {
-                ReceiveTimeOut = 2000,
-                ConnectTimeOut = 2000,
-                Station = 1,
-                AddressStartWithZero = true,
-                IsStringReverse = false,
-                Series = InovanceSeries.AM,
-                DataFormat = DataFormat.CDAB
-            },
-            _ => throw new ArgumentException("Unsupported plc driver type", nameof(config.DriverType))
-        };
+                serviceInstance.IpAddress = config.Host;
+                serviceInstance.Port = config.Port;
+                serviceInstance.ReceiveTimeOut = 2000;
+                serviceInstance.ConnectTimeOut = 2000;
+                return serviceInstance;
+            }
+
+            var instance = (DeviceTcpNet)Activator.CreateInstance(driverType, config.Host, config.Port)!;
+            instance.ReceiveTimeOut = 2000;
+            instance.ConnectTimeOut = 2000;
+            return instance;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"创建驱动 {config.DriverType} 失败: {ex.Message}", ex);
+        }
     }
 }
+
