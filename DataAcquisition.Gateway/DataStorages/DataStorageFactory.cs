@@ -1,6 +1,8 @@
-﻿using System;
+using System;
+using DataAcquisition.Core.DataStorages;
+using DataAcquisition.Core.DeviceConfigs;
 
-namespace DataAcquisition.Core.DataStorages;
+namespace DataAcquisition.Gateway.DataStorages;
 
 public class DataStorageFactory : IDataStorageFactory
 {

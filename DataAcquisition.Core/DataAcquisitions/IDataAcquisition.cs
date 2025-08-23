@@ -4,7 +4,10 @@ using System.Threading.Tasks;
 
 namespace DataAcquisition.Core.DataAcquisitions;
 
-public interface IDataAcquisitionService: IDisposable
+/// <summary>
+/// Defines the contract for data acquisition operations.
+/// </summary>
+public interface IDataAcquisition : IDisposable
 {
     /// <summary>
     /// 开始采集任务

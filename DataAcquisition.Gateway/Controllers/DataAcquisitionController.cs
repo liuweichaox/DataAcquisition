@@ -9,10 +9,10 @@ namespace DataAcquisition.Gateway.Controllers;
 [Route("api/[controller]/[action]")]
 public class DataAcquisitionController: ControllerBase
 {
-    private readonly IDataAcquisitionService _dataAcquisitionService;
-    public DataAcquisitionController(IDataAcquisitionService dataAcquisitionService)
+    private readonly IDataAcquisition _dataAcquisition;
+    public DataAcquisitionController(IDataAcquisition dataAcquisition)
     {
-        _dataAcquisitionService = dataAcquisitionService;
+        _dataAcquisition = dataAcquisition;
     }
     
     /// <summary>
@@ -22,7 +22,7 @@ public class DataAcquisitionController: ControllerBase
     [HttpGet]
     public IActionResult GetPlcConnectionStatus()
     {
-        var plcConnectionStatus = _dataAcquisitionService.GetPlcConnectionStatus();
+        var plcConnectionStatus = _dataAcquisition.GetPlcConnectionStatus();
         return Ok(plcConnectionStatus);
     }
 }

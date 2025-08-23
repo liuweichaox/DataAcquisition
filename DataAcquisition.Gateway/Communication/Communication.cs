@@ -1,19 +1,20 @@
 using System.Net.NetworkInformation;
 using System.Text;
-using System.Threading.Tasks;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Melsec;
+using DataAcquisition.Core.DeviceConfigs;
+using DataAcquisition.Core.Communication;
 
-namespace DataAcquisition.Core.Communication;
+namespace DataAcquisition.Gateway.Communication;
 
 /// <summary>
-/// 基于 HslCommunication 的 PLC 客户端适配器
+/// 基于 HslCommunication 的通讯客户端适配器
 /// </summary>
-public class HslPlcClient : IPlcClient
+public class Communication : ICommunication
 {
     private readonly DeviceTcpNet _device;
 
-    public HslPlcClient(DeviceConfig config)
+    public Communication(DeviceConfig config)
     {
         _device = new MelsecA1ENet(config.Host, config.Port)
         {
@@ -26,16 +27,16 @@ public class HslPlcClient : IPlcClient
 
     public IPStatus IpAddressPing() => _device.IpAddressPing();
 
-    public async Task<PlcWriteResult> WriteAsync(string address, int value)
+    public async Task<CommunicationWriteResult> WriteAsync(string address, int value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public PlcReadResult Read(string address, ushort length)
+    public CommunicationReadResult Read(string address, ushort length)
     {
         var res = _device.Read(address, length);
-        return new PlcReadResult
+        return new CommunicationReadResult
         {
             IsSuccess = res.IsSuccess,
             Content = res.Content ?? System.Array.Empty<byte>(),
