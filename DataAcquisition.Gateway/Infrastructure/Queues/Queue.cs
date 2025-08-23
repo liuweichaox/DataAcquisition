@@ -16,16 +16,16 @@ public class Queue : QueueBase
     private readonly IDataStorage _dataStorage;
     private readonly IMemoryCache _memoryCache;
     private readonly IDataProcessingService _dataProcessingService;
-    private readonly IMessageService _messageService;
+    private readonly IMessage _message;
     private readonly BlockingCollection<DataMessage> _queue = new();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
 
-    public Queue(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessageService messageService)
+    public Queue(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessage message)
     {
         _dataStorage = dataStorage;
         _memoryCache = memoryCache;
         _dataProcessingService = dataProcessingService;
-        _messageService = messageService;
+        _message = message;
     }
 
     public override void EnqueueData(DataMessage dataMessage)
@@ -44,7 +44,7 @@ public class Queue : QueueBase
             }
             catch (Exception ex)
             {
-                await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
+                await _message.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
 

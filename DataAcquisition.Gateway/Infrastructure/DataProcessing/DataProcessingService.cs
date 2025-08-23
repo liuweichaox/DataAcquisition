@@ -9,11 +9,11 @@ namespace DataAcquisition.Gateway.Infrastructure.DataProcessing;
 /// </summary>
 public class DataProcessingService : IDataProcessingService
 {
-    private readonly IMessageService _messageService;
+    private readonly IMessage _message;
 
-    public DataProcessingService(IMessageService messageService)
+    public DataProcessingService(IMessage message)
     {
-        _messageService = messageService;
+        _message = message;
     }
 
     public async Task<DataMessage> ExecuteAsync(DataMessage dataMessage)
@@ -24,7 +24,7 @@ public class DataProcessingService : IDataProcessingService
         }
         catch (Exception ex)
         {
-            await _messageService.SendAsync($"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}");
+            await _message.SendAsync($"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}");
         }
 
         return dataMessage;

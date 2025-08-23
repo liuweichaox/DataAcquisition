@@ -18,7 +18,7 @@ using DataAcquisition.Gateway.Infrastructure.Queues;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
-builder.Services.AddSingleton<IMessageService, MessageService>();
+builder.Services.AddSingleton<IMessage, Message>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();

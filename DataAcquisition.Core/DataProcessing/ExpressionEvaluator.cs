@@ -1,6 +1,5 @@
 using System.Linq;
 using System.Threading.Tasks;
-using DataAcquisition.Core.Utils;
 using NCalc;
 
 namespace DataAcquisition.Core.DataProcessing;
@@ -18,7 +17,7 @@ public static class ExpressionEvaluator
     {
         foreach (var kv in dataMessage.Values.ToList())
         {
-            if (!DataTypeUtils.IsNumberType(kv.Value)) continue;
+            if (!IsNumberType(kv.Value)) continue;
 
             var register = dataMessage.DataPoints.SingleOrDefault(x => x.ColumnName == kv.Key);
             if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
@@ -34,5 +33,10 @@ public static class ExpressionEvaluator
             var value = await expression.EvaluateAsync();
             dataMessage.Values[kv.Key] = value ?? 0;
         }
+    }
+    
+    private static bool IsNumberType(object value)
+    {
+        return value is ushort or uint or ulong or short or int or long or float or double;
     }
 }

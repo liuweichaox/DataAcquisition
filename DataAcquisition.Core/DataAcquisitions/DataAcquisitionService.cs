@@ -23,7 +23,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly IDeviceConfigService _deviceConfigService;
         private readonly ICommunicationFactory _communicationFactory;
         private readonly IQueueFactory _queueFactory;
-        private readonly IMessageService _messageService;
+        private readonly IMessage _message;
 
         /// <summary>
         /// 数据采集器
@@ -31,13 +31,13 @@ namespace DataAcquisition.Core.DataAcquisitions
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
             ICommunicationFactory communicationFactory,
             IQueueFactory queueFactory,
-            IMessageService messageService)
+            IMessage message)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
             _communicationFactory = communicationFactory;
             _queueFactory = queueFactory;
-            _messageService = messageService;
+            _message = message;
         }
 
         /// <summary>
@@ -147,7 +147,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             }
                                             catch (Exception ex)
                                             {
-                                                _ = _messageService.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
+                                                _ = _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
                                             }
                                             prevVal = currVal;
                                         }
@@ -164,7 +164,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
+                    await _message.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
 
@@ -232,7 +232,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                         if (pingResult != IPStatus.Success)
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _messageService.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
+                            await _message.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
                             continue;
                         }
 
@@ -241,18 +241,18 @@ namespace DataAcquisition.Core.DataAcquisitions
                         {
                             writeData ^= 1;
                             _plcStateManager.PlcConnectionHealth[config.Code] = true;
-                            await _messageService.SendAsync($"心跳正常：设备 {config.Code}");
+                            await _message.SendAsync($"心跳正常：设备 {config.Code}");
                         }
                         else
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _messageService.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
+                            await _message.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _messageService.SendAsync(
+                        await _message.SendAsync(
                             $"系统异常：设备 {config.Code}，异常信息: {ex.Message}，StackTrace: {ex.StackTrace}");
                     }
                     finally

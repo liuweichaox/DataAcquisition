@@ -15,18 +15,18 @@ public class QueueFactory : IQueueFactory
     private readonly IDataStorageFactory _dataStorageFactory;
     private readonly IMemoryCache _memoryCache;
     private readonly IDataProcessingService _dataProcessingService;
-    private readonly IMessageService _messageService;
+    private readonly IMessage _message;
 
     public QueueFactory(
         IDataStorageFactory dataStorageFactory,
         IMemoryCache memoryCache,
         IDataProcessingService dataProcessingService,
-        IMessageService messageService)
+        IMessage message)
     {
         _dataStorageFactory = dataStorageFactory;
         _memoryCache = memoryCache;
         _dataProcessingService = dataProcessingService;
-        _messageService = messageService;
+        _message = message;
     }
 
     public IQueue Create(DeviceConfig deviceConfig)
@@ -37,6 +37,6 @@ public class QueueFactory : IQueueFactory
             dataStorage,
             _memoryCache,
             _dataProcessingService,
-            _messageService);
+            _message);
     }
 }
