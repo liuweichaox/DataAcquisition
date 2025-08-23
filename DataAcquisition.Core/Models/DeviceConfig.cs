@@ -128,6 +128,11 @@ public class Module
     public string TableName { get; set; }
 
     /// <summary>
+    /// 批量保存大小
+    /// </summary>
+    public int BatchSize { get; set; } = 1;
+
+    /// <summary>
     /// 采集位置配置
     /// </summary>
     public List<DataPoint>? DataPoints { get; set; }

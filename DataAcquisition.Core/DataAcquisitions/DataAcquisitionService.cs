@@ -137,7 +137,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             {
                                                 var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
                                                 var buffer = batchData.Content;
-                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.BatchSize, module.DataPoints);
                                                 foreach (var dataPoint in module.DataPoints)
                                                 {
                                                     var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);

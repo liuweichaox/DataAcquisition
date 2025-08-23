@@ -59,7 +59,20 @@ public class Queue : QueueBase
 
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        await _dataStorage.SaveAsync(dataMessage);
+        if (dataMessage.BatchSize <= 1)
+        {
+            await _dataStorage.SaveAsync(dataMessage);
+            return;
+        }
+
+        var batch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => new List<DataMessage>());
+        batch.Add(dataMessage);
+
+        if (batch.Count >= dataMessage.BatchSize)
+        {
+            await _dataStorage.SaveBatchAsync(batch);
+            batch.Clear();
+        }
     }
 
     public override void Dispose()

@@ -53,6 +53,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   - **BatchReadRegister**: 批量读取寄存器地址。
   - **BatchReadLength**: 批量读取寄存器长度。
   - **TableName**: 数据库表名。
+  - **BatchSize**: 批量保存大小，1 表示单条保存。
   - **DataPoints**: 数据点配置。
     - **ColumnName**: 数据库列名。
     - **Index**: 寄存器索引。
@@ -88,6 +89,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
+      "BatchSize": 1,
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -118,6 +120,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
+      "BatchSize": 10,
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
