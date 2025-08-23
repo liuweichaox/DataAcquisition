@@ -1,6 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 using Dapper;
 using DataAcquisition.Core.DataStorages;
@@ -8,15 +6,15 @@ using DataAcquisition.Core.Models;
 using MySqlConnector;
 using Newtonsoft.Json;
 
-namespace DataAcquisition.Gateway.DataStorages;
+namespace DataAcquisition.Gateway.Infrastructure.DataStorages;
 
-public class MySqlDataStorage : DataStorage
+public class MySqlDataStorageService : DataStorageService
 {
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
 
-    public MySqlDataStorage(string connectionString) : base(connectionString)
+    public MySqlDataStorageService(string connectionString) : base(connectionString)
     {
         _connectionString = connectionString;
     }

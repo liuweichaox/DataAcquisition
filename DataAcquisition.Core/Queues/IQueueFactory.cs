@@ -1,5 +1,3 @@
-using DataAcquisition.Core.DeviceConfigs;
-
 namespace DataAcquisition.Core.Queues;
 
 /// <summary>
@@ -7,5 +5,5 @@ namespace DataAcquisition.Core.Queues;
 /// </summary>
 public interface IQueueFactory
 {
-    IQueue Create(DeviceConfig config);
+    IQueueService Create(DeviceConfig config);
 }

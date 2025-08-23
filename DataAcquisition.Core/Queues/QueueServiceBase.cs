@@ -1,11 +1,10 @@
 using System.Threading.Tasks;
-using DataAcquisition.Core.Messages;
 
 namespace DataAcquisition.Core.Queues;
 
-public abstract class QueueBase : IQueue
+public abstract class QueueServiceBase : IQueueService
 {
-    protected QueueBase()
+    protected QueueServiceBase()
     {
         Task.Run(ProcessQueueAsync);
     }

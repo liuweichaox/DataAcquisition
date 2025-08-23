@@ -1,12 +1,11 @@
 using System;
-using DataAcquisition.Core.Messages;
 
 namespace DataAcquisition.Core.Queues;
 
 /// <summary>
 /// 队列接口
 /// </summary>
-public interface IQueue : IDisposable
+public interface IQueueService : IDisposable
 {
     /// <summary>
     /// 将数据添加到队列

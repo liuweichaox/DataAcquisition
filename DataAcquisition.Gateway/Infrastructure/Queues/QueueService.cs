@@ -1,32 +1,31 @@
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
 using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
+using DataAcquisition.Core.Queues;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace DataAcquisition.Gateway.Queues;
+namespace DataAcquisition.Gateway.Infrastructure.Queues;
 
 /// <summary>
 /// 消息队列实现
 /// </summary>
-public class Queue : QueueBase
+public class QueueService : QueueServiceBase
 {
-    private readonly IDataStorage _dataStorage;
+    private readonly IDataStorageService _dataStorageService;
     private readonly IMemoryCache _memoryCache;
     private readonly IDataProcessingService _dataProcessingService;
-    private readonly IMessage _message;
+    private readonly IMessageService _messageService;
     private readonly BlockingCollection<DataMessage> _queue = new();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
 
-    public Queue(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessage message)
+    public QueueService(IDataStorageService dataStorageService, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessageService messageService)
     {
-        _dataStorage = dataStorage;
+        _dataStorageService = dataStorageService;
         _memoryCache = memoryCache;
         _dataProcessingService = dataProcessingService;
-        _message = message;
+        _messageService = messageService;
     }
 
     public override void EnqueueData(DataMessage dataMessage)
@@ -45,7 +44,7 @@ public class Queue : QueueBase
             }
             catch (Exception ex)
             {
-                await _message.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
+                await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
             }
         }
 
@@ -53,14 +52,14 @@ public class Queue : QueueBase
         {
             if (kv.Value.Any())
             {
-                await _dataStorage.SaveBatchAsync(kv.Value);
+                await _dataStorageService.SaveBatchAsync(kv.Value);
             }
         }
     }
 
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        await _dataStorage.SaveAsync(dataMessage);
+        await _dataStorageService.SaveAsync(dataMessage);
     }
 
     public override void Dispose()

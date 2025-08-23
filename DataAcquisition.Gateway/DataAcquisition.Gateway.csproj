@@ -72,4 +72,8 @@
       <_ContentIncludedByDefault Remove="BackConfig\M06C456.json" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Infrastructure\" />
+    </ItemGroup>
+
 </Project>

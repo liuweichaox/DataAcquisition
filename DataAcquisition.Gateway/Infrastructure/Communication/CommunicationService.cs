@@ -1,20 +1,20 @@
 using System.Net.NetworkInformation;
 using System.Text;
+using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.Models;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Melsec;
-using DataAcquisition.Core.DeviceConfigs;
-using DataAcquisition.Core.Communication;
 
-namespace DataAcquisition.Gateway.Communication;
+namespace DataAcquisition.Gateway.Infrastructure.Communication;
 
 /// <summary>
 /// 基于 HslCommunication 的通讯客户端适配器
 /// </summary>
-public class Communication : ICommunication
+public class CommunicationService : ICommunicationService
 {
     private readonly DeviceTcpNet _device;
 
-    public Communication(DeviceConfig config)
+    public CommunicationService(DeviceConfig config)
     {
         _device = new MelsecA1ENet(config.Host, config.Port)
         {

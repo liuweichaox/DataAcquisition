@@ -7,7 +7,7 @@ namespace DataAcquisition.Core.Communication;
 /// <summary>
 /// 通讯客户端通用接口，封装具体协议实现。
 /// </summary>
-public interface ICommunication
+public interface ICommunicationService
 {
     /// <summary>
     /// 关闭连接。

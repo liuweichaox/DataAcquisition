@@ -39,11 +39,6 @@ public class DeviceConfig
     public int HeartbeatPollingInterval { get; set; }
 
     /// <summary>
-    /// 数据库存储类型
-    /// </summary>
-    public string StorageType { get; set; }
-
-    /// <summary>
     /// 连接字符串
     /// </summary>
     public string ConnectionString { get; set; }

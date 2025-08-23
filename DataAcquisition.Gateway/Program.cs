@@ -8,12 +8,12 @@ using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Queues;
 using DataAcquisition.Gateway;
-using DataAcquisition.Gateway.Communication;
-using DataAcquisition.Gateway.DataProcessing;
-using DataAcquisition.Gateway.DataStorages;
 using DataAcquisition.Gateway.Hubs;
-using DataAcquisition.Gateway.Messages;
-using DataAcquisition.Gateway.Queues;
+using DataAcquisition.Gateway.Infrastructure.Communication;
+using DataAcquisition.Gateway.Infrastructure.DataProcessing;
+using DataAcquisition.Gateway.Infrastructure.DataStorages;
+using DataAcquisition.Gateway.Infrastructure.Messages;
+using DataAcquisition.Gateway.Infrastructure.Queues;
 
 var port = 5000;
 var isPortInUse = IPGlobalProperties.GetIPGlobalProperties()
@@ -31,11 +31,11 @@ builder.WebHost.UseUrls("http://*:5000");
 // Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
-builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<IMessageService, MessageService>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 

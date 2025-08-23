@@ -7,7 +7,7 @@ namespace DataAcquisition.Core.DataAcquisitions;
 /// <summary>
 /// Defines the contract for data acquisition operations.
 /// </summary>
-public interface IDataAcquisition : IDisposable
+public interface IDataAcquisitionService : IDisposable
 {
     /// <summary>
     /// 开始采集任务

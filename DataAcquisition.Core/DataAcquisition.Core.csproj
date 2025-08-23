@@ -1,9 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <TargetFramework>net8.0</TargetFramework>
+        <RootNamespace>DataAcquisition.Core</RootNamespace>
     </PropertyGroup>
 
     <ItemGroup>

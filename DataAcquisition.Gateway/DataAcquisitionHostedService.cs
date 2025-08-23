@@ -4,20 +4,20 @@ namespace DataAcquisition.Gateway;
 
 public class DataAcquisitionHostedService : IHostedService
 {
-    private readonly IDataAcquisition _dataAcquisition;
+    private readonly IDataAcquisitionService _dataAcquisitionService;
 
-    public DataAcquisitionHostedService(IDataAcquisition dataAcquisition)
+    public DataAcquisitionHostedService(IDataAcquisitionService dataAcquisitionService)
     {
-        _dataAcquisition = dataAcquisition;
+        _dataAcquisitionService = dataAcquisitionService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
-        await _dataAcquisition.StartCollectionTasks();
+        await _dataAcquisitionService.StartCollectionTasks();
     }
 
     public async Task StopAsync(CancellationToken cancellationToken)
     {
-        await _dataAcquisition.StopCollectionTasks();
+        await _dataAcquisitionService.StopCollectionTasks();
     }
 }

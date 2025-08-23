@@ -2,5 +2,5 @@
 
 public interface IDataStorageFactory
 {
-    IDataStorage Create(DeviceConfig config);
+    IDataStorageService Create(DeviceConfig config);
 }

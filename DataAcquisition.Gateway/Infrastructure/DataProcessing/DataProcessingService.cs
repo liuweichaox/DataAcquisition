@@ -2,18 +2,18 @@ using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
 
-namespace DataAcquisition.Gateway.DataProcessing;
+namespace DataAcquisition.Gateway.Infrastructure.DataProcessing;
 
 /// <summary>
 /// 数据预处理服务，实现执行表达式并处理异常
 /// </summary>
 public class DataProcessingService : IDataProcessingService
 {
-    private readonly IMessage _message;
+    private readonly IMessageService _messageService;
 
-    public DataProcessingService(IMessage message)
+    public DataProcessingService(IMessageService messageService)
     {
-        _message = message;
+        _messageService = messageService;
     }
 
     public async Task<DataMessage> ExecuteAsync(DataMessage dataMessage)
@@ -24,7 +24,7 @@ public class DataProcessingService : IDataProcessingService
         }
         catch (Exception ex)
         {
-            await _message.SendAsync($"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}");
+            await _messageService.SendAsync($"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}");
         }
 
         return dataMessage;
