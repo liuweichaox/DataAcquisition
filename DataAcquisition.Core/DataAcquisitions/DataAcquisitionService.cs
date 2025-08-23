@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.NetworkInformation;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,7 +10,6 @@ using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.QueueManagers;
-using HarmonyLib;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {
