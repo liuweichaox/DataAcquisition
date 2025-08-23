@@ -11,5 +11,4 @@ public abstract class AbstractDataStorage : IDataStorage
 
     public abstract Task SaveAsync(DataMessage dataMessage);
     public abstract Task SaveBatchAsync(List<DataMessage> dataPoints);
-    public abstract Task ExecuteAsync(string sql, object? param = null);
 }
