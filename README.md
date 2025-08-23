@@ -50,7 +50,6 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     - **Mode**: 触发模式，支持: `Always`：无条件触发、`ValueIncrease`：数值增加时触发、`ValueDecrease`：数值减少触发、`RisingEdge`：上升沿触发（表示从 0 变成 1 时采集）、`FallingEdge`：下降沿触发（表示从 1 变成 0 时采集）
     - **Register**: 触发寄存器地址。
     - **DataType**: 触发寄存器数据类型。
-  - **RequireBatchRead**: 是否要求驱动支持批量读取，默认为 `true`。
   - **BatchReadRegister**: 批量读取寄存器地址。
   - **BatchReadLength**: 批量读取寄存器长度。
   - **TableName**: 数据库表名。
@@ -80,7 +79,6 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   "Modules": [
     {
       "ChamberCode": "M01C01",
-      "RequireBatchRead": true,
       "Trigger": {
         "Mode": "Always",
         "Register": null,
@@ -111,7 +109,6 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     },
     {
       "ChamberCode": "M01C02",
-      "RequireBatchRead": true,
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,

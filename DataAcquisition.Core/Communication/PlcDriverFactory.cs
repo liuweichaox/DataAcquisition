@@ -2,6 +2,7 @@
 using HslCommunication.Core;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Inovance;
+using HslCommunication.Profinet.Melsec;
 
 namespace DataAcquisition.Core.Communication;
 
@@ -11,17 +12,17 @@ public class PlcDriverFactory : IPlcDriverFactory
     {
         return config.DriverType switch
         {
-            "MelsecA1ENet" => new MelsecA1ENetClient(config.Host, config.Port)
+            "MelsecA1ENet" => new MelsecA1ENet(config.Host, config.Port)
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000
             },
-            "MelsecA1EAsciiNet" => new MelsecA1EAsciiNetClient(config.Host, config.Port)
+            "MelsecA1EAsciiNet" =>new MelsecA1EAsciiNet(config.Host, config.Port) 
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000
             },
-            "InovanceTcpNet" => new InovanceTcpNetClient(config.Host, config.Port)
+            "InovanceTcpNet"=> new InovanceTcpNet(config.Host, config.Port)
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000,
@@ -35,4 +36,3 @@ public class PlcDriverFactory : IPlcDriverFactory
         };
     }
 }
-
