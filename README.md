@@ -1,5 +1,10 @@
 # PLC 数据采集系统
 
+[![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
+[![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
+[![License](https://img.shields.io/github/license/liuweichaox/DataAcquisition.svg)](LICENSE)
+[![.NET](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%202.1-512BD4?logo=dotnet)](#)
+
 **中文** | [English](README.en.md)
 
 ## 概述
