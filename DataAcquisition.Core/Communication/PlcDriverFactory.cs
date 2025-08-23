@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using HslCommunication.Core.Device;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace DataAcquisition.Core.Communication;
 
@@ -31,16 +32,11 @@ public class PlcDriverFactory : IPlcDriverFactory
 
         try
         {
-            if (_serviceProvider.GetService(driverType) is DeviceTcpNet serviceInstance)
-            {
-                serviceInstance.IpAddress = config.Host;
-                serviceInstance.Port = config.Port;
-                serviceInstance.ReceiveTimeOut = 2000;
-                serviceInstance.ConnectTimeOut = 2000;
-                return serviceInstance;
-            }
+            var instance = ActivatorUtilities.CreateInstance(_serviceProvider, driverType, config.Host, config.Port) as DeviceTcpNet
+                ?? throw new InvalidOperationException($"类型 {config.DriverType} 不是有效的 PLC 驱动。\n请确认其继承自 DeviceTcpNet。");
 
-            var instance = (DeviceTcpNet)Activator.CreateInstance(driverType, config.Host, config.Port)!;
+            instance.IpAddress = config.Host;
+            instance.Port = config.Port;
             instance.ReceiveTimeOut = 2000;
             instance.ConnectTimeOut = 2000;
             return instance;
