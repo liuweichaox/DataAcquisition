@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using HslCommunication.Core;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Inovance;
@@ -8,21 +8,21 @@ namespace DataAcquisition.Core.Communication;
 
 public class PlcDriverFactory : IPlcDriverFactory
 {
-    public DeviceTcpNet Create(DeviceConfig config)
+    public IPlcClient Create(DeviceConfig config)
     {
-        return config.DriverType switch
+        DeviceTcpNet device = config.DriverType switch
         {
             "MelsecA1ENet" => new MelsecA1ENet(config.Host, config.Port)
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000
             },
-            "MelsecA1EAsciiNet" =>new MelsecA1EAsciiNet(config.Host, config.Port) 
+            "MelsecA1EAsciiNet" => new MelsecA1EAsciiNet(config.Host, config.Port)
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000
             },
-            "InovanceTcpNet"=> new InovanceTcpNet(config.Host, config.Port)
+            "InovanceTcpNet" => new InovanceTcpNet(config.Host, config.Port)
             {
                 ReceiveTimeOut = 2000,
                 ConnectTimeOut = 2000,
@@ -34,5 +34,7 @@ public class PlcDriverFactory : IPlcDriverFactory
             },
             _ => throw new ArgumentException("Unsupported plc driver type", nameof(config.DriverType))
         };
+
+        return new HslPlcClient(device);
     }
 }
