@@ -96,17 +96,4 @@ public class MySqlDataStorage : AbstractDataStorage
             Console.WriteLine($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}");
         }
     }
-
-    public override async Task ExecuteAsync(string sql, object? param = null)
-    {
-        try
-        {
-            await using var connection = new MySqlConnection(_connectionString);
-            await connection.ExecuteAsync(sql, param);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[ERROR] execute failed: {ex.Message}\n{ex.StackTrace}");
-        }
-    }
 }
