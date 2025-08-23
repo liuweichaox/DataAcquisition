@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading.Channels;
 using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
 using DataAcquisition.Core.Messages;
@@ -17,7 +18,7 @@ public class Queue : QueueBase
     private readonly IMemoryCache _memoryCache;
     private readonly IDataProcessingService _dataProcessingService;
     private readonly IMessage _message;
-    private readonly BlockingCollection<DataMessage> _queue = new();
+    private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
 
     public Queue(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessage message)
@@ -30,12 +31,12 @@ public class Queue : QueueBase
 
     public override void EnqueueData(DataMessage dataMessage)
     {
-        _queue.Add(dataMessage);
+        _channel.Writer.TryWrite(dataMessage);
     }
 
     protected override async Task ProcessQueueAsync()
     {
-        foreach (var dataMessage in _queue.GetConsumingEnumerable())
+        await foreach (var dataMessage in _channel.Reader.ReadAllAsync())
         {
             try
             {
@@ -77,6 +78,6 @@ public class Queue : QueueBase
 
     public override void Dispose()
     {
-        _queue.CompleteAdding();
+        _channel.Writer.Complete();
     }
 }
