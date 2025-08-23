@@ -12,7 +12,6 @@ using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.QueueManagers;
 using HarmonyLib;
-using HslCommunication.Core.Device;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {
@@ -59,7 +58,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private class PlcStateManager
         {
-            public ConcurrentDictionary<string, DeviceTcpNet> PlcClients { get; } = new(); // 每个 PLC 一个客户端
+            public ConcurrentDictionary<string, IPlcClient> PlcClients { get; } = new(); // 每个 PLC 一个客户端
             public ConcurrentDictionary<string, IQueueManager> QueueManagers { get; } = new(); // 每个 PLC 一个消息都队列
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
@@ -201,7 +200,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private DeviceTcpNet CreatePlcClient(DeviceConfig config)
+        private IPlcClient CreatePlcClient(DeviceConfig config)
         {
             if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var plcClient))
             {
@@ -276,38 +275,38 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private object ReadPlcValue(DeviceTcpNet plc, string register, string dataType)
+        private object ReadPlcValue(IPlcClient plc, string register, string dataType)
         {
             return dataType switch
             {
-                "ushort" => plc.ReadUInt16(register, 1),
-                "uint" => plc.ReadUInt32(register, 1),
-                "ulong" => plc.ReadUInt64(register, 1),
-                "short" => plc.ReadInt16(register, 1),
-                "int" => plc.ReadInt32(register, 1),
-                "long" => plc.ReadInt64(register, 1),
-                "float" => plc.ReadFloat(register, 1),
-                "double" => plc.ReadDouble(register, 1),
+                "ushort" => plc.ReadUInt16(register),
+                "uint" => plc.ReadUInt32(register),
+                "ulong" => plc.ReadUInt64(register),
+                "short" => plc.ReadInt16(register),
+                "int" => plc.ReadInt32(register),
+                "long" => plc.ReadInt64(register),
+                "float" => plc.ReadFloat(register),
+                "double" => plc.ReadDouble(register),
                 _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
             };
         }
 
 
-        private dynamic? TransValue(DeviceTcpNet plcClient, byte[] buffer, int index, int length, string dataType,
+        private dynamic? TransValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             switch (dataType.ToLower())
             {
-                case "ushort": return plcClient.ByteTransform.TransUInt16(buffer, index);
-                case "uint": return plcClient.ByteTransform.TransUInt32(buffer, index);
-                case "ulong": return plcClient.ByteTransform.TransUInt64(buffer, index);
-                case "short": return plcClient.ByteTransform.TransInt16(buffer, index);
-                case "int": return plcClient.ByteTransform.TransInt32(buffer, index);
-                case "long": return plcClient.ByteTransform.TransInt64(buffer, index);
-                case "float": return plcClient.ByteTransform.TransSingle(buffer, index);
-                case "double": return plcClient.ByteTransform.TransDouble(buffer, index);
-                case "string": return plcClient.ByteTransform.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
-                case "bool": return plcClient.ByteTransform.TransBool(buffer, index);
+                case "ushort": return plcClient.TransUInt16(buffer, index);
+                case "uint": return plcClient.TransUInt32(buffer, index);
+                case "ulong": return plcClient.TransUInt64(buffer, index);
+                case "short": return plcClient.TransInt16(buffer, index);
+                case "int": return plcClient.TransInt32(buffer, index);
+                case "long": return plcClient.TransInt64(buffer, index);
+                case "float": return plcClient.TransSingle(buffer, index);
+                case "double": return plcClient.TransDouble(buffer, index);
+                case "string": return plcClient.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
+                case "bool": return plcClient.TransBool(buffer, index);
                 default: return null;
             }
         }
