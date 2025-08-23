@@ -29,11 +29,6 @@ public class DeviceConfig
     public ushort Port { get; set; }
 
     /// <summary>
-    /// 驱动类型
-    /// </summary>
-    public string DriverType { get; set; }
-
-    /// <summary>
     /// 心跳检测地址
     /// </summary>
     public string HeartbeatMonitorRegister { get; set; }

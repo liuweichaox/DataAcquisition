@@ -2,6 +2,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using HslCommunication.Core.Device;
+using HslCommunication.Profinet.Melsec;
 
 namespace DataAcquisition.Core.Communication;
 
@@ -12,9 +13,13 @@ public class HslPlcClient : IPlcClient
 {
     private readonly DeviceTcpNet _device;
 
-    public HslPlcClient(DeviceTcpNet device)
+    public HslPlcClient(DeviceConfig config)
     {
-        _device = device;
+        _device = new MelsecA1ENet(config.Host, config.Port)
+        {
+            ReceiveTimeOut = 2000,
+            ConnectTimeOut = 2000
+        };
     }
 
     public Task ConnectCloseAsync() => _device.ConnectCloseAsync();

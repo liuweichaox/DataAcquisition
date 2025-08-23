@@ -3,7 +3,6 @@
   "Code": "M01C123",
   "Host": "192.168.1.110",
   "Port": 4104,
-  "DriverType": "MelsecA1EAsciiNet",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
   "StorageType": "MySQL",
