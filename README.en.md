@@ -1,5 +1,5 @@
 # PLC Data Acquisition System
-[中文](README.md)
+[中文](README.md) | **English**
 
 ## Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
