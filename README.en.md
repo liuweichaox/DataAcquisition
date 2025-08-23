@@ -1,4 +1,4 @@
-# PLC Data Acquisition System
+# 📡 PLC Data Acquisition System
 
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
@@ -7,10 +7,10 @@
 
 [中文](README.md) | **English**
 
-## Overview
+## 📘 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
-## Key Features
+## ✨ Key Features
 - Efficient communication using the Modbus TCP protocol ensures stable data exchange.
 - Message queues such as RabbitMQ, Kafka, or a local queue handle high-throughput acquisition results.
 - Data can be stored in SQLite or various cloud databases.
@@ -21,17 +21,17 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Configuration files define table structures, column names, and sampling frequency.
 - Compatible with .NET Standard 2.0/2.1 and runs on Windows, Linux, and macOS.
 
-## Installation
+## 🛠️ Installation
 
-### Clone the repository
+### 📥 Clone the repository
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
-### Configuration files
+### ⚙️ Configuration files
 The `Configs` directory contains JSON files corresponding to database tables. Each file specifies PLC addresses, registers, data types, and other settings and may be modified as required.
 
-#### Configuration fields
+#### 📑 Configuration fields
 - **IsEnabled**: Whether the configuration is enabled.
 - **Code**: Identifier of the collector.
 - **Host**: PLC IP address.
@@ -59,7 +59,7 @@ The `Configs` directory contains JSON files corresponding to database tables. Ea
     - **DataType**: Data type of the register.
     - **EvalExpression**: Expression for value conversion, e.g. `value / 1000.0`.
 
-### Sample configuration
+### 📄 Sample configuration
 The file `Configs/M01_Metrics.json` illustrates a typical configuration.
 
 ```json
@@ -140,7 +140,7 @@ The file `Configs/M01_Metrics.json` illustrates a typical configuration.
 }
 ```
 
-## Application setup
+## 🧩 Application setup
 Register the `IDataAcquisition` instance in `Startup.cs` to manage acquisition tasks.
 
 ```csharp
@@ -155,16 +155,16 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-## API
+## 🔌 API
 
-### Get PLC connection status
+### 📡 Get PLC connection status
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 The endpoint returns a dictionary of PLC connection states.
 
-## Contribution
+## 🤝 Contribution
 Contributions are accepted via Pull Requests. Ensure all relevant tests pass and avoid breaking changes before submission.
 
-## License
+## 📄 License
 This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
 
