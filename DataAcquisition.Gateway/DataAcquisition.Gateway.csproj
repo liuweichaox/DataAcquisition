@@ -61,4 +61,15 @@
       </Content>
     </ItemGroup>
 
+    <ItemGroup>
+      <_ContentIncludedByDefault Remove="BackConfig\M01C123.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M01C456.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M04C123.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M04C456.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M05C123.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M05C456.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M06C123.json" />
+      <_ContentIncludedByDefault Remove="BackConfig\M06C456.json" />
+    </ItemGroup>
+
 </Project>
