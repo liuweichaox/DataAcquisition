@@ -17,6 +17,7 @@
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
+      "BatchSize": 1,
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -46,6 +47,7 @@
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
+      "BatchSize": 10,
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
