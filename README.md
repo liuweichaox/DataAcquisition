@@ -1,4 +1,4 @@
-# PLC 数据采集系统
+# 📡 PLC 数据采集系统
 
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
@@ -7,10 +7,10 @@
 
 **中文** | [English](README.en.md)
 
-## 概述
+## 📘 概述
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
-## 核心功能
+## ✨ 核心功能
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
 - 消息队列：可将采集结果写入 RabbitMQ、Kafka 或本地队列以处理高并发。
 - 数据存储：支持本地 SQLite 数据库及多种云端数据库。
@@ -21,17 +21,17 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 动态配置：通过配置文件定义表结构、列名和频率。
 - 多平台支持：兼容 .NET Standard 2.0 与 2.1，运行于 Windows、Linux 和 macOS。
 
-## 安装
+## 🛠️ 安装
 
-### 克隆仓库
+### 📥 克隆仓库
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
-### 配置文件
+### ⚙️ 配置文件
 `Configs` 目录包含与数据库表对应的 JSON 文件。每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
-#### 配置字段
+#### 📑 配置字段
 - **IsEnabled**：是否启用该配置。
 - **Code**：采集器标识。
 - **Host**：PLC IP 地址。
@@ -59,7 +59,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     - **DataType**：寄存器数据类型。
     - **EvalExpression**：数值转换表达式，例如 `value / 1000.0`。
 
-### 配置示例
+### 📄 配置示例
 `Configs/M01_Metrics.json` 示例展示了典型配置方式。
 
 ```json
@@ -140,7 +140,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 }
 ```
 
-## 系统配置
+## 🧩 系统配置
 在 `Startup.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
 
 ```csharp
@@ -155,16 +155,16 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-## API
+## 🔌 API
 
-### 获取 PLC 连接状态
+### 📡 获取 PLC 连接状态
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 该接口返回各 PLC 连接状态的字典。
 
-## 贡献
+## 🤝 贡献
 欢迎通过 Pull Request 提交改进。提交前请确保所有相关测试通过并避免引入破坏性修改。
 
-## 许可
+## 📄 许可
 本项目采用 MIT 许可证，详情见 [LICENSE](LICENSE)。
 
