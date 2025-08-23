@@ -20,12 +20,4 @@ public interface IDataStorage
     /// </summary>
     /// <param name="dataPoints"></param>
     Task SaveBatchAsync(List<DataMessage> dataPoints);
-
-    /// <summary>
-    /// 执行SQL
-    /// </summary>
-    /// <param name="sql"></param>
-    /// <param name="param"></param>
-    /// <returns></returns>
-    Task ExecuteAsync(string sql, object? param = null);
 }
