@@ -9,9 +9,10 @@
   "StorageType": "MySQL",
   "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
   "Modules": [
-    {
-      "ChamberCode": "M01C01",
-      "Trigger": {
+      {
+        "ChamberCode": "M01C01",
+        "RequireBatchRead": true,
+        "Trigger": {
         "Mode": "Always",
         "Register": null,
         "DataType": null
@@ -38,9 +39,10 @@
         }
       ]
     },
-    {
-      "ChamberCode": "M01C02",
-      "Trigger": {
+      {
+        "ChamberCode": "M01C02",
+        "RequireBatchRead": true,
+        "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
         "DataType": null

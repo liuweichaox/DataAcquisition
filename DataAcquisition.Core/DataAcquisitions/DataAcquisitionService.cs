@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net.NetworkInformation;
 using System.Reflection;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
@@ -149,15 +150,37 @@ namespace DataAcquisition.Core.DataAcquisitions
                                         {
                                             try
                                             {
-                                                var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
-                                                var buffer = batchData.Content;
-                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
-                                                foreach (var dataPoint in module.DataPoints)
+                                                var batchClient = plcClient as IPlcClient;
+                                                if (module.RequireBatchRead && batchClient != null && batchClient.SupportsBatchRead)
                                                 {
-                                                    var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                                    dataMessage.Values[dataPoint.ColumnName] = value;
+                                                    var batchData = batchClient.ReadBatch(module.BatchReadRegister, module.BatchReadLength);
+                                                    var buffer = batchData.Content;
+                                                    var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                                    foreach (var dataPoint in module.DataPoints)
+                                                    {
+                                                        var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                        dataMessage.Values[dataPoint.ColumnName] = value;
+                                                    }
+                                                    queueManager.EnqueueData(dataMessage);
                                                 }
-                                                queueManager.EnqueueData(dataMessage);
+                                                else
+                                                {
+                                                    if (module.RequireBatchRead && (batchClient == null || !batchClient.SupportsBatchRead))
+                                                    {
+                                                        _ = _messageService.SendAsync($"[{module.ChamberCode}:{module.TableName}]驱动不支持批量读取,已回退单点采集");
+                                                    }
+
+                                                    var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
+                                                    foreach (var dataPoint in module.DataPoints)
+                                                    {
+                                                        var address = CalcRegister(module.BatchReadRegister, dataPoint.Index);
+                                                        var len = GetByteLength(dataPoint);
+                                                        var single = plcClient.Read(address, len);
+                                                        var value = TransValue(plcClient, single.Content, 0, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                        dataMessage.Values[dataPoint.ColumnName] = value;
+                                                    }
+                                                    queueManager.EnqueueData(dataMessage);
+                                                }
                                             }
                                             catch (Exception ex)
                                             {
@@ -320,6 +343,32 @@ namespace DataAcquisition.Core.DataAcquisitions
                 case "bool": return plcClient.ByteTransform.TransBool(buffer, index);
                 default: return null;
             }
+        }
+
+        private static string CalcRegister(string baseRegister, int offset)
+        {
+            var match = Regex.Match(baseRegister, @"^(?<prefix>\D+)(?<num>\d+)$");
+            if (match.Success)
+            {
+                var prefix = match.Groups["prefix"].Value;
+                var num = int.Parse(match.Groups["num"].Value);
+                return prefix + (num + offset);
+            }
+
+            return baseRegister;
+        }
+
+        private static ushort GetByteLength(DataPoint dataPoint)
+        {
+            return (ushort)(dataPoint.DataType.ToLower() switch
+            {
+                "ushort" or "short" => 2,
+                "uint" or "int" or "float" => 4,
+                "ulong" or "long" or "double" => 8,
+                "bool" => 1,
+                "string" => dataPoint.StringByteLength,
+                _ => 2
+            });
         }
 
         /// <summary>
