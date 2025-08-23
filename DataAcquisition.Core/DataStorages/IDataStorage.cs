@@ -6,7 +6,7 @@ namespace DataAcquisition.Core.DataStorages;
 /// <summary>
 /// 数据存储服务
 /// </summary>
-public interface IDataStorageService
+public interface IDataStorage
 {
     /// <summary>
     /// 保存

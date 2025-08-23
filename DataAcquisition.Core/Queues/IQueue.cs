@@ -5,7 +5,7 @@ namespace DataAcquisition.Core.Queues;
 /// <summary>
 /// 队列接口
 /// </summary>
-public interface IQueueService : IDisposable
+public interface IQueue : IDisposable
 {
     /// <summary>
     /// 将数据添加到队列

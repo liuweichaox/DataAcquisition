@@ -10,5 +10,5 @@ public interface ICommunicationFactory
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <returns>通讯客户端</returns>
-    ICommunicationService Create(DeviceConfig config);
+    ICommunication Create(DeviceConfig config);
 }

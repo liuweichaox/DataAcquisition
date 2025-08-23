@@ -2,9 +2,9 @@ using System.Threading.Tasks;
 
 namespace DataAcquisition.Core.Queues;
 
-public abstract class QueueServiceBase : IQueueService
+public abstract class QueueBase : IQueue
 {
-    protected QueueServiceBase()
+    protected QueueBase()
     {
         Task.Run(ProcessQueueAsync);
     }

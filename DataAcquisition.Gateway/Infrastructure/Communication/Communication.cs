@@ -10,11 +10,11 @@ namespace DataAcquisition.Gateway.Infrastructure.Communication;
 /// <summary>
 /// 基于 HslCommunication 的通讯客户端适配器
 /// </summary>
-public class CommunicationService : ICommunicationService
+public class Communication : ICommunication
 {
     private readonly DeviceTcpNet _device;
 
-    public CommunicationService(DeviceConfig config)
+    public Communication(DeviceConfig config)
     {
         _device = new MelsecA1ENet(config.Host, config.Port)
         {

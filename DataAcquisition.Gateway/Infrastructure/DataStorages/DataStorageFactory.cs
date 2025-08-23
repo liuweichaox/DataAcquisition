@@ -5,8 +5,8 @@ namespace DataAcquisition.Gateway.Infrastructure.DataStorages;
 
 public class DataStorageFactory : IDataStorageFactory
 {
-    public IDataStorageService Create(DeviceConfig config)
+    public IDataStorage Create(DeviceConfig config)
     {
-        return new MySqlDataStorageService(config.ConnectionString);
+        return new MySqlDataStorage(config.ConnectionString);
     }
 }

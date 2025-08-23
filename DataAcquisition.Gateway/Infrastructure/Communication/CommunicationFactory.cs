@@ -5,8 +5,8 @@ namespace DataAcquisition.Gateway.Infrastructure.Communication;
 
 public class CommunicationFactory : ICommunicationFactory
 {
-    public ICommunicationService Create(DeviceConfig config)
+    public ICommunication Create(DeviceConfig config)
     {
-        return new CommunicationService(config);
+        return new Communication(config);
     }
 }

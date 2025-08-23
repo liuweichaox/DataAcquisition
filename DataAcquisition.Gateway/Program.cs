@@ -15,20 +15,7 @@ using DataAcquisition.Gateway.Infrastructure.DataStorages;
 using DataAcquisition.Gateway.Infrastructure.Messages;
 using DataAcquisition.Gateway.Infrastructure.Queues;
 
-var port = 5000;
-var isPortInUse = IPGlobalProperties.GetIPGlobalProperties()
-    .GetActiveTcpListeners()
-    .Any(endpoint => endpoint.Port == port);
-
-if (isPortInUse)
-{
-    Console.WriteLine("程序已在运行（端口占用），禁止重复启动！");
-    return;
-}
-
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls("http://*:5000");
-// Add services to the container.
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IMessageService, MessageService>();
@@ -49,13 +36,6 @@ var app = builder.Build();
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
-
-    const string url = "http://localhost:5000";  // 你的 API 地址
-    _ = Task.Delay(2000).ContinueWith(_ => Process.Start(new ProcessStartInfo
-    {
-        FileName = url,
-        UseShellExecute = true
-    }));
 }
 
 app.MapHub<DataHub>("/dataHub");

@@ -56,8 +56,8 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private class PlcStateManager
         {
-            public ConcurrentDictionary<string, ICommunicationService> PlcClients { get; } = new(); // 每个 PLC 一个客户端
-            public ConcurrentDictionary<string, IQueueService> Queues { get; } = new(); // 每个 PLC 一个消息都队列
+            public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new(); // 每个 PLC 一个客户端
+            public ConcurrentDictionary<string, IQueue> Queues { get; } = new(); // 每个 PLC 一个消息都队列
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
@@ -198,7 +198,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private ICommunicationService CreateCommunicationClient(DeviceConfig config)
+        private ICommunication CreateCommunicationClient(DeviceConfig config)
         {
             if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
             {
@@ -273,7 +273,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private object ReadCommunicationValue(ICommunicationService client, string register, string dataType)
+        private object ReadCommunicationValue(ICommunication client, string register, string dataType)
         {
             return dataType switch
             {
@@ -290,7 +290,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         }
 
 
-        private dynamic? TransValue(ICommunicationService client, byte[] buffer, int index, int length, string dataType,
+        private dynamic? TransValue(ICommunication client, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             switch (dataType.ToLower())

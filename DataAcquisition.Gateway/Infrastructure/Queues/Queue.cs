@@ -11,18 +11,18 @@ namespace DataAcquisition.Gateway.Infrastructure.Queues;
 /// <summary>
 /// 消息队列实现
 /// </summary>
-public class QueueService : QueueServiceBase
+public class Queue : QueueBase
 {
-    private readonly IDataStorageService _dataStorageService;
+    private readonly IDataStorage _dataStorage;
     private readonly IMemoryCache _memoryCache;
     private readonly IDataProcessingService _dataProcessingService;
     private readonly IMessageService _messageService;
     private readonly BlockingCollection<DataMessage> _queue = new();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
 
-    public QueueService(IDataStorageService dataStorageService, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessageService messageService)
+    public Queue(IDataStorage dataStorage, IMemoryCache memoryCache, IDataProcessingService dataProcessingService, IMessageService messageService)
     {
-        _dataStorageService = dataStorageService;
+        _dataStorage = dataStorage;
         _memoryCache = memoryCache;
         _dataProcessingService = dataProcessingService;
         _messageService = messageService;
@@ -52,14 +52,14 @@ public class QueueService : QueueServiceBase
         {
             if (kv.Value.Any())
             {
-                await _dataStorageService.SaveBatchAsync(kv.Value);
+                await _dataStorage.SaveBatchAsync(kv.Value);
             }
         }
     }
 
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        await _dataStorageService.SaveAsync(dataMessage);
+        await _dataStorage.SaveAsync(dataMessage);
     }
 
     public override void Dispose()

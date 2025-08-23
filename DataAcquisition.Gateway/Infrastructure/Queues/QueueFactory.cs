@@ -29,11 +29,11 @@ public class QueueFactory : IQueueFactory
         _messageService = messageService;
     }
 
-    public IQueueService Create(DeviceConfig deviceConfig)
+    public IQueue Create(DeviceConfig deviceConfig)
     {
         var dataStorage = _dataStorageFactory.Create(deviceConfig);
 
-        return new QueueService(
+        return new Queue(
             dataStorage,
             _memoryCache,
             _dataProcessingService,

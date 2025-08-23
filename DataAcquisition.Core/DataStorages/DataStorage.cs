@@ -3,9 +3,9 @@ using System.Threading.Tasks;
 
 namespace DataAcquisition.Core.DataStorages;
 
-public abstract class DataStorageService : IDataStorageService
+public abstract class DataStorage : IDataStorage
 {
-    protected DataStorageService(string connectionString)
+    protected DataStorage(string connectionString)
     {
     }
 
