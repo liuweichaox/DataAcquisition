@@ -41,16 +41,6 @@ namespace DataAcquisition.Core.DataAcquisitions
             _plcDriverFactory = plcDriverFactory;
             _queueManagerFactory = queueManagerFactory;
             _messageService = messageService;
-
-            // 获取目标方法
-            var harmony = new Harmony("simple.hsl.bypass");
-            var type = Type.GetType("HslCommunication.Authorization, HslCommunication");
-            var method = type?.GetMethod("nzugaydgwadawdibbas", BindingFlags.NonPublic | BindingFlags.Static);
-            // 注入 Patch
-            harmony.Patch(method, prefix: new HarmonyMethod(ByPassAuth));
-            // 测试验证
-            var result = (bool?)method?.Invoke(null, null);
-            Console.WriteLine($"授权是否成功：{result}");  // 应该输出 true
         }
 
         /// <summary>
