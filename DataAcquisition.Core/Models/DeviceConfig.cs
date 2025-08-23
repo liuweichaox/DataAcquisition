@@ -111,22 +111,27 @@ public class Trigger
 /// <summary>
 /// 模块
 /// </summary>
-public class Module
-{
-    /// <summary>
-    /// 腔室编号
-    /// </summary>
-    public string ChamberCode { get; set; }
+    public class Module
+    {
+        /// <summary>
+        /// 腔室编号
+        /// </summary>
+        public string ChamberCode { get; set; }
 
-    /// <summary>
-    /// 触发配置
-    /// </summary>
-    public Trigger Trigger { get; set; }
+        /// <summary>
+        /// 触发配置
+        /// </summary>
+        public Trigger Trigger { get; set; }
 
-    /// <summary>
-    /// 批量读取地址
-    /// </summary>
-    public string BatchReadRegister { get; set; }
+        /// <summary>
+        /// 是否要求批量读取
+        /// </summary>
+        public bool RequireBatchRead { get; set; } = true;
+
+        /// <summary>
+        /// 批量读取地址
+        /// </summary>
+        public string BatchReadRegister { get; set; }
 
     /// <summary>
     /// 批量读取长度
