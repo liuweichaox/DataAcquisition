@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 namespace DataAcquisition.Core.Communication;
 
 /// <summary>
-/// PLC 客户端通用接口，封装具体协议实现。
+/// 通讯客户端通用接口，封装具体协议实现。
 /// </summary>
-public interface IPlcClient
+public interface ICommunication
 {
     /// <summary>
     /// 关闭连接。
@@ -24,14 +24,14 @@ public interface IPlcClient
     /// </summary>
     /// <param name="address">寄存器地址</param>
     /// <param name="value">值</param>
-    Task<PlcWriteResult> WriteAsync(string address, int value);
+    Task<CommunicationWriteResult> WriteAsync(string address, int value);
 
     /// <summary>
     /// 批量读取原始数据。
     /// </summary>
     /// <param name="address">起始地址</param>
     /// <param name="length">长度</param>
-    PlcReadResult Read(string address, ushort length);
+    CommunicationReadResult Read(string address, ushort length);
 
     ushort ReadUInt16(string address);
     uint ReadUInt32(string address);
@@ -57,7 +57,7 @@ public interface IPlcClient
 /// <summary>
 /// 读取结果
 /// </summary>
-public class PlcReadResult
+public class CommunicationReadResult
 {
     public bool IsSuccess { get; set; }
     public byte[] Content { get; set; } = System.Array.Empty<byte>();
@@ -67,7 +67,7 @@ public class PlcReadResult
 /// <summary>
 /// 写入结果
 /// </summary>
-public class PlcWriteResult
+public class CommunicationWriteResult
 {
     public bool IsSuccess { get; set; }
     public string Message { get; set; } = string.Empty;

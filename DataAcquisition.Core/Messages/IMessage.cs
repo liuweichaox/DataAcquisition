@@ -2,7 +2,7 @@
 
 namespace DataAcquisition.Core.Messages;
 
-public interface IMessageService
+public interface IMessage
 {
     Task SendAsync(string message);
 }

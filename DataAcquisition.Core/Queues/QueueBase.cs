@@ -1,10 +1,11 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
+using DataAcquisition.Core.Messages;
 
-namespace DataAcquisition.Core.QueueManagers;
+namespace DataAcquisition.Core.Queues;
 
-public abstract class AbstractQueueManager : IQueueManager
+public abstract class QueueBase : IQueue
 {
-    protected AbstractQueueManager()
+    protected QueueBase()
     {
         Task.Run(ProcessQueueAsync);
     }

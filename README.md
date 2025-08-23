@@ -141,16 +141,16 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 }
 ```
 
-## ⚙️ 配置 `DataAcquisitionService`
+## ⚙️ 配置 `DataAcquisition`
 
-在 `Startup.cs` 中配置 `IDataAcquisitionService` 实例，负责管理数据采集任务。
+在 `Startup.cs` 中配置 `IDataAcquisition` 实例，负责管理数据采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IMessageService, MessageService>(); // 消息服务
-builder.Services.AddSingleton<IPlcDriverFactory, PlcDriverFactory>(); // PLC 驱动工厂
+builder.Services.AddSingleton<IMessage, Message>(); // 消息服务
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>(); // 通讯工厂
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>(); // 数据存储工厂
-builder.Services.AddSingleton<IQueueManagerFactory, QueueManagerFactory>(); // 消息队列工厂
-builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>(); // 数据采集服务
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>(); // 消息队列工厂
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>(); // 数据采集服务
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>(); // 数据处理服务
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>(); // 设备配置服务
 

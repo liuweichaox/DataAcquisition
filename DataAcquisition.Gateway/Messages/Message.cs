@@ -5,12 +5,12 @@ using Microsoft.AspNetCore.SignalR;
 
 namespace DataAcquisition.Gateway.Messages;
 
-public class MessageService: IMessageService
+public class Message : IMessage
 {
     private readonly IHubContext<DataHub> _hubContext;
     private readonly ILogNet _logger;
 
-    public MessageService(IHubContext<DataHub> hubContext)
+    public Message(IHubContext<DataHub> hubContext)
     {
         _hubContext = hubContext;
         _logger = new LogNetDateTime("Logs", GenerateMode.ByEveryDay);

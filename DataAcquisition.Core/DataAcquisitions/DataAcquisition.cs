@@ -9,35 +9,35 @@ using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
-using DataAcquisition.Core.QueueManagers;
+using DataAcquisition.Core.Queues;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {
 
     /// <summary>
-    /// 数据采集器
+    /// 数据采集器实现
     /// </summary>
-    public class DataAcquisitionService : IDataAcquisitionService
+    public class DataAcquisition : IDataAcquisition
     {
         private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
-        private readonly IPlcDriverFactory _plcDriverFactory;
-        private readonly IQueueManagerFactory _queueManagerFactory;
-        private readonly IMessageService _messageService;
+        private readonly ICommunicationFactory _communicationFactory;
+        private readonly IQueueFactory _queueFactory;
+        private readonly IMessage _message;
 
         /// <summary>
         /// 数据采集器
         /// </summary>
-        public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-            IPlcDriverFactory plcDriverFactory,
-            IQueueManagerFactory queueManagerFactory,
-            IMessageService messageService)
+        public DataAcquisition(IDeviceConfigService deviceConfigService,
+            ICommunicationFactory communicationFactory,
+            IQueueFactory queueFactory,
+            IMessage message)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
-            _plcDriverFactory = plcDriverFactory;
-            _queueManagerFactory = queueManagerFactory;
-            _messageService = messageService;
+            _communicationFactory = communicationFactory;
+            _queueFactory = queueFactory;
+            _message = message;
         }
 
         /// <summary>
@@ -56,8 +56,8 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private class PlcStateManager
         {
-            public ConcurrentDictionary<string, IPlcClient> PlcClients { get; } = new(); // 每个 PLC 一个客户端
-            public ConcurrentDictionary<string, IQueueManager> QueueManagers { get; } = new(); // 每个 PLC 一个消息都队列
+            public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new(); // 每个 PLC 一个客户端
+            public ConcurrentDictionary<string, IQueue> Queues { get; } = new(); // 每个 PLC 一个消息都队列
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
@@ -67,7 +67,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             public void Clear()
             {
                 PlcClients.Clear();
-                QueueManagers.Clear();
+                Queues.Clear();
                 PlcConnectionHealth.Clear();
                 DataTasks.Clear();
                 HeartbeatTasks.Clear();
@@ -106,9 +106,9 @@ namespace DataAcquisition.Core.DataAcquisitions
                 try
                 {
                     // 初始化 PLC 客户端和队列管理器
-                    var plcClient = CreatePlcClient(config);
+                    var client = CreateCommunicationClient(config);
 
-                    var queueManager = _plcStateManager.QueueManagers.GetOrAdd(config.Code, _ => _queueManagerFactory.Create(config));
+                    var queue = _plcStateManager.Queues.GetOrAdd(config.Code, _ => _queueFactory.Create(config));
 
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
@@ -131,24 +131,24 @@ namespace DataAcquisition.Core.DataAcquisitions
                                     lock (_plcStateManager.PlcLocks[config.Code])
                                     {
                                         currVal = trigger.Mode == TriggerMode.Always ? null :
-                                                ReadPlcValue(plcClient, trigger.Register, trigger.DataType);
+                                                ReadCommunicationValue(client, trigger.Register, trigger.DataType);
                                         if (ShouldSample(trigger.Mode, prevVal, currVal))
                                         {
                                             try
                                             {
-                                                var batchData = plcClient.Read(module.BatchReadRegister, module.BatchReadLength);
+                                                var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
                                                 var buffer = batchData.Content;
                                                 var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.DataPoints);
                                                 foreach (var dataPoint in module.DataPoints)
                                                 {
-                                                    var value = TransValue(plcClient, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                    var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                     dataMessage.Values[dataPoint.ColumnName] = value;
                                                 }
-                                                queueManager.EnqueueData(dataMessage);
+                                                queue.EnqueueData(dataMessage);
                                             }
                                             catch (Exception ex)
                                             {
-                                                _ = _messageService.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
+                                                _ = _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
                                             }
                                             prevVal = currVal;
                                         }
@@ -165,7 +165,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 }
                 catch (Exception ex)
                 {
-                    await _messageService.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
+                    await _message.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
                 }
             }, cts.Token);
 
@@ -198,17 +198,17 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private IPlcClient CreatePlcClient(DeviceConfig config)
+        private ICommunication CreateCommunicationClient(DeviceConfig config)
         {
-            if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var plcClient))
+            if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
             {
-                return plcClient;
+                return client;
             }
 
-            plcClient = _plcDriverFactory.Create(config);
-            _plcStateManager.PlcClients.TryAdd(config.Code, plcClient);
+            client = _communicationFactory.Create(config);
+            _plcStateManager.PlcClients.TryAdd(config.Code, client);
             _plcStateManager.PlcLocks.TryAdd(config.Code, new object());
-            return plcClient;
+            return client;
         }
 
         /// <summary>
@@ -228,32 +228,32 @@ namespace DataAcquisition.Core.DataAcquisitions
                 {
                     try
                     {
-                        var plcClient = _plcStateManager.PlcClients[config.Code];
-                        var pingResult = await Task.Run(() => plcClient.IpAddressPing());
+                        var client = _plcStateManager.PlcClients[config.Code];
+                        var pingResult = await Task.Run(() => client.IpAddressPing());
                         if (pingResult != IPStatus.Success)
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _messageService.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
+                            await _message.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
                             continue;
                         }
 
-                        var connect = await plcClient.WriteAsync(config.HeartbeatMonitorRegister, writeData);
+                        var connect = await client.WriteAsync(config.HeartbeatMonitorRegister, writeData);
                         if (connect.IsSuccess)
                         {
                             writeData ^= 1;
                             _plcStateManager.PlcConnectionHealth[config.Code] = true;
-                            await _messageService.SendAsync($"心跳正常：设备 {config.Code}");
+                            await _message.SendAsync($"心跳正常：设备 {config.Code}");
                         }
                         else
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _messageService.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
+                            await _message.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
                         }
                     }
                     catch (Exception ex)
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _messageService.SendAsync(
+                        await _message.SendAsync(
                             $"系统异常：设备 {config.Code}，异常信息: {ex.Message}，StackTrace: {ex.StackTrace}");
                     }
                     finally
@@ -273,38 +273,38 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private object ReadPlcValue(IPlcClient plc, string register, string dataType)
+        private object ReadCommunicationValue(ICommunication client, string register, string dataType)
         {
             return dataType switch
             {
-                "ushort" => plc.ReadUInt16(register),
-                "uint" => plc.ReadUInt32(register),
-                "ulong" => plc.ReadUInt64(register),
-                "short" => plc.ReadInt16(register),
-                "int" => plc.ReadInt32(register),
-                "long" => plc.ReadInt64(register),
-                "float" => plc.ReadFloat(register),
-                "double" => plc.ReadDouble(register),
+                "ushort" => client.ReadUInt16(register),
+                "uint" => client.ReadUInt32(register),
+                "ulong" => client.ReadUInt64(register),
+                "short" => client.ReadInt16(register),
+                "int" => client.ReadInt32(register),
+                "long" => client.ReadInt64(register),
+                "float" => client.ReadFloat(register),
+                "double" => client.ReadDouble(register),
                 _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
             };
         }
 
 
-        private dynamic? TransValue(IPlcClient plcClient, byte[] buffer, int index, int length, string dataType,
+        private dynamic? TransValue(ICommunication client, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             switch (dataType.ToLower())
             {
-                case "ushort": return plcClient.TransUInt16(buffer, index);
-                case "uint": return plcClient.TransUInt32(buffer, index);
-                case "ulong": return plcClient.TransUInt64(buffer, index);
-                case "short": return plcClient.TransInt16(buffer, index);
-                case "int": return plcClient.TransInt32(buffer, index);
-                case "long": return plcClient.TransInt64(buffer, index);
-                case "float": return plcClient.TransSingle(buffer, index);
-                case "double": return plcClient.TransDouble(buffer, index);
-                case "string": return plcClient.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
-                case "bool": return plcClient.TransBool(buffer, index);
+                case "ushort": return client.TransUInt16(buffer, index);
+                case "uint": return client.TransUInt32(buffer, index);
+                case "ulong": return client.TransUInt64(buffer, index);
+                case "short": return client.TransInt16(buffer, index);
+                case "int": return client.TransInt32(buffer, index);
+                case "long": return client.TransInt64(buffer, index);
+                case "float": return client.TransSingle(buffer, index);
+                case "double": return client.TransDouble(buffer, index);
+                case "string": return client.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
+                case "bool": return client.TransBool(buffer, index);
                 default: return null;
             }
         }
@@ -346,15 +346,15 @@ namespace DataAcquisition.Core.DataAcquisitions
 
 
             // 关闭并清理所有 PLC 客户端
-            foreach (var plcClient in _plcStateManager.PlcClients.Values)
+            foreach (var client in _plcStateManager.PlcClients.Values)
             {
-                await plcClient.ConnectCloseAsync();
+                await client.ConnectCloseAsync();
             }
 
             // 完成并清理队列管理器
-            foreach (var queueManager in _plcStateManager.QueueManagers.Values)
+            foreach (var queue in _plcStateManager.Queues.Values)
             {
-                queueManager.Dispose();
+                queue.Dispose();
             }
 
             _plcStateManager.Clear();
