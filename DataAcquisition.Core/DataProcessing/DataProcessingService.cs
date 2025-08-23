@@ -1,10 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Dapper;
 using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Utils;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using MySqlConnector;
 using NCalc;
 
 namespace DataAcquisition.Core.DataProcessing;
