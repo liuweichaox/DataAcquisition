@@ -33,7 +33,7 @@ The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspon
 
 #### 📑 Configuration structure
 
-Configuration files use JSON format; the structure is illustrated below:
+Configuration files use JSON format; the structure is described below using YAML:
 
 ```yaml
 # Configuration structure (for illustration only)
@@ -47,9 +47,9 @@ ConnectionString: string        # Database connection string
 Modules:                        # Array of acquisition module definitions
   - ChamberCode: string         # Channel identifier
     Trigger:                    # Trigger settings
-      Mode: string              # Trigger mode
+      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode; RisingEdge fires on 0→1, FallingEdge on 1→0
       Register: string          # Trigger register address
-      DataType: string          # Trigger register data type
+      DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
     BatchReadRegister: string   # Start register for batch reading
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
@@ -58,54 +58,47 @@ Modules:                        # Array of acquisition module definitions
       - ColumnName: string      # Column name in the database
         Index: int              # Register index
         StringByteLength: int   # Byte length for string values
-        Encoding: string        # Character encoding
-        DataType: string        # Data type of the register
-        EvalExpression: string  # Expression for value conversion
+        Encoding: UTF8|GB2312|GBK|ASCII # Character encoding
+        DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # Data type of the register
+        EvalExpression: string  # Expression for value conversion, use 'value' for the raw value, e.g., "value / 1000.0"
 ```
+#### 📚 Enum descriptions
 
-##### Module
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `ChamberCode` | `string` | Channel identifier. |
-| `Trigger` | `TriggerConfig` | Trigger settings. |
-| `BatchReadRegister` | `string` | Start register for batch reading. |
-| `BatchReadLength` | `int` | Number of registers to read. |
-| `TableName` | `string` | Target database table. |
-| `BatchSize` | `int` | Number of records per batch (`1` inserts one by one). |
-| `DataPoints` | `DataPoint[]` | Data point configuration. |
-
-##### TriggerConfig
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `Mode` | `string` | Trigger mode. |
-| `Register` | `string` | Trigger register address. |
-| `DataType` | `string` | Data type of the trigger register. |
-
-##### DataPoint
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `ColumnName` | `string` | Column name in the database. |
-| `Index` | `int` | Register index. |
-| `StringByteLength` | `int` | Byte length for string values. |
-| `Encoding` | `string` | Character encoding. |
-| `DataType` | `string` | Data type of the register. |
-| `EvalExpression` | `string` | Expression for value conversion, e.g. `value / 1000.0`. |
-
-#### 📚 Enumeration reference
 - **Trigger.Mode**
   - `Always`: always sample.
   - `ValueIncrease`: sample when the register value increases.
   - `ValueDecrease`: sample when the register value decreases.
-  - `RisingEdge`: sample on a rising edge (0 → 1).
-  - `FallingEdge`: sample on a falling edge (1 → 0).
-- **DataType**
-  - `Trigger.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`.
-  - `DataPoints.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
+  - `RisingEdge`: fires when the register changes from 0 to 1.
+  - `FallingEdge`: fires when the register changes from 1 to 0.
+- **Trigger.DataType**
+  - `ushort`: unsigned 16-bit integer.
+  - `uint`: unsigned 32-bit integer.
+  - `ulong`: unsigned 64-bit integer.
+  - `short`: signed 16-bit integer.
+  - `int`: signed 32-bit integer.
+  - `long`: signed 64-bit integer.
+  - `float`: 32-bit floating point.
+  - `double`: 64-bit floating point.
+- **DataPoints.DataType**
+  - `ushort`: unsigned 16-bit integer.
+  - `uint`: unsigned 32-bit integer.
+  - `ulong`: unsigned 64-bit integer.
+  - `short`: signed 16-bit integer.
+  - `int`: signed 32-bit integer.
+  - `long`: signed 64-bit integer.
+  - `float`: 32-bit floating point.
+  - `double`: 64-bit floating point.
+  - `string`: string value.
+  - `bool`: boolean value.
 - **Encoding**
-  - `UTF8`, `GB2312`, `GBK`, `ASCII`.
+  - `UTF8`: UTF-8 encoding.
+  - `GB2312`: GB2312 encoding.
+  - `GBK`: GBK encoding.
+  - `ASCII`: ASCII encoding.
+
+#### EvalExpression usage
+
+`EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, to scale the value by 1/1000, set `"value / 1000.0"`. Leave it empty to skip conversion.
 
 ### 📄 Sample configuration
 The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.
