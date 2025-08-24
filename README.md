@@ -60,6 +60,46 @@ Modules:                        # 采集模块配置数组
         StringByteLength: int   # 字符串字节长度
         Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
+        EvalExpression: string  # 数值转换表达式，使用变量 value 表示原始值，如 "value / 1000.0"
+```
+#### 📚 枚举值说明
+
+- **Trigger.Mode**
+  - `Always`：始终采样。
+  - `ValueIncrease`：当寄存器值增加时采样。
+  - `ValueDecrease`：当寄存器值减少时采样。
+  - `RisingEdge`：寄存器从 0 变为 1 时采样。
+  - `FallingEdge`：寄存器从 1 变为 0 时采样。
+- **Trigger.DataType**
+  - `ushort`：16 位无符号整数。
+  - `uint`：32 位无符号整数。
+  - `ulong`：64 位无符号整数。
+  - `short`：16 位有符号整数。
+  - `int`：32 位有符号整数。
+  - `long`：64 位有符号整数。
+  - `float`：32 位浮点数。
+  - `double`：64 位浮点数。
+- **DataPoints.DataType**
+  - `ushort`：16 位无符号整数。
+  - `uint`：32 位无符号整数。
+  - `ulong`：64 位无符号整数。
+  - `short`：16 位有符号整数。
+  - `int`：32 位有符号整数。
+  - `long`：64 位有符号整数。
+  - `float`：32 位浮点数。
+  - `double`：64 位浮点数。
+  - `string`：字符串。
+  - `bool`：布尔值。
+- **Encoding**
+  - `UTF8`：UTF-8 编码。
+  - `GB2312`：GB2312 编码。
+  - `GBK`：GBK 编码。
+  - `ASCII`：ASCII 编码。
+
+#### EvalExpression 用法
+
+`EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始数值，并支持基本算术运算，例如 `value / 1000.0`。若留空字符串，则不进行任何转换。
+=======
         EvalExpression: string  # 数值转换表达式
 ```
 

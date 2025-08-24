@@ -60,9 +60,46 @@ Modules:                        # Array of acquisition module definitions
         StringByteLength: int   # Byte length for string values
         Encoding: UTF8|GB2312|GBK|ASCII # Character encoding
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # Data type of the register
-        EvalExpression: string  # Expression for value conversion
+        EvalExpression: string  # Expression for value conversion, use 'value' for the raw value, e.g., "value / 1000.0"
 ```
+#### 📚 Enum descriptions
 
+- **Trigger.Mode**
+  - `Always`: always sample.
+  - `ValueIncrease`: sample when the register value increases.
+  - `ValueDecrease`: sample when the register value decreases.
+  - `RisingEdge`: fires when the register changes from 0 to 1.
+  - `FallingEdge`: fires when the register changes from 1 to 0.
+- **Trigger.DataType**
+  - `ushort`: unsigned 16-bit integer.
+  - `uint`: unsigned 32-bit integer.
+  - `ulong`: unsigned 64-bit integer.
+  - `short`: signed 16-bit integer.
+  - `int`: signed 32-bit integer.
+  - `long`: signed 64-bit integer.
+  - `float`: 32-bit floating point.
+  - `double`: 64-bit floating point.
+- **DataPoints.DataType**
+  - `ushort`: unsigned 16-bit integer.
+  - `uint`: unsigned 32-bit integer.
+  - `ulong`: unsigned 64-bit integer.
+  - `short`: signed 16-bit integer.
+  - `int`: signed 32-bit integer.
+  - `long`: signed 64-bit integer.
+  - `float`: 32-bit floating point.
+  - `double`: 64-bit floating point.
+  - `string`: string value.
+  - `bool`: boolean value.
+- **Encoding**
+  - `UTF8`: UTF-8 encoding.
+  - `GB2312`: GB2312 encoding.
+  - `GBK`: GBK encoding.
+  - `ASCII`: ASCII encoding.
+
+#### EvalExpression usage
+
+`EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, to scale the value by 1/1000, set `"value / 1000.0"`. Leave it empty to skip conversion.
+=======
 #### Enum descriptions
 
 - **Trigger.Mode**
