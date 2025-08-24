@@ -33,7 +33,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 
 #### 📑 配置结构说明
 
-配置文件使用 JSON 格式，结构如下：
+配置文件使用 JSON 格式，结构如下（以 YAML 描述）：
 
 ```yaml
 # 配置结构说明（仅用于展示）
@@ -47,9 +47,9 @@ ConnectionString: string        # 数据库连接字符串
 Modules:                        # 采集模块配置数组
   - ChamberCode: string         # 采集通道编码
     Trigger:                    # 触发配置
-      Mode: string              # 触发模式
+      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # 触发模式
       Register: string          # 触发寄存器地址
-      DataType: string          # 触发寄存器数据类型
+      DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
     BatchReadRegister: string   # 批量读取寄存器地址
     BatchReadLength: int        # 批量读取长度
     TableName: string           # 数据库表名
@@ -58,54 +58,37 @@ Modules:                        # 采集模块配置数组
       - ColumnName: string      # 数据库列名
         Index: int              # 寄存器索引
         StringByteLength: int   # 字符串字节长度
-        Encoding: string        # 编码方式
-        DataType: string        # 寄存器数据类型
+        Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
+        DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
         EvalExpression: string  # 数值转换表达式
 ```
 
-##### Module
+#### 枚举值说明
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `ChamberCode` | `string` | 采集通道代码。 |
-| `Trigger` | `TriggerConfig` | 触发配置。 |
-| `BatchReadRegister` | `string` | 批量读取寄存器地址。 |
-| `BatchReadLength` | `int` | 批量读取长度。 |
-| `TableName` | `string` | 数据库表名。 |
-| `BatchSize` | `int` | 批量保存大小，`1` 表示逐条保存。 |
-| `DataPoints` | `DataPoint[]` | 数据配置。 |
-
-##### TriggerConfig
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `Mode` | `string` | 触发模式。 |
-| `Register` | `string` | 触发寄存器地址。 |
-| `DataType` | `string` | 触发寄存器数据类型。 |
-
-##### DataPoint
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `ColumnName` | `string` | 数据库列名。 |
-| `Index` | `int` | 寄存器索引。 |
-| `StringByteLength` | `int` | 字符串字节长度。 |
-| `Encoding` | `string` | 编码方式。 |
-| `DataType` | `string` | 寄存器数据类型。 |
-| `EvalExpression` | `string` | 数值转换表达式，例如 `value / 1000.0`。 |
-
-#### 📚 枚举值说明
 - **Trigger.Mode**
-  - `Always`：始终采样。
-  - `ValueIncrease`：当寄存器值增加时采样。
-  - `ValueDecrease`：当寄存器值减少时采样。
-  - `RisingEdge`：寄存器从 0 变为 1 时采样。
-  - `FallingEdge`：寄存器从 1 变为 0 时采样。
-- **DataType**
-  - `Trigger.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`。
-  - `DataPoints.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
-- **Encoding**
-  - `UTF8`、`GB2312`、`GBK`、`ASCII`。
+  - `Always`：始终采集，不依赖寄存器值变化
+  - `ValueIncrease`：寄存器值增加时触发
+  - `ValueDecrease`：寄存器值减少时触发
+  - `RisingEdge`：寄存器值由低到高跳变时触发
+  - `FallingEdge`：寄存器值由高到低跳变时触发
+
+- **DataPoints.Encoding**
+  - `UTF8`：UTF-8 编码
+  - `GB2312`：GB2312 中文编码
+  - `GBK`：GBK 中文编码
+  - `ASCII`：ASCII 编码
+
+- **DataType**：寄存器数据类型
+  - `ushort`：无符号 16 位整数
+  - `uint`：无符号 32 位整数
+  - `ulong`：无符号 64 位整数
+  - `short`：有符号 16 位整数
+  - `int`：有符号 32 位整数
+  - `long`：有符号 64 位整数
+  - `float`：单精度浮点数
+  - `double`：双精度浮点数
+  - `string`：字符串（仅用于 DataPoints）
+  - `bool`：布尔值（仅用于 DataPoints）
 
 ### 📄 配置示例
 `DataAcquisition.Gateway/Configs/M01C123.json` 展示了典型配置：
