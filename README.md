@@ -31,18 +31,37 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 ### ⚙️ 配置文件
 `DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件。每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
-#### 📑 配置字段
+#### 📑 配置结构说明
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `IsEnabled` | `bool` | 是否启用该配置。 |
-| `Code` | `string` | PLC 编码。 |
-| `Host` | `string` | PLC IP 地址。 |
-| `Port` | `int` | PLC 通讯端口。 |
-| `HeartbeatMonitorRegister` | `string` | 心跳监控寄存器地址。 |
-| `HeartbeatPollingInterval` | `int` | 心跳轮询间隔（毫秒）。 |
-| `ConnectionString` | `string` | 数据库连接字符串。 |
-| `Modules` | `Module[]` | 采集模块定义。 |
+配置文件使用 JSON 格式，结构如下：
+
+```yaml
+# 配置结构说明（仅用于展示）
+IsEnabled: true                 # 是否启用
+Code: string                    # PLC编码
+Host: string                    # PLC IP地址
+Port: number                    # PLC通讯端口
+HeartbeatMonitorRegister: string # [可选] 心跳监控寄存器地址
+HeartbeatPollingInterval: number # [可选] 心跳轮询间隔（毫秒）
+ConnectionString: string        # 数据库连接字符串
+Modules:                        # 采集模块配置数组
+  - ChamberCode: string         # 采集通道编码
+    Trigger:                    # 触发配置
+      Mode: string              # 触发模式
+      Register: string          # 触发寄存器地址
+      DataType: string          # 触发寄存器数据类型
+    BatchReadRegister: string   # 批量读取寄存器地址
+    BatchReadLength: int        # 批量读取长度
+    TableName: string           # 数据库表名
+    BatchSize: int              # 批量保存大小，1 表示逐条保存
+    DataPoints:                 # 数据配置
+      - ColumnName: string      # 数据库列名
+        Index: int              # 寄存器索引
+        StringByteLength: int   # 字符串字节长度
+        Encoding: string        # 编码方式
+        DataType: string        # 寄存器数据类型
+        EvalExpression: string  # 数值转换表达式
+```
 
 ##### Module
 
@@ -82,8 +101,9 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   - `ValueDecrease`：当寄存器值减少时采样。
   - `RisingEdge`：寄存器从 0 变为 1 时采样。
   - `FallingEdge`：寄存器从 1 变为 0 时采样。
-- **DataType**（用于 `Trigger.DataType` 和 `DataPoints.DataType`）
-  - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
+- **DataType**
+  - `Trigger.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`。
+  - `DataPoints.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
 - **Encoding**
   - `UTF8`、`GB2312`、`GBK`、`ASCII`。
 

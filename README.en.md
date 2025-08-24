@@ -31,18 +31,37 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 ### ⚙️ Configuration files
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings and can be adjusted as needed.
 
-#### 📑 Configuration fields
+#### 📑 Configuration structure
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `IsEnabled` | `bool` | Whether the configuration is enabled. |
-| `Code` | `string` | PLC identifier. |
-| `Host` | `string` | PLC IP address. |
-| `Port` | `int` | PLC port. |
-| `HeartbeatMonitorRegister` | `string` | Register address for heartbeat monitoring. |
-| `HeartbeatPollingInterval` | `int` | Heartbeat polling interval in milliseconds. |
-| `ConnectionString` | `string` | Database connection string. |
-| `Modules` | `Module[]` | Acquisition modules. |
+Configuration files use JSON format; the structure is illustrated below:
+
+```yaml
+# Configuration structure (for illustration only)
+IsEnabled: true                 # Whether this configuration is enabled
+Code: string                    # Unique PLC identifier
+Host: string                    # PLC IP address
+Port: number                    # PLC communication port
+HeartbeatMonitorRegister: string # [Optional] Register address for heartbeat monitoring
+HeartbeatPollingInterval: number # [Optional] Heartbeat polling interval (milliseconds)
+ConnectionString: string        # Database connection string
+Modules:                        # Array of acquisition module definitions
+  - ChamberCode: string         # Channel identifier
+    Trigger:                    # Trigger settings
+      Mode: string              # Trigger mode
+      Register: string          # Trigger register address
+      DataType: string          # Trigger register data type
+    BatchReadRegister: string   # Start register for batch reading
+    BatchReadLength: int        # Number of registers to read
+    TableName: string           # Target database table
+    BatchSize: int              # Number of records per batch (1 inserts one by one)
+    DataPoints:                 # Data point configuration
+      - ColumnName: string      # Column name in the database
+        Index: int              # Register index
+        StringByteLength: int   # Byte length for string values
+        Encoding: string        # Character encoding
+        DataType: string        # Data type of the register
+        EvalExpression: string  # Expression for value conversion
+```
 
 ##### Module
 
@@ -82,8 +101,9 @@ The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspon
   - `ValueDecrease`: sample when the register value decreases.
   - `RisingEdge`: sample on a rising edge (0 → 1).
   - `FallingEdge`: sample on a falling edge (1 → 0).
-- **DataType** (for `Trigger.DataType` and `DataPoints.DataType`)
-  - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
+- **DataType**
+  - `Trigger.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`.
+  - `DataPoints.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`.
 
