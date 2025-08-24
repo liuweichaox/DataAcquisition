@@ -29,38 +29,48 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
 ### ⚙️ Configuration files
-The `Configs` directory contains JSON files corresponding to database tables. Each file specifies PLC addresses, registers, data types, and other settings and may be modified as required.
+The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings and can be adjusted as needed.
 
 #### 📑 Configuration fields
 - **IsEnabled**: Whether the configuration is enabled.
-- **Code**: Identifier of the collector.
+- **Code**: PLC identifier.
 - **Host**: PLC IP address.
 - **Port**: PLC port.
-- **DriverType**: Supported driver types include `MelsecA1ENet`, `MelsecA1EAsciiNet`, and `InovanceTcpNet`.
 - **HeartbeatMonitorRegister**: Register address for heartbeat monitoring.
 - **HeartbeatPollingInterval**: Heartbeat polling interval in milliseconds.
-- **StorageType**: Storage type (`SQLite`, `MySQL`, `PostgreSQL`, `SQLServer`).
 - **ConnectionString**: Database connection string.
-- **Modules**: Acquisition module definitions.
+- **Modules**: Acquisition modules.
   - **ChamberCode**: Channel identifier.
   - **Trigger**: Trigger settings.
-    - **Mode**: `Always`, `ValueIncrease`, `ValueDecrease`, `RisingEdge`, `FallingEdge`.
+    - **Mode**: Trigger mode.
     - **Register**: Trigger register address.
     - **DataType**: Data type of the trigger register.
-  - **BatchReadRegister**: Register for batch reading.
-  - **BatchReadLength**: Length of batch reads.
+  - **BatchReadRegister**: Start register for batch reading.
+  - **BatchReadLength**: Number of registers to read.
   - **TableName**: Target database table.
-  - **BatchSize**: Batch size; `1` stores records individually.
+  - **BatchSize**: Number of records per batch (`1` inserts one by one).
   - **DataPoints**: Data point configuration.
     - **ColumnName**: Column name in the database.
     - **Index**: Register index.
     - **StringByteLength**: Byte length for string values.
-    - **Encoding**: Character encoding (`UTF8`, `GB2312`, `GBK`, `ASCII`).
+    - **Encoding**: Character encoding.
     - **DataType**: Data type of the register.
     - **EvalExpression**: Expression for value conversion, e.g. `value / 1000.0`.
 
+#### 📚 Enumeration reference
+- **Trigger.Mode**
+  - `Always`: always sample.
+  - `ValueIncrease`: sample when the register value increases.
+  - `ValueDecrease`: sample when the register value decreases.
+  - `RisingEdge`: sample on a rising edge (0 → 1).
+  - `FallingEdge`: sample on a falling edge (1 → 0).
+- **DataType** (for `Trigger.DataType` and `DataPoints.DataType`)
+  - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
+- **Encoding**
+  - `UTF8`, `GB2312`, `GBK`, `ASCII`.
+
 ### 📄 Sample configuration
-The file `Configs/M01_Metrics.json` illustrates a typical configuration.
+The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.
 
 ```json
 {
@@ -68,10 +78,8 @@ The file `Configs/M01_Metrics.json` illustrates a typical configuration.
   "Code": "M01C123",
   "Host": "192.168.1.110",
   "Port": 4104,
-  "DriverType": "MelsecA1EAsciiNet",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "StorageType": "MySQL",
   "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
   "Modules": [
     {
@@ -79,8 +87,7 @@ The file `Configs/M01_Metrics.json` illustrates a typical configuration.
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -110,8 +117,7 @@ The file `Configs/M01_Metrics.json` illustrates a typical configuration.
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
