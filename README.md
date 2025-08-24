@@ -29,22 +29,20 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
 ### ⚙️ 配置文件
-`Configs` 目录包含与数据库表对应的 JSON 文件。每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
+`DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件。每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
 #### 📑 配置字段
 - **IsEnabled**：是否启用该配置。
-- **Code**：采集器标识。
+- **Code**：PLC 编码。
 - **Host**：PLC IP 地址。
-- **Port**：PLC 端口。
-- **DriverType**：驱动类型，支持 `MelsecA1ENet`、`MelsecA1EAsciiNet`、`InovanceTcpNet`。
+- **Port**：PLC 通讯端口。
 - **HeartbeatMonitorRegister**：心跳监控寄存器地址。
 - **HeartbeatPollingInterval**：心跳轮询间隔（毫秒）。
-- **StorageType**：数据存储类型，支持 `SQLite`、`MySQL`、`PostgreSQL`、`SQLServer`。
 - **ConnectionString**：数据库连接字符串。
 - **Modules**：采集模块定义。
   - **ChamberCode**：采集通道代码。
   - **Trigger**：触发配置。
-    - **Mode**：触发模式，`Always`、`ValueIncrease`、`ValueDecrease`、`RisingEdge`、`FallingEdge`。
+    - **Mode**：触发模式。
     - **Register**：触发寄存器地址。
     - **DataType**：触发寄存器数据类型。
   - **BatchReadRegister**：批量读取寄存器地址。
@@ -55,12 +53,24 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
     - **ColumnName**：数据库列名。
     - **Index**：寄存器索引。
     - **StringByteLength**：字符串字节长度。
-    - **Encoding**：编码方式，支持 `UTF8`、`GB2312`、`GBK`、`ASCII`。
+    - **Encoding**：编码方式。
     - **DataType**：寄存器数据类型。
     - **EvalExpression**：数值转换表达式，例如 `value / 1000.0`。
 
+#### 📚 枚举值说明
+- **Trigger.Mode**
+  - `Always`：始终采样。
+  - `ValueIncrease`：当寄存器值增加时采样。
+  - `ValueDecrease`：当寄存器值减少时采样。
+  - `RisingEdge`：寄存器从 0 变为 1 时采样。
+  - `FallingEdge`：寄存器从 1 变为 0 时采样。
+- **DataType**（用于 `Trigger.DataType` 和 `DataPoints.DataType`）
+  - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
+- **Encoding**
+  - `UTF8`、`GB2312`、`GBK`、`ASCII`。
+
 ### 📄 配置示例
-`Configs/M01_Metrics.json` 示例展示了典型配置方式。
+`DataAcquisition.Gateway/Configs/M01C123.json` 展示了典型配置：
 
 ```json
 {
@@ -68,10 +78,8 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   "Code": "M01C123",
   "Host": "192.168.1.110",
   "Port": 4104,
-  "DriverType": "MelsecA1EAsciiNet",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "StorageType": "MySQL",
   "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
   "Modules": [
     {
@@ -79,8 +87,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -110,8 +117,7 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
-        "DataType": null,
-        "PollInterval": 0
+        "DataType": null
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
