@@ -47,7 +47,7 @@ ConnectionString: string        # Database connection string
 Modules:                        # Array of acquisition module definitions
   - ChamberCode: string         # Channel identifier
     Trigger:                    # Trigger settings
-      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode; RisingEdge fires on 0→1, FallingEdge on 1→0
+      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode
       Register: string          # Trigger register address
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
     BatchReadRegister: string   # Start register for batch reading
@@ -99,6 +99,33 @@ Modules:                        # Array of acquisition module definitions
 #### EvalExpression usage
 
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, to scale the value by 1/1000, set `"value / 1000.0"`. Leave it empty to skip conversion.
+=======
+#### Enum descriptions
+
+- **Trigger.Mode**
+  - `Always`: always acquire without a condition
+  - `ValueIncrease`: trigger when the register value increases
+  - `ValueDecrease`: trigger when the register value decreases
+  - `RisingEdge`: trigger on a rising edge
+  - `FallingEdge`: trigger on a falling edge
+
+- **DataPoints.Encoding**
+  - `UTF8`: UTF-8 encoding
+  - `GB2312`: GB2312 Simplified Chinese encoding
+  - `GBK`: GBK Chinese encoding
+  - `ASCII`: ASCII encoding
+
+- **DataType** (register data type)
+  - `ushort`: unsigned 16-bit integer
+  - `uint`: unsigned 32-bit integer
+  - `ulong`: unsigned 64-bit integer
+  - `short`: signed 16-bit integer
+  - `int`: signed 32-bit integer
+  - `long`: signed 64-bit integer
+  - `float`: 32-bit floating point
+  - `double`: 64-bit floating point
+  - `string`: string (DataPoints only)
+  - `bool`: boolean (DataPoints only)
 
 ### 📄 Sample configuration
 The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.

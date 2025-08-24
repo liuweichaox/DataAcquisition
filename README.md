@@ -47,7 +47,7 @@ ConnectionString: string        # 数据库连接字符串
 Modules:                        # 采集模块配置数组
   - ChamberCode: string         # 采集通道编码
     Trigger:                    # 触发配置
-      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # 触发模式，RisingEdge 表示上沿从 0 到 1，FallingEdge 表示下沿从 1 到 0
+      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # 触发模式
       Register: string          # 触发寄存器地址
       DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
     BatchReadRegister: string   # 批量读取寄存器地址
@@ -99,6 +99,36 @@ Modules:                        # 采集模块配置数组
 #### EvalExpression 用法
 
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始数值，并支持基本算术运算，例如 `value / 1000.0`。若留空字符串，则不进行任何转换。
+=======
+        EvalExpression: string  # 数值转换表达式
+```
+
+#### 枚举值说明
+
+- **Trigger.Mode**
+  - `Always`：始终采集，不依赖寄存器值变化
+  - `ValueIncrease`：寄存器值增加时触发
+  - `ValueDecrease`：寄存器值减少时触发
+  - `RisingEdge`：寄存器值由低到高跳变时触发
+  - `FallingEdge`：寄存器值由高到低跳变时触发
+
+- **DataPoints.Encoding**
+  - `UTF8`：UTF-8 编码
+  - `GB2312`：GB2312 中文编码
+  - `GBK`：GBK 中文编码
+  - `ASCII`：ASCII 编码
+
+- **DataType**：寄存器数据类型
+  - `ushort`：无符号 16 位整数
+  - `uint`：无符号 32 位整数
+  - `ulong`：无符号 64 位整数
+  - `short`：有符号 16 位整数
+  - `int`：有符号 32 位整数
+  - `long`：有符号 64 位整数
+  - `float`：单精度浮点数
+  - `double`：双精度浮点数
+  - `string`：字符串（仅用于 DataPoints）
+  - `bool`：布尔值（仅用于 DataPoints）
 
 ### 📄 配置示例
 `DataAcquisition.Gateway/Configs/M01C123.json` 展示了典型配置：
