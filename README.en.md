@@ -32,30 +32,48 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings and can be adjusted as needed.
 
 #### 📑 Configuration fields
-- **IsEnabled**: Whether the configuration is enabled.
-- **Code**: PLC identifier.
-- **Host**: PLC IP address.
-- **Port**: PLC port.
-- **HeartbeatMonitorRegister**: Register address for heartbeat monitoring.
-- **HeartbeatPollingInterval**: Heartbeat polling interval in milliseconds.
-- **ConnectionString**: Database connection string.
-- **Modules**: Acquisition modules.
-  - **ChamberCode**: Channel identifier.
-  - **Trigger**: Trigger settings.
-    - **Mode**: Trigger mode.
-    - **Register**: Trigger register address.
-    - **DataType**: Data type of the trigger register.
-  - **BatchReadRegister**: Start register for batch reading.
-  - **BatchReadLength**: Number of registers to read.
-  - **TableName**: Target database table.
-  - **BatchSize**: Number of records per batch (`1` inserts one by one).
-  - **DataPoints**: Data point configuration.
-    - **ColumnName**: Column name in the database.
-    - **Index**: Register index.
-    - **StringByteLength**: Byte length for string values.
-    - **Encoding**: Character encoding.
-    - **DataType**: Data type of the register.
-    - **EvalExpression**: Expression for value conversion, e.g. `value / 1000.0`.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `IsEnabled` | `bool` | Whether the configuration is enabled. |
+| `Code` | `string` | PLC identifier. |
+| `Host` | `string` | PLC IP address. |
+| `Port` | `int` | PLC port. |
+| `HeartbeatMonitorRegister` | `string` | Register address for heartbeat monitoring. |
+| `HeartbeatPollingInterval` | `int` | Heartbeat polling interval in milliseconds. |
+| `ConnectionString` | `string` | Database connection string. |
+| `Modules` | `Module[]` | Acquisition modules. |
+
+##### Module
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ChamberCode` | `string` | Channel identifier. |
+| `Trigger` | `TriggerConfig` | Trigger settings. |
+| `BatchReadRegister` | `string` | Start register for batch reading. |
+| `BatchReadLength` | `int` | Number of registers to read. |
+| `TableName` | `string` | Target database table. |
+| `BatchSize` | `int` | Number of records per batch (`1` inserts one by one). |
+| `DataPoints` | `DataPoint[]` | Data point configuration. |
+
+##### TriggerConfig
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Mode` | `string` | Trigger mode. |
+| `Register` | `string` | Trigger register address. |
+| `DataType` | `string` | Data type of the trigger register. |
+
+##### DataPoint
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ColumnName` | `string` | Column name in the database. |
+| `Index` | `int` | Register index. |
+| `StringByteLength` | `int` | Byte length for string values. |
+| `Encoding` | `string` | Character encoding. |
+| `DataType` | `string` | Data type of the register. |
+| `EvalExpression` | `string` | Expression for value conversion, e.g. `value / 1000.0`. |
 
 #### 📚 Enumeration reference
 - **Trigger.Mode**
