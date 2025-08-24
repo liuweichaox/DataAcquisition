@@ -59,8 +59,8 @@ Modules:                        # 采集模块配置数组
         Index: int              # 寄存器索引
         StringByteLength: int   # 字符串字节长度
         Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
-DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
-EvalExpression: string  # 数值转换表达式
+        DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
+        EvalExpression: string  # 数值转换表达式
 ```
 
 #### 枚举值说明
