@@ -22,25 +22,23 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 多平台支持：兼容 .NET Standard 2.0 与 2.1，运行于 Windows、Linux 和 macOS。
 
 ## 🛠️ 安装
-
 ### 📥 克隆仓库
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
 ### ⚙️ 配置文件
-`DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件。每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
+`DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
 #### 📑 配置结构说明
-
 配置文件使用 JSON 格式，结构如下（以 YAML 描述）：
 
 ```yaml
 # 配置结构说明（仅用于展示）
 IsEnabled: true                 # 是否启用
-Code: string                    # PLC编码
-Host: string                    # PLC IP地址
-Port: number                    # PLC通讯端口
+Code: string                    # PLC 编码
+Host: string                    # PLC IP 地址
+Port: number                    # PLC 通讯端口
 HeartbeatMonitorRegister: string # [可选] 心跳监控寄存器地址
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔（毫秒）
 ConnectionString: string        # 数据库连接字符串
@@ -60,75 +58,26 @@ Modules:                        # 采集模块配置数组
         StringByteLength: int   # 字符串字节长度
         Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
-        EvalExpression: string  # 数值转换表达式，使用变量 value 表示原始值，如 "value / 1000.0"
+        EvalExpression: string  # 数值转换表达式，使用变量 value 表示原始值
 ```
-#### 📚 枚举值说明
 
+#### 📚 枚举值说明
 - **Trigger.Mode**
   - `Always`：始终采样。
-  - `ValueIncrease`：当寄存器值增加时采样。
-  - `ValueDecrease`：当寄存器值减少时采样。
+  - `ValueIncrease`：寄存器值增加时采样。
+  - `ValueDecrease`：寄存器值减少时采样。
   - `RisingEdge`：寄存器从 0 变为 1 时采样。
   - `FallingEdge`：寄存器从 1 变为 0 时采样。
-- **Trigger.DataType**
-  - `ushort`：16 位无符号整数。
-  - `uint`：32 位无符号整数。
-  - `ulong`：64 位无符号整数。
-  - `short`：16 位有符号整数。
-  - `int`：32 位有符号整数。
-  - `long`：64 位有符号整数。
-  - `float`：32 位浮点数。
-  - `double`：64 位浮点数。
-- **DataPoints.DataType**
-  - `ushort`：16 位无符号整数。
-  - `uint`：32 位无符号整数。
-  - `ulong`：64 位无符号整数。
-  - `short`：16 位有符号整数。
-  - `int`：32 位有符号整数。
-  - `long`：64 位有符号整数。
-  - `float`：32 位浮点数。
-  - `double`：64 位浮点数。
-  - `string`：字符串。
-  - `bool`：布尔值。
+- **Trigger.DataType / DataPoints.DataType**
+  - `ushort`、`uint`、`ulong`。
+  - `short`、`int`、`long`。
+  - `float`、`double`。
+  - `string`、`bool`（仅用于 DataPoints）。
 - **Encoding**
-  - `UTF8`：UTF-8 编码。
-  - `GB2312`：GB2312 编码。
-  - `GBK`：GBK 编码。
-  - `ASCII`：ASCII 编码。
+  - `UTF8`、`GB2312`、`GBK`、`ASCII`。
 
-#### EvalExpression 用法
-
-`EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始数值，并支持基本算术运算，例如 `value / 1000.0`。若留空字符串，则不进行任何转换。
-=======
-        EvalExpression: string  # 数值转换表达式
-```
-
-#### 枚举值说明
-
-- **Trigger.Mode**
-  - `Always`：始终采集，不依赖寄存器值变化
-  - `ValueIncrease`：寄存器值增加时触发
-  - `ValueDecrease`：寄存器值减少时触发
-  - `RisingEdge`：寄存器值由低到高跳变时触发
-  - `FallingEdge`：寄存器值由高到低跳变时触发
-
-- **DataPoints.Encoding**
-  - `UTF8`：UTF-8 编码
-  - `GB2312`：GB2312 中文编码
-  - `GBK`：GBK 中文编码
-  - `ASCII`：ASCII 编码
-
-- **DataType**：寄存器数据类型
-  - `ushort`：无符号 16 位整数
-  - `uint`：无符号 32 位整数
-  - `ulong`：无符号 64 位整数
-  - `short`：有符号 16 位整数
-  - `int`：有符号 32 位整数
-  - `long`：有符号 64 位整数
-  - `float`：单精度浮点数
-  - `double`：双精度浮点数
-  - `string`：字符串（仅用于 DataPoints）
-  - `bool`：布尔值（仅用于 DataPoints）
+#### ⚖️ EvalExpression 用法
+`EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
 
 ### 📄 配置示例
 `DataAcquisition.Gateway/Configs/M01C123.json` 展示了典型配置：
@@ -223,7 +172,6 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
 ## 🔌 API
-
 ### 📡 获取 PLC 连接状态
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 

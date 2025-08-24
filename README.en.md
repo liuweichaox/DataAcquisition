@@ -11,42 +11,40 @@
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
 ## ✨ Key Features
-- Efficient communication using the Modbus TCP protocol ensures stable data exchange.
-- Message queues such as RabbitMQ, Kafka, or a local queue handle high-throughput acquisition results.
+- Efficient communication using the Modbus TCP protocol.
+- Message queues (RabbitMQ, Kafka, or a local queue) handle high-throughput acquisition results.
 - Data can be stored in SQLite or various cloud databases.
 - Custom logging strategies assist with troubleshooting and auditing.
 - Periodic acquisition from multiple PLCs is supported.
-- Disconnection and timeout retries are available to maintain stability.
+- Disconnection and timeout retries maintain stability.
 - Acquisition frequency is configurable down to milliseconds.
 - Configuration files define table structures, column names, and sampling frequency.
 - Compatible with .NET Standard 2.0/2.1 and runs on Windows, Linux, and macOS.
 
 ## 🛠️ Installation
-
 ### 📥 Clone the repository
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
 
 ### ⚙️ Configuration files
-The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings and can be adjusted as needed.
+The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings.
 
 #### 📑 Configuration structure
-
 Configuration files use JSON format; the structure is described below using YAML:
 
 ```yaml
 # Configuration structure (for illustration only)
-IsEnabled: true                 # Whether this configuration is enabled
-Code: string                    # Unique PLC identifier
+IsEnabled: true                 # Enable this configuration
+Code: string                    # PLC identifier
 Host: string                    # PLC IP address
 Port: number                    # PLC communication port
-HeartbeatMonitorRegister: string # [Optional] Register address for heartbeat monitoring
-HeartbeatPollingInterval: number # [Optional] Heartbeat polling interval (milliseconds)
+HeartbeatMonitorRegister: string # [Optional] register for heartbeat monitoring
+HeartbeatPollingInterval: number # [Optional] heartbeat polling interval (milliseconds)
 ConnectionString: string        # Database connection string
-Modules:                        # Array of acquisition module definitions
+Modules:
   - ChamberCode: string         # Channel identifier
-    Trigger:                    # Trigger settings
+    Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode
       Register: string          # Trigger register address
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
@@ -54,78 +52,32 @@ Modules:                        # Array of acquisition module definitions
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
     BatchSize: int              # Number of records per batch (1 inserts one by one)
-    DataPoints:                 # Data point configuration
+    DataPoints:
       - ColumnName: string      # Column name in the database
         Index: int              # Register index
         StringByteLength: int   # Byte length for string values
         Encoding: UTF8|GB2312|GBK|ASCII # Character encoding
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # Data type of the register
-        EvalExpression: string  # Expression for value conversion, use 'value' for the raw value, e.g., "value / 1000.0"
+        EvalExpression: string  # Expression for value conversion, use 'value' for the raw value
 ```
+
 #### 📚 Enum descriptions
-
 - **Trigger.Mode**
-  - `Always`: always sample.
-  - `ValueIncrease`: sample when the register value increases.
-  - `ValueDecrease`: sample when the register value decreases.
-  - `RisingEdge`: fires when the register changes from 0 to 1.
-  - `FallingEdge`: fires when the register changes from 1 to 0.
-- **Trigger.DataType**
-  - `ushort`: unsigned 16-bit integer.
-  - `uint`: unsigned 32-bit integer.
-  - `ulong`: unsigned 64-bit integer.
-  - `short`: signed 16-bit integer.
-  - `int`: signed 32-bit integer.
-  - `long`: signed 64-bit integer.
-  - `float`: 32-bit floating point.
-  - `double`: 64-bit floating point.
-- **DataPoints.DataType**
-  - `ushort`: unsigned 16-bit integer.
-  - `uint`: unsigned 32-bit integer.
-  - `ulong`: unsigned 64-bit integer.
-  - `short`: signed 16-bit integer.
-  - `int`: signed 32-bit integer.
-  - `long`: signed 64-bit integer.
-  - `float`: 32-bit floating point.
-  - `double`: 64-bit floating point.
-  - `string`: string value.
-  - `bool`: boolean value.
+  - `Always`: always sample
+  - `ValueIncrease`: sample when the register value increases
+  - `ValueDecrease`: sample when the register value decreases
+  - `RisingEdge`: fires when the register changes from 0 to 1
+  - `FallingEdge`: fires when the register changes from 1 to 0
+- **Trigger.DataType / DataPoints.DataType**
+  - `ushort`, `uint`, `ulong`
+  - `short`, `int`, `long`
+  - `float`, `double`
+  - `string`, `bool` (DataPoints only)
 - **Encoding**
-  - `UTF8`: UTF-8 encoding.
-  - `GB2312`: GB2312 encoding.
-  - `GBK`: GBK encoding.
-  - `ASCII`: ASCII encoding.
+  - `UTF8`, `GB2312`, `GBK`, `ASCII`
 
-#### EvalExpression usage
-
-`EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, to scale the value by 1/1000, set `"value / 1000.0"`. Leave it empty to skip conversion.
-=======
-#### Enum descriptions
-
-- **Trigger.Mode**
-  - `Always`: always acquire without a condition
-  - `ValueIncrease`: trigger when the register value increases
-  - `ValueDecrease`: trigger when the register value decreases
-  - `RisingEdge`: trigger on a rising edge
-  - `FallingEdge`: trigger on a falling edge
-
-- **DataPoints.Encoding**
-  - `UTF8`: UTF-8 encoding
-  - `GB2312`: GB2312 Simplified Chinese encoding
-  - `GBK`: GBK Chinese encoding
-  - `ASCII`: ASCII encoding
-
-- **DataType** (register data type)
-  - `ushort`: unsigned 16-bit integer
-  - `uint`: unsigned 32-bit integer
-  - `ulong`: unsigned 64-bit integer
-  - `short`: signed 16-bit integer
-  - `int`: signed 32-bit integer
-  - `long`: signed 64-bit integer
-  - `float`: 32-bit floating point
-  - `double`: 64-bit floating point
-  - `string`: string (DataPoints only)
-  - `bool`: boolean (DataPoints only)
+#### ⚖️ EvalExpression usage
+`EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
 
 ### 📄 Sample configuration
 The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.
@@ -220,14 +172,13 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
 ## 🔌 API
-
 ### 📡 Get PLC connection status
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 The endpoint returns a dictionary of PLC connection states.
 
 ## 🤝 Contribution
-Contributions are accepted via Pull Requests. Ensure all relevant tests pass and avoid breaking changes before submission.
+Contributions are welcome via Pull Requests. Ensure all relevant tests pass and avoid introducing breaking changes.
 
 ## 📄 License
 This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
