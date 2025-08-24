@@ -82,8 +82,9 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
   - `ValueDecrease`：当寄存器值减少时采样。
   - `RisingEdge`：寄存器从 0 变为 1 时采样。
   - `FallingEdge`：寄存器从 1 变为 0 时采样。
-- **DataType**（用于 `Trigger.DataType` 和 `DataPoints.DataType`）
-  - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
+- **DataType**
+  - `Trigger.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`。
+  - `DataPoints.DataType`：`ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`、`bool`。
 - **Encoding**
   - `UTF8`、`GB2312`、`GBK`、`ASCII`。
 

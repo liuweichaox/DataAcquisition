@@ -82,8 +82,9 @@ The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspon
   - `ValueDecrease`: sample when the register value decreases.
   - `RisingEdge`: sample on a rising edge (0 → 1).
   - `FallingEdge`: sample on a falling edge (1 → 0).
-- **DataType** (for `Trigger.DataType` and `DataPoints.DataType`)
-  - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
+- **DataType**
+  - `Trigger.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`.
+  - `DataPoints.DataType`: `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string`, `bool`.
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`.
 
