@@ -1,12 +1,9 @@
-using System.Diagnostics;
-using System.Net.NetworkInformation;
 using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DataAcquisitions;
 using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
 using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
-using DataAcquisition.Core.Queues;
 using DataAcquisition.Gateway;
 using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Gateway.Infrastructure.Communication;
@@ -18,13 +15,13 @@ using DataAcquisition.Gateway.Infrastructure.Queues;
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<IMessage, Message>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
+builder.Services.AddSingleton<IQueue, LocalQueue>();
+builder.Services.AddSingleton<IDataStorage, MySqlDataStorage>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 

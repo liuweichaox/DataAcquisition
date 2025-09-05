@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
-using DataAcquisition.Core.Queues;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {
@@ -22,33 +21,22 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
         private readonly ICommunicationFactory _communicationFactory;
-        private readonly IQueueFactory _queueFactory;
         private readonly IMessage _message;
+        private readonly IQueue _queue;
 
         /// <summary>
         /// 数据采集器
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
             ICommunicationFactory communicationFactory,
-            IQueueFactory queueFactory,
-            IMessage message)
+            IMessage message,
+            IQueue queue)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
             _communicationFactory = communicationFactory;
-            _queueFactory = queueFactory;
             _message = message;
-        }
-
-        /// <summary>
-        /// 绕过验证
-        /// </summary>
-        /// <param name="__result"></param>
-        /// <returns></returns>
-        private static bool ByPassAuth(ref bool __result)
-        {
-            __result = true;
-            return false;  // 跳过原方法
+            _queue = queue;
         }
 
         /// <summary>
@@ -57,16 +45,14 @@ namespace DataAcquisition.Core.DataAcquisitions
         private class PlcStateManager
         {
             public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new(); // 每个 PLC 一个客户端
-            public ConcurrentDictionary<string, IQueue> Queues { get; } = new(); // 每个 PLC 一个消息都队列
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
             public readonly ConcurrentDictionary<string, object> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
-            
+
             public void Clear()
             {
                 PlcClients.Clear();
-                Queues.Clear();
                 PlcConnectionHealth.Clear();
                 DataTasks.Clear();
                 HeartbeatTasks.Clear();
@@ -107,8 +93,6 @@ namespace DataAcquisition.Core.DataAcquisitions
                     // 初始化 PLC 客户端和队列管理器
                     var client = CreateCommunicationClient(config);
 
-                    var queue = _plcStateManager.Queues.GetOrAdd(config.Code, _ => _queueFactory.Create(config));
-
                     // 启动心跳监控任务（单独管理连接状态）
                     StartHeartbeatMonitor(config);
 
@@ -123,7 +107,6 @@ namespace DataAcquisition.Core.DataAcquisitions
                                 // 如果 PLC 已连接则采集数据
                                 if (_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) && isConnected)
                                 {
-                                    bool shouldSample = false;
                                     var trigger = module.Trigger;
                                     object currVal = null;
 
@@ -143,7 +126,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                     var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                     dataMessage.Values[dataPoint.ColumnName] = value;
                                                 }
-                                                queue.EnqueueData(dataMessage);
+                                                _queue.PublishAsync(dataMessage, cts.Token);
                                             }
                                             catch (Exception ex)
                                             {
@@ -350,11 +333,8 @@ namespace DataAcquisition.Core.DataAcquisitions
                 await client.ConnectCloseAsync();
             }
 
-            // 完成并清理队列管理器
-            foreach (var queue in _plcStateManager.Queues.Values)
-            {
-                queue.Dispose();
-            }
+            // 完成并清理队列
+            await _queue.DisposeAsync();
 
             _plcStateManager.Clear();
         }

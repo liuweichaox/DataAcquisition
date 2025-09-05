@@ -39,11 +39,6 @@ public class DeviceConfig
     public int HeartbeatPollingInterval { get; set; }
 
     /// <summary>
-    /// 连接字符串
-    /// </summary>
-    public string ConnectionString { get; set; }
-
-    /// <summary>
     /// 模块
     /// </summary>
     public List<Module> Modules { get; set; }

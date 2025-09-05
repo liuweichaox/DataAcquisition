@@ -8,18 +8,18 @@ using Newtonsoft.Json;
 
 namespace DataAcquisition.Gateway.Infrastructure.DataStorages;
 
-public class MySqlDataStorage : DataStorage
+public class MySqlDataStorage : IDataStorage
 {
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
 
-    public MySqlDataStorage(string connectionString) : base(connectionString)
+    public MySqlDataStorage(IConfiguration configuration)
     {
-        _connectionString = connectionString;
+        _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
     }
 
-    public override async Task SaveAsync(DataMessage dataMessage)
+    public async Task SaveAsync(DataMessage dataMessage)
     {
         try
         {
@@ -50,7 +50,7 @@ public class MySqlDataStorage : DataStorage
         }
     }
 
-    public override async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
             return;
