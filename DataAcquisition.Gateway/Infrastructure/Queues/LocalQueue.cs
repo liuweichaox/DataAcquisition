@@ -20,29 +20,25 @@ public class LocalQueue : IQueue
     {
         _dataStorage = dataStorage;
         _dataProcessingService = dataProcessingService;
-        SubscribeAsync("#", CancellationToken.None);
     }
     
-    public async Task PublishAsync(DataMessage dataMessage, CancellationToken ct)
+    public async Task PublishAsync(DataMessage dataMessage)
     {
         await _channel.Writer.WriteAsync(dataMessage);
     }
 
-    public async Task SubscribeAsync(string topicPattern, CancellationToken ct)
+    public async Task SubscribeAsync(CancellationToken ct)
     {
-        while (await _channel.Reader.WaitToReadAsync(ct))
+        await foreach (var dataMessage in _channel.Reader.ReadAllAsync(ct))
         {
-            while (_channel.Reader.TryRead(out var dataMessage))
+            try
             {
-                try
-                {
-                    await _dataProcessingService.ExecuteAsync(dataMessage);
-                    await StoreDataPointAsync(dataMessage);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error processing message: {ex.Message}");
-                }
+                await _dataProcessingService.ExecuteAsync(dataMessage);
+                await StoreDataPointAsync(dataMessage);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error processing message: {ex.Message}");
             }
         }
     }
@@ -67,6 +63,7 @@ public class LocalQueue : IQueue
 
     public ValueTask DisposeAsync()
     {
+        _channel.Writer.Complete();
         return ValueTask.CompletedTask;
     }
 }

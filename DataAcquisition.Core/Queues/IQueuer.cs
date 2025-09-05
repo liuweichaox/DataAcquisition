@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 public interface IQueue : IAsyncDisposable
 {
-    Task PublishAsync(DataMessage dataMessage, CancellationToken ct);
+    Task PublishAsync(DataMessage dataMessage);
 
-    Task SubscribeAsync(string topicPattern, CancellationToken ct);
+    Task SubscribeAsync(CancellationToken ct);
 }

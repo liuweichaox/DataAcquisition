@@ -13,6 +13,7 @@ using DataAcquisition.Gateway.Infrastructure.Messages;
 using DataAcquisition.Gateway.Infrastructure.Queues;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:8000");
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
@@ -24,7 +25,7 @@ builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
-
+builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddControllersWithViews();
 
 var app = builder.Build();

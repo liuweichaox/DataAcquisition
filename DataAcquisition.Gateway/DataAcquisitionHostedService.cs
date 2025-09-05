@@ -1,12 +1,9 @@
-﻿using System.Collections.Concurrent;
-using DataAcquisition.Core.DataAcquisitions;
-using DataAcquisition.Core.DataProcessing;
-using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Models;
+﻿using DataAcquisition.Core.DataAcquisitions;
+using Microsoft.Extensions.Hosting;
 
 namespace DataAcquisition.Gateway;
 
-public class DataAcquisitionHostedService : IHostedService
+public class DataAcquisitionHostedService : BackgroundService
 {
     private readonly IDataAcquisitionService _dataAcquisitionService;
 
@@ -15,13 +12,22 @@ public class DataAcquisitionHostedService : IHostedService
         _dataAcquisitionService = dataAcquisitionService;
     }
 
-    public async Task StartAsync(CancellationToken cancellationToken)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // 启动采集任务
         await _dataAcquisitionService.StartCollectionTasks();
-    }
-    
-    public async Task StopAsync(CancellationToken cancellationToken)
-    {
+
+        // 等待停止信号
+        try
+        {
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // 服务停止时会触发取消
+        }
+
+        // 收尾：停止采集任务
         await _dataAcquisitionService.StopCollectionTasks();
     }
 }

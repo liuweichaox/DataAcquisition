@@ -126,7 +126,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                     var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                     dataMessage.Values[dataPoint.ColumnName] = value;
                                                 }
-                                                _queue.PublishAsync(dataMessage, cts.Token);
+                                                _queue.PublishAsync(dataMessage);
                                             }
                                             catch (Exception ex)
                                             {
