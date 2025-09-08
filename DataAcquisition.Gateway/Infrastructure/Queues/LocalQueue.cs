@@ -21,7 +21,7 @@ public class LocalQueue : IQueue
         _dataStorage = dataStorage;
         _dataProcessingService = dataProcessingService;
     }
-    
+
     public async Task PublishAsync(DataMessage dataMessage)
     {
         await _channel.Writer.WriteAsync(dataMessage);
@@ -42,7 +42,7 @@ public class LocalQueue : IQueue
             }
         }
     }
-    
+
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
         if (dataMessage.BatchSize <= 1)
