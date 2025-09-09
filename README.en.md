@@ -3,18 +3,27 @@
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
 [![License](https://img.shields.io/github/license/liuweichaox/DataAcquisition.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%202.1-512BD4?logo=dotnet)](#)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](#)
 
 [中文](README.md) | **English**
 
 ## 📘 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
-## 🔧 Development Guide
-- The core workflow is to implement the interfaces under the `Infrastructure` folder of the `DataAcquisition.Gateway` project.
-- The default implementation uses [HslCommunication](https://github.com/dathlin/HslCommunication) for Modbus communication.
-- You can replace it with any other communication library to support different PLCs or protocols—there is no restriction to Mitsubishi or Inovance devices.
-- Storage providers are also pluggable, allowing custom data sinks beyond the built-in examples.
+## 🧩 System configuration
+Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
+
+```csharp
+builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
+```
 
 ## ✨ Key Features
 - Efficient communication using the Modbus TCP protocol.
@@ -25,7 +34,13 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Disconnection and timeout retries maintain stability.
 - Acquisition frequency is configurable down to milliseconds.
 - Configuration files define table structures, column names, and sampling frequency.
-- Compatible with .NET Standard 2.0/2.1 and runs on Windows, Linux, and macOS.
+- Built on .NET 8.0 and runs on Windows, Linux, and macOS.
+
+## 🔧 Development Guide
+- The core workflow is to implement the interfaces under the `Infrastructure` folder of the `DataAcquisition.Gateway` project.
+- The default implementation uses [HslCommunication](https://github.com/dathlin/HslCommunication) for Modbus communication.
+- You can replace it with any other communication library to support different PLCs or protocols—there is no restriction to Mitsubishi or Inovance devices.
+- Storage providers are also pluggable, allowing custom data sinks beyond the built-in examples.
 
 ## 🛠️ Installation
 ### 📥 Clone the repository
@@ -192,20 +207,27 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
 }
 ```
 
-## 🧩 Application setup
-Register the `IDataAcquisition` instance in `Startup.cs` to manage acquisition tasks.
+## 🏃 Run
+Make sure the .NET 8.0 SDK is installed.
 
-```csharp
-builder.Services.AddSingleton<IMessage, Message>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
+```bash
+dotnet restore
+dotnet build
+dotnet run --project DataAcquisition.Gateway
 ```
+
+The service listens on http://localhost:8000 by default.
+
+## 🚀 Deployment
+Use `dotnet publish` to generate self-contained executables for different platforms:
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
 
 ## 🔌 API
 ### 📡 Get PLC connection status
