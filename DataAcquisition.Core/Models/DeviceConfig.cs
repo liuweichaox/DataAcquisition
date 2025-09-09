@@ -109,6 +109,12 @@ public class Module
     public Trigger Trigger { get; set; }
 
     /// <summary>
+    /// 数据操作类型
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DataOperation Operation { get; set; } = DataOperation.Insert;
+
+    /// <summary>
     /// 批量读取地址
     /// </summary>
     public string BatchReadRegister { get; set; }

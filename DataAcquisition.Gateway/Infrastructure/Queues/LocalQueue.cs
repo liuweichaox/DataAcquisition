@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading.Channels;
 using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
@@ -45,6 +46,15 @@ public class LocalQueue : IQueue
 
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
+        if (dataMessage.Operation == DataOperation.Update)
+        {
+            await _dataStorage.UpdateAsync(
+                dataMessage.TableName,
+                dataMessage.Values.ToDictionary(k => k.Key, k => (object)k.Value),
+                dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)k.Value));
+            return;
+        }
+
         if (dataMessage.BatchSize <= 1)
         {
             await _dataStorage.SaveAsync(dataMessage);
