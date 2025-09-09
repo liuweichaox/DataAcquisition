@@ -1,4 +1,8 @@
-﻿using DataAcquisition.Core.DataAcquisitions;
+﻿using System;
+using System.Collections.Generic;
+using System.Text.Json;
+using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.DataAcquisitions;
 using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -34,12 +38,40 @@ public class DataAcquisitionController: ControllerBase
     [HttpPost]
     public async Task<IActionResult> WriteRegister([FromBody] PlcWriteRequest request)
     {
-        var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, request.Address, request.Value, request.DataType);
-        if (result.IsSuccess)
+        var results = new List<CommunicationWriteResult>();
+        var allSuccess = true;
+
+        foreach (var item in request.Items)
         {
-            return Ok(result);
+            var value = ParseValue(item.Value, item.DataType);
+            var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, value, item.DataType);
+            results.Add(result);
+            if (!result.IsSuccess)
+            {
+                allSuccess = false;
+            }
         }
 
-        return BadRequest(result);
+        if (allSuccess)
+        {
+            return Ok(results);
+        }
+
+        return BadRequest(results);
     }
+
+    private static object ParseValue(JsonElement value, string dataType) => dataType.ToLower() switch
+    {
+        "ushort" => value.GetUInt16(),
+        "uint" => value.GetUInt32(),
+        "ulong" => value.GetUInt64(),
+        "short" => value.GetInt16(),
+        "int" => value.GetInt32(),
+        "long" => value.GetInt64(),
+        "float" => value.GetSingle(),
+        "double" => value.GetDouble(),
+        "string" => value.GetString() ?? string.Empty,
+        "bool" => value.GetBoolean(),
+        _ => throw new ArgumentException($"Unsupported data type: {dataType}")
+    };
 }

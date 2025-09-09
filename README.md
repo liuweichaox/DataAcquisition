@@ -189,14 +189,15 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ### ✍️ 写入 PLC 寄存器
 - `POST /api/DataAcquisition/WriteRegister`
 
-请求示例（通过 `dataType` 指定写入值类型）：
+请求示例（支持批量写入，`dataType` 指定值类型）：
 
 ```json
 {
   "plcCode": "PLC01",
-  "address": "D100",
-  "dataType": "short",
-  "value": 1
+  "items": [
+    { "address": "D100", "dataType": "short", "value": 1 },
+    { "address": "D101", "dataType": "int", "value": 2 }
+  ]
 }
 ```
 
