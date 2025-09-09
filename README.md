@@ -48,11 +48,13 @@ Modules:                        # 采集模块配置数组
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # 触发模式
       Register: string          # 触发寄存器地址
       DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
+      Operation: Insert|Update  # 数据操作类型
+      StartTimeName: string     # [可选] 开始时间列名
+      EndTimeName: string       # [可选] 结束时间列名
     BatchReadRegister: string   # 批量读取寄存器地址
     BatchReadLength: int        # 批量读取长度
     TableName: string           # 数据库表名
     BatchSize: int              # 批量保存大小，1 表示逐条保存
-    Operation: Insert|Update    # 数据操作类型
     DataPoints:                 # 数据配置
       - ColumnName: string      # 数据库列名
         Index: int              # 寄存器索引
@@ -79,9 +81,11 @@ Modules:                        # 采集模块配置数组
   - `string`、`bool`（仅用于 DataPoints）。
 - **Encoding**
   - `UTF8`、`GB2312`、`GBK`、`ASCII`。
-- **Module.Operation**
+- **Trigger.Operation**
   - `Insert`：插入新记录。
   - `Update`：更新已有记录。
+- **Trigger.StartTimeName / Trigger.EndTimeName**
+  - 可选的开始时间和结束时间列名。
 
 #### ⚖️ EvalExpression 用法
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
@@ -104,13 +108,14 @@ Modules:                        # 采集模块配置数组
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null
+        "DataType": null,
+        "Operation": "Insert",
+        "StartTimeName": "StartTime"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -135,13 +140,13 @@ Modules:                        # 采集模块配置数组
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
-        "DataType": null
+        "DataType": null,
+        "Operation": "Insert"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
       "BatchSize": 10,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -160,9 +165,25 @@ Modules:                        # 采集模块配置数组
           "EvalExpression": "value / 1000.0"
         }
       ]
-    }
-  ]
-}
+      },
+      {
+        "ChamberCode": "M01C01",
+        "Trigger": {
+          "Mode": "FallingEdge",
+          "Register": null,
+          "DataType": null,
+          "Operation": "Update",
+          "StartTimeName": "StartTime",
+          "EndTimeName": "EndTime"
+        },
+        "BatchReadRegister": null,
+        "BatchReadLength": 0,
+        "TableName": "m01c01_sensor",
+        "BatchSize": 1,
+        "DataPoints": null
+      }
+    ]
+  }
 ```
 
 ## 🧩 系统配置

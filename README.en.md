@@ -48,11 +48,13 @@ Modules:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode
       Register: string          # Trigger register address
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
+      Operation: Insert|Update  # Data operation type
+      StartTimeName: string     # [Optional] column name for start time
+      EndTimeName: string       # [Optional] column name for end time
     BatchReadRegister: string   # Start register for batch reading
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
     BatchSize: int              # Number of records per batch (1 inserts one by one)
-    Operation: Insert|Update    # Data operation type
     DataPoints:
       - ColumnName: string      # Column name in the database
         Index: int              # Register index
@@ -79,9 +81,11 @@ Modules:
   - `string`, `bool` (DataPoints only)
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`
-- **Module.Operation**
+- **Trigger.Operation**
   - `Insert`: insert a new record
   - `Update`: update an existing record
+- **Trigger.StartTimeName / Trigger.EndTimeName**
+  - Optional column names for start and end timestamps
 
 #### ⚖️ EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
@@ -104,13 +108,14 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null
+        "DataType": null,
+        "Operation": "Insert",
+        "StartTimeName": "StartTime"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -135,13 +140,13 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": null,
-        "DataType": null
+        "DataType": null,
+        "Operation": "Insert"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
       "BatchSize": 10,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -160,9 +165,25 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
           "EvalExpression": "value / 1000.0"
         }
       ]
-    }
-  ]
-}
+      },
+      {
+        "ChamberCode": "M01C01",
+        "Trigger": {
+          "Mode": "FallingEdge",
+          "Register": null,
+          "DataType": null,
+          "Operation": "Update",
+          "StartTimeName": "StartTime",
+          "EndTimeName": "EndTime"
+        },
+        "BatchReadRegister": null,
+        "BatchReadLength": 0,
+        "TableName": "m01c01_sensor",
+        "BatchSize": 1,
+        "DataPoints": null
+      }
+    ]
+  }
 ```
 
 ## 🧩 Application setup

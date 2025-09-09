@@ -119,7 +119,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                         {
                                             try
                                             {
-                                                var operation = module.Operation;
+                                                var operation = trigger.Operation;
                                                 var key = $"{config.Code}:{module.TableName}";
                                                 var timestamp = DateTime.Now;
                                                 var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
@@ -132,14 +132,23 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                         var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                         dataMessage.Values[dataPoint.ColumnName] = value;
                                                     }
-                                                    dataMessage.Values["StartTime"] = timestamp;
-                                                    _lastStartTimes[key] = timestamp;
+                                                    if (!string.IsNullOrEmpty(trigger.StartTimeName))
+                                                    {
+                                                        dataMessage.Values[trigger.StartTimeName] = timestamp;
+                                                        _lastStartTimes[key] = timestamp;
+                                                    }
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                                 else if (_lastStartTimes.TryRemove(key, out var startTime))
                                                 {
-                                                    dataMessage.KeyValues["StartTime"] = startTime;
-                                                    dataMessage.Values["EndTime"] = timestamp;
+                                                    if (!string.IsNullOrEmpty(trigger.StartTimeName))
+                                                    {
+                                                        dataMessage.KeyValues[trigger.StartTimeName] = startTime;
+                                                    }
+                                                    if (!string.IsNullOrEmpty(trigger.EndTimeName))
+                                                    {
+                                                        dataMessage.Values[trigger.EndTimeName] = timestamp;
+                                                    }
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                             }
