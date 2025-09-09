@@ -10,6 +10,12 @@
 ## 📘 概述
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
+## 🔧 开发说明
+- 数据采集的核心是在 `DataAcquisition.Gateway` 项目下的 `Infrastructure` 目录中实现各个接口。
+- 默认实现使用 [HslCommunication](https://github.com/dathlin/HslCommunication) 库进行 Modbus 通讯。
+- 使用者可根据自身需求替换为任意通讯库，不局限于三菱、汇川等特定 PLC。
+- 数据存储模块同样可扩展为自定义类型，不限制于仓库中的默认实现。
+
 ## ✨ 核心功能
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
 - 消息队列：可将采集结果写入 RabbitMQ、Kafka 或本地队列以处理高并发。
