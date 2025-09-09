@@ -46,11 +46,25 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private class PlcStateManager
         {
+            /// <summary>
+            /// Runtime information for each PLC task.
+            /// </summary>
             public readonly ConcurrentDictionary<string, PlcRuntime> Runtimes = new();
-            public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new(); // 每个 PLC 一个客户端
-            public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
 
-            public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
+            /// <summary>
+            /// Communication client associated with every PLC.
+            /// </summary>
+            public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new();
+
+            /// <summary>
+            /// Connection status for each PLC.
+            /// </summary>
+            public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new();
+
+            /// <summary>
+            /// Lock objects used to prevent concurrent access per PLC.
+            /// </summary>
+            public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new();
 
             public void Clear()
             {
@@ -112,14 +126,14 @@ namespace DataAcquisition.Core.DataAcquisitions
         {
             await Task.Yield();
             object? prevVal = null;
-            // 循环采集数据，直到取消请求
+            // Continue acquiring data until cancellation is requested.
             while (!ct.IsCancellationRequested)
             {
-                // 如果 PLC 已连接则采集数据
+                // Proceed only if the PLC is connected.
                 if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code,
                         out var isConnected) || !isConnected)
                 {
-                    await Task.Delay(config.HeartbeatPollingInterval, ct); 
+                    await Task.Delay(config.HeartbeatPollingInterval, ct);
                     continue;
                 }
 
@@ -345,19 +359,19 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         public async Task StopCollectionTasks()
         {
-            // 取消数据采集任务
+            // Cancel the data acquisition tasks.
             foreach (var kvp in _plcStateManager.Runtimes)
             {
                 await kvp.Value.Cts.CancelAsync();
             }
-            
+
             foreach (var kv in _plcStateManager.Runtimes)
             {
                 try { await kv.Value.Running; } catch (OperationCanceledException) { }
                 kv.Value.Cts.Dispose();
             }
 
-            // 关闭并清理所有 PLC 客户端
+            // Close and clean up all PLC clients.
             foreach (var client in _plcStateManager.PlcClients.Values)
             {
                 await client.ConnectCloseAsync();
@@ -368,7 +382,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 sem.Dispose();
             }
 
-            // 完成并清理队列
+            // Complete and dispose the queue.
             await _queue.DisposeAsync();
 
             _plcStateManager.Clear();

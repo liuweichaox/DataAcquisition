@@ -3,18 +3,27 @@
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
 [![License](https://img.shields.io/github/license/liuweichaox/DataAcquisition.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%202.1-512BD4?logo=dotnet)](#)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](#)
 
 **中文** | [English](README.en.md)
 
 ## 📘 概述
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
-## 🔧 开发说明
-- 数据采集的核心是在 `DataAcquisition.Gateway` 项目下的 `Infrastructure` 目录中实现各个接口。
-- 默认实现使用 [HslCommunication](https://github.com/dathlin/HslCommunication) 库进行 Modbus 通讯。
-- 使用者可根据自身需求替换为任意通讯库，不局限于三菱、汇川等特定 PLC。
-- 数据存储模块同样可扩展为自定义类型，不限制于仓库中的默认实现。
+## 🧩 系统配置
+在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
+
+```csharp
+builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
+```
 
 ## ✨ 核心功能
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
@@ -25,7 +34,13 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 错误处理：提供断线重连和超时重试机制。
 - 频率控制：采集频率可配置，最低支持毫秒级。
 - 动态配置：通过配置文件定义表结构、列名和频率。
-- 多平台支持：兼容 .NET Standard 2.0 与 2.1，运行于 Windows、Linux 和 macOS。
+- 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
+
+## 🔧 开发说明
+- 数据采集的核心是在 `DataAcquisition.Gateway` 项目下的 `Infrastructure` 目录中实现各个接口。
+- 默认实现使用 [HslCommunication](https://github.com/dathlin/HslCommunication) 库进行 Modbus 通讯。
+- 使用者可根据自身需求替换为任意通讯库，不局限于三菱、汇川等特定 PLC。
+- 数据存储模块同样可扩展为自定义类型，不限制于仓库中的默认实现。
 
 ## 🛠️ 安装
 ### 📥 克隆仓库
@@ -191,20 +206,27 @@ Modules:                        # 采集模块配置数组
 }
 ```
 
-## 🧩 系统配置
-在 `Startup.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
+## 🏃 运行
+确保已安装 .NET 8.0 SDK。
 
-```csharp
-builder.Services.AddSingleton<IMessage, Message>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
+```bash
+dotnet restore
+dotnet build
+dotnet run --project DataAcquisition.Gateway
 ```
+
+服务启动后默认监听 http://localhost:8000 端口。
+
+## 🚀 部署
+使用 `dotnet publish` 生成跨平台的自包含可执行文件：
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+将生成的 `publish` 目录内容复制到目标环境并运行对应平台的可执行文件。
 
 ## 🔌 API
 ### 📡 获取 PLC 连接状态
