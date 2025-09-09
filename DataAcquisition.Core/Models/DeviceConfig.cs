@@ -97,6 +97,22 @@ public class Trigger
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
+
+    /// <summary>
+    /// 数据操作类型
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DataOperation Operation { get; set; } = DataOperation.Insert;
+
+    /// <summary>
+    /// 开始时间列名
+    /// </summary>
+    public string StartTimeName { get; set; }
+
+    /// <summary>
+    /// 结束时间列名
+    /// </summary>
+    public string EndTimeName { get; set; }
 }
 
 /// <summary>
@@ -113,12 +129,6 @@ public class Module
     /// 触发配置
     /// </summary>
     public Trigger Trigger { get; set; }
-
-    /// <summary>
-    /// 数据操作类型
-    /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public DataOperation Operation { get; set; } = DataOperation.Insert;
 
     /// <summary>
     /// 批量读取地址
