@@ -23,8 +23,8 @@ public interface ICommunication
     /// 写寄存器。
     /// </summary>
     /// <param name="address">寄存器地址</param>
-    /// <param name="value">值</param>
-    Task<CommunicationWriteResult> WriteAsync(string address, int value);
+    /// <param name="value">写入值，支持多种数据类型</param>
+    Task<CommunicationWriteResult> WriteAsync(string address, object value);
 
     /// <summary>
     /// 批量读取原始数据。
