@@ -39,6 +39,7 @@ IsEnabled: true                 # 是否启用
 Code: string                    # PLC 编码
 Host: string                    # PLC IP 地址
 Port: number                    # PLC 通讯端口
+Type: Mitsubishi|Inovance       # PLC 类型
 HeartbeatMonitorRegister: string # [可选] 心跳监控寄存器地址
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔（毫秒）
 Modules:                        # 采集模块配置数组
@@ -51,6 +52,7 @@ Modules:                        # 采集模块配置数组
     BatchReadLength: int        # 批量读取长度
     TableName: string           # 数据库表名
     BatchSize: int              # 批量保存大小，1 表示逐条保存
+    Operation: Insert|Update    # 数据操作类型
     DataPoints:                 # 数据配置
       - ColumnName: string      # 数据库列名
         Index: int              # 寄存器索引
@@ -61,6 +63,9 @@ Modules:                        # 采集模块配置数组
 ```
 
 #### 📚 枚举值说明
+- **Type**
+  - `Mitsubishi`：三菱 PLC。
+  - `Inovance`：汇川 PLC。
 - **Trigger.Mode**
   - `Always`：始终采样。
   - `ValueIncrease`：寄存器值增加时采样。
@@ -74,6 +79,9 @@ Modules:                        # 采集模块配置数组
   - `string`、`bool`（仅用于 DataPoints）。
 - **Encoding**
   - `UTF8`、`GB2312`、`GBK`、`ASCII`。
+- **Module.Operation**
+  - `Insert`：插入新记录。
+  - `Update`：更新已有记录。
 
 #### ⚖️ EvalExpression 用法
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
@@ -87,6 +95,7 @@ Modules:                        # 采集模块配置数组
   "Code": "M01C123",
   "Host": "192.168.1.110",
   "Port": 4104,
+  "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
   "Modules": [
@@ -101,6 +110,7 @@ Modules:                        # 采集模块配置数组
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -131,6 +141,7 @@ Modules:                        # 采集模块配置数组
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
       "BatchSize": 10,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",

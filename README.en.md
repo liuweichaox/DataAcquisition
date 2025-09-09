@@ -39,6 +39,7 @@ IsEnabled: true                 # Enable this configuration
 Code: string                    # PLC identifier
 Host: string                    # PLC IP address
 Port: number                    # PLC communication port
+Type: Mitsubishi|Inovance       # PLC type
 HeartbeatMonitorRegister: string # [Optional] register for heartbeat monitoring
 HeartbeatPollingInterval: number # [Optional] heartbeat polling interval (milliseconds)
 Modules:
@@ -51,6 +52,7 @@ Modules:
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
     BatchSize: int              # Number of records per batch (1 inserts one by one)
+    Operation: Insert|Update    # Data operation type
     DataPoints:
       - ColumnName: string      # Column name in the database
         Index: int              # Register index
@@ -61,6 +63,9 @@ Modules:
 ```
 
 #### 📚 Enum descriptions
+- **Type**
+  - `Mitsubishi`: Mitsubishi PLC
+  - `Inovance`: Inovance PLC
 - **Trigger.Mode**
   - `Always`: always sample
   - `ValueIncrease`: sample when the register value increases
@@ -74,6 +79,9 @@ Modules:
   - `string`, `bool` (DataPoints only)
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`
+- **Module.Operation**
+  - `Insert`: insert a new record
+  - `Update`: update an existing record
 
 #### ⚖️ EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
@@ -87,6 +95,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
   "Code": "M01C123",
   "Host": "192.168.1.110",
   "Port": 4104,
+  "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
   "Modules": [
@@ -101,6 +110,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -131,6 +141,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
       "BatchSize": 10,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
