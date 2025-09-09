@@ -175,6 +175,20 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 
 The endpoint returns a dictionary of PLC connection states.
 
+### ✍️ Write to PLC register
+- `POST /api/DataAcquisition/WriteRegister`
+
+Request example (specify `dataType` to indicate the value type):
+
+```json
+{
+  "plcCode": "PLC01",
+  "address": "D100",
+  "dataType": "short",
+  "value": 1
+}
+```
+
 ## 🤝 Contribution
 Contributions are welcome via Pull Requests. Ensure all relevant tests pass and avoid introducing breaking changes.
 

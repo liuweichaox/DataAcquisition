@@ -1,4 +1,5 @@
 ﻿using DataAcquisition.Core.DataAcquisitions;
+using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Gateway.Controllers;
@@ -24,5 +25,21 @@ public class DataAcquisitionController: ControllerBase
     {
         var plcConnectionStatus = _dataAcquisitionService.GetPlcConnectionStatus();
         return Ok(plcConnectionStatus);
+    }
+
+    /// <summary>
+    /// 写入 PLC 寄存器
+    /// </summary>
+    /// <param name="request">写入请求</param>
+    [HttpPost]
+    public async Task<IActionResult> WriteRegister([FromBody] PlcWriteRequest request)
+    {
+        var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, request.Address, request.Value, request.DataType);
+        if (result.IsSuccess)
+        {
+            return Ok(result);
+        }
+
+        return BadRequest(result);
     }
 }
