@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Text.Json;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
+using DataAcquisition.Core.Models;
 
 namespace DataAcquisition.Core.DeviceConfigs;
 
@@ -13,7 +10,7 @@ public class DeviceConfigService : IDeviceConfigService
         var dataAcquisitionConfigs = await LoadAllJsonFilesAsync<DeviceConfig>("Configs");
         return dataAcquisitionConfigs;
     }
-    
+
     /// <summary>
     /// 异步加载 JSON 配置文件
     /// </summary>

@@ -133,7 +133,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                         dataMessage.Values[dataPoint.ColumnName] = value;
                                                         keyValues[dataPoint.ColumnName] = value;
                                                     }
-                                                    dataMessage.Values["start_time"] = DateTime.Now;
+                                                    dataMessage.Values["StartTime"] = DateTime.Now;
                                                     _lastBatchKeys[key] = keyValues;
                                                     _queue.PublishAsync(dataMessage);
                                                 }
@@ -143,7 +143,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                     {
                                                         dataMessage.KeyValues[kvp.Key] = kvp.Value;
                                                     }
-                                                    dataMessage.Values["end_time"] = DateTime.Now;
+                                                    dataMessage.Values["EndTime"] = DateTime.Now;
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                             }
