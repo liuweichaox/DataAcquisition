@@ -3,7 +3,7 @@
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
 [![License](https://img.shields.io/github/license/liuweichaox/DataAcquisition.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%202.1-512BD4?logo=dotnet)](#)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](#)
 
 [中文](README.md) | **English**
 
@@ -25,7 +25,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Disconnection and timeout retries maintain stability.
 - Acquisition frequency is configurable down to milliseconds.
 - Configuration files define table structures, column names, and sampling frequency.
-- Compatible with .NET Standard 2.0/2.1 and runs on Windows, Linux, and macOS.
+- Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
 ## 🛠️ Installation
 ### 📥 Clone the repository
@@ -191,6 +191,28 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
   ]
 }
 ```
+
+## 🏃 Run
+Make sure the .NET 8.0 SDK is installed.
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project DataAcquisition.Gateway
+```
+
+The service listens on http://localhost:5000 by default.
+
+## 🚀 Deployment
+Use `dotnet publish` to generate self-contained executables for different platforms:
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
 
 ## 🧩 Application setup
 Register the `IDataAcquisition` instance in `Startup.cs` to manage acquisition tasks.

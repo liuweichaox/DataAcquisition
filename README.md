@@ -3,7 +3,7 @@
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
 [![License](https://img.shields.io/github/license/liuweichaox/DataAcquisition.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-Standard%202.0%20%7C%202.1-512BD4?logo=dotnet)](#)
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](#)
 
 **中文** | [English](README.en.md)
 
@@ -25,7 +25,7 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 错误处理：提供断线重连和超时重试机制。
 - 频率控制：采集频率可配置，最低支持毫秒级。
 - 动态配置：通过配置文件定义表结构、列名和频率。
-- 多平台支持：兼容 .NET Standard 2.0 与 2.1，运行于 Windows、Linux 和 macOS。
+- 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
 ## 🛠️ 安装
 ### 📥 克隆仓库
@@ -190,6 +190,28 @@ Modules:                        # 采集模块配置数组
   ]
 }
 ```
+
+## 🏃 运行
+确保已安装 .NET 8.0 SDK。
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project DataAcquisition.Gateway
+```
+
+服务启动后默认监听 http://localhost:5000 端口。
+
+## 🚀 部署
+使用 `dotnet publish` 生成跨平台的自包含可执行文件：
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+将生成的 `publish` 目录内容复制到目标环境并运行对应平台的可执行文件。
 
 ## 🧩 系统配置
 在 `Startup.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
