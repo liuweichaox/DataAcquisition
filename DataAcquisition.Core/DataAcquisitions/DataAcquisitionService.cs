@@ -375,45 +375,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             var locker = _plcStateManager.PlcLocks[plcCode];
             lock (locker)
             {
-                var typedValue = ConvertValue(value, dataType);
-                return client.WriteAsync(address, typedValue);
-            }
-        }
-
-        private static object ConvertValue(object value, string dataType)
-        {
-            try
-            {
-                if (value is System.Text.Json.JsonElement element)
-                {
-                    value = element.ValueKind switch
-                    {
-                        System.Text.Json.JsonValueKind.String => element.GetString(),
-                        System.Text.Json.JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
-                        System.Text.Json.JsonValueKind.True => true,
-                        System.Text.Json.JsonValueKind.False => false,
-                        _ => null
-                    };
-                }
-
-                return dataType?.ToLower() switch
-                {
-                    "ushort" => Convert.ToUInt16(value),
-                    "uint" => Convert.ToUInt32(value),
-                    "ulong" => Convert.ToUInt64(value),
-                    "short" => Convert.ToInt16(value),
-                    "int" => Convert.ToInt32(value),
-                    "long" => Convert.ToInt64(value),
-                    "float" => Convert.ToSingle(value),
-                    "double" => Convert.ToDouble(value),
-                    "string" => value?.ToString() ?? string.Empty,
-                    "bool" => Convert.ToBoolean(value),
-                    _ => value
-                };
-            }
-            catch
-            {
-                return value;
+                return client.WriteAsync(address, value);
             }
         }
 
