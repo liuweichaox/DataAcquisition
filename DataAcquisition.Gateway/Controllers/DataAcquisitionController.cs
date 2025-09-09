@@ -43,8 +43,7 @@ public class DataAcquisitionController: ControllerBase
 
         foreach (var item in request.Items)
         {
-            var value = ParseValue(item.Value, item.DataType);
-            var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, value, item.DataType);
+            var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value, item.DataType);
             results.Add(result);
             if (!result.IsSuccess)
             {
@@ -59,19 +58,4 @@ public class DataAcquisitionController: ControllerBase
 
         return BadRequest(results);
     }
-
-    private static object ParseValue(JsonElement value, string dataType) => dataType.ToLower() switch
-    {
-        "ushort" => value.GetUInt16(),
-        "uint" => value.GetUInt32(),
-        "ulong" => value.GetUInt64(),
-        "short" => value.GetInt16(),
-        "int" => value.GetInt32(),
-        "long" => value.GetInt64(),
-        "float" => value.GetSingle(),
-        "double" => value.GetDouble(),
-        "string" => value.GetString() ?? string.Empty,
-        "bool" => value.GetBoolean(),
-        _ => throw new ArgumentException($"Unsupported data type: {dataType}")
-    };
 }
