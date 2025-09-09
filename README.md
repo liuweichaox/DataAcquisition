@@ -10,21 +10,6 @@
 ## 📘 概述
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
-## 🧩 系统配置
-在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
-
-```csharp
-builder.Services.AddSingleton<IMessage, Message>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
-```
-
 ## ✨ 核心功能
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
 - 消息队列：可将采集结果写入 RabbitMQ、Kafka 或本地队列以处理高并发。
@@ -36,17 +21,25 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 - 动态配置：通过配置文件定义表结构、列名和频率。
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
+## 🧱 环境要求
+- .NET 8.0 SDK
+- 可选：RabbitMQ 或 Kafka（用于消息队列）
+- 可选：SQLite 或其他数据库驱动
 
 ## 🛠️ 安装
 ### 📥 克隆仓库
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
+### 📦 恢复依赖
+```bash
+dotnet restore
+```
 
-### ⚙️ 配置文件
+## ⚙️ 配置
 `DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
-#### 📑 配置结构说明
+### 📑 配置结构说明
 配置文件使用 JSON 格式，结构如下（以 YAML 描述）：
 
 ```yaml
@@ -79,7 +72,7 @@ Modules:                        # 采集模块配置数组
         EvalExpression: string  # 数值转换表达式，使用变量 value 表示原始值
 ```
 
-#### 📚 枚举值说明
+### 📚 枚举值说明
 - **Type**
   - `Mitsubishi`：三菱 PLC。
   - `Inovance`：汇川 PLC。
@@ -100,10 +93,9 @@ Modules:                        # 采集模块配置数组
   - `Insert`：插入新记录。
   - `Update`：更新已有记录。
 - **Trigger.TimeColumnName**
-  - 可选的时间列名。在 `Update` 操作时，该列写入结束时间，匹配的
-    `Insert` 操作的时间列用于定位记录。
+  - 可选的时间列名。在 `Update` 操作时，该列写入结束时间，匹配的 `Insert` 操作的时间列用于定位记录。
 
-#### ⚖️ EvalExpression 用法
+### ⚖️ EvalExpression 用法
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
 
 ### 📄 配置示例
@@ -117,15 +109,15 @@ Modules:                        # 采集模块配置数组
   "Port": 4104,
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
-  "HeartbeatPollingInterval": 2000,
   "Modules": [
     {
       "ChamberCode": "M01C01",
       "Trigger": {
         "Mode": "Always",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
+        "Register": "D6000",
+        "DataType": "short",
+        "Operation": "Insert",
+        "TimeColumnName": ""
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -204,25 +196,38 @@ Modules:                        # 采集模块配置数组
 ## 🏃 运行
 确保已安装 .NET 8.0 SDK。
 
-
 ```bash
-dotnet restore
 dotnet build
 dotnet run --project DataAcquisition.Gateway
 ```
 
 服务启动后默认监听 http://localhost:8000 端口。
 
-## 🚀 部署
-使用 `dotnet publish` 生成跨平台的自包含可执行文件：
+## 🧑‍💻 开发
+### 系统配置
+在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
 
-```bash
-dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
-dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
-dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```csharp
+builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-将生成的 `publish` 目录内容复制到目标环境并运行对应平台的可执行文件。
+### 仓库结构
+- `DataAcquisition.Core`：核心采集、通信与存储实现。
+- `DataAcquisition.Gateway`：对外提供接口的网关服务。
+
+### 构建与测试
+```bash
+dotnet build
+dotnet test   # 当前仓库无测试项目，可按需添加
+```
 
 ## 🔌 API
 ### 📡 获取 PLC 连接状态
@@ -244,6 +249,17 @@ dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained tr
   ]
 }
 ```
+
+## 🚀 部署
+使用 `dotnet publish` 生成跨平台的自包含可执行文件：
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+将生成的 `publish` 目录内容复制到目标环境并运行对应平台的可执行文件。
 
 ## 🤝 贡献
 欢迎通过 Pull Request 提交改进。提交前请确保所有相关测试通过并避免引入破坏性修改。
