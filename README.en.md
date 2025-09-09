@@ -49,8 +49,7 @@ Modules:
       Register: string          # Trigger register address
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
       Operation: Insert|Update  # Data operation type
-      StartTimeName: string     # [Optional] column name for start time
-      EndTimeName: string       # [Optional] column name for end time
+      TimeColumnName: string    # [Optional] column name for timestamp
     BatchReadRegister: string   # Start register for batch reading
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
@@ -84,8 +83,8 @@ Modules:
 - **Trigger.Operation**
   - `Insert`: insert a new record
   - `Update`: update an existing record
-- **Trigger.StartTimeName / Trigger.EndTimeName**
-  - Optional column names for start and end timestamps
+- **Trigger.TimeColumnName**
+  - Optional column name for timestamps
 
 #### ⚖️ EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
@@ -110,7 +109,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         "Register": null,
         "DataType": null,
         "Operation": "Insert",
-        "StartTimeName": "StartTime"
+        "TimeColumnName": "StartTime"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -173,8 +172,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
           "Register": null,
           "DataType": null,
           "Operation": "Update",
-          "StartTimeName": "StartTime",
-          "EndTimeName": "EndTime"
+          "TimeColumnName": "StartTime"
         },
         "BatchReadRegister": null,
         "BatchReadLength": 0,

@@ -134,22 +134,19 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                         var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                         dataMessage.Values[dataPoint.ColumnName] = value;
                                                     }
-                                                    if (!string.IsNullOrEmpty(trigger.StartTimeName))
+                                                    if (!string.IsNullOrEmpty(trigger.TimeColumnName))
                                                     {
-                                                        dataMessage.Values[trigger.StartTimeName] = timestamp;
+                                                        dataMessage.Values[trigger.TimeColumnName] = timestamp;
                                                         _lastStartTimes[key] = timestamp;
                                                     }
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                                 else if (_lastStartTimes.TryRemove(key, out var startTime))
                                                 {
-                                                    if (!string.IsNullOrEmpty(trigger.StartTimeName))
+                                                    if (!string.IsNullOrEmpty(trigger.TimeColumnName))
                                                     {
-                                                        dataMessage.KeyValues[trigger.StartTimeName] = startTime;
-                                                    }
-                                                    if (!string.IsNullOrEmpty(trigger.EndTimeName))
-                                                    {
-                                                        dataMessage.Values[trigger.EndTimeName] = timestamp;
+                                                        dataMessage.KeyValues[trigger.TimeColumnName] = startTime;
+                                                        dataMessage.Values[trigger.TimeColumnName] = timestamp;
                                                     }
                                                     _queue.PublishAsync(dataMessage);
                                                 }

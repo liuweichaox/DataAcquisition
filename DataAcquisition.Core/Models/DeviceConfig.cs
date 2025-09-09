@@ -105,14 +105,9 @@ public class Trigger
     public DataOperation Operation { get; set; } = DataOperation.Insert;
 
     /// <summary>
-    /// 开始时间列名
+    /// 时间列名
     /// </summary>
-    public string StartTimeName { get; set; }
-
-    /// <summary>
-    /// 结束时间列名
-    /// </summary>
-    public string EndTimeName { get; set; }
+    public string TimeColumnName { get; set; }
 }
 
 /// <summary>

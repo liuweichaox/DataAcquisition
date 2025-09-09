@@ -45,7 +45,7 @@
         "Register": "D6200",
         "DataType": "short",
         "Operation": "Insert",
-        "StartTimeName": "start_time"
+        "TimeColumnName": "start_time"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
@@ -77,8 +77,7 @@
         "Register": "D6200",
         "DataType": "short",
         "Operation": "Update",
-        "StartTimeName": "start_time",
-        "EndTimeName": "end_time"
+        "TimeColumnName": "start_time"
       },
       "BatchReadRegister": null,
       "BatchReadLength": 0,
