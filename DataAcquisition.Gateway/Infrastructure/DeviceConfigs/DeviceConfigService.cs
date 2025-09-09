@@ -3,6 +3,9 @@ using DataAcquisition.Core.Models;
 
 namespace DataAcquisition.Core.DeviceConfigs;
 
+/// <summary>
+/// 提供加载设备配置文件的服务。
+/// </summary>
 public class DeviceConfigService : IDeviceConfigService
 {
     public async Task<List<DeviceConfig>> GetConfigs()
@@ -34,14 +37,14 @@ public class DeviceConfigService : IDeviceConfigService
     {
         var results = new List<T>();
 
-        // 获取所有 JSON 文件
+        // Retrieve all JSON files.
         var jsonFiles = Directory.GetFiles(directoryPath, "*.json");
 
         foreach (var filePath in jsonFiles)
         {
             try
             {
-                // 加载并反序列化 JSON 文件
+                // Load and deserialize each JSON file.
                 var config = await LoadConfigAsync<T>(filePath);
                 results.Add(config);
             }

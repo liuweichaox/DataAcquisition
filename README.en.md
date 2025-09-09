@@ -10,11 +10,20 @@
 ## 📘 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
-## 🔧 Development Guide
-- The core workflow is to implement the interfaces under the `Infrastructure` folder of the `DataAcquisition.Gateway` project.
-- The default implementation uses [HslCommunication](https://github.com/dathlin/HslCommunication) for Modbus communication.
-- You can replace it with any other communication library to support different PLCs or protocols—there is no restriction to Mitsubishi or Inovance devices.
-- Storage providers are also pluggable, allowing custom data sinks beyond the built-in examples.
+## 🧩 System configuration
+Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
+
+```csharp
+builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
+```
 
 ## ✨ Key Features
 - Efficient communication using the Modbus TCP protocol.
@@ -201,7 +210,7 @@ dotnet build
 dotnet run --project DataAcquisition.Gateway
 ```
 
-The service listens on http://localhost:5000 by default.
+The service listens on http://localhost:8000 by default.
 
 ## 🚀 Deployment
 Use `dotnet publish` to generate self-contained executables for different platforms:
@@ -213,21 +222,6 @@ dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained tr
 ```
 
 Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
-
-## 🧩 Application setup
-Register the `IDataAcquisition` instance in `Startup.cs` to manage acquisition tasks.
-
-```csharp
-builder.Services.AddSingleton<IMessage, Message>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
-```
 
 ## 🔌 API
 ### 📡 Get PLC connection status
