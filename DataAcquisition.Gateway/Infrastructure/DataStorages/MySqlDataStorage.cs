@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Linq;
 using System.Text.RegularExpressions;
 using Dapper;
 using DataAcquisition.Core.DataStorages;
@@ -92,6 +93,45 @@ public class MySqlDataStorage : IDataStorage
         {
             await transaction.RollbackAsync();
             Console.WriteLine($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
+    public async Task UpdateAsync(string tableName, Dictionary<string, object> values, Dictionary<string, object> conditions)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(_connectionString);
+            if (connection.State != System.Data.ConnectionState.Open)
+                await connection.OpenAsync();
+
+            var setMapping = values.Keys.ToDictionary(
+                key => key,
+                key => ParamCleanRegex.Replace(key, "_").Trim('_')
+            );
+            var whereMapping = conditions.Keys.ToDictionary(
+                key => key,
+                key => ParamCleanRegex.Replace(key, "_").Trim('_') + "_w"
+            );
+
+            var setClause = string.Join(", ", setMapping.Select(kvp => $"`{kvp.Key}`=@{kvp.Value}"));
+            var whereClause = string.Join(" AND ", whereMapping.Select(kvp => $"`{kvp.Key}`=@{kvp.Value}"));
+            var sql = $"UPDATE `{tableName}` SET {setClause} WHERE {whereClause}";
+
+            var dapperParams = new DynamicParameters();
+            foreach (var kvp in values)
+            {
+                dapperParams.Add(setMapping[kvp.Key], kvp.Value);
+            }
+            foreach (var kvp in conditions)
+            {
+                dapperParams.Add(whereMapping[kvp.Key], kvp.Value);
+            }
+
+            await connection.ExecuteAsync(sql, dapperParams, commandTimeout: 60);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}");
         }
     }
 }

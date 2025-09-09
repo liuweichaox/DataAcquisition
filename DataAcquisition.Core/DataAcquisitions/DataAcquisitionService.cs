@@ -23,6 +23,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly ICommunicationFactory _communicationFactory;
         private readonly IMessage _message;
         private readonly IQueue _queue;
+        private readonly ConcurrentDictionary<string, Dictionary<string, object>> _lastBatchKeys = new();
 
         /// <summary>
         /// 数据采集器
@@ -118,15 +119,33 @@ namespace DataAcquisition.Core.DataAcquisitions
                                         {
                                             try
                                             {
-                                                var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
-                                                var buffer = batchData.Content;
-                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.BatchSize, module.DataPoints);
-                                                foreach (var dataPoint in module.DataPoints)
+                                                var operation = module.Operation;
+                                                var key = $"{config.Code}:{module.TableName}";
+                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.BatchSize, module.DataPoints, operation);
+                                                if (operation == DataOperation.Insert)
                                                 {
-                                                    var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                                    dataMessage.Values[dataPoint.ColumnName] = value;
+                                                    var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
+                                                    var buffer = batchData.Content;
+                                                    var keyValues = new Dictionary<string, object>();
+                                                    foreach (var dataPoint in module.DataPoints)
+                                                    {
+                                                        var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                                        dataMessage.Values[dataPoint.ColumnName] = value;
+                                                        keyValues[dataPoint.ColumnName] = value;
+                                                    }
+                                                    dataMessage.Values["start_time"] = DateTime.Now;
+                                                    _lastBatchKeys[key] = keyValues;
+                                                    _queue.PublishAsync(dataMessage);
                                                 }
-                                                _queue.PublishAsync(dataMessage);
+                                                else if (_lastBatchKeys.TryRemove(key, out var keyValues))
+                                                {
+                                                    foreach (var kvp in keyValues)
+                                                    {
+                                                        dataMessage.KeyValues[kvp.Key] = kvp.Value;
+                                                    }
+                                                    dataMessage.Values["end_time"] = DateTime.Now;
+                                                    _queue.PublishAsync(dataMessage);
+                                                }
                                             }
                                             catch (Exception ex)
                                             {

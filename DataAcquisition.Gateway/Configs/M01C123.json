@@ -1,4 +1,4 @@
-﻿{
+{
   "IsEnabled": true,
   "Code": "M01C123",
   "Host": "192.168.1.110",
@@ -17,6 +17,7 @@
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -47,6 +48,7 @@
       "BatchReadLength": 200,
       "TableName": "m01c02_sensor",
       "BatchSize": 10,
+      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -65,6 +67,20 @@
           "EvalExpression": "value / 1000.0"
         }
       ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "FallingEdge",
+        "Register": null,
+        "DataType": null
+      },
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "TableName": "m01c02_sensor",
+      "BatchSize": 10,
+      "Operation": "Update",
+      "DataPoints": []
     }
   ]
 }
