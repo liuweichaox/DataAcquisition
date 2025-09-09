@@ -14,6 +14,6 @@ public class DataMessage(DateTime timestamp, string tableName, int batchSize, Li
     public int BatchSize => batchSize;
     public List<DataPoint>? DataPoints => dataPoints;
     public DataOperation Operation => operation;
-    public ConcurrentDictionary<string, dynamic> Values { get; } = new();
+    public ConcurrentDictionary<string, dynamic?> DataValues { get; } = new();
     public ConcurrentDictionary<string, dynamic> KeyValues { get; } = new();
 }

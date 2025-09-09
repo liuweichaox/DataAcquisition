@@ -28,17 +28,17 @@ public class MySqlDataStorage : IDataStorage
             if (connection.State != System.Data.ConnectionState.Open)
                 await connection.OpenAsync();
 
-            var paramMapping = dataMessage.Values.Keys.ToDictionary(
+            var paramMapping = dataMessage.DataValues.Keys.ToDictionary(
                 key => key,
                 key => ParamCleanRegex.Replace(key, "_").Trim('_')
             );
 
-            var columns = string.Join(", ", dataMessage.Values.Keys.Select(k => $"`{k}`"));
+            var columns = string.Join(", ", dataMessage.DataValues.Keys.Select(k => $"`{k}`"));
             var parameters = string.Join(", ", paramMapping.Values.Select(v => $"@{v}"));
             var sql = $"INSERT INTO `{dataMessage.TableName}` ({columns}) VALUES ({parameters})";
 
             var dapperParams = new DynamicParameters();
-            foreach (var kvp in dataMessage.Values)
+            foreach (var kvp in dataMessage.DataValues)
             {
                 dapperParams.Add(paramMapping[kvp.Key], kvp.Value);
             }
@@ -65,21 +65,21 @@ public class MySqlDataStorage : IDataStorage
         {
             foreach (var dataMessage in dataMessages)
             {
-                var cacheKey = $"{dataMessage.TableName}:{string.Join(",", dataMessage.Values.Keys.OrderBy(k => k))}";
+                var cacheKey = $"{dataMessage.TableName}:{string.Join(",", dataMessage.DataValues.Keys.OrderBy(k => k))}";
 
                 var (sql, paramMapping) = SqlCache.GetOrAdd(cacheKey, _ =>
                 {
-                    var mapping = dataMessage.Values.Keys.ToDictionary(
+                    var mapping = dataMessage.DataValues.Keys.ToDictionary(
                         key => key,
                         key => ParamCleanRegex.Replace(key, "_").Trim('_')
                     );
-                    var columns = string.Join(", ", dataMessage.Values.Keys.Select(k => $"`{k}`"));
+                    var columns = string.Join(", ", dataMessage.DataValues.Keys.Select(k => $"`{k}`"));
                     var parameters = string.Join(", ", mapping.Values.Select(v => $"@{v}"));
                     return ($"INSERT INTO `{dataMessage.TableName}` ({columns}) VALUES ({parameters})", mapping);
                 });
 
                 var dapperParams = new DynamicParameters();
-                foreach (var kvp in dataMessage.Values)
+                foreach (var kvp in dataMessage.DataValues)
                 {
                     dapperParams.Add(paramMapping[kvp.Key], kvp.Value);
                 }

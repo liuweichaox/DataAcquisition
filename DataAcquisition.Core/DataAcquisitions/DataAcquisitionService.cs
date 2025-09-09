@@ -50,6 +50,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
+            
             public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
 
             public void Clear()
@@ -102,71 +103,77 @@ namespace DataAcquisition.Core.DataAcquisitions
                     {
                         _ = Task.Run(async () =>
                         {
-                            object prevVal = null;
+                            object? prevVal = null;
                             // 循环采集数据，直到取消请求
                             while (!cts.Token.IsCancellationRequested)
                             {
                                 // 如果 PLC 已连接则采集数据
-                                if (_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) && isConnected)
+                                if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code,
+                                        out var isConnected) || !isConnected) continue;
+                                
+                                var locker = _plcStateManager.PlcLocks[config.Code];
+                                await locker.WaitAsync();
+                                
+                                try
                                 {
                                     var trigger = module.Trigger;
-                                    object currVal = null;
-
-                                    var locker = _plcStateManager.PlcLocks[config.Code];
-                                    await locker.WaitAsync();
+                                    
+                                    var currVal = trigger.Mode == TriggerMode.Always ? null :
+                                        await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
+                                        
+                                    if (!ShouldSample(trigger.Mode, prevVal, currVal)) continue;
+                                        
                                     try
                                     {
-                                        currVal = trigger.Mode == TriggerMode.Always ? null :
-                                                await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
-                                        if (ShouldSample(trigger.Mode, prevVal, currVal))
+                                        var operation = trigger.Operation;
+                                        var key = $"{config.Code}:{module.TableName}";
+                                        var timestamp = DateTime.Now;
+                                        var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
+                                        if (operation == DataOperation.Insert)
                                         {
-                                            try
+                                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
+                                            var buffer = batchData.Content;
+                                            if (module.DataPoints != null)
                                             {
-                                                var operation = trigger.Operation;
-                                                var key = $"{config.Code}:{module.TableName}";
-                                                var timestamp = DateTime.Now;
-                                                var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
-                                                if (operation == DataOperation.Insert)
+                                                foreach (var dataPoint in module.DataPoints)
                                                 {
-                                                    var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
-                                                    var buffer = batchData.Content;
-                                                    foreach (var dataPoint in module.DataPoints)
-                                                    {
-                                                        var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                                        dataMessage.Values[dataPoint.ColumnName] = value;
-                                                    }
-                                                    if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                                                    {
-                                                        dataMessage.Values[trigger.TimeColumnName] = timestamp;
-                                                        _lastStartTimes[key] = timestamp;
-                                                        _lastStartTimeColumns[key] = trigger.TimeColumnName;
-                                                    }
-                                                    _queue.PublishAsync(dataMessage);
-                                                }
-                                                else if (_lastStartTimes.TryRemove(key, out var startTime))
-                                                {
-                                                    if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
-                                                    {
-                                                        dataMessage.KeyValues[startColumn] = startTime;
-                                                    }
-                                                    if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                                                    {
-                                                        dataMessage.Values[trigger.TimeColumnName] = timestamp;
-                                                    }
-                                                    _queue.PublishAsync(dataMessage);
+                                                    var value = TransValue(client, buffer, dataPoint.Index,
+                                                        dataPoint.StringByteLength, dataPoint.DataType,
+                                                        dataPoint.Encoding);
+                                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
                                                 }
                                             }
-                                            catch (Exception ex)
+
+                                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
                                             {
-                                                _ = _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
+                                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
+                                                _lastStartTimes[key] = timestamp;
+                                                _lastStartTimeColumns[key] = trigger.TimeColumnName;
+                                            } 
+                                            await _queue.PublishAsync(dataMessage);
+                                        }
+                                        else if (_lastStartTimes.TryRemove(key, out var startTime))
+                                        {
+                                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
+                                            {
+                                                dataMessage.KeyValues[startColumn] = startTime;
                                             }
-                                            prevVal = currVal;
+                                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
+                                            {
+                                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
+                                            } 
+                                            await _queue.PublishAsync(dataMessage);
                                         }
                                     }
-                                    finally
+                                    catch (Exception ex)
                                     {
-                                        locker.Release();
+                                        _ = _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
                                     }
+                                    prevVal = currVal;
+                                }
+                                finally
+                                {
+                                    locker.Release();
                                 }
                             }
 
@@ -193,11 +200,11 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="prev"></param>
         /// <param name="curr"></param>
         /// <returns></returns>
-        private bool ShouldSample(TriggerMode mode, object prev, object curr)
+        private static bool ShouldSample(TriggerMode mode, object? prev, object? curr)
         {
-            if (prev == null) return true;
-            decimal p = Convert.ToDecimal(prev);
-            decimal c = Convert.ToDecimal(curr);
+            if (prev == null || curr == null) return true;
+            var p = Convert.ToDecimal(prev);
+            var c = Convert.ToDecimal(curr);
             return mode switch
             {
                 TriggerMode.Always => true,
@@ -282,12 +289,12 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 读取 PLC 值
         /// </summary>
-        /// <param name="plc"></param>
+        /// <param name="client"></param>
         /// <param name="register"></param>
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private async Task<object> ReadCommunicationValueAsync(ICommunication client, string register, string dataType)
+        private static async Task<object> ReadCommunicationValueAsync(ICommunication client, string register, string dataType)
         {
             return dataType switch
             {
@@ -304,23 +311,23 @@ namespace DataAcquisition.Core.DataAcquisitions
         }
 
 
-        private dynamic? TransValue(ICommunication client, byte[] buffer, int index, int length, string dataType,
+        private static dynamic? TransValue(ICommunication client, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
-            switch (dataType.ToLower())
+            return dataType.ToLower() switch
             {
-                case "ushort": return client.TransUShort(buffer, index);
-                case "uint": return client.TransUInt(buffer, index);
-                case "ulong": return client.TransULong(buffer, index);
-                case "short": return client.TransShort(buffer, index);
-                case "int": return client.TransInt(buffer, index);
-                case "long": return client.TransLong(buffer, index);
-                case "float": return client.TransFloat(buffer, index);
-                case "double": return client.TransDouble(buffer, index);
-                case "string": return client.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
-                case "bool": return client.TransBool(buffer, index);
-                default: return null;
-            }
+                "ushort" => client.TransUShort(buffer, index),
+                "uint" => client.TransUInt(buffer, index),
+                "ulong" => client.TransULong(buffer, index),
+                "short" => client.TransShort(buffer, index),
+                "int" => client.TransInt(buffer, index),
+                "long" => client.TransLong(buffer, index),
+                "float" => client.TransFloat(buffer, index),
+                "double" => client.TransDouble(buffer, index),
+                "string" => client.TransString(buffer, index, length, Encoding.GetEncoding(encoding)),
+                "bool" => client.TransBool(buffer, index),
+                _ => null
+            };
         }
 
         /// <summary>

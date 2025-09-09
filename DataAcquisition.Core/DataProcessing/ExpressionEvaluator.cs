@@ -15,7 +15,7 @@ public static class ExpressionEvaluator
     /// <param name="dataMessage">待处理的数据消息</param>
     public static async Task EvaluateAsync(DataMessage dataMessage)
     {
-        foreach (var kv in dataMessage.Values.ToList())
+        foreach (var kv in dataMessage.DataValues.ToList())
         {
             if (!IsNumberType(kv.Value)) continue;
 
@@ -31,7 +31,7 @@ public static class ExpressionEvaluator
             };
 
             var value = await expression.EvaluateAsync();
-            dataMessage.Values[kv.Key] = value ?? 0;
+            dataMessage.DataValues[kv.Key] = value ?? 0;
         }
     }
     

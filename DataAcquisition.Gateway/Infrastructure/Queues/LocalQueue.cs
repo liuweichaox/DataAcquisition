@@ -50,7 +50,7 @@ public class LocalQueue : IQueue
         {
             await _dataStorage.UpdateAsync(
                 dataMessage.TableName,
-                dataMessage.Values.ToDictionary(k => k.Key, k => (object)k.Value),
+                dataMessage.DataValues.ToDictionary(k => k.Key, k => (object)k.Value),
                 dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)k.Value));
             return;
         }
