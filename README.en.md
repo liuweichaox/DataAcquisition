@@ -110,8 +110,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         "Mode": "Always",
         "Register": null,
         "DataType": null,
-        "Operation": "Insert",
-        "TimeColumnName": "StartTime"
+        "Operation": "Insert"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -140,14 +139,15 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "ChamberCode": "M01C02",
       "Trigger": {
         "Mode": "RisingEdge",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Insert",
+        "TimeColumnName": "start_time"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
-      "TableName": "m01c02_sensor",
-      "BatchSize": 10,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -166,24 +166,24 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
           "EvalExpression": "value / 1000.0"
         }
       ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "FallingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Update",
+        "TimeColumnName": "end_time"
       },
-      {
-        "ChamberCode": "M01C01",
-        "Trigger": {
-          "Mode": "FallingEdge",
-          "Register": null,
-          "DataType": null,
-          "Operation": "Update",
-          "TimeColumnName": "StartTime"
-        },
-        "BatchReadRegister": null,
-        "BatchReadLength": 0,
-        "TableName": "m01c01_sensor",
-        "BatchSize": 1,
-        "DataPoints": null
-      }
-    ]
-  }
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": null
+    }
+  ]
+}
 ```
 
 ## 🧩 Application setup
