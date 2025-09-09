@@ -49,8 +49,7 @@ Modules:                        # 采集模块配置数组
       Register: string          # 触发寄存器地址
       DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
       Operation: Insert|Update  # 数据操作类型
-      StartTimeName: string     # [可选] 开始时间列名
-      EndTimeName: string       # [可选] 结束时间列名
+      TimeColumnName: string    # [可选] 时间列名
     BatchReadRegister: string   # 批量读取寄存器地址
     BatchReadLength: int        # 批量读取长度
     TableName: string           # 数据库表名
@@ -84,8 +83,8 @@ Modules:                        # 采集模块配置数组
 - **Trigger.Operation**
   - `Insert`：插入新记录。
   - `Update`：更新已有记录。
-- **Trigger.StartTimeName / Trigger.EndTimeName**
-  - 可选的开始时间和结束时间列名。
+- **Trigger.TimeColumnName**
+  - 可选的时间列名。
 
 #### ⚖️ EvalExpression 用法
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
@@ -110,7 +109,7 @@ Modules:                        # 采集模块配置数组
         "Register": null,
         "DataType": null,
         "Operation": "Insert",
-        "StartTimeName": "StartTime"
+        "TimeColumnName": "StartTime"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -173,8 +172,7 @@ Modules:                        # 采集模块配置数组
           "Register": null,
           "DataType": null,
           "Operation": "Update",
-          "StartTimeName": "StartTime",
-          "EndTimeName": "EndTime"
+          "TimeColumnName": "StartTime"
         },
         "BatchReadRegister": null,
         "BatchReadLength": 0,
