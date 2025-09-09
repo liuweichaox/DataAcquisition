@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using DataAcquisition.Core.Communication;
 
 namespace DataAcquisition.Core.DataAcquisitions;
 
@@ -25,4 +26,14 @@ public interface IDataAcquisitionService : IDisposable
     /// </summary>
     /// <returns></returns>
     SortedDictionary<string, bool> GetPlcConnectionStatus();
+
+    /// <summary>
+    /// 写入 PLC 寄存器
+    /// </summary>
+    /// <param name="plcCode">PLC 编号</param>
+    /// <param name="address">寄存器地址</param>
+    /// <param name="value">写入值</param>
+    /// <param name="dataType">数据类型</param>
+    /// <returns>写入结果</returns>
+    Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType);
 }

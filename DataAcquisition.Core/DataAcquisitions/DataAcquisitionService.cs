@@ -355,6 +355,69 @@ namespace DataAcquisition.Core.DataAcquisitions
         }
 
         /// <summary>
+        /// 写入 PLC 寄存器
+        /// </summary>
+        /// <param name="plcCode">PLC 编号</param>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入值</param>
+        /// <returns>写入结果</returns>
+        public Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType)
+        {
+            if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
+            {
+                return Task.FromResult(new CommunicationWriteResult
+                {
+                    IsSuccess = false,
+                    Message = $"未找到 PLC {plcCode}"
+                });
+            }
+
+            var locker = _plcStateManager.PlcLocks[plcCode];
+            lock (locker)
+            {
+                var typedValue = ConvertValue(value, dataType);
+                return client.WriteAsync(address, typedValue);
+            }
+        }
+
+        private static object ConvertValue(object value, string dataType)
+        {
+            try
+            {
+                if (value is System.Text.Json.JsonElement element)
+                {
+                    value = element.ValueKind switch
+                    {
+                        System.Text.Json.JsonValueKind.String => element.GetString(),
+                        System.Text.Json.JsonValueKind.Number => element.TryGetInt64(out var l) ? l : element.GetDouble(),
+                        System.Text.Json.JsonValueKind.True => true,
+                        System.Text.Json.JsonValueKind.False => false,
+                        _ => null
+                    };
+                }
+
+                return dataType?.ToLower() switch
+                {
+                    "ushort" => Convert.ToUInt16(value),
+                    "uint" => Convert.ToUInt32(value),
+                    "ulong" => Convert.ToUInt64(value),
+                    "short" => Convert.ToInt16(value),
+                    "int" => Convert.ToInt32(value),
+                    "long" => Convert.ToInt64(value),
+                    "float" => Convert.ToSingle(value),
+                    "double" => Convert.ToDouble(value),
+                    "string" => value?.ToString() ?? string.Empty,
+                    "bool" => Convert.ToBoolean(value),
+                    _ => value
+                };
+            }
+            catch
+            {
+                return value;
+            }
+        }
+
+        /// <summary>
         /// 获取当前所有 PLC 连接状态
         /// </summary>
         public SortedDictionary<string, bool> GetPlcConnectionStatus()

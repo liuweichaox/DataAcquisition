@@ -41,7 +41,6 @@ Host: string                    # PLC IP 地址
 Port: number                    # PLC 通讯端口
 HeartbeatMonitorRegister: string # [可选] 心跳监控寄存器地址
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔（毫秒）
-ConnectionString: string        # 数据库连接字符串
 Modules:                        # 采集模块配置数组
   - ChamberCode: string         # 采集通道编码
     Trigger:                    # 触发配置
@@ -90,7 +89,6 @@ Modules:                        # 采集模块配置数组
   "Port": 4104,
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
   "Modules": [
     {
       "ChamberCode": "M01C01",
@@ -176,6 +174,20 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 该接口返回各 PLC 连接状态的字典。
+
+### ✍️ 写入 PLC 寄存器
+- `POST /api/DataAcquisition/WriteRegister`
+
+请求示例（通过 `dataType` 指定写入值类型）：
+
+```json
+{
+  "plcCode": "PLC01",
+  "address": "D100",
+  "dataType": "short",
+  "value": 1
+}
+```
 
 ## 🤝 贡献
 欢迎通过 Pull Request 提交改进。提交前请确保所有相关测试通过并避免引入破坏性修改。

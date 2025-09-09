@@ -27,9 +27,49 @@ public class Communication : ICommunication
 
     public IPStatus IpAddressPing() => _device.IpAddressPing();
 
-    public async Task<CommunicationWriteResult> WriteAsync(string address, int value)
+    public async Task<CommunicationWriteResult> WriteAsync(string address, object value)
     {
-        var res = await _device.WriteAsync(address, value);
+        HslCommunication.OperateResult res;
+        switch (value)
+        {
+            case ushort v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case uint v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case ulong v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case short v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case int v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case long v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case float v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case double v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case string v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            case bool v:
+                res = await _device.WriteAsync(address, v);
+                break;
+            default:
+                return new CommunicationWriteResult
+                {
+                    IsSuccess = false,
+                    Message = $"Unsupported value type: {value?.GetType()}"
+                };
+        }
+
         return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
