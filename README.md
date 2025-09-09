@@ -109,8 +109,7 @@ Modules:                        # 采集模块配置数组
         "Mode": "Always",
         "Register": null,
         "DataType": null,
-        "Operation": "Insert",
-        "TimeColumnName": "StartTime"
+        "Operation": "Insert"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
@@ -139,14 +138,15 @@ Modules:                        # 采集模块配置数组
       "ChamberCode": "M01C02",
       "Trigger": {
         "Mode": "RisingEdge",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Insert",
+        "TimeColumnName": "start_time"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
-      "TableName": "m01c02_sensor",
-      "BatchSize": 10,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -165,24 +165,24 @@ Modules:                        # 采集模块配置数组
           "EvalExpression": "value / 1000.0"
         }
       ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "FallingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Update",
+        "TimeColumnName": "end_time"
       },
-      {
-        "ChamberCode": "M01C01",
-        "Trigger": {
-          "Mode": "FallingEdge",
-          "Register": null,
-          "DataType": null,
-          "Operation": "Update",
-          "TimeColumnName": "StartTime"
-        },
-        "BatchReadRegister": null,
-        "BatchReadLength": 0,
-        "TableName": "m01c01_sensor",
-        "BatchSize": 1,
-        "DataPoints": null
-      }
-    ]
-  }
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": null
+    }
+  ]
+}
 ```
 
 ## 🧩 系统配置
@@ -213,10 +213,92 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 
 ```json
 {
-  "plcCode": "PLC01",
-  "items": [
-    { "address": "D100", "dataType": "short", "value": 1 },
-    { "address": "D101", "dataType": "int", "value": 2 }
+  "IsEnabled": true,
+  "Code": "M01C123",
+  "Host": "192.168.1.110",
+  "Port": 4104,
+  "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatPollingInterval": 2000,
+  "Modules": [
+    {
+      "ChamberCode": "M01C01",
+      "Trigger": {
+        "Mode": "Always",
+        "Register": null,
+        "DataType": null,
+        "Operation": "Insert"
+      },
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 70,
+      "TableName": "m01c01_sensor",
+      "BatchSize": 1,
+      "DataPoints": [
+        {
+          "ColumnName": "up_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "RisingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Insert",
+        "TimeColumnName": "start_time"
+      },
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": [
+        {
+          "ColumnName": "up_set_temp",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_set_temp",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ChamberCode": "M01C02",
+      "Trigger": {
+        "Mode": "FallingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Update",
+        "TimeColumnName": "end_time"
+      },
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": null
+    }
   ]
 }
 ```
