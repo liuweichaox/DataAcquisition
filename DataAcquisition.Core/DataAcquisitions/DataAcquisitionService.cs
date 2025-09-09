@@ -49,7 +49,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
             public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
             public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
-            public readonly ConcurrentDictionary<string, object> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
+            public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
 
             public void Clear()
             {
@@ -99,7 +99,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
                     foreach (var module in config.Modules)
                     {
-                        _ = Task.Run(() =>
+                        _ = Task.Run(async () =>
                         {
                             object prevVal = null;
                             // 循环采集数据，直到取消请求
@@ -111,10 +111,12 @@ namespace DataAcquisition.Core.DataAcquisitions
                                     var trigger = module.Trigger;
                                     object currVal = null;
 
-                                    lock (_plcStateManager.PlcLocks[config.Code])
+                                    var locker = _plcStateManager.PlcLocks[config.Code];
+                                    await locker.WaitAsync();
+                                    try
                                     {
                                         currVal = trigger.Mode == TriggerMode.Always ? null :
-                                                ReadCommunicationValue(client, trigger.Register, trigger.DataType);
+                                                await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
                                         if (ShouldSample(trigger.Mode, prevVal, currVal))
                                         {
                                             try
@@ -125,7 +127,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                 var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
                                                 if (operation == DataOperation.Insert)
                                                 {
-                                                    var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
+                                                    var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
                                                     var buffer = batchData.Content;
                                                     foreach (var dataPoint in module.DataPoints)
                                                     {
@@ -158,6 +160,10 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             }
                                             prevVal = currVal;
                                         }
+                                    }
+                                    finally
+                                    {
+                                        locker.Release();
                                     }
                                 }
                             }
@@ -213,7 +219,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
             client = _communicationFactory.Create(config);
             _plcStateManager.PlcClients.TryAdd(config.Code, client);
-            _plcStateManager.PlcLocks.TryAdd(config.Code, new object());
+            _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
             return client;
         }
 
@@ -229,7 +235,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
             var hbTask = Task.Run(async () =>
             {
-                var writeData = 0;
+                ushort writeData = 0;
                 while (!hbCts.IsCancellationRequested)
                 {
                     try
@@ -243,7 +249,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                             continue;
                         }
 
-                        var connect = await client.WriteAsync(config.HeartbeatMonitorRegister, writeData);
+                        var connect = await client.WriteUShortAsync(config.HeartbeatMonitorRegister, writeData);
                         if (connect.IsSuccess)
                         {
                             writeData ^= 1;
@@ -279,18 +285,18 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private object ReadCommunicationValue(ICommunication client, string register, string dataType)
+        private async Task<object> ReadCommunicationValueAsync(ICommunication client, string register, string dataType)
         {
             return dataType switch
             {
-                "ushort" => client.ReadUInt16(register),
-                "uint" => client.ReadUInt32(register),
-                "ulong" => client.ReadUInt64(register),
-                "short" => client.ReadInt16(register),
-                "int" => client.ReadInt32(register),
-                "long" => client.ReadInt64(register),
-                "float" => client.ReadFloat(register),
-                "double" => client.ReadDouble(register),
+                "ushort" => await client.ReadUShortAsync(register),
+                "uint" => await client.ReadUIntAsync(register),
+                "ulong" => await client.ReadULongAsync(register),
+                "short" => await client.ReadShortAsync(register),
+                "int" => await client.ReadIntAsync(register),
+                "long" => await client.ReadLongAsync(register),
+                "float" => await client.ReadFloatAsync(register),
+                "double" => await client.ReadDoubleAsync(register),
                 _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
             };
         }
@@ -301,13 +307,13 @@ namespace DataAcquisition.Core.DataAcquisitions
         {
             switch (dataType.ToLower())
             {
-                case "ushort": return client.TransUInt16(buffer, index);
-                case "uint": return client.TransUInt32(buffer, index);
-                case "ulong": return client.TransUInt64(buffer, index);
-                case "short": return client.TransInt16(buffer, index);
-                case "int": return client.TransInt32(buffer, index);
-                case "long": return client.TransInt64(buffer, index);
-                case "float": return client.TransSingle(buffer, index);
+                case "ushort": return client.TransUShort(buffer, index);
+                case "uint": return client.TransUInt(buffer, index);
+                case "ulong": return client.TransULong(buffer, index);
+                case "short": return client.TransShort(buffer, index);
+                case "int": return client.TransInt(buffer, index);
+                case "long": return client.TransLong(buffer, index);
+                case "float": return client.TransFloat(buffer, index);
                 case "double": return client.TransDouble(buffer, index);
                 case "string": return client.TransString(buffer, index, length, Encoding.GetEncoding(encoding));
                 case "bool": return client.TransBool(buffer, index);
@@ -369,22 +375,56 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="plcCode">PLC 编号</param>
         /// <param name="address">寄存器地址</param>
         /// <param name="value">写入值</param>
+        /// <param name="dataType">数据类型</param>
         /// <returns>写入结果</returns>
-        public Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType)
+        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType)
         {
             if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
             {
-                return Task.FromResult(new CommunicationWriteResult
+                return new CommunicationWriteResult
                 {
                     IsSuccess = false,
                     Message = $"未找到 PLC {plcCode}"
-                });
+                };
             }
 
             var locker = _plcStateManager.PlcLocks[plcCode];
-            lock (locker)
+            await locker.WaitAsync();
+            try
             {
-                return client.WriteAsync(address, value);
+                switch (dataType)
+                {
+                    case "ushort":
+                        return await client.WriteUShortAsync(address, Convert.ToUInt16(value));
+                    case "uint":
+                        return await client.WriteUIntAsync(address, Convert.ToUInt32(value));
+                    case "ulong":
+                        return await client.WriteULongAsync(address, Convert.ToUInt64(value));
+                    case "short":
+                        return await client.WriteShortAsync(address, Convert.ToInt16(value));
+                    case "int":
+                        return await client.WriteIntAsync(address, Convert.ToInt32(value));
+                    case "long":
+                        return await client.WriteLongAsync(address, Convert.ToInt64(value));
+                    case "float":
+                        return await client.WriteFloatAsync(address, Convert.ToSingle(value));
+                    case "double":
+                        return await client.WriteDoubleAsync(address, Convert.ToDouble(value));
+                    case "string":
+                        return await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty);
+                    case "bool":
+                        return await client.WriteBoolAsync(address, Convert.ToBoolean(value));
+                    default:
+                        return new CommunicationWriteResult
+                        {
+                            IsSuccess = false,
+                            Message = $"不支持的数据类型: {dataType}"
+                        };
+                }
+            }
+            finally
+            {
+                locker.Release();
             }
         }
 
