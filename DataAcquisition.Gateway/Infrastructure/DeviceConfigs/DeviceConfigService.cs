@@ -3,6 +3,9 @@ using DataAcquisition.Core.Models;
 
 namespace DataAcquisition.Core.DeviceConfigs;
 
+/// <summary>
+/// 提供加载设备配置文件的服务。
+/// </summary>
 public class DeviceConfigService : IDeviceConfigService
 {
     public async Task<List<DeviceConfig>> GetConfigs()

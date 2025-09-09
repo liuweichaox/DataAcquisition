@@ -30,7 +30,7 @@ builder.Services.AddControllersWithViews();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// 配置 HTTP 请求管道。
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");

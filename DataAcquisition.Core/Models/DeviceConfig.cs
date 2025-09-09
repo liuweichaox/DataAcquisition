@@ -19,7 +19,7 @@ public class DeviceConfig
     public string Code { get; set; }
 
     /// <summary>
-    /// IP地址
+    /// IP 地址
     /// </summary>
     public string Host { get; set; }
 
@@ -64,15 +64,15 @@ public enum TriggerMode
     /// </summary>
     ValueIncrease,
     /// <summary>
-    /// 数值减少触发
+    /// 数值减少时触发
     /// </summary>
     ValueDecrease,
     /// <summary>
-    /// 上升沿触发(表示从0变成1时采集)
+    /// 上升沿触发（寄存器从 0 变为 1 时采集）
     /// </summary>
     RisingEdge,
     /// <summary>
-    /// 下降沿触发(表示从1变成0时采集)
+    /// 下降沿触发（寄存器从 1 变为 0 时采集）
     /// </summary>
     FallingEdge
 }
@@ -171,17 +171,17 @@ public class DataPoint
     public int Index { get; set; }
 
     /// <summary>
-    /// 字符串 byte 数组长度
+    /// 字符串的字节长度
     /// </summary>
     public int StringByteLength { get; set; }
 
     /// <summary>
-    /// 仅用于字符串,字符串编码格式
+    /// 字符串编码，仅在数据类型为字符串时使用
     /// </summary>
     public string Encoding { get; set; }
 
     /// <summary>
-    /// 数据表达式计算
+    /// 数值转换表达式
     /// </summary>
     public string EvalExpression { get; set; }
 }
