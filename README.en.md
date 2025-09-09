@@ -41,7 +41,6 @@ Host: string                    # PLC IP address
 Port: number                    # PLC communication port
 HeartbeatMonitorRegister: string # [Optional] register for heartbeat monitoring
 HeartbeatPollingInterval: number # [Optional] heartbeat polling interval (milliseconds)
-ConnectionString: string        # Database connection string
 Modules:
   - ChamberCode: string         # Channel identifier
     Trigger:
@@ -90,7 +89,6 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
   "Port": 4104,
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "ConnectionString": "Server=127.0.0.1;Database=daq;Uid=root;Pwd=123456;Connect Timeout=30;SslMode=None;",
   "Modules": [
     {
       "ChamberCode": "M01C01",
