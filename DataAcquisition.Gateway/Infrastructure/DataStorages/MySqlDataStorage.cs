@@ -3,6 +3,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Dapper;
 using DataAcquisition.Core.DataStorages;
+using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
 using MySqlConnector;
 using Newtonsoft.Json;
@@ -14,10 +15,11 @@ public class MySqlDataStorage : IDataStorage
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
-
-    public MySqlDataStorage(IConfiguration configuration)
+    private readonly IMessage _message;
+    public MySqlDataStorage(IConfiguration configuration, IMessage message)
     {
         _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
+        _message = message;
     }
 
     public async Task SaveAsync(DataMessage dataMessage)
@@ -47,7 +49,7 @@ public class MySqlDataStorage : IDataStorage
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Insert failed: {ex.Message}\nData: {JsonConvert.SerializeObject(dataMessage)}");
+            await _message.SendAsync($"[ERROR] Insert failed: {ex.Message}\nData: {JsonConvert.SerializeObject(dataMessage)}");
         }
     }
 
@@ -92,7 +94,7 @@ public class MySqlDataStorage : IDataStorage
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            Console.WriteLine($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}");
+            await _message.SendAsync($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}");
         }
     }
 
@@ -131,7 +133,7 @@ public class MySqlDataStorage : IDataStorage
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}");
+            await _message.SendAsync($"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}");
         }
     }
 }

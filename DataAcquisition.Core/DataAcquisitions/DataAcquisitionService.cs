@@ -112,7 +112,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                                         out var isConnected) || !isConnected) continue;
                                 
                                 var locker = _plcStateManager.PlcLocks[config.Code];
-                                await locker.WaitAsync();
+                                await locker.WaitAsync(cts.Token);
                                 
                                 try
                                 {
@@ -250,7 +250,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                     try
                     {
                         var client = _plcStateManager.PlcClients[config.Code];
-                        var pingResult = await Task.Run(() => client.IpAddressPing());
+                        var pingResult = client.IpAddressPing();
                         if (pingResult != IPStatus.Success)
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
@@ -258,7 +258,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                             continue;
                         }
 
-                        var connect = await client.WriteUShortAsync(config.HeartbeatMonitorRegister, writeData);
+                        var connect = await WritePlcAsync(config.Code,config.HeartbeatMonitorRegister, writeData, "ushort", hbCts.Token);
                         if (connect.IsSuccess)
                         {
                             writeData ^= 1;
@@ -372,6 +372,11 @@ namespace DataAcquisition.Core.DataAcquisitions
                 await client.ConnectCloseAsync();
             }
 
+            foreach (var sem in _plcStateManager.PlcLocks.Values)
+            {
+                sem.Dispose();
+            }
+
             // 完成并清理队列
             await _queue.DisposeAsync();
 
@@ -385,8 +390,9 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="address">寄存器地址</param>
         /// <param name="value">写入值</param>
         /// <param name="dataType">数据类型</param>
+        /// <param name="ct"></param>
         /// <returns>写入结果</returns>
-        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType)
+        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType, CancellationToken ct = default)
         {
             if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
             {
@@ -398,38 +404,23 @@ namespace DataAcquisition.Core.DataAcquisitions
             }
 
             var locker = _plcStateManager.PlcLocks[plcCode];
-            await locker.WaitAsync();
+            await locker.WaitAsync(ct);
             try
             {
-                switch (dataType)
+                return dataType switch
                 {
-                    case "ushort":
-                        return await client.WriteUShortAsync(address, Convert.ToUInt16(value));
-                    case "uint":
-                        return await client.WriteUIntAsync(address, Convert.ToUInt32(value));
-                    case "ulong":
-                        return await client.WriteULongAsync(address, Convert.ToUInt64(value));
-                    case "short":
-                        return await client.WriteShortAsync(address, Convert.ToInt16(value));
-                    case "int":
-                        return await client.WriteIntAsync(address, Convert.ToInt32(value));
-                    case "long":
-                        return await client.WriteLongAsync(address, Convert.ToInt64(value));
-                    case "float":
-                        return await client.WriteFloatAsync(address, Convert.ToSingle(value));
-                    case "double":
-                        return await client.WriteDoubleAsync(address, Convert.ToDouble(value));
-                    case "string":
-                        return await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty);
-                    case "bool":
-                        return await client.WriteBoolAsync(address, Convert.ToBoolean(value));
-                    default:
-                        return new CommunicationWriteResult
-                        {
-                            IsSuccess = false,
-                            Message = $"不支持的数据类型: {dataType}"
-                        };
-                }
+                    "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)),
+                    "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)),
+                    "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)),
+                    "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)),
+                    "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)),
+                    "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)),
+                    "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)),
+                    "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)),
+                    "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty),
+                    "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)),
+                    _ => new CommunicationWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
+                };
             }
             finally
             {

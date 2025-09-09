@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
 
@@ -34,6 +35,7 @@ public interface IDataAcquisitionService : IDisposable
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <param name="dataType">数据类型</param>
+    /// <param name="ct"></param>
     /// <returns>写入结果</returns>
-    Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType);
+    Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType, CancellationToken ct = default);
 }

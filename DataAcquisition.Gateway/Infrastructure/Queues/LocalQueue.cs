@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Channels;
 using DataAcquisition.Core.DataProcessing;
 using DataAcquisition.Core.DataStorages;
+using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
 
 namespace DataAcquisition.Gateway.Infrastructure.Queues;
@@ -16,11 +17,13 @@ public class LocalQueue : IQueue
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
     private readonly IDataStorage _dataStorage;
     private readonly IDataProcessingService _dataProcessingService;
+    private readonly IMessage _message;
 
-    public LocalQueue(IDataStorage dataStorage, IDataProcessingService dataProcessingService)
+    public LocalQueue(IDataStorage dataStorage, IDataProcessingService dataProcessingService, IMessage message)
     {
         _dataStorage = dataStorage;
         _dataProcessingService = dataProcessingService;
+        _message = message;
     }
 
     public async Task PublishAsync(DataMessage dataMessage)
@@ -38,8 +41,8 @@ public class LocalQueue : IQueue
                 await StoreDataPointAsync(dataMessage);
             }
             catch (Exception ex)
-            {
-                Console.WriteLine($"Error processing message: {ex.Message}");
+            { 
+                await _message.SendAsync($"Error processing message: {ex.Message}");
             }
         }
     }
