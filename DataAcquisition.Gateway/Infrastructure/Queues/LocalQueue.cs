@@ -49,7 +49,6 @@ public class LocalQueue : IQueue
 
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        await Task.Yield();
         if (dataMessage.Operation == DataOperation.Update)
         {
             await _dataStorage.UpdateAsync(
