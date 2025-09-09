@@ -23,7 +23,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly ICommunicationFactory _communicationFactory;
         private readonly IMessage _message;
         private readonly IQueue _queue;
-        private readonly ConcurrentDictionary<string, Dictionary<string, object>> _lastBatchKeys = new();
+        private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
 
         /// <summary>
         /// 数据采集器
@@ -121,29 +121,25 @@ namespace DataAcquisition.Core.DataAcquisitions
                                             {
                                                 var operation = module.Operation;
                                                 var key = $"{config.Code}:{module.TableName}";
-                                                var dataMessage = new DataMessage(DateTime.Now, module.TableName, module.BatchSize, module.DataPoints, operation);
+                                                var timestamp = DateTime.Now;
+                                                var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
                                                 if (operation == DataOperation.Insert)
                                                 {
                                                     var batchData = client.Read(module.BatchReadRegister, module.BatchReadLength);
                                                     var buffer = batchData.Content;
-                                                    var keyValues = new Dictionary<string, object>();
                                                     foreach (var dataPoint in module.DataPoints)
                                                     {
                                                         var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                                         dataMessage.Values[dataPoint.ColumnName] = value;
-                                                        keyValues[dataPoint.ColumnName] = value;
                                                     }
-                                                    dataMessage.Values["StartTime"] = DateTime.Now;
-                                                    _lastBatchKeys[key] = keyValues;
+                                                    dataMessage.Values["StartTime"] = timestamp;
+                                                    _lastStartTimes[key] = timestamp;
                                                     _queue.PublishAsync(dataMessage);
                                                 }
-                                                else if (_lastBatchKeys.TryRemove(key, out var keyValues))
+                                                else if (_lastStartTimes.TryRemove(key, out var startTime))
                                                 {
-                                                    foreach (var kvp in keyValues)
-                                                    {
-                                                        dataMessage.KeyValues[kvp.Key] = kvp.Value;
-                                                    }
-                                                    dataMessage.Values["EndTime"] = DateTime.Now;
+                                                    dataMessage.KeyValues["StartTime"] = startTime;
+                                                    dataMessage.Values["EndTime"] = timestamp;
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                             }
