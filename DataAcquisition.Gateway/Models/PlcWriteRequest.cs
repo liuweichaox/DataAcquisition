@@ -37,6 +37,6 @@ public class PlcWriteItem
     /// <summary>
     /// 写入值
     /// </summary>
-    public JsonElement Value { get; set; }
+    public object Value { get; set; }
 }
 
