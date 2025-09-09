@@ -11,8 +11,8 @@ using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.Messages;
 
 namespace DataAcquisition.Core.DataAcquisitions
-{
-
+{    
+    public sealed record PlcRuntime(CancellationTokenSource Cts, Task Running);
     /// <summary>
     /// 数据采集器实现
     /// </summary>
@@ -46,23 +46,21 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private class PlcStateManager
         {
+            public readonly ConcurrentDictionary<string, PlcRuntime> Runtimes = new();
             public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new(); // 每个 PLC 一个客户端
             public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new(); // 每个 PLC 一个连接状态
-            public ConcurrentDictionary<string, (Task DataTask, CancellationTokenSource DataCts)> DataTasks { get; } = new(); // 每个 PLC 一个数据采集任务
-            public ConcurrentDictionary<string, (Task HeartbeatTask, CancellationTokenSource HeartbeatCts)> HeartbeatTasks { get; } = new(); // 每个 PLC 一个心跳检测任务
-            
+
             public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new(); // 每个 PLC 一个锁，用于避免并发问题
 
             public void Clear()
             {
                 PlcClients.Clear();
                 PlcConnectionHealth.Clear();
-                DataTasks.Clear();
-                HeartbeatTasks.Clear();
+                Runtimes.Clear();
                 PlcLocks.Clear();
             }
         }
-
+        
         /// <summary>
         /// 开始所有采集任务
         /// </summary>
@@ -80,7 +78,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private void StartCollectionTask(DeviceConfig config)
         {
-            if (_plcStateManager.DataTasks.ContainsKey(config.Code))
+            if (_plcStateManager.Runtimes.ContainsKey(config.Code))
             {
                 return;
             }
@@ -88,109 +86,117 @@ namespace DataAcquisition.Core.DataAcquisitions
             _plcStateManager.PlcConnectionHealth[config.Code] = false;
 
             var cts = new CancellationTokenSource();
+            var ct = cts.Token;
 
-            var task = Task.Run(async () =>
+            var client = CreateCommunicationClient(config);
+                    
+            var tasks = new List<Task> { StartHeartbeatMonitor(config, ct) };
+
+            foreach (var module in config.Modules)
             {
+                tasks.Add(ModuleLoopAsync(config, module, client, ct));
+            }
+                    
+            var running = Task.WhenAll(tasks);
+            _ = running.ContinueWith(async t =>
+            {
+                if (t.Exception != null)
+                    await _message.SendAsync($"[{config.Code}] 采集任务异常: {t.Exception.Flatten().InnerException?.Message}");
+            }, TaskContinuationOptions.OnlyOnFaulted);
+                    
+            _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
+        }
+
+        private async Task ModuleLoopAsync(DeviceConfig config, Module module, ICommunication client,
+            CancellationToken ct = default)
+        {
+            object? prevVal = null;
+            // 循环采集数据，直到取消请求
+            while (!ct.IsCancellationRequested)
+            {
+                // 如果 PLC 已连接则采集数据
+                if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code,
+                        out var isConnected) || !isConnected)
+                {
+                    await Task.Delay(config.HeartbeatPollingInterval, ct); 
+                    continue;
+                }
+
+                var locker = _plcStateManager.PlcLocks[config.Code];
+                await locker.WaitAsync(ct);
+
                 try
                 {
-                    // 初始化 PLC 客户端和队列管理器
-                    var client = CreateCommunicationClient(config);
+                    var trigger = module.Trigger;
 
-                    // 启动心跳监控任务（单独管理连接状态）
-                    StartHeartbeatMonitor(config);
+                    var currVal = trigger.Mode == TriggerMode.Always
+                        ? null
+                        : await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
 
-                    foreach (var module in config.Modules)
+                    if (!ShouldSample(trigger.Mode, prevVal, currVal))
                     {
-                        _ = Task.Run(async () =>
-                        {
-                            object? prevVal = null;
-                            // 循环采集数据，直到取消请求
-                            while (!cts.Token.IsCancellationRequested)
-                            {
-                                // 如果 PLC 已连接则采集数据
-                                if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code,
-                                        out var isConnected) || !isConnected) continue;
-                                
-                                var locker = _plcStateManager.PlcLocks[config.Code];
-                                await locker.WaitAsync(cts.Token);
-                                
-                                try
-                                {
-                                    var trigger = module.Trigger;
-                                    
-                                    var currVal = trigger.Mode == TriggerMode.Always ? null :
-                                        await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
-                                        
-                                    if (!ShouldSample(trigger.Mode, prevVal, currVal)) continue;
-                                        
-                                    try
-                                    {
-                                        var operation = trigger.Operation;
-                                        var key = $"{config.Code}:{module.TableName}";
-                                        var timestamp = DateTime.Now;
-                                        var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
-                                        if (operation == DataOperation.Insert)
-                                        {
-                                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
-                                            var buffer = batchData.Content;
-                                            if (module.DataPoints != null)
-                                            {
-                                                foreach (var dataPoint in module.DataPoints)
-                                                {
-                                                    var value = TransValue(client, buffer, dataPoint.Index,
-                                                        dataPoint.StringByteLength, dataPoint.DataType,
-                                                        dataPoint.Encoding);
-                                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
-                                                }
-                                            }
+                        await Task.Delay(100, ct); 
+                        continue;
+                    }
 
-                                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                                            {
-                                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                                                _lastStartTimes[key] = timestamp;
-                                                _lastStartTimeColumns[key] = trigger.TimeColumnName;
-                                            } 
-                                            await _queue.PublishAsync(dataMessage);
-                                        }
-                                        else if (_lastStartTimes.TryRemove(key, out var startTime))
-                                        {
-                                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
-                                            {
-                                                dataMessage.KeyValues[startColumn] = startTime;
-                                            }
-                                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                                            {
-                                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                                            } 
-                                            await _queue.PublishAsync(dataMessage);
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _ = _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
-                                    }
-                                    prevVal = currVal;
-                                }
-                                finally
+                    try
+                    {
+                        var operation = trigger.Operation;
+                        var key = $"{config.Code}:{module.TableName}";
+                        var timestamp = DateTime.Now;
+                        var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize,
+                            module.DataPoints, operation);
+                        if (operation == DataOperation.Insert)
+                        {
+                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
+                            var buffer = batchData.Content;
+                            if (module.DataPoints != null)
+                            {
+                                foreach (var dataPoint in module.DataPoints)
                                 {
-                                    locker.Release();
+                                    var value = TransValue(client, buffer, dataPoint.Index,
+                                        dataPoint.StringByteLength, dataPoint.DataType,
+                                        dataPoint.Encoding);
+                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
                                 }
                             }
 
-                        });
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // 正常取消，不做处理
-                }
-                catch (Exception ex)
-                {
-                    await _message.SendAsync($"{ex.Message} - StackTrace: {ex.StackTrace}");
-                }
-            }, cts.Token);
+                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
+                            {
+                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
+                                _lastStartTimes[key] = timestamp;
+                                _lastStartTimeColumns[key] = trigger.TimeColumnName;
+                            }
 
-            _plcStateManager.DataTasks.TryAdd(config.Code, (task, cts));
+                            await _queue.PublishAsync(dataMessage);
+                        }
+                        else if (_lastStartTimes.TryRemove(key, out var startTime))
+                        {
+                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
+                            {
+                                dataMessage.KeyValues[startColumn] = startTime;
+                            }
+
+                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
+                            {
+                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
+                            }
+
+                            await _queue.PublishAsync(dataMessage);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
+                    }
+
+                    prevVal = currVal;
+                }
+                finally
+                {
+                    locker.Release();
+                }
+            }
         }
 
         /// <summary>
@@ -235,35 +241,35 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 检查 PLC 连接状态，若断开则尝试重连
         /// </summary>
-        private void StartHeartbeatMonitor(DeviceConfig config)
+        private async Task StartHeartbeatMonitor(DeviceConfig config, CancellationToken ct = default)
         {
-            if (_plcStateManager.HeartbeatTasks.ContainsKey(config.Code))
-                return;
+            var lastOk = false;
+            ushort writeData = 0;
 
-            var hbCts = new CancellationTokenSource();
-
-            var hbTask = Task.Run(async () =>
+            while (!ct.IsCancellationRequested)
             {
-                ushort writeData = 0;
-                while (!hbCts.IsCancellationRequested)
+                try
                 {
-                    try
-                    {
-                        var client = _plcStateManager.PlcClients[config.Code];
-                        var pingResult = client.IpAddressPing();
-                        if (pingResult != IPStatus.Success)
-                        {
-                            _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _message.SendAsync($"网络检测失败：设备 {config.Code}，IP 地址：{config.Host}，故障类型：Ping 未响应");
-                            continue;
-                        }
+                    var client = _plcStateManager.PlcClients[config.Code];
+                    var ping = client.IpAddressPing();
+                    var ok = ping == IPStatus.Success;
 
-                        var connect = await WritePlcAsync(config.Code,config.HeartbeatMonitorRegister, writeData, "ushort", hbCts.Token);
-                        if (connect.IsSuccess)
+                    if (!ok)
+                    { 
+                        await _message.SendAsync($"网络检测失败：设备 {config.Code}，IP：{config.Host}，Ping 未响应");
+                        _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                    }
+                    else
+                    {
+                        var connect = await WritePlcAsync(config.Code, config.HeartbeatMonitorRegister, writeData,
+                            "ushort", ct);
+                        ok = connect.IsSuccess;
+                        if (ok)
                         {
                             writeData ^= 1;
                             _plcStateManager.PlcConnectionHealth[config.Code] = true;
-                            await _message.SendAsync($"心跳正常：设备 {config.Code}");
+                            if (!lastOk)
+                                await _message.SendAsync($"心跳恢复正常：设备 {config.Code}");
                         }
                         else
                         {
@@ -271,20 +277,21 @@ namespace DataAcquisition.Core.DataAcquisitions
                             await _message.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _message.SendAsync(
-                            $"系统异常：设备 {config.Code}，异常信息: {ex.Message}，StackTrace: {ex.StackTrace}");
-                    }
-                    finally
-                    {
-                        await Task.Delay(config.HeartbeatPollingInterval, hbCts.Token).ConfigureAwait(false);
-                    }
+
+                    lastOk = ok;
                 }
-            }, hbCts.Token);
-            _plcStateManager.HeartbeatTasks.TryAdd(config.Code, (hbTask, hbCts));
+                catch (Exception ex)
+                {
+                    _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                    await _message.SendAsync($"系统异常：设备 {config.Code}，异常: {ex.Message}");
+                }
+                finally
+                {
+                    await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
+                }
+            }
         }
+
 
         /// <summary>
         /// 读取 PLC 值
@@ -294,7 +301,8 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private static async Task<object> ReadCommunicationValueAsync(ICommunication client, string register, string dataType)
+        private static async Task<object> ReadCommunicationValueAsync(ICommunication client, string register,
+            string dataType)
         {
             return dataType switch
             {
@@ -336,35 +344,16 @@ namespace DataAcquisition.Core.DataAcquisitions
         public async Task StopCollectionTasks()
         {
             // 取消数据采集任务
-            foreach (var kvp in _plcStateManager.DataTasks)
+            foreach (var kvp in _plcStateManager.Runtimes)
             {
-                await kvp.Value.DataCts.CancelAsync();
+                await kvp.Value.Cts.CancelAsync();
             }
-
-            try
+            
+            foreach (var kv in _plcStateManager.Runtimes)
             {
-                await Task.WhenAll(_plcStateManager.DataTasks.Values.Select(x => x.DataTask));
+                try { await kv.Value.Running; } catch (OperationCanceledException) { }
+                kv.Value.Cts.Dispose();
             }
-            catch
-            {
-                // 忽略取消异常
-            }
-
-            // 取消心跳监控任务
-            foreach (var kvp in _plcStateManager.HeartbeatTasks)
-            {
-                await kvp.Value.HeartbeatCts.CancelAsync();
-            }
-
-            try
-            {
-                await Task.WhenAll(_plcStateManager.HeartbeatTasks.Values.Select(x => x.HeartbeatTask));
-            }
-            catch
-            {
-                // 忽略取消异常
-            }
-
 
             // 关闭并清理所有 PLC 客户端
             foreach (var client in _plcStateManager.PlcClients.Values)
@@ -392,7 +381,8 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType">数据类型</param>
         /// <param name="ct"></param>
         /// <returns>写入结果</returns>
-        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType, CancellationToken ct = default)
+        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value,
+            string dataType, CancellationToken ct = default)
         {
             if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
             {
