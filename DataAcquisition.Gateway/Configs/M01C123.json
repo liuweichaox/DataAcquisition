@@ -12,13 +12,13 @@
       "Trigger": {
         "Mode": "Always",
         "Register": null,
-        "DataType": null
+        "DataType": null,
+        "Operation": "Insert"
       },
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
       "BatchSize": 1,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_temp",
@@ -43,13 +43,14 @@
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": "D6200",
-        "DataType": "short"
+        "DataType": "short",
+        "Operation": "Insert",
+        "StartTimeName": "start_time"
       },
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c01_recipe",
       "BatchSize": 1,
-      "Operation": "Insert",
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
@@ -74,13 +75,15 @@
       "Trigger": {
         "Mode": "FallingEdge",
         "Register": "D6200",
-        "DataType": "short"
+        "DataType": "short",
+        "Operation": "Update",
+        "StartTimeName": "start_time",
+        "EndTimeName": "end_time"
       },
       "BatchReadRegister": null,
       "BatchReadLength": 0,
       "TableName": "m01c01_recipe",
       "BatchSize": 1,
-      "Operation": "Update",
       "DataPoints": null
     }
   ]

@@ -165,9 +165,25 @@ Modules:                        # 采集模块配置数组
           "EvalExpression": "value / 1000.0"
         }
       ]
-    }
-  ]
-}
+      },
+      {
+        "ChamberCode": "M01C01",
+        "Trigger": {
+          "Mode": "FallingEdge",
+          "Register": null,
+          "DataType": null,
+          "Operation": "Update",
+          "StartTimeName": "StartTime",
+          "EndTimeName": "EndTime"
+        },
+        "BatchReadRegister": null,
+        "BatchReadLength": 0,
+        "TableName": "m01c01_sensor",
+        "BatchSize": 1,
+        "DataPoints": null
+      }
+    ]
+  }
 ```
 
 ## 🧩 系统配置

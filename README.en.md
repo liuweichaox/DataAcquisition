@@ -165,9 +165,25 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
           "EvalExpression": "value / 1000.0"
         }
       ]
-    }
-  ]
-}
+      },
+      {
+        "ChamberCode": "M01C01",
+        "Trigger": {
+          "Mode": "FallingEdge",
+          "Register": null,
+          "DataType": null,
+          "Operation": "Update",
+          "StartTimeName": "StartTime",
+          "EndTimeName": "EndTime"
+        },
+        "BatchReadRegister": null,
+        "BatchReadLength": 0,
+        "TableName": "m01c01_sensor",
+        "BatchSize": 1,
+        "DataPoints": null
+      }
+    ]
+  }
 ```
 
 ## 🧩 Application setup
