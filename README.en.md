@@ -189,14 +189,15 @@ The endpoint returns a dictionary of PLC connection states.
 ### ✍️ Write to PLC register
 - `POST /api/DataAcquisition/WriteRegister`
 
-Request example (specify `dataType` to indicate the value type):
+Request example (batch write, `dataType` specifies the value type for each item):
 
 ```json
 {
   "plcCode": "PLC01",
-  "address": "D100",
-  "dataType": "short",
-  "value": 1
+  "items": [
+    { "address": "D100", "dataType": "short", "value": 1 },
+    { "address": "D101", "dataType": "int", "value": 2 }
+  ]
 }
 ```
 
