@@ -29,6 +29,12 @@ public class DeviceConfig
     public ushort Port { get; set; }
 
     /// <summary>
+    /// PLC 类型
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public PlcType Type { get; set; }
+
+    /// <summary>
     /// 心跳检测地址
     /// </summary>
     public string HeartbeatMonitorRegister { get; set; }
