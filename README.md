@@ -36,11 +36,6 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 - 动态配置：通过配置文件定义表结构、列名和频率。
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
-## 🔧 开发说明
-- 数据采集的核心是在 `DataAcquisition.Gateway` 项目下的 `Infrastructure` 目录中实现各个接口。
-- 默认实现使用 [HslCommunication](https://github.com/dathlin/HslCommunication) 库进行 Modbus 通讯。
-- 使用者可根据自身需求替换为任意通讯库，不局限于三菱、汇川等特定 PLC。
-- 数据存储模块同样可扩展为自定义类型，不限制于仓库中的默认实现。
 
 ## 🛠️ 安装
 ### 📥 克隆仓库
@@ -208,6 +203,7 @@ Modules:                        # 采集模块配置数组
 
 ## 🏃 运行
 确保已安装 .NET 8.0 SDK。
+
 
 ```bash
 dotnet restore

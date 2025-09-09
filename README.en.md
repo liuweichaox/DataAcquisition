@@ -36,12 +36,6 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 - Configuration files define table structures, column names, and sampling frequency.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
-## 🔧 Development Guide
-- The core workflow is to implement the interfaces under the `Infrastructure` folder of the `DataAcquisition.Gateway` project.
-- The default implementation uses [HslCommunication](https://github.com/dathlin/HslCommunication) for Modbus communication.
-- You can replace it with any other communication library to support different PLCs or protocols—there is no restriction to Mitsubishi or Inovance devices.
-- Storage providers are also pluggable, allowing custom data sinks beyond the built-in examples.
-
 ## 🛠️ Installation
 ### 📥 Clone the repository
 ```bash
