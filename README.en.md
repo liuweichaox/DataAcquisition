@@ -10,6 +10,12 @@
 ## 📘 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
+## 🔧 Development Guide
+- The core workflow is to implement the interfaces under the `Infrastructure` folder of the `DataAcquisition.Gateway` project.
+- The default implementation uses [HslCommunication](https://github.com/dathlin/HslCommunication) for Modbus communication.
+- You can replace it with any other communication library to support different PLCs or protocols—there is no restriction to Mitsubishi or Inovance devices.
+- Storage providers are also pluggable, allowing custom data sinks beyond the built-in examples.
+
 ## ✨ Key Features
 - Efficient communication using the Modbus TCP protocol.
 - Message queues (RabbitMQ, Kafka, or a local queue) handle high-throughput acquisition results.

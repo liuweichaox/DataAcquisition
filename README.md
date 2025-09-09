@@ -10,6 +10,12 @@
 ## 📘 概述
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
+## 🔧 开发说明
+- 数据采集的核心是在 `DataAcquisition.Gateway` 项目下的 `Infrastructure` 目录中实现各个接口。
+- 默认实现使用 [HslCommunication](https://github.com/dathlin/HslCommunication) 库进行 Modbus 通讯。
+- 使用者可根据自身需求替换为任意通讯库，不局限于三菱、汇川等特定 PLC。
+- 数据存储模块同样可扩展为自定义类型，不限制于仓库中的默认实现。
+
 ## ✨ 核心功能
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
 - 消息队列：可将采集结果写入 RabbitMQ、Kafka 或本地队列以处理高并发。
@@ -213,92 +219,10 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 
 ```json
 {
-  "IsEnabled": true,
-  "Code": "M01C123",
-  "Host": "192.168.1.110",
-  "Port": 4104,
-  "Type": "Mitsubishi",
-  "HeartbeatMonitorRegister": "D6061",
-  "HeartbeatPollingInterval": 2000,
-  "Modules": [
-    {
-      "ChamberCode": "M01C01",
-      "Trigger": {
-        "Mode": "Always",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
-      },
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 70,
-      "TableName": "m01c01_sensor",
-      "BatchSize": 1,
-      "DataPoints": [
-        {
-          "ColumnName": "up_temp",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_temp",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
-    },
-    {
-      "ChamberCode": "M01C02",
-      "Trigger": {
-        "Mode": "RisingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Insert",
-        "TimeColumnName": "start_time"
-      },
-      "BatchReadRegister": "D6100",
-      "BatchReadLength": 200,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": [
-        {
-          "ColumnName": "up_set_temp",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_set_temp",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
-    },
-    {
-      "ChamberCode": "M01C02",
-      "Trigger": {
-        "Mode": "FallingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Update",
-        "TimeColumnName": "end_time"
-      },
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": null
-    }
+  "plcCode": "PLC01",
+  "items": [
+    { "address": "D100", "dataType": "short", "value": 1 },
+    { "address": "D101", "dataType": "int", "value": 2 }
   ]
 }
 ```
