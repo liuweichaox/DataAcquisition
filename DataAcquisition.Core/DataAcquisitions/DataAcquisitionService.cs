@@ -110,6 +110,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private async Task ModuleLoopAsync(DeviceConfig config, Module module, ICommunication client,
             CancellationToken ct = default)
         {
+            await Task.Yield();
             object? prevVal = null;
             // 循环采集数据，直到取消请求
             while (!ct.IsCancellationRequested)
@@ -243,6 +244,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         private async Task StartHeartbeatMonitor(DeviceConfig config, CancellationToken ct = default)
         {
+            await Task.Yield();
             var lastOk = false;
             ushort writeData = 0;
 

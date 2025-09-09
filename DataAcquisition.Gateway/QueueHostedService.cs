@@ -3,8 +3,8 @@
     private readonly IQueue _queue;
     public QueueHostedService(IQueue queue) => _queue = queue;
 
-    protected override Task ExecuteAsync(CancellationToken stoppingToken)
-        => _queue.SubscribeAsync(stoppingToken);
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        =>await _queue.SubscribeAsync(stoppingToken);
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
