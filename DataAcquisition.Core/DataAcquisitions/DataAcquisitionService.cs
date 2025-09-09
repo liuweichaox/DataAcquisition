@@ -24,6 +24,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly IMessage _message;
         private readonly IQueue _queue;
         private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
+        private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
 
         /// <summary>
         /// 数据采集器
@@ -138,14 +139,18 @@ namespace DataAcquisition.Core.DataAcquisitions
                                                     {
                                                         dataMessage.Values[trigger.TimeColumnName] = timestamp;
                                                         _lastStartTimes[key] = timestamp;
+                                                        _lastStartTimeColumns[key] = trigger.TimeColumnName;
                                                     }
                                                     _queue.PublishAsync(dataMessage);
                                                 }
                                                 else if (_lastStartTimes.TryRemove(key, out var startTime))
                                                 {
+                                                    if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
+                                                    {
+                                                        dataMessage.KeyValues[startColumn] = startTime;
+                                                    }
                                                     if (!string.IsNullOrEmpty(trigger.TimeColumnName))
                                                     {
-                                                        dataMessage.KeyValues[trigger.TimeColumnName] = startTime;
                                                         dataMessage.Values[trigger.TimeColumnName] = timestamp;
                                                     }
                                                     _queue.PublishAsync(dataMessage);

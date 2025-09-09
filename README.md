@@ -84,7 +84,8 @@ Modules:                        # 采集模块配置数组
   - `Insert`：插入新记录。
   - `Update`：更新已有记录。
 - **Trigger.TimeColumnName**
-  - 可选的时间列名。
+  - 可选的时间列名。在 `Update` 操作时，该列写入结束时间，匹配的
+    `Insert` 操作的时间列用于定位记录。
 
 #### ⚖️ EvalExpression 用法
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。

@@ -84,7 +84,9 @@ Modules:
   - `Insert`: insert a new record
   - `Update`: update an existing record
 - **Trigger.TimeColumnName**
-  - Optional column name for timestamps
+  - Optional column name for timestamps. For an `Update` operation, this column
+    receives the new timestamp while the start-time column from the associated
+    `Insert` trigger is used to locate the record.
 
 #### ⚖️ EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.

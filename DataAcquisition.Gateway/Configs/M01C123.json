@@ -77,7 +77,7 @@
         "Register": "D6200",
         "DataType": "short",
         "Operation": "Update",
-        "TimeColumnName": "start_time"
+        "TimeColumnName": "end_time"
       },
       "BatchReadRegister": null,
       "BatchReadLength": 0,
