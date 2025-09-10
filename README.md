@@ -21,6 +21,17 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 动态配置：通过配置文件定义表结构、列名和频率。
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
+## 🏛️ 架构概览
+- **DataAcquisition.Core**：提供采集相关的接口与通用逻辑。
+- **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
+
+### 如何自定义实现
+1. 实现 `ICommunication` 与 `ICommunicationFactory`，以接入新的 PLC 协议或通讯方式。
+2. 实现 `IDataStorage` 以支持不同的数据库或持久化方案。
+3. 实现 `IQueue` 和 `IOperationalEvents` 以扩展消息队列并记录错误、日志等运行事件。
+4. 在 `Program.cs` 中注册自定义实现，替换默认依赖。
+5. 构建并运行项目，按需调整配置文件。
+
 ## 🧱 环境要求
 - .NET 8.0 SDK
 - 可选：RabbitMQ 或 Kafka（用于消息队列）
@@ -208,7 +219,7 @@ dotnet run --project DataAcquisition.Gateway
 在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();

@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Core.Communication;
 using DataAcquisition.Core.DeviceConfigs;
-using DataAcquisition.Core.Messages;
+using DataAcquisition.Core.OperationalEvents;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {    
@@ -21,7 +21,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
         private readonly ICommunicationFactory _communicationFactory;
-        private readonly IMessage _message;
+        private readonly IOperationalEvents _events;
         private readonly IQueue _queue;
         private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
         private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
@@ -31,13 +31,13 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
             ICommunicationFactory communicationFactory,
-            IMessage message,
+            IOperationalEvents events,
             IQueue queue)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
             _communicationFactory = communicationFactory;
-            _message = message;
+            _events = events;
             _queue = queue;
         }
 
@@ -115,7 +115,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             _ = running.ContinueWith(async t =>
             {
                 if (t.Exception != null)
-                    await _message.SendAsync($"[{config.Code}] 采集任务异常: {t.Exception.Flatten().InnerException?.Message}");
+                    await _events.ErrorAsync(config.Code, $"采集任务异常: {t.Exception.Flatten().InnerException?.Message}", t.Exception.Flatten().InnerException);
             }, TaskContinuationOptions.OnlyOnFaulted);
                     
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
@@ -202,7 +202,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                     }
                     catch (Exception ex)
                     {
-                        await _message.SendAsync($"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}");
+                        await _events.ErrorAsync(module.ChamberCode, $"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}", ex);
                     }
 
                     prevVal = currVal;
@@ -272,7 +272,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
                     if (!ok)
                     { 
-                        await _message.SendAsync($"网络检测失败：设备 {config.Code}，IP：{config.Host}，Ping 未响应");
+                        await _events.WarnAsync(config.Code, $"网络检测失败：IP {config.Host}，Ping 未响应");
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
                     }
                     else
@@ -285,12 +285,12 @@ namespace DataAcquisition.Core.DataAcquisitions
                             writeData ^= 1;
                             _plcStateManager.PlcConnectionHealth[config.Code] = true;
                             if (!lastOk)
-                                await _message.SendAsync($"心跳恢复正常：设备 {config.Code}");
+                                await _events.HeartbeatChangedAsync(config.Code, true);
                         }
                         else
                         {
                             _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _message.SendAsync($"通讯故障：设备 {config.Code}，{connect.Message}");
+                            await _events.HeartbeatChangedAsync(config.Code, false, connect.Message);
                         }
                     }
 
@@ -299,7 +299,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                 catch (Exception ex)
                 {
                     _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                    await _message.SendAsync($"系统异常：设备 {config.Code}，异常: {ex.Message}");
+                    await _events.ErrorAsync(config.Code, $"系统异常: {ex.Message}", ex);
                 }
                 finally
                 {
