@@ -207,6 +207,24 @@ public class MitsubishiPlcClientService(DeviceConfig config) : IPlcClientService
     }
 
     /// <summary>
+    /// 读取字符串。
+    /// </summary>
+    public async Task<string> ReadStringAsync(string address, ushort length, Encoding encoding)
+    {
+        var res = await _device.ReadAsync(address, length);
+        return _device.ByteTransform.TransString(res.Content ?? System.Array.Empty<byte>(), 0, length, encoding);
+    }
+
+    /// <summary>
+    /// 读取布尔值。
+    /// </summary>
+    public async Task<bool> ReadBoolAsync(string address)
+    {
+        var res = await _device.ReadBoolAsync(address, 1);
+        return res.Content[0];
+    }
+
+    /// <summary>
     /// 缓冲区转换为无符号短整型。
     /// </summary>
     public ushort TransUShort(byte[] buffer, int index) => _device.ByteTransform.TransUInt16(buffer, index);

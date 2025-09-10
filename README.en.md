@@ -68,6 +68,36 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 dotnet restore
 ```
 
+### 🗂️ Repository structure
+```text
+DataAcquisition/
+├── DataAcquisition.Application/      # service contracts and interfaces
+│   └── Abstractions/
+├── DataAcquisition.Domain/           # domain models and enums
+│   ├── Clients/
+│   ├── Models/
+│   └── OperationalEvents/
+├── DataAcquisition.Infrastructure/   # interface implementations
+│   ├── Clients/
+│   ├── DataAcquisitions/
+│   ├── DataProcessing/
+│   ├── DataStorages/
+│   ├── DeviceConfigs/
+│   ├── OperationalEvents/
+│   └── Queues/
+├── DataAcquisition.Gateway/          # example gateway layer
+│   ├── BackgroundServices/
+│   ├── Configs/
+│   ├── Controllers/
+│   ├── Hubs/
+│   ├── Models/
+│   ├── Views/
+│   └── wwwroot/
+├── DataAcquisition.sln
+├── README.md
+└── README.en.md
+```
+
 ## 📝 Configuration
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings.
 
@@ -263,12 +293,6 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
-
-### 🗂️ Repository structure
-- `DataAcquisition.Domain`: domain models and enums.
-- `DataAcquisition.Application`: service contracts and interfaces.
-- `DataAcquisition.Infrastructure`: interface implementations.
-- `DataAcquisition.Gateway`: example gateway layer.
 
 ### 🔨 Build
 ```bash

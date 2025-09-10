@@ -167,6 +167,22 @@ public interface IPlcClientService
     Task<double> ReadDoubleAsync(string address);
 
     /// <summary>
+    /// 读取字符串。
+    /// </summary>
+    /// <param name="address">寄存器地址</param>
+    /// <param name="length">字节长度</param>
+    /// <param name="encoding">字符串编码</param>
+    /// <returns>表示读取结果的任务。</returns>
+    Task<string> ReadStringAsync(string address, ushort length, Encoding encoding);
+
+    /// <summary>
+    /// 读取布尔值。
+    /// </summary>
+    /// <param name="address">寄存器地址</param>
+    /// <returns>表示读取结果的任务。</returns>
+    Task<bool> ReadBoolAsync(string address);
+
+    /// <summary>
     /// 将字节数组转换为无符号短整型。
     /// </summary>
     /// <param name="buffer">字节数组</param>
