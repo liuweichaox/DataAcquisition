@@ -49,12 +49,14 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Enrich.FromLogContext()
-    .WriteTo.Console()
+    .WriteTo.Console(
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
-        path: "Logs/log-.txt",                 // 按天滚动：log-20250910.txt
+        path: "Logs/log-.txt",
         rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,            // 保留 30 天
-        shared: true)                          // IIS/多进程时建议开
+        retainedFileCountLimit: 14,
+        shared: true,
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 
 builder.Host.UseSerilog();
