@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
-using HslCommunication.BasicFramework;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
