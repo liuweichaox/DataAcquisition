@@ -8,9 +8,11 @@
 [中文](README.md) | **English**
 
 ## 📙 Overview
+
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
 ## 💡 Key Features
+
 - Efficient communication using the Modbus TCP protocol.
 - Message queues (RabbitMQ, Kafka, or a local queue) handle high-throughput acquisition results.
 - Data can be stored in SQLite or various cloud databases.
@@ -23,6 +25,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
 ## 🏗️ Architecture Overview
+
 - **DataAcquisition.Domain**: domain models and enums.
 - **DataAcquisition.Application**: service contracts and interfaces.
 - **DataAcquisition.Infrastructure**: default implementations.
@@ -31,6 +34,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 ### 🧰 How to customize implementation
 
 #### Interfaces to implement
+
 - `IOperationalEventsService`: record operational events and logs.
 - `IDeviceConfigService`: load device configuration from JSON files, databases, or other sources.
 - `IPlcClientService`: handle low-level PLC communication.
@@ -40,17 +44,22 @@ The PLC Data Acquisition System collects real-time operational data from program
 - `IQueueService`: push data to message queues.
 
 #### Integration steps
+
 1. Register these custom implementations in `Program.cs`, replacing the default dependencies.
 2. Build and run the project, adjusting configuration files as needed.
 
 ## 📦 NuGet Packages
+
 ### 🧱 Framework dependencies
+
 The core framework relies on the following NuGet packages:
+
 - [Microsoft.Extensions.Caching.Memory](https://www.nuget.org/packages/Microsoft.Extensions.Caching.Memory) 9.0.2: in-memory caching.
 - [NCalcAsync](https://www.nuget.org/packages/NCalcAsync) 5.4.0: evaluates expressions before data persistence.
 - [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) 13.0.3: JSON serialization/deserialization.
 
 The project relies on the following key NuGet packages:
+
 - [Dapper](https://www.nuget.org/packages/Dapper) 2.1.66: lightweight ORM for data access.
 - [HslCommunication](https://www.nuget.org/packages/HslCommunication) 12.2.0: PLC communication library.
 - [MySqlConnector](https://www.nuget.org/packages/MySqlConnector) 2.4.0: high-performance MySQL client.
@@ -60,21 +69,27 @@ The project relies on the following key NuGet packages:
 - [Serilog.Sinks.File](https://www.nuget.org/packages/Serilog.Sinks.File) 7.0.0: file log sink.
 
 ## 🌐 Environment Requirements
+
 - .NET 8.0 SDK
 - Optional: RabbitMQ or Kafka (for message queues)
 - Optional: SQLite or other database drivers
 
 ## 🔧 Installation
+
 ### ⬇️ Clone the repository
+
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
+
 ### 🔄 Restore dependencies
+
 ```bash
 dotnet restore
 ```
 
 ### 🗂️ Repository structure
+
 ```text
 DataAcquisition/
 ├── DataAcquisition.Application/      # service contracts and interfaces
@@ -105,47 +120,51 @@ DataAcquisition/
 ```
 
 ## 📝 Configuration
+
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings.
 
 ### 📐 Configuration structure
+
 Configuration files use JSON format; the structure is described below using YAML:
 
 ```yaml
 # Configuration structure (for illustration only)
-IsEnabled: true                 # Enable this configuration
-Code: string                    # PLC identifier
-Host: string                    # PLC IP address
-Port: number                    # PLC communication port
-Type: Mitsubishi|Inovance       # PLC type
+IsEnabled: true # Enable this configuration
+Code: string # PLC identifier
+Host: string # PLC IP address
+Port: number # PLC communication port
+Type: Mitsubishi|Inovance|BeckhoffAds # PLC type
 HeartbeatMonitorRegister: string # [Optional] register for heartbeat monitoring
 HeartbeatPollingInterval: number # [Optional] heartbeat polling interval (milliseconds)
 Modules:
-  - ChamberCode: string         # Channel identifier
+  - ChamberCode: string # Channel identifier
     Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # Trigger mode
-      Register: string          # Trigger register address
+      Register: string # Trigger register address
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
-      Operation: Insert|Update  # Data operation type
-      TimeColumnName: string    # [Optional] column name for timestamp
-    EnableBatchRead: bool       # Whether to enable batch reading
-    BatchReadRegister: string   # Start register for batch reading
-    BatchReadLength: int        # Number of registers to read
-    TableName: string           # Target database table
-    BatchSize: int              # Number of records per batch (1 inserts one by one)
+      Operation: Insert|Update # Data operation type
+      TimeColumnName: string # [Optional] column name for timestamp
+    EnableBatchRead: bool # Whether to enable batch reading
+    BatchReadRegister: string # Start register for batch reading
+    BatchReadLength: int # Number of registers to read
+    TableName: string # Target database table
+    BatchSize: int # Number of records per batch (1 inserts one by one)
     DataPoints:
-      - ColumnName: string      # Column name in the database
-        Register: string        # Register address for single reads
-        Index: int              # Register index
-        StringByteLength: int   # Byte length for string values
+      - ColumnName: string # Column name in the database
+        Register: string # Register address for single reads
+        Index: int # Register index
+        StringByteLength: int # Byte length for string values
         Encoding: UTF8|GB2312|GBK|ASCII # Character encoding
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # Data type of the register
-        EvalExpression: string  # Expression for value conversion, use 'value' for the raw value
+        EvalExpression: string # Expression for value conversion, use 'value' for the raw value
 ```
 
 ### 🔢 Enum descriptions
+
 - **Type**
   - `Mitsubishi`: Mitsubishi PLC
   - `Inovance`: Inovance PLC
+  - `BeckhoffAds`： BeckhoffAds PLC
 - **Trigger.Mode**
   - `Always`: always sample
   - `ValueIncrease`: sample when the register value increases
@@ -168,9 +187,11 @@ Modules:
     `Insert` trigger is used to locate the record.
 
 ### 🧮 EvalExpression usage
+
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
 
 ### 🗒️ Sample configuration
+
 The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.
 
 ```json
@@ -272,6 +293,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
 ```
 
 ## ▶️ Run
+
 Make sure the .NET 8.0 SDK is installed.
 
 ```bash
@@ -282,7 +304,9 @@ dotnet run --project DataAcquisition.Gateway
 The service listens on http://localhost:8000 by default.
 
 ## 💻 Development
+
 ### 🔧 System configuration
+
 Register the `IDataAcquisitionService` instance in `Program.cs` to manage acquisition tasks.
 
 ```csharp
@@ -301,17 +325,21 @@ builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
 
 ### 🔨 Build
+
 ```bash
 dotnet build
 ```
 
 ## 🔗 API
+
 ### 📶 Get PLC connection status
+
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 The endpoint returns a dictionary of PLC connection states.
 
 ### ✏️ Write to PLC register
+
 - `POST /api/DataAcquisition/WriteRegister`
 
 Request example (batch write, `dataType` specifies the value type for each item):
@@ -327,6 +355,7 @@ Request example (batch write, `dataType` specifies the value type for each item)
 ```
 
 ## 🚢 Deployment
+
 Use `dotnet publish` to generate self-contained executables for different platforms:
 
 ```bash
@@ -338,8 +367,9 @@ dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained tr
 Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
 
 ## 🙏 Contribution
+
 Contributions are welcome via Pull Requests. Ensure all relevant tests pass and avoid introducing breaking changes.
 
 ## 📜 License
-This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
 
+This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.

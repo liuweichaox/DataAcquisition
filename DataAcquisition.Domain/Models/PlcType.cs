@@ -13,6 +13,11 @@ public enum PlcType
     /// <summary>
     /// 汇川
     /// </summary>
-    Inovance
+    Inovance,
+    
+    /// <summary>
+    /// 倍福
+    /// </summary>
+    BeckhoffAds
 }
 

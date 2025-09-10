@@ -18,6 +18,7 @@ public class PlcClientFactory : IPlcClientFactory
         {
             PlcType.Mitsubishi => new MitsubishiPlcClientService(config),
             PlcType.Inovance => new InovancePlcClientService(config),
+            PlcType.BeckhoffAds => new BeckhoffAdsPlcClientService(config),
             _ => throw new NotImplementedException("不支持的 PLC 类型")
         };
     }

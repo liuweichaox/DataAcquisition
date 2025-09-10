@@ -8,9 +8,11 @@
 **中文** | [English](README.en.md)
 
 ## 📙 概述
+
 PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据，并将结果传递至消息队列和数据库，以支持工业设备监控、性能分析与故障诊断。
 
 ## 💡 核心功能
+
 - 高效通讯：基于 Modbus TCP 协议实现稳定的数据传输。
 - 消息队列：可将采集结果写入 RabbitMQ、Kafka 或本地队列以处理高并发。
 - 数据存储：支持本地 SQLite 数据库及多种云端数据库。
@@ -24,12 +26,14 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
 ## 🏗️ 架构概览
+
 - **DataAcquisition.Domain**：领域模型与枚举。
 - **DataAcquisition.Application**：接口与服务契约。
 - **DataAcquisition.Infrastructure**：默认实现。
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
 ### 🧰 如何自定义实现
+
 - `IOperationalEventsService`：记录运行事件与日志。
 - `IDeviceConfigService`：读取设备配置，可从 JSON 文件、数据库等来源加载。
 - `IPlcClientService`：与 PLC 进行底层通讯。
@@ -38,20 +42,25 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - `IDataStorageService`：将处理后的数据写入数据库。
 - `IQueueService`：将数据推送到消息队列。
 
-
 #### 集成步骤
+
 1. 在 `Program.cs` 中注册上述自定义实现，替换默认依赖。
 2. 构建并运行项目，按需调整配置文件。
 
 ## 📦 NuGet 包
+
 ### 🧱 基础框架依赖
+
 核心框架使用以下 NuGet 包：
+
 - [Microsoft.Extensions.Caching.Memory](https://www.nuget.org/packages/Microsoft.Extensions.Caching.Memory) 9.0.2：提供内存缓存功能。
 - [NCalcAsync](https://www.nuget.org/packages/NCalcAsync) 5.4.0：在数据写入前执行表达式计算。
 - [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) 13.0.3：用于 JSON 序列化与反序列化。
 
 ### 🧪 示例依赖
+
 项目使用下列主要 NuGet 包：
+
 - [Dapper](https://www.nuget.org/packages/Dapper) 2.1.66：轻量级 ORM，用于数据访问。
 - [HslCommunication](https://www.nuget.org/packages/HslCommunication) 12.2.0：支持多种 PLC 通讯协议。
 - [MySqlConnector](https://www.nuget.org/packages/MySqlConnector) 2.4.0：高性能 MySQL 客户端驱动。
@@ -61,21 +70,27 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - [Serilog.Sinks.File](https://www.nuget.org/packages/Serilog.Sinks.File) 7.0.0：将日志写入文件。
 
 ## 🌐 环境要求
+
 - .NET 8.0 SDK
 - 可选：RabbitMQ 或 Kafka（用于消息队列）
 - 可选：SQLite 或其他数据库驱动
 
 ## 🔧 安装
+
 ### ⬇️ 克隆仓库
+
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
+
 ### 🔄 恢复依赖
+
 ```bash
 dotnet restore
 ```
 
 ### 🗂️ 仓库结构
+
 ```text
 DataAcquisition/
 ├── DataAcquisition.Application/      # 接口与服务契约
@@ -106,47 +121,51 @@ DataAcquisition/
 ```
 
 ## 📝 配置
+
 `DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。默认实现从这些 JSON 文件读取配置；若需改用数据库等其他来源，可自定义实现 `IDeviceConfigService`。
 
 ### 📐 配置结构说明
+
 默认配置文件使用 JSON 格式，结构如下（以 YAML 描述）；如改用数据库等来源，可根据实际情况调整。
 
 ```yaml
 # 配置结构说明（仅用于展示）
-IsEnabled: true                 # 是否启用
-Code: string                    # PLC 编码
-Host: string                    # PLC IP 地址
-Port: number                    # PLC 通讯端口
-Type: Mitsubishi|Inovance       # PLC 类型
+IsEnabled: true # 是否启用
+Code: string # PLC 编码
+Host: string # PLC IP 地址
+Port: number # PLC 通讯端口
+Type: Mitsubishi|Inovance|BeckhoffAds # PLC 类型
 HeartbeatMonitorRegister: string # [可选] 心跳监控寄存器地址
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔（毫秒）
-Modules:                        # 采集模块配置数组
-  - ChamberCode: string         # 采集通道编码
-    Trigger:                    # 触发配置
+Modules: # 采集模块配置数组
+  - ChamberCode: string # 采集通道编码
+    Trigger: # 触发配置
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge # 触发模式
-      Register: string          # 触发寄存器地址
+      Register: string # 触发寄存器地址
       DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
-      Operation: Insert|Update  # 数据操作类型
-      TimeColumnName: string    # [可选] 时间列名
-    EnableBatchRead: bool       # 是否启用批量读取
-    BatchReadRegister: string   # 批量读取寄存器地址
-    BatchReadLength: int        # 批量读取长度
-    TableName: string           # 数据库表名
-    BatchSize: int              # 批量保存大小，1 表示逐条保存
-    DataPoints:                 # 数据配置
-      - ColumnName: string      # 数据库列名
-        Register: string        # 读取寄存器地址
-        Index: int              # 寄存器索引
-        StringByteLength: int   # 字符串字节长度
+      Operation: Insert|Update # 数据操作类型
+      TimeColumnName: string # [可选] 时间列名
+    EnableBatchRead: bool # 是否启用批量读取
+    BatchReadRegister: string # 批量读取寄存器地址
+    BatchReadLength: int # 批量读取长度
+    TableName: string # 数据库表名
+    BatchSize: int # 批量保存大小，1 表示逐条保存
+    DataPoints: # 数据配置
+      - ColumnName: string # 数据库列名
+        Register: string # 读取寄存器地址
+        Index: int # 寄存器索引
+        StringByteLength: int # 字符串字节长度
         Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
         DataType: ushort|uint|ulong|short|int|long|float|double|string|bool # 寄存器数据类型
-        EvalExpression: string  # 数值转换表达式，使用变量 value 表示原始值
+        EvalExpression: string # 数值转换表达式，使用变量 value 表示原始值
 ```
 
 ### 🔢 枚举值说明
+
 - **Type**
   - `Mitsubishi`：三菱 PLC。
   - `Inovance`：汇川 PLC。
+  - `BeckhoffAds`: 倍福 PLC。
 - **Trigger.Mode**
   - `Always`：始终采样。
   - `ValueIncrease`：寄存器值增加时采样。
@@ -167,9 +186,11 @@ Modules:                        # 采集模块配置数组
   - 可选的时间列名。在 `Update` 操作时，该列写入结束时间，匹配的 `Insert` 操作的时间列用于定位记录。
 
 ### 🧮 EvalExpression 用法
+
 `EvalExpression` 用于在写入数据库前对寄存器读数进行转换。表达式中可使用变量 `value` 表示原始值，如 `"value / 1000.0"`。留空字符串则不进行任何转换。
 
 ### 🗒️ 配置示例
+
 `DataAcquisition.Gateway/Configs/M01C123.json` 展示了典型配置：
 
 ```json
@@ -271,6 +292,7 @@ Modules:                        # 采集模块配置数组
 ```
 
 ## ▶️ 运行
+
 确保已安装 .NET 8.0 SDK。
 
 ```bash
@@ -281,7 +303,9 @@ dotnet run --project DataAcquisition.Gateway
 服务启动后默认监听 http://localhost:8000 端口。
 
 ## 💻 开发
+
 ### 🔧 系统配置
+
 在 `Program.cs` 中注册 `IDataAcquisitionService` 实例以管理采集任务。
 
 ```csharp
@@ -300,17 +324,21 @@ builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
 
 ### 🔨 构建
+
 ```bash
 dotnet build
 ```
 
 ## 🔗 API
+
 ### 📶 获取 PLC 连接状态
+
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 该接口返回各 PLC 连接状态的字典。
 
 ### ✏️ 写入 PLC 寄存器
+
 - `POST /api/DataAcquisition/WriteRegister`
 
 请求示例（支持批量写入，`dataType` 指定值类型）：
@@ -326,6 +354,7 @@ dotnet build
 ```
 
 ## 🚢 部署
+
 使用 `dotnet publish` 生成跨平台的自包含可执行文件：
 
 ```bash
@@ -337,8 +366,9 @@ dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained tr
 将生成的 `publish` 目录内容复制到目标环境并运行对应平台的可执行文件。
 
 ## 🙏 贡献
+
 欢迎通过 Pull Request 提交改进。提交前请确保所有相关测试通过并避免引入破坏性修改。
 
 ## 📜 许可
-本项目采用 MIT 许可证，详情见 [LICENSE](LICENSE)。
 
+本项目采用 MIT 许可证，详情见 [LICENSE](LICENSE)。
