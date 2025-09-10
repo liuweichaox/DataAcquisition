@@ -29,10 +29,10 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
 ### 🧰 如何自定义实现
-1. 实现 `IPlcClient` 与 `IPlcClientFactory`，以接入新的 PLC 协议或通讯方式。
-2. 实现 `IDataStorage` 以支持不同的数据库或持久化方案。
-3. 实现 `IQueue` 以扩展消息队列。
-4. 实现 `IOperationalEvents` 以记录错误、日志等运行事件。
+1. 实现 `IPlcClientService` 与 `IPlcClientFactory`，以接入新的 PLC 协议或通讯方式。
+2. 实现 `IDataStorageService` 以支持不同的数据库或持久化方案。
+3. 实现 `IQueueService` 以扩展消息队列。
+4. 实现 `IOperationalEventsService` 以记录错误、日志等运行事件。
 5. 实现 `IDataProcessingService` 以进行数据预处理。
 6. 在 `Program.cs` 中注册自定义实现，替换默认依赖。
 7. 构建并运行项目，按需调整配置文件。
@@ -221,14 +221,14 @@ dotnet run --project DataAcquisition.Gateway
 
 ## 💻 开发
 ### 🔧 系统配置
-在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
+在 `Program.cs` 中注册 `IDataAcquisitionService` 实例以管理采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
+builder.Services.AddSingleton<IOperationalEventsService, OperationalEvents>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 

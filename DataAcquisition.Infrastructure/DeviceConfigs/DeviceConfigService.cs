@@ -1,5 +1,5 @@
 ﻿using System.Text.Json;
-using DataAcquisition.Application.DeviceConfigs;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.DeviceConfigs;
