@@ -12,9 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Remove="Services\Messages\IMessageFactory.cs" />
       <Compile Remove="Services\**" />
-      <Compile Remove="Messages\IMessageFactory.cs" />
       <Compile Remove="Models\OperationResult.cs" />
     </ItemGroup>
 

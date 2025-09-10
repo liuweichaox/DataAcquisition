@@ -1,6 +1,6 @@
 using DataAcquisition.Core.DataProcessing;
-using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
+using DataAcquisition.Core.OperationalEvents;
 
 namespace DataAcquisition.Gateway.Infrastructure.DataProcessing;
 
@@ -9,11 +9,11 @@ namespace DataAcquisition.Gateway.Infrastructure.DataProcessing;
 /// </summary>
 public class DataProcessingService : IDataProcessingService
 {
-    private readonly IMessage _message;
+    private readonly IOperationalEvents _events;
 
-    public DataProcessingService(IMessage message)
+    public DataProcessingService(IOperationalEvents events)
     {
-        _message = message;
+        _events = events;
     }
 
     public async Task<DataMessage> ExecuteAsync(DataMessage dataMessage)
@@ -24,7 +24,7 @@ public class DataProcessingService : IDataProcessingService
         }
         catch (Exception ex)
         {
-            await _message.SendAsync($"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}");
+            await _events.ErrorAsync("System", $"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}", ex);
         }
 
         return dataMessage;

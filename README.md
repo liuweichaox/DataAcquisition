@@ -17,9 +17,23 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 日志记录：允许自定义日志策略，便于排查和审计。
 - 多 PLC 数据采集：支持同时周期性读取多个 PLC。
 - 错误处理：提供断线重连和超时重试机制。
+- 数据预处理：在写入前转换和过滤采集数据。
 - 频率控制：采集频率可配置，最低支持毫秒级。
 - 动态配置：通过配置文件定义表结构、列名和频率。
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
+
+## 🏛️ 架构概览
+- **DataAcquisition.Core**：提供采集相关的接口与通用逻辑。
+- **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
+
+### 如何自定义实现
+1. 实现 `ICommunication` 与 `ICommunicationFactory`，以接入新的 PLC 协议或通讯方式。
+2. 实现 `IDataStorage` 以支持不同的数据库或持久化方案。
+3. 实现 `IQueue` 以扩展消息队列。
+4. 实现 `IOperationalEvents` 以记录错误、日志等运行事件。
+5. 实现 `IDataProcessingService` 以进行数据预处理。
+6. 在 `Program.cs` 中注册自定义实现，替换默认依赖。
+7. 构建并运行项目，按需调整配置文件。
 
 ## 🧱 环境要求
 - .NET 8.0 SDK
@@ -208,7 +222,7 @@ dotnet run --project DataAcquisition.Gateway
 在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();

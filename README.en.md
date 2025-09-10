@@ -17,9 +17,23 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Custom logging strategies assist with troubleshooting and auditing.
 - Periodic acquisition from multiple PLCs is supported.
 - Disconnection and timeout retries maintain stability.
+- Data preprocessing transforms acquisition results before storage.
 - Acquisition frequency is configurable down to milliseconds.
 - Configuration files define table structures, column names, and sampling frequency.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
+
+## 🏛️ Architecture Overview
+- **DataAcquisition.Core**: supplies interfaces and shared acquisition logic.
+- **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
+
+### How to customize implementation
+1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
+2. Implement `IDataStorage` to use a different database or persistence layer.
+3. Implement `IQueue` to integrate custom message queues.
+4. Implement `IOperationalEvents` to record errors, logs, or other operational events.
+5. Implement `IDataProcessingService` to preprocess data before storage.
+6. Register these implementations in `Program.cs`, replacing the default dependencies.
+7. Build and run the project, adjusting configuration files as needed.
 
 ## 🧱 Environment Requirements
 - .NET 8.0 SDK
@@ -210,7 +224,7 @@ The service listens on http://localhost:8000 by default.
 Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
 
 ```csharp
-builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();

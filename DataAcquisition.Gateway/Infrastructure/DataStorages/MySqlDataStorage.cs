@@ -3,8 +3,8 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using Dapper;
 using DataAcquisition.Core.DataStorages;
-using DataAcquisition.Core.Messages;
 using DataAcquisition.Core.Models;
+using DataAcquisition.Core.OperationalEvents;
 using MySqlConnector;
 using Newtonsoft.Json;
 
@@ -15,11 +15,11 @@ public class MySqlDataStorage : IDataStorage
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
-    private readonly IMessage _message;
-    public MySqlDataStorage(IConfiguration configuration, IMessage message)
+    private readonly IOperationalEvents _events;
+    public MySqlDataStorage(IConfiguration configuration, IOperationalEvents events)
     {
         _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
-        _message = message;
+        _events = events;
     }
 
     public async Task SaveAsync(DataMessage dataMessage)
@@ -49,7 +49,7 @@ public class MySqlDataStorage : IDataStorage
         }
         catch (Exception ex)
         {
-            await _message.SendAsync($"[ERROR] Insert failed: {ex.Message}\nData: {JsonConvert.SerializeObject(dataMessage)}");
+            await _events.ErrorAsync("System", $"[ERROR] Insert failed: {ex.Message}\nData: {JsonConvert.SerializeObject(dataMessage)}", ex);
         }
     }
 
@@ -94,7 +94,7 @@ public class MySqlDataStorage : IDataStorage
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            await _message.SendAsync($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}");
+            await _events.ErrorAsync("System", $"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}", ex);
         }
     }
 
@@ -133,7 +133,7 @@ public class MySqlDataStorage : IDataStorage
         }
         catch (Exception ex)
         {
-            await _message.SendAsync($"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}");
+            await _events.ErrorAsync("System", $"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}", ex);
         }
     }
 }
