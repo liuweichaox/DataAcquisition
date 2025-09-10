@@ -10,18 +10,16 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Dapper" Version="2.1.66" />
-      <PackageReference Include="HslCommunication" Version="12.2.0" />
       <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
       <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
-      <PackageReference Include="MySqlConnector" Version="2.4.0" />
       <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
       <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\DataAcquisition.Core\DataAcquisition.Core.csproj" />
+      <ProjectReference Include="..\DataAcquisition.Application\DataAcquisition.Application.csproj" />
+      <ProjectReference Include="..\DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj" />
     </ItemGroup>
 
     <ItemGroup>
@@ -65,10 +63,6 @@
       <_ContentIncludedByDefault Remove="BackConfig\M05C456.json" />
       <_ContentIncludedByDefault Remove="BackConfig\M06C123.json" />
       <_ContentIncludedByDefault Remove="BackConfig\M06C456.json" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Infrastructure\" />
     </ItemGroup>
 
 </Project>

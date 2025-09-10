@@ -1,3 +1,8 @@
+using System.Threading;
+using System.Threading.Tasks;
+using DataAcquisition.Application.Queues;
+using Microsoft.Extensions.Hosting;
+
 namespace DataAcquisition.Gateway;
 
 /// <summary>

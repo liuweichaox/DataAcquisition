@@ -23,7 +23,9 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
 ## 🏗️ 架构概览
-- **DataAcquisition.Core**：提供采集相关的接口与通用逻辑。
+- **DataAcquisition.Domain**：领域模型与枚举。
+- **DataAcquisition.Application**：接口与服务契约。
+- **DataAcquisition.Infrastructure**：默认实现。
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
 ### 🧰 如何自定义实现
@@ -234,8 +236,10 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
 ### 🗂️ 仓库结构
-- `DataAcquisition.Core`：核心接口与采集逻辑。
-- `DataAcquisition.Gateway` / `DataAcquisition.Infrastructure`：接口实现。
+- `DataAcquisition.Domain`：领域模型与枚举。
+- `DataAcquisition.Application`：接口与服务契约。
+- `DataAcquisition.Infrastructure`：接口实现。
+- `DataAcquisition.Gateway`：示例网关层。
 
 ### 🔨 构建
 ```bash
