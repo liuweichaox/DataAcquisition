@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text.Json;
-using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.Clients;
 using DataAcquisition.Core.DataAcquisitions;
 using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -38,7 +38,7 @@ public class DataAcquisitionController: ControllerBase
     [HttpPost]
     public async Task<IActionResult> WriteRegister([FromBody] PlcWriteRequest request)
     {
-        var results = new List<CommunicationWriteResult>();
+        var results = new List<PlcWriteResult>();
         var allSuccess = true;
 
         foreach (var item in request.Items)

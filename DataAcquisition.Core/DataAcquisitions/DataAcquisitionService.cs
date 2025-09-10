@@ -6,7 +6,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.Clients;
 using DataAcquisition.Core.DeviceConfigs;
 using DataAcquisition.Core.OperationalEvents;
 
@@ -20,7 +20,7 @@ namespace DataAcquisition.Core.DataAcquisitions
     {
         private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
-        private readonly ICommunicationFactory _communicationFactory;
+        private readonly IPlcClientFactory _plcClientFactory;
         private readonly IOperationalEvents _events;
         private readonly IQueue _queue;
         private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
@@ -30,13 +30,13 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// 数据采集器
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-            ICommunicationFactory communicationFactory,
+            IPlcClientFactory plcClientFactory,
             IOperationalEvents events,
             IQueue queue)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
-            _communicationFactory = communicationFactory;
+            _plcClientFactory = plcClientFactory;
             _events = events;
             _queue = queue;
         }
@@ -52,9 +52,9 @@ namespace DataAcquisition.Core.DataAcquisitions
             public readonly ConcurrentDictionary<string, PlcRuntime> Runtimes = new();
 
             /// <summary>
-            /// Communication client associated with every PLC.
+            /// PLC client associated with every device.
             /// </summary>
-            public ConcurrentDictionary<string, ICommunication> PlcClients { get; } = new();
+            public ConcurrentDictionary<string, IPlcClient> PlcClients { get; } = new();
 
             /// <summary>
             /// Connection status for each PLC.
@@ -102,7 +102,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
 
-            var client = CreateCommunicationClient(config);
+            var client = CreatePlcClient(config);
                     
             var tasks = new List<Task> { StartHeartbeatMonitor(config, ct) };
 
@@ -121,7 +121,7 @@ namespace DataAcquisition.Core.DataAcquisitions
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
         }
 
-        private async Task ModuleLoopAsync(DeviceConfig config, Module module, ICommunication client,
+        private async Task ModuleLoopAsync(DeviceConfig config, Module module, IPlcClient client,
             CancellationToken ct = default)
         {
             await Task.Yield();
@@ -146,7 +146,7 @@ namespace DataAcquisition.Core.DataAcquisitions
 
                     var currVal = trigger.Mode == TriggerMode.Always
                         ? null
-                        : await ReadCommunicationValueAsync(client, trigger.Register, trigger.DataType);
+                        : await ReadPlcValueAsync(client, trigger.Register, trigger.DataType);
 
                     if (!ShouldSample(trigger.Mode, prevVal, currVal))
                     {
@@ -240,14 +240,14 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private ICommunication CreateCommunicationClient(DeviceConfig config)
+        private IPlcClient CreatePlcClient(DeviceConfig config)
         {
             if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
             {
                 return client;
             }
 
-            client = _communicationFactory.Create(config);
+            client = _plcClientFactory.Create(config);
             _plcStateManager.PlcClients.TryAdd(config.Code, client);
             _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
             return client;
@@ -317,7 +317,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private static async Task<object> ReadCommunicationValueAsync(ICommunication client, string register,
+        private static async Task<object> ReadPlcValueAsync(IPlcClient client, string register,
             string dataType)
         {
             return dataType switch
@@ -335,7 +335,7 @@ namespace DataAcquisition.Core.DataAcquisitions
         }
 
 
-        private static dynamic? TransValue(ICommunication client, byte[] buffer, int index, int length, string dataType,
+        private static dynamic? TransValue(IPlcClient client, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             return dataType.ToLower() switch
@@ -397,12 +397,12 @@ namespace DataAcquisition.Core.DataAcquisitions
         /// <param name="dataType">数据类型</param>
         /// <param name="ct"></param>
         /// <returns>写入结果</returns>
-        public async Task<CommunicationWriteResult> WritePlcAsync(string plcCode, string address, object value,
+        public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
             string dataType, CancellationToken ct = default)
         {
             if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
             {
-                return new CommunicationWriteResult
+                return new PlcWriteResult
                 {
                     IsSuccess = false,
                     Message = $"未找到 PLC {plcCode}"
@@ -425,7 +425,7 @@ namespace DataAcquisition.Core.DataAcquisitions
                     "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)),
                     "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty),
                     "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)),
-                    _ => new CommunicationWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
+                    _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
                 };
             }
             finally
