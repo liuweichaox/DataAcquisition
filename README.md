@@ -45,11 +45,11 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) 13.0.3：用于 JSON 序列化与反序列化。
 
 ### 🧪 示例依赖
-参考实现（如 `DataAcquisition.Gateway`）使用以下 NuGet 包：
+项目使用下列主要 NuGet 包：
 - [Dapper](https://www.nuget.org/packages/Dapper) 2.1.66：轻量级 ORM，用于数据访问。
 - [HslCommunication](https://www.nuget.org/packages/HslCommunication) 12.2.0：支持多种 PLC 通讯协议。
-- [Microsoft.AspNetCore.SignalR](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR) 1.2.0：实现实时 Web 通讯。
 - [MySqlConnector](https://www.nuget.org/packages/MySqlConnector) 2.4.0：高性能 MySQL 客户端驱动。
+- [Microsoft.AspNetCore.SignalR](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR) 1.2.0：实现实时 Web 通讯。
 - [Serilog.AspNetCore](https://www.nuget.org/packages/Serilog.AspNetCore) 9.0.0：集成 Serilog 日志框架。
 - [Serilog.Sinks.Console](https://www.nuget.org/packages/Serilog.Sinks.Console) 6.0.0：将日志输出到控制台。
 - [Serilog.Sinks.File](https://www.nuget.org/packages/Serilog.Sinks.File) 7.0.0：将日志写入文件。

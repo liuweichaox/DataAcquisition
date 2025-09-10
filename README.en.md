@@ -44,12 +44,11 @@ The core framework relies on the following NuGet packages:
 - [NCalcAsync](https://www.nuget.org/packages/NCalcAsync) 5.4.0: evaluates expressions before data persistence.
 - [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) 13.0.3: JSON serialization/deserialization.
 
-### 🧪 Example dependencies
-The reference gateway and sample implementations use:
+The project relies on the following key NuGet packages:
 - [Dapper](https://www.nuget.org/packages/Dapper) 2.1.66: lightweight ORM for data access.
 - [HslCommunication](https://www.nuget.org/packages/HslCommunication) 12.2.0: PLC communication library.
-- [Microsoft.AspNetCore.SignalR](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR) 1.2.0: real-time web communication.
 - [MySqlConnector](https://www.nuget.org/packages/MySqlConnector) 2.4.0: high-performance MySQL client.
+- [Microsoft.AspNetCore.SignalR](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR) 1.2.0: real-time web communication.
 - [Serilog.AspNetCore](https://www.nuget.org/packages/Serilog.AspNetCore) 9.0.0: Serilog logging integration.
 - [Serilog.Sinks.Console](https://www.nuget.org/packages/Serilog.Sinks.Console) 6.0.0: console log sink.
 - [Serilog.Sinks.File](https://www.nuget.org/packages/Serilog.Sinks.File) 7.0.0: file log sink.
