@@ -1,19 +1,24 @@
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.OperationalEvents;
-using DataAcquisition.Gateway.Hubs;
-using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Logging;
 
-namespace DataAcquisition.Gateway.OperationalEvents;
+namespace DataAcquisition.Infrastructure.OperationalEvents;
 
+/// <summary>
+/// 运行事件记录服务。
+/// </summary>
 public sealed class OperationalEventsService : IOperationalEventsService
 {
     private readonly ILogger<OperationalEventsService> _log;
-    private readonly IHubContext<DataHub> _hub;
+    private readonly IOpsEventBus _bus;
 
-    public OperationalEventsService(ILogger<OperationalEventsService> log, IHubContext<DataHub> hub)
+    public OperationalEventsService(ILogger<OperationalEventsService> log, IOpsEventBus bus)
     {
         _log = log;
-        _hub = hub;
+        _bus = bus;
     }
 
     public Task InfoAsync(string deviceCode, string message, object? data = null, CancellationToken ct = default)
@@ -44,6 +49,6 @@ public sealed class OperationalEventsService : IOperationalEventsService
         }
 
         var evt = new OpsEvent(DateTimeOffset.Now, deviceCode, level, message, data);
-        await _hub.Clients.All.SendAsync("ReceiveOpsEvent", evt, ct);
+        await _bus.PublishAsync(evt, ct);
     }
 }

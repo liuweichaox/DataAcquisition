@@ -226,7 +226,9 @@ The service listens on http://localhost:8000 by default.
 Register the `IDataAcquisitionService` instance in `Program.cs` to manage acquisition tasks.
 
 ```csharp
-builder.Services.AddSingleton<IOperationalEventsService, OperationalEvents>();
+builder.Services.AddSingleton<OpsEventChannel>();
+builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
+builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
@@ -235,6 +237,7 @@ builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
+builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
 
 ### 🗂️ Repository structure
