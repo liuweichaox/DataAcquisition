@@ -56,12 +56,12 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                         writeData ^= 1;
                         _plcStateManager.PlcConnectionHealth[config.Code] = true;
                         if (!lastOk)
-                            await _events.HeartbeatChangedAsync(config.Code, true);
+                            await _events.InfoAsync(config.Code, "心跳检测正常");
                     }
                     else
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _events.HeartbeatChangedAsync(config.Code, false, connect.Message);
+                        await _events.WarnAsync(config.Code,"心跳检测失败", connect.Message);
                     }
                 }
 

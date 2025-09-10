@@ -30,13 +30,7 @@ public sealed class OperationalEventsService(ILogger<OperationalEventsService> l
     /// </summary>
     public Task ErrorAsync(string deviceCode, string message, Exception? ex = null, object? data = null, CancellationToken ct = default)
         => PublishAsync(LogLevel.Error, deviceCode, message, data, ct, ex);
-
-    /// <summary>
-    /// 记录心跳状态变化事件。
-    /// </summary>
-    public Task HeartbeatChangedAsync(string deviceCode, bool ok, string? detail = null, CancellationToken ct = default)
-        => PublishAsync(LogLevel.Information, deviceCode, ok ? "Heartbeat OK" : "Heartbeat FAIL", new { ok, detail }, ct);
-
+    
     /// <summary>
     /// 发布运行事件到消息总线。
     /// </summary>

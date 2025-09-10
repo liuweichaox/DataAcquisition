@@ -14,20 +14,14 @@ namespace DataAcquisition.Infrastructure.Queues;
 /// <summary>
 /// 消息队列实现
 /// </summary>
-public class LocalQueueService : IQueueService
+public class LocalQueueService(
+    IDataStorageService dataStorage,
+    IDataProcessingService dataProcessingService,
+    IOperationalEventsService events)
+    : IQueueService
 {
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
-    private readonly IDataStorageService _dataStorage;
-    private readonly IDataProcessingService _dataProcessingService;
-    private readonly IOperationalEventsService _events;
-
-    public LocalQueueService(IDataStorageService dataStorage, IDataProcessingService dataProcessingService, IOperationalEventsService events)
-    {
-        _dataStorage = dataStorage;
-        _dataProcessingService = dataProcessingService;
-        _events = events;
-    }
 
     /// <summary>
     /// 发布数据消息到队列。
@@ -48,12 +42,12 @@ public class LocalQueueService : IQueueService
         {
             try
             {
-                await _dataProcessingService.ExecuteAsync(dataMessage);
+                await dataProcessingService.ExecuteAsync(dataMessage);
                 await StoreDataPointAsync(dataMessage);
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync("System", $"Error processing message: {ex.Message}");
+                await events.ErrorAsync("System", $"Error processing message: {ex.Message}");
             }
         }
     }
@@ -66,7 +60,7 @@ public class LocalQueueService : IQueueService
     {
         if (dataMessage.Operation == DataOperation.Update)
         {
-            await _dataStorage.UpdateAsync(
+            await dataStorage.UpdateAsync(
                 dataMessage.TableName,
                 dataMessage.DataValues.ToDictionary(k => k.Key, k => (object)k.Value),
                 dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)k.Value));
@@ -75,7 +69,7 @@ public class LocalQueueService : IQueueService
 
         if (dataMessage.BatchSize <= 1)
         {
-            await _dataStorage.SaveAsync(dataMessage);
+            await dataStorage.SaveAsync(dataMessage);
             return;
         }
 
@@ -84,7 +78,7 @@ public class LocalQueueService : IQueueService
 
         if (batch.Count >= dataMessage.BatchSize)
         {
-            await _dataStorage.SaveBatchAsync(batch);
+            await dataStorage.SaveBatchAsync(batch);
             batch.Clear();
         }
     }

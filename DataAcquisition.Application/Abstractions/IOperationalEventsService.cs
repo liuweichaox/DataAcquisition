@@ -39,14 +39,4 @@ public interface IOperationalEventsService
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示异步操作的任务。</returns>
     Task ErrorAsync(string deviceCode, string message, Exception? ex = null, object? data = null, CancellationToken ct = default);
-
-    /// <summary>
-    /// 心跳状态变化回调。
-    /// </summary>
-    /// <param name="deviceCode">设备编码</param>
-    /// <param name="ok">心跳是否正常</param>
-    /// <param name="detail">异常详情</param>
-    /// <param name="ct">可选的取消标记</param>
-    /// <returns>表示异步操作的任务。</returns>
-    Task HeartbeatChangedAsync(string deviceCode, bool ok, string? detail = null, CancellationToken ct = default);
 }
