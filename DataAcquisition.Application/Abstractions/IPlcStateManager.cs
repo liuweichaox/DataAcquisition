@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Threading;
-using DataAcquisition.Application;
 
 namespace DataAcquisition.Application.Abstractions;
 

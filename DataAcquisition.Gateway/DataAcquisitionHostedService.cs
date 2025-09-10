@@ -1,5 +1,4 @@
 ﻿using DataAcquisition.Application.Abstractions;
-using Microsoft.Extensions.Hosting;
 
 namespace DataAcquisition.Gateway;
 

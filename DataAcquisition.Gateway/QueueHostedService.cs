@@ -1,7 +1,4 @@
-using System.Threading;
-using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
-using Microsoft.Extensions.Hosting;
 
 namespace DataAcquisition.Gateway;
 

@@ -1,5 +1,3 @@
-using DataAcquisition.Domain.Models;
-
 namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
