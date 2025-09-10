@@ -10,21 +10,6 @@
 ## 📘 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
-## 🧩 System configuration
-Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
-
-```csharp
-builder.Services.AddSingleton<IMessage, Message>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
-builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-
-builder.Services.AddHostedService<DataAcquisitionHostedService>();
-```
-
 ## ✨ Key Features
 - Efficient communication using the Modbus TCP protocol.
 - Message queues (RabbitMQ, Kafka, or a local queue) handle high-throughput acquisition results.
@@ -36,16 +21,25 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 - Configuration files define table structures, column names, and sampling frequency.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
+## 🧱 Environment Requirements
+- .NET 8.0 SDK
+- Optional: RabbitMQ or Kafka (for message queues)
+- Optional: SQLite or other database drivers
+
 ## 🛠️ Installation
 ### 📥 Clone the repository
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
+### 📦 Restore dependencies
+```bash
+dotnet restore
+```
 
-### ⚙️ Configuration files
+## ⚙️ Configuration
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings.
 
-#### 📑 Configuration structure
+### 📑 Configuration structure
 Configuration files use JSON format; the structure is described below using YAML:
 
 ```yaml
@@ -78,7 +72,7 @@ Modules:
         EvalExpression: string  # Expression for value conversion, use 'value' for the raw value
 ```
 
-#### 📚 Enum descriptions
+### 📚 Enum descriptions
 - **Type**
   - `Mitsubishi`: Mitsubishi PLC
   - `Inovance`: Inovance PLC
@@ -103,7 +97,7 @@ Modules:
     receives the new timestamp while the start-time column from the associated
     `Insert` trigger is used to locate the record.
 
-#### ⚖️ EvalExpression usage
+### ⚖️ EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
 
 ### 📄 Sample configuration
@@ -123,8 +117,8 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "ChamberCode": "M01C01",
       "Trigger": {
         "Mode": "Always",
-        "Register": null,
-        "DataType": null,
+        "Register": "D6000",
+        "DataType": "short",
         "Operation": "Insert"
       },
       "BatchReadRegister": "D6000",
@@ -205,23 +199,36 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
 Make sure the .NET 8.0 SDK is installed.
 
 ```bash
-dotnet restore
 dotnet build
 dotnet run --project DataAcquisition.Gateway
 ```
 
 The service listens on http://localhost:8000 by default.
 
-## 🚀 Deployment
-Use `dotnet publish` to generate self-contained executables for different platforms:
+## 🧑‍💻 Development
+### 🧩 System configuration
+Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
 
-```bash
-dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
-dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
-dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```csharp
+builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
+builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
+builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+
+builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
+### 📁 Repository structure
+- `DataAcquisition.Core`: core interfaces and acquisition logic.
+- `DataAcquisition.Gateway` / `DataAcquisition.Infrastructure`: implementations of those interfaces.
+
+### 🧪 Build
+```bash
+dotnet build
+```
 
 ## 🔌 API
 ### 📡 Get PLC connection status
@@ -243,6 +250,17 @@ Request example (batch write, `dataType` specifies the value type for each item)
   ]
 }
 ```
+
+## 🚀 Deployment
+Use `dotnet publish` to generate self-contained executables for different platforms:
+
+```bash
+dotnet publish DataAcquisition.Gateway -c Release -r win-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r linux-x64 --self-contained true
+dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained true
+```
+
+Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
 
 ## 🤝 Contribution
 Contributions are welcome via Pull Requests. Ensure all relevant tests pass and avoid introducing breaking changes.
