@@ -211,8 +211,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<string> ReadStringAsync(string address, ushort length, Encoding encoding)
     {
-        var res = await _device.ReadAsync(address, length);
-        return _device.ByteTransform.TransString(res.Content ?? System.Array.Empty<byte>(), 0, length, encoding);
+        var res = await _device.ReadStringAsync(address, length, encoding);
+        return res.Content;
     }
 
     /// <summary>
