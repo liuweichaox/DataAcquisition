@@ -1,3 +1,4 @@
+using System;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 
@@ -13,6 +14,11 @@ public class PlcClientFactory : IPlcClientFactory
     /// </summary>
     public IPlcClientService Create(DeviceConfig config)
     {
-        return new PlcClientService(config);
+        return config.Type switch
+        {
+            PlcType.Mitsubishi => new MitsubishiPlcClientService(config),
+            PlcType.Inovance => new InovancePlcClientService(config),
+            _ => throw new NotImplementedException("不支持的 PLC 类型")
+        };
     }
 }
