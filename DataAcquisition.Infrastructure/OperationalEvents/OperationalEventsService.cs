@@ -9,12 +9,12 @@ using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.OperationalEvents;
 
-public sealed class OperationalEvents : IOperationalEventsService
+public sealed class OperationalEventsService : IOperationalEventsService
 {
-    private readonly ILogger<OperationalEvents> _log;
+    private readonly ILogger<OperationalEventsService> _log;
     private readonly IHubContext<DataHub> _hub;
 
-    public OperationalEvents(ILogger<OperationalEvents> log, IHubContext<DataHub> hub)
+    public OperationalEventsService(ILogger<OperationalEventsService> log, IHubContext<DataHub> hub)
     {
         _log = log;
         _hub = hub;

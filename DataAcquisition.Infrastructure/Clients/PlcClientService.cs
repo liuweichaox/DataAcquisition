@@ -11,11 +11,11 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class PlcClient : IPlcClientService
+public class PlcClientService : IPlcClientService
 {
     private readonly DeviceTcpNet _device;
 
-    public PlcClient(DeviceConfig config)
+    public PlcClientService(DeviceConfig config)
     {
         _device = new MelsecA1ENet(config.Host, config.Port)
         {

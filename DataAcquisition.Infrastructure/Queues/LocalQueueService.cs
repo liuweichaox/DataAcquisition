@@ -9,7 +9,7 @@ namespace DataAcquisition.Infrastructure.Queues;
 /// <summary>
 /// 消息队列实现
 /// </summary>
-public class LocalQueue : IQueueService
+public class LocalQueueService : IQueueService
 {
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
@@ -17,7 +17,7 @@ public class LocalQueue : IQueueService
     private readonly IDataProcessingService _dataProcessingService;
     private readonly IOperationalEventsService _events;
 
-    public LocalQueue(IDataStorageService dataStorage, IDataProcessingService dataProcessingService, IOperationalEventsService events)
+    public LocalQueueService(IDataStorageService dataStorage, IDataProcessingService dataProcessingService, IOperationalEventsService events)
     {
         _dataStorage = dataStorage;
         _dataProcessingService = dataProcessingService;

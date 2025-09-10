@@ -8,13 +8,13 @@ using Newtonsoft.Json;
 
 namespace DataAcquisition.Infrastructure.DataStorages;
 
-public class MySqlDataStorage : IDataStorageService
+public class MySqlDataStorageService : IDataStorageService
 {
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
     private readonly IOperationalEventsService _events;
-    public MySqlDataStorage(IConfiguration configuration, IOperationalEventsService events)
+    public MySqlDataStorageService(IConfiguration configuration, IOperationalEventsService events)
     {
         _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
         _events = events;
