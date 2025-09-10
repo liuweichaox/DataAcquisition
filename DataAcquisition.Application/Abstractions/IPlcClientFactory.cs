@@ -1,6 +1,6 @@
 using DataAcquisition.Domain.Models;
 
-namespace DataAcquisition.Application.Clients;
+namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 /// 通讯客户端工厂
@@ -12,5 +12,5 @@ public interface IPlcClientFactory
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <returns>通讯客户端</returns>
-    IPlcClient Create(DeviceConfig config);
+    IPlcClientService Create(DeviceConfig config);
 }

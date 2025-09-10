@@ -2,9 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Application.OperationalEvents;
+namespace DataAcquisition.Application.Abstractions;
 
-public interface IOperationalEvents
+public interface IOperationalEventsService
 {
     Task InfoAsync(string deviceCode, string message, object? data = null, CancellationToken ct = default);
     Task WarnAsync(string deviceCode, string message, object? data = null, CancellationToken ct = default);

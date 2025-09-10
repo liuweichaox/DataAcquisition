@@ -1,12 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using DataAcquisition.Application.Clients;
-using DataAcquisition.Application.DataAcquisitions;
-using DataAcquisition.Application.DataProcessing;
-using DataAcquisition.Application.DataStorages;
-using DataAcquisition.Application.DeviceConfigs;
-using DataAcquisition.Application.OperationalEvents;
-using DataAcquisition.Application.Queues;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Gateway;
 using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Infrastructure.Clients;
@@ -23,10 +17,10 @@ builder.WebHost.UseUrls("http://localhost:8000");
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
+builder.Services.AddSingleton<IOperationalEventsService, OperationalEvents>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IQueue, LocalQueue>();
-builder.Services.AddSingleton<IDataStorage, MySqlDataStorage>();
+builder.Services.AddSingleton<IQueueService, LocalQueue>();
+builder.Services.AddSingleton<IDataStorageService, MySqlDataStorage>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 

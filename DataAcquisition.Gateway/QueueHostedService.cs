@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Application.Queues;
+using DataAcquisition.Application.Abstractions;
 using Microsoft.Extensions.Hosting;
 
 namespace DataAcquisition.Gateway;
@@ -10,8 +10,8 @@ namespace DataAcquisition.Gateway;
 /// </summary>
 public class QueueHostedService : BackgroundService
 {
-    private readonly IQueue _queue;
-    public QueueHostedService(IQueue queue) => _queue = queue;
+    private readonly IQueueService _queue;
+    public QueueHostedService(IQueueService queue) => _queue = queue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         => await _queue.SubscribeAsync(stoppingToken);

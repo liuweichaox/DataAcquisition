@@ -3,12 +3,12 @@ using System.Text;
 using System.Threading.Tasks;
 using DataAcquisition.Domain.Clients;
 
-namespace DataAcquisition.Application.Clients;
+namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 /// 通讯客户端通用接口，封装具体协议实现。
 /// </summary>
-public interface IPlcClient
+public interface IPlcClientService
 {
     /// <summary>
     /// 关闭连接。

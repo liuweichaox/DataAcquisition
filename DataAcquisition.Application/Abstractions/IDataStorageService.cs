@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Application.DataStorages;
+namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 /// 数据存储服务
 /// </summary>
-public interface IDataStorage
+public interface IDataStorageService
 {
     /// <summary>
     /// 保存

@@ -1,7 +1,7 @@
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using DataAcquisition.Application.Clients;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Melsec;
@@ -11,7 +11,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class PlcClient : IPlcClient
+public class PlcClient : IPlcClientService
 {
     private readonly DeviceTcpNet _device;
 

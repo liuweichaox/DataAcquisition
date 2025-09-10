@@ -2,9 +2,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Application.Queues;
+namespace DataAcquisition.Application.Abstractions;
 
-public interface IQueue : IAsyncDisposable
+public interface IQueueService : IAsyncDisposable
 {
     Task PublishAsync(DataMessage dataMessage);
 

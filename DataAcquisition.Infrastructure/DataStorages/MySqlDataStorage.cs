@@ -2,21 +2,19 @@ using System.Collections.Concurrent;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Dapper;
-using DataAcquisition.Application.DataStorages;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using DataAcquisition.Application.OperationalEvents;
-using MySqlConnector;
 using Newtonsoft.Json;
 
 namespace DataAcquisition.Infrastructure.DataStorages;
 
-public class MySqlDataStorage : IDataStorage
+public class MySqlDataStorage : IDataStorageService
 {
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
-    private readonly IOperationalEvents _events;
-    public MySqlDataStorage(IConfiguration configuration, IOperationalEvents events)
+    private readonly IOperationalEventsService _events;
+    public MySqlDataStorage(IConfiguration configuration, IOperationalEventsService events)
     {
         _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
         _events = events;

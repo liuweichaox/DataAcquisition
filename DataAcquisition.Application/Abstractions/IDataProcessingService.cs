@@ -1,6 +1,6 @@
 ﻿using System.Threading.Tasks;
 
-namespace DataAcquisition.Application.DataProcessing;
+namespace DataAcquisition.Application.Abstractions;
 
 public interface IDataProcessingService
 {

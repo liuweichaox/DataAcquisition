@@ -1,7 +1,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Application.OperationalEvents;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.OperationalEvents;
 using DataAcquisition.Gateway.Hubs;
 using Microsoft.AspNetCore.SignalR;
@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.OperationalEvents;
 
-public sealed class OperationalEvents : IOperationalEvents
+public sealed class OperationalEvents : IOperationalEventsService
 {
     private readonly ILogger<OperationalEvents> _log;
     private readonly IHubContext<DataHub> _hub;
