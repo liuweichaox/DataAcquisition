@@ -10,6 +10,7 @@ using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
 using DataAcquisition.Application;
+using DataAcquisition.Infrastructure.DeviceConfigs;
 using Serilog;
 using Serilog.Events;
 
