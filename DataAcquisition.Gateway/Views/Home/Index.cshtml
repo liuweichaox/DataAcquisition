@@ -224,7 +224,7 @@
 
                 connection.on("ReceiveOpsEvent", (evt) => {
                     // 当从服务器接收到运行事件时，格式化并更新消息
-                    updateMessages(`[${new Date(evt.timestamp).toLocaleString()}] [${evt.deviceCode}] ${evt.level}: ${evt.message}`);
+                    updateMessages(`[${new Date(evt.timestamp).toLocaleString()} [${evt.level}] [${evt.deviceCode}] ${evt.message}`);
                 });
 
                 connection.start().then(() => {
