@@ -204,7 +204,7 @@ dotnet run --project DataAcquisition.Gateway
 服务启动后默认监听 http://localhost:8000 端口。
 
 ## 🧑‍💻 开发
-### 系统配置
+### 🧩 系统配置
 在 `Program.cs` 中注册 `IDataAcquisition` 实例以管理采集任务。
 
 ```csharp
@@ -219,14 +219,13 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-### 仓库结构
-- `DataAcquisition.Core`：核心采集、通信与存储实现。
-- `DataAcquisition.Gateway`：对外提供接口的网关服务。
+### 📁 仓库结构
+- `DataAcquisition.Core`：核心接口与采集逻辑。
+- `DataAcquisition.Gateway` / `DataAcquisition.Infrastructure`：接口实现。
 
-### 构建与测试
+### 🧪 构建
 ```bash
 dotnet build
-dotnet test   # 当前仓库无测试项目，可按需添加
 ```
 
 ## 🔌 API
