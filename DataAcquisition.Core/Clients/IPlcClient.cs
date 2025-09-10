@@ -2,12 +2,12 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Core.Communication;
+namespace DataAcquisition.Core.Clients;
 
 /// <summary>
 /// 通讯客户端通用接口，封装具体协议实现。
 /// </summary>
-public interface ICommunication
+public interface IPlcClient
 {
     /// <summary>
     /// 关闭连接。
@@ -24,23 +24,23 @@ public interface ICommunication
     /// </summary>
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
-    Task<CommunicationWriteResult> WriteUShortAsync(string address, ushort value);
-    Task<CommunicationWriteResult> WriteUIntAsync(string address, uint value);
-    Task<CommunicationWriteResult> WriteULongAsync(string address, ulong value);
-    Task<CommunicationWriteResult> WriteShortAsync(string address, short value);
-    Task<CommunicationWriteResult> WriteIntAsync(string address, int value);
-    Task<CommunicationWriteResult> WriteLongAsync(string address, long value);
-    Task<CommunicationWriteResult> WriteFloatAsync(string address, float value);
-    Task<CommunicationWriteResult> WriteDoubleAsync(string address, double value);
-    Task<CommunicationWriteResult> WriteStringAsync(string address, string value);
-    Task<CommunicationWriteResult> WriteBoolAsync(string address, bool value);
+    Task<PlcWriteResult> WriteUShortAsync(string address, ushort value);
+    Task<PlcWriteResult> WriteUIntAsync(string address, uint value);
+    Task<PlcWriteResult> WriteULongAsync(string address, ulong value);
+    Task<PlcWriteResult> WriteShortAsync(string address, short value);
+    Task<PlcWriteResult> WriteIntAsync(string address, int value);
+    Task<PlcWriteResult> WriteLongAsync(string address, long value);
+    Task<PlcWriteResult> WriteFloatAsync(string address, float value);
+    Task<PlcWriteResult> WriteDoubleAsync(string address, double value);
+    Task<PlcWriteResult> WriteStringAsync(string address, string value);
+    Task<PlcWriteResult> WriteBoolAsync(string address, bool value);
 
     /// <summary>
     /// 批量读取原始数据。
     /// </summary>
     /// <param name="address">起始地址</param>
     /// <param name="length">长度</param>
-    Task<CommunicationReadResult> ReadAsync(string address, ushort length);
+    Task<PlcReadResult> ReadAsync(string address, ushort length);
 
     Task<ushort> ReadUShortAsync(string address);
     Task<uint> ReadUIntAsync(string address);
@@ -66,7 +66,7 @@ public interface ICommunication
 /// <summary>
 /// 读取结果
 /// </summary>
-public class CommunicationReadResult
+public class PlcReadResult
 {
     public bool IsSuccess { get; set; }
     public byte[] Content { get; set; } = System.Array.Empty<byte>();
@@ -76,7 +76,7 @@ public class CommunicationReadResult
 /// <summary>
 /// 写入结果
 /// </summary>
-public class CommunicationWriteResult
+public class PlcWriteResult
 {
     public bool IsSuccess { get; set; }
     public string Message { get; set; } = string.Empty;

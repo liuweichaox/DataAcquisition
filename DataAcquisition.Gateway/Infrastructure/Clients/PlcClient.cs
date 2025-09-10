@@ -1,21 +1,21 @@
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using DataAcquisition.Core.Communication;
+using DataAcquisition.Core.Clients;
 using DataAcquisition.Core.Models;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Melsec;
 
-namespace DataAcquisition.Gateway.Infrastructure.Communication;
+namespace DataAcquisition.Gateway.Infrastructure.Clients;
 
 /// <summary>
-/// 基于 HslCommunication 的通讯客户端适配器
+/// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class Communication : ICommunication
+public class PlcClient : IPlcClient
 {
     private readonly DeviceTcpNet _device;
 
-    public Communication(DeviceConfig config)
+    public PlcClient(DeviceConfig config)
     {
         _device = new MelsecA1ENet(config.Host, config.Port)
         {
@@ -27,70 +27,70 @@ public class Communication : ICommunication
     public Task ConnectCloseAsync() => _device.ConnectCloseAsync();
 
     public IPStatus IpAddressPing() => _device.IpAddressPing();
-    public async Task<CommunicationWriteResult> WriteUShortAsync(string address, ushort value)
+    public async Task<PlcWriteResult> WriteUShortAsync(string address, ushort value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteUIntAsync(string address, uint value)
+    public async Task<PlcWriteResult> WriteUIntAsync(string address, uint value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteULongAsync(string address, ulong value)
+    public async Task<PlcWriteResult> WriteULongAsync(string address, ulong value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteShortAsync(string address, short value)
+    public async Task<PlcWriteResult> WriteShortAsync(string address, short value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteIntAsync(string address, int value)
+    public async Task<PlcWriteResult> WriteIntAsync(string address, int value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteLongAsync(string address, long value)
+    public async Task<PlcWriteResult> WriteLongAsync(string address, long value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteFloatAsync(string address, float value)
+    public async Task<PlcWriteResult> WriteFloatAsync(string address, float value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteDoubleAsync(string address, double value)
+    public async Task<PlcWriteResult> WriteDoubleAsync(string address, double value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteStringAsync(string address, string value)
+    public async Task<PlcWriteResult> WriteStringAsync(string address, string value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationWriteResult> WriteBoolAsync(string address, bool value)
+    public async Task<PlcWriteResult> WriteBoolAsync(string address, bool value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new CommunicationWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
-    public async Task<CommunicationReadResult> ReadAsync(string address, ushort length)
+    public async Task<PlcReadResult> ReadAsync(string address, ushort length)
     {
         var res = await _device.ReadAsync(address, length);
-        return new CommunicationReadResult
+        return new PlcReadResult
         {
             IsSuccess = res.IsSuccess,
             Content = res.Content ?? System.Array.Empty<byte>(),

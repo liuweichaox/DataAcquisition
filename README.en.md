@@ -27,7 +27,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
 ### 🧰 How to customize implementation
-1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
+1. Implement `IPlcClient` and `IPlcClientFactory` to support other PLC protocols or communication methods.
 2. Implement `IDataStorage` to use a different database or persistence layer.
 3. Implement `IQueue` to integrate custom message queues.
 4. Implement `IOperationalEvents` to record errors, logs, or other operational events.
@@ -225,7 +225,7 @@ Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition t
 
 ```csharp
 builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
-builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
+builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
 builder.Services.AddSingleton<IDataAcquisition, DataAcquisition>();
