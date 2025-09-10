@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using DataAcquisition.Application.DataAcquisitions;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;

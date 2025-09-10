@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Threading.Channels;
-using DataAcquisition.Application.DataProcessing;
-using DataAcquisition.Application.DataStorages;
-using DataAcquisition.Application.OperationalEvents;
-using DataAcquisition.Application.Queues;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.Queues;
@@ -12,15 +9,15 @@ namespace DataAcquisition.Infrastructure.Queues;
 /// <summary>
 /// 消息队列实现
 /// </summary>
-public class LocalQueue : IQueue
+public class LocalQueue : IQueueService
 {
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
-    private readonly IDataStorage _dataStorage;
+    private readonly IDataStorageService _dataStorage;
     private readonly IDataProcessingService _dataProcessingService;
-    private readonly IOperationalEvents _events;
+    private readonly IOperationalEventsService _events;
 
-    public LocalQueue(IDataStorage dataStorage, IDataProcessingService dataProcessingService, IOperationalEvents events)
+    public LocalQueue(IDataStorageService dataStorage, IDataProcessingService dataProcessingService, IOperationalEventsService events)
     {
         _dataStorage = dataStorage;
         _dataProcessingService = dataProcessingService;

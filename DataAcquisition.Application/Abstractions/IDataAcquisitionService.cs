@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Domain.Clients;
 
-namespace DataAcquisition.Application.DataAcquisitions;
+namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 /// Defines the contract for data acquisition operations.

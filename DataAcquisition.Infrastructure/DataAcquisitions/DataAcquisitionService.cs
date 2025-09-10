@@ -6,11 +6,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Application.Clients;
-using DataAcquisition.Application.DeviceConfigs;
-using DataAcquisition.Application.OperationalEvents;
-using DataAcquisition.Application.Queues;
-using DataAcquisition.Application.DataAcquisitions;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
@@ -23,8 +19,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
         private readonly IPlcClientFactory _plcClientFactory;
-        private readonly IOperationalEvents _events;
-        private readonly IQueue _queue;
+        private readonly IOperationalEventsService _events;
+        private readonly IQueueService _queue;
         private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
         private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
 
@@ -33,8 +29,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
             IPlcClientFactory plcClientFactory,
-            IOperationalEvents events,
-            IQueue queue)
+            IOperationalEventsService events,
+            IQueueService queue)
         {
             _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
@@ -56,7 +52,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             /// <summary>
             /// PLC client associated with every device.
             /// </summary>
-            public ConcurrentDictionary<string, IPlcClient> PlcClients { get; } = new();
+            public ConcurrentDictionary<string, IPlcClientService> PlcClients { get; } = new();
 
             /// <summary>
             /// Connection status for each PLC.
@@ -123,7 +119,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
         }
 
-        private async Task ModuleLoopAsync(DeviceConfig config, Module module, IPlcClient client,
+        private async Task ModuleLoopAsync(DeviceConfig config, Module module, IPlcClientService client,
             CancellationToken ct = default)
         {
             await Task.Yield();
@@ -242,7 +238,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// <summary>
         /// 创建 PLC 客户端（若已存在则直接返回）
         /// </summary>
-        private IPlcClient CreatePlcClient(DeviceConfig config)
+        private IPlcClientService CreatePlcClient(DeviceConfig config)
         {
             if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
             {
@@ -319,7 +315,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// <param name="dataType"></param>
         /// <returns></returns>
         /// <exception cref="NotSupportedException"></exception>
-        private static async Task<object> ReadPlcValueAsync(IPlcClient client, string register,
+        private static async Task<object> ReadPlcValueAsync(IPlcClientService client, string register,
             string dataType)
         {
             return dataType switch
@@ -337,7 +333,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         }
 
 
-        private static dynamic? TransValue(IPlcClient client, byte[] buffer, int index, int length, string dataType,
+        private static dynamic? TransValue(IPlcClientService client, byte[] buffer, int index, int length, string dataType,
             string encoding)
         {
             return dataType.ToLower() switch
