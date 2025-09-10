@@ -1,3 +1,4 @@
+// 应用程序入口，配置 WebHost 与服务。
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DataAcquisition.Application.Abstractions;

@@ -36,6 +36,9 @@ public static class ExpressionEvaluator
         }
     }
     
+    /// <summary>
+    /// 判断对象是否为数值类型。
+    /// </summary>
     private static bool IsNumberType(object value)
     {
         return value is ushort or uint or ulong or short or int or long or float or double;

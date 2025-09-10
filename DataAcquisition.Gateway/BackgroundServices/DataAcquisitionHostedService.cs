@@ -14,6 +14,9 @@ public class DataAcquisitionHostedService : BackgroundService
         _dataAcquisitionService = dataAcquisitionService;
     }
 
+    /// <summary>
+    /// 执行数据采集后台任务。
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         // Start data acquisition tasks.

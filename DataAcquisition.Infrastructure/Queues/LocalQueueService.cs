@@ -29,11 +29,19 @@ public class LocalQueueService : IQueueService
         _events = events;
     }
 
+    /// <summary>
+    /// 发布数据消息到队列。
+    /// </summary>
+    /// <param name="dataMessage">数据消息</param>
     public async Task PublishAsync(DataMessage dataMessage)
     {
         await _channel.Writer.WriteAsync(dataMessage);
     }
 
+    /// <summary>
+    /// 订阅队列并处理消息。
+    /// </summary>
+    /// <param name="ct">取消标记</param>
     public async Task SubscribeAsync(CancellationToken ct)
     {
         await foreach (var dataMessage in _channel.Reader.ReadAllAsync(ct))
@@ -50,6 +58,10 @@ public class LocalQueueService : IQueueService
         }
     }
 
+    /// <summary>
+    /// 将数据消息存储至数据库，支持批量处理。
+    /// </summary>
+    /// <param name="dataMessage">数据消息</param>
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
         if (dataMessage.Operation == DataOperation.Update)
@@ -77,6 +89,9 @@ public class LocalQueueService : IQueueService
         }
     }
 
+    /// <summary>
+    /// 释放队列资源。
+    /// </summary>
     public ValueTask DisposeAsync()
     {
         _channel.Writer.Complete();

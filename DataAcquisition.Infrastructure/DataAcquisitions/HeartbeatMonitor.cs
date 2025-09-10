@@ -8,17 +8,26 @@ using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
+/// <summary>
+/// 心跳监控器，周期性检测 PLC 连通性。
+/// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
     private readonly IPlcStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
 
+    /// <summary>
+    /// 初始化心跳监控器。
+    /// </summary>
     public HeartbeatMonitor(IPlcStateManager plcStateManager, IOperationalEventsService events)
     {
         _plcStateManager = plcStateManager;
         _events = events;
     }
 
+    /// <summary>
+    /// 监控指定设备的心跳状态。
+    /// </summary>
     public async Task MonitorAsync(DeviceConfig config, CancellationToken ct = default)
     {
         await Task.Yield();
@@ -70,6 +79,9 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         }
     }
 
+    /// <summary>
+    /// 向 PLC 写入心跳测试值。
+    /// </summary>
     private async Task<PlcWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct)
     {
         if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
