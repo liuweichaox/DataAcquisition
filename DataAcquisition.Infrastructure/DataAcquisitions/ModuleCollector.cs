@@ -68,13 +68,38 @@ public class ModuleCollector : IModuleCollector
                     var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
                     if (operation == DataOperation.Insert)
                     {
-                        var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
-                        var buffer = batchData.Content;
-                        if (module.DataPoints != null)
+                        if (module.EnableBatchRead)
+                        {
+                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
+                            var buffer = batchData.Content;
+                            if (module.DataPoints != null)
+                            {
+                                foreach (var dataPoint in module.DataPoints)
+                                {
+                                    var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
+                                }
+                            }
+                        }
+                        else if (module.DataPoints != null)
                         {
                             foreach (var dataPoint in module.DataPoints)
                             {
-                                var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                object value;
+                                switch (dataPoint.DataType.ToLower())
+                                {
+                                    case "string":
+                                        var strResult = await client.ReadAsync(dataPoint.Register, (ushort)dataPoint.StringByteLength);
+                                        value = client.TransString(strResult.Content, 0, dataPoint.StringByteLength, Encoding.GetEncoding(dataPoint.Encoding ?? "UTF8"));
+                                        break;
+                                    case "bool":
+                                        var boolResult = await client.ReadAsync(dataPoint.Register, 1);
+                                        value = client.TransBool(boolResult.Content, 0);
+                                        break;
+                                    default:
+                                        value = await ReadPlcValueAsync(client, dataPoint.Register, dataPoint.DataType);
+                                        break;
+                                }
                                 dataMessage.DataValues[dataPoint.ColumnName] = value;
                             }
                         }

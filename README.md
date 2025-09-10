@@ -92,12 +92,14 @@ Modules:                        # 采集模块配置数组
       DataType: ushort|uint|ulong|short|int|long|float|double # 触发寄存器数据类型
       Operation: Insert|Update  # 数据操作类型
       TimeColumnName: string    # [可选] 时间列名
+    EnableBatchRead: bool       # 是否启用批量读取
     BatchReadRegister: string   # 批量读取寄存器地址
     BatchReadLength: int        # 批量读取长度
     TableName: string           # 数据库表名
     BatchSize: int              # 批量保存大小，1 表示逐条保存
     DataPoints:                 # 数据配置
       - ColumnName: string      # 数据库列名
+        Register: string        # 读取寄存器地址
         Index: int              # 寄存器索引
         StringByteLength: int   # 字符串字节长度
         Encoding: UTF8|GB2312|GBK|ASCII # 编码方式
@@ -152,6 +154,7 @@ Modules:                        # 采集模块配置数组
         "Operation": "Insert",
         "TimeColumnName": ""
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
@@ -159,6 +162,7 @@ Modules:                        # 采集模块配置数组
       "DataPoints": [
         {
           "ColumnName": "up_temp",
+          "Register": "D6002",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -167,6 +171,7 @@ Modules:                        # 采集模块配置数组
         },
         {
           "ColumnName": "down_temp",
+          "Register": "D6004",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,
@@ -184,6 +189,7 @@ Modules:                        # 采集模块配置数组
         "Operation": "Insert",
         "TimeColumnName": "start_time"
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c01_recipe",
@@ -191,6 +197,7 @@ Modules:                        # 采集模块配置数组
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
+          "Register": "D6102",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -199,6 +206,7 @@ Modules:                        # 采集模块配置数组
         },
         {
           "ColumnName": "down_set_temp",
+          "Register": "D6104",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,

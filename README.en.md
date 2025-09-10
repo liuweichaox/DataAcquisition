@@ -91,12 +91,14 @@ Modules:
       DataType: ushort|uint|ulong|short|int|long|float|double # Trigger register data type
       Operation: Insert|Update  # Data operation type
       TimeColumnName: string    # [Optional] column name for timestamp
+    EnableBatchRead: bool       # Whether to enable batch reading
     BatchReadRegister: string   # Start register for batch reading
     BatchReadLength: int        # Number of registers to read
     TableName: string           # Target database table
     BatchSize: int              # Number of records per batch (1 inserts one by one)
     DataPoints:
       - ColumnName: string      # Column name in the database
+        Register: string        # Register address for single reads
         Index: int              # Register index
         StringByteLength: int   # Byte length for string values
         Encoding: UTF8|GB2312|GBK|ASCII # Character encoding
@@ -153,6 +155,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         "DataType": "short",
         "Operation": "Insert"
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
@@ -160,6 +163,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "DataPoints": [
         {
           "ColumnName": "up_temp",
+          "Register": "D6002",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -168,6 +172,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         },
         {
           "ColumnName": "down_temp",
+          "Register": "D6004",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,
@@ -185,6 +190,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         "Operation": "Insert",
         "TimeColumnName": "start_time"
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c01_recipe",
@@ -192,6 +198,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
+          "Register": "D6102",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -200,6 +207,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
         },
         {
           "ColumnName": "down_set_temp",
+          "Register": "D6104",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,
