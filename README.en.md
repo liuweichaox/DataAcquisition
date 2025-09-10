@@ -21,6 +21,17 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Configuration files define table structures, column names, and sampling frequency.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
+## 🏛️ Architecture Overview
+- **DataAcquisition.Core**: supplies interfaces and shared acquisition logic.
+- **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
+
+### How to customize implementation
+1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
+2. Implement `IDataStorage` to use a different database or persistence layer.
+3. Implement `IQueue` (and optionally `IMessage`) to integrate custom message queues or formats.
+4. Register these implementations in `Program.cs`, replacing the default dependencies.
+5. Build and run the project, adjusting configuration files as needed.
+
 ## 🧱 Environment Requirements
 - .NET 8.0 SDK
 - Optional: RabbitMQ or Kafka (for message queues)
