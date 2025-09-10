@@ -222,9 +222,9 @@
                     .withUrl("/dataHub") // SignalR Hub 地址
                     .build();
 
-                connection.on("ReceiveMessage", (message) => {
-                    // 当从服务器接收到消息时，更新实时消息
-                    updateMessages(message);
+                connection.on("ReceiveOpsEvent", (evt) => {
+                    // 当从服务器接收到运行事件时，格式化并更新消息
+                    updateMessages(`[${evt.timestamp}] [${evt.deviceCode}] ${evt.level}: ${evt.message}`);
                 });
 
                 connection.start().then(() => {

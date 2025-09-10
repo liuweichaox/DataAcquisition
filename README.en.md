@@ -28,7 +28,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 ### How to customize implementation
 1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
 2. Implement `IDataStorage` to use a different database or persistence layer.
-3. Implement `IQueue` (and optionally `IMessage`) to integrate custom message queues or formats.
+3. Implement `IQueue` and `IOperationalEvents` to integrate custom message queues and record errors, logs, or other operational events.
 4. Register these implementations in `Program.cs`, replacing the default dependencies.
 5. Build and run the project, adjusting configuration files as needed.
 
@@ -221,7 +221,7 @@ The service listens on http://localhost:8000 by default.
 Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
 
 ```csharp
-builder.Services.AddSingleton<IMessage, Message>();
+builder.Services.AddSingleton<IOperationalEvents, OperationalEvents>();
 builder.Services.AddSingleton<ICommunicationFactory, CommunicationFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();

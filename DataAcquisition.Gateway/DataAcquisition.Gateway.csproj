@@ -25,7 +25,6 @@
       <None Include="wwwroot\favicon.ico" />
       <None Remove="Services\DataAcquisitionConfigs\**" />
       <None Remove="Services\DataStorages\**" />
-      <None Remove="Services\Messages\**" />
       <None Remove="Services\Communications\**" />
       <None Remove="Services\Queues\**" />
       <None Remove="Logging\**" />
@@ -34,7 +33,6 @@
     <ItemGroup>
       <Compile Remove="Services\DataAcquisitionConfigs\**" />
       <Compile Remove="Services\DataStorages\**" />
-      <Compile Remove="Services\Messages\**" />
       <Compile Remove="Services\Communications\**" />
       <Compile Remove="Services\Queues\**" />
       <Compile Remove="Logging\**" />
@@ -43,7 +41,6 @@
     <ItemGroup>
       <EmbeddedResource Remove="Services\DataAcquisitionConfigs\**" />
       <EmbeddedResource Remove="Services\DataStorages\**" />
-      <EmbeddedResource Remove="Services\Messages\**" />
       <EmbeddedResource Remove="Services\Communications\**" />
       <EmbeddedResource Remove="Services\Queues\**" />
       <EmbeddedResource Remove="Logging\**" />
@@ -52,7 +49,6 @@
     <ItemGroup>
       <Content Remove="Services\DataAcquisitionConfigs\**" />
       <Content Remove="Services\DataStorages\**" />
-      <Content Remove="Services\Messages\**" />
       <Content Remove="Services\Communications\**" />
       <Content Remove="Services\Queues\**" />
       <Content Remove="Logging\**" />
