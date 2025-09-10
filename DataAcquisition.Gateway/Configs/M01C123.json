@@ -1,4 +1,4 @@
-﻿{
+{
   "IsEnabled": true,
   "Code": "M01C123",
   "Host": "192.168.1.110",
@@ -15,6 +15,7 @@
         "DataType": null,
         "Operation": "Insert"
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "TableName": "m01c01_sensor",
@@ -22,6 +23,7 @@
       "DataPoints": [
         {
           "ColumnName": "up_temp",
+          "Register": "D6002",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -30,6 +32,7 @@
         },
         {
           "ColumnName": "down_temp",
+          "Register": "D6004",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,
@@ -47,6 +50,7 @@
         "Operation": "Insert",
         "TimeColumnName": "start_time"
       },
+      "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "TableName": "m01c01_recipe",
@@ -54,6 +58,7 @@
       "DataPoints": [
         {
           "ColumnName": "up_set_temp",
+          "Register": "D6102",
           "Index": 2,
           "StringByteLength": 0,
           "Encoding": null,
@@ -62,6 +67,7 @@
         },
         {
           "ColumnName": "down_set_temp",
+          "Register": "D6104",
           "Index": 4,
           "StringByteLength": 0,
           "Encoding": null,
@@ -79,6 +85,7 @@
         "Operation": "Update",
         "TimeColumnName": "end_time"
       },
+      "EnableBatchRead": false,
       "BatchReadRegister": null,
       "BatchReadLength": 0,
       "TableName": "m01c01_recipe",

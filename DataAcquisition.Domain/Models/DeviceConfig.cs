@@ -126,6 +126,11 @@ public class Module
     public Trigger Trigger { get; set; }
 
     /// <summary>
+    /// 是否启用批量读取
+    /// </summary>
+    public bool EnableBatchRead { get; set; } = true;
+
+    /// <summary>
     /// 批量读取地址
     /// </summary>
     public string BatchReadRegister { get; set; }
@@ -159,6 +164,11 @@ public class DataPoint
     /// 列名
     /// </summary>
     public string ColumnName { get; set; }
+
+    /// <summary>
+    /// 寄存器地址
+    /// </summary>
+    public string Register { get; set; }
 
     /// <summary>
     /// 数据类型
