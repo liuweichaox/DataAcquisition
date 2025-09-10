@@ -36,13 +36,13 @@ public sealed class OperationalEvents : IOperationalEvents
         switch (level)
         {
             case "Error":
-                _log.LogError(ex, "{Level} [{Device}] {Message} {@Data}", level, deviceCode, message, data);
+                _log.LogError(ex, "[{Device}] {Message} {@Data}", deviceCode, message, data);
                 break;
             case "Warn":
-                _log.LogWarning("{Level} [{Device}] {Message} {@Data}", level, deviceCode, message, data);
+                _log.LogWarning("[{Device}] {Message} {@Data}", deviceCode, message, data);
                 break;
             default:
-                _log.LogInformation("{Level} [{Device}] {Message} {@Data}", level, deviceCode, message, data);
+                _log.LogInformation("[{Device}] {Message} {@Data}", deviceCode, message, data);
                 break;
         }
 

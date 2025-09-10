@@ -1,3 +1,5 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using DataAcquisition.Core.Clients;
 using DataAcquisition.Core.DataAcquisitions;
 using DataAcquisition.Core.DataProcessing;
@@ -11,6 +13,8 @@ using DataAcquisition.Gateway.Infrastructure.DataProcessing;
 using DataAcquisition.Gateway.Infrastructure.DataStorages;
 using DataAcquisition.Gateway.Infrastructure.OperationalEvents;
 using DataAcquisition.Gateway.Infrastructure.Queues;
+using Serilog;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://localhost:8000");
@@ -27,6 +31,28 @@ builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>()
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddControllersWithViews();
+
+builder.Services.AddSignalR().AddJsonProtocol(o =>
+{
+    o.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+    o.PayloadSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Information()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
+    .Enrich.FromLogContext()
+    .WriteTo.Console()
+    .WriteTo.File(
+        path: "Logs/log-.txt",                 // 按天滚动：log-20250910.txt
+        rollingInterval: RollingInterval.Day,
+        retainedFileCountLimit: 14,            // 保留 30 天
+        shared: true)                          // IIS/多进程时建议开
+    .CreateLogger();
+
+builder.Host.UseSerilog();
 
 var app = builder.Build();
 
