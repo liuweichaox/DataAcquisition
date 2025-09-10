@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace DataAcquisition.Application.DeviceConfigs;
+namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 /// 采集配置服务接口

@@ -1,6 +1,5 @@
 using DataAcquisition.Domain.Models;
-using DataAcquisition.Application.DataProcessing;
-using DataAcquisition.Application.OperationalEvents;
+using DataAcquisition.Application.Abstractions;
 
 namespace DataAcquisition.Infrastructure.DataProcessing;
 
@@ -9,9 +8,9 @@ namespace DataAcquisition.Infrastructure.DataProcessing;
 /// </summary>
 public class DataProcessingService : IDataProcessingService
 {
-    private readonly IOperationalEvents _events;
+    private readonly IOperationalEventsService _events;
 
-    public DataProcessingService(IOperationalEvents events)
+    public DataProcessingService(IOperationalEventsService events)
     {
         _events = events;
     }
