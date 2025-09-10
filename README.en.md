@@ -19,7 +19,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Disconnection and timeout retries maintain stability.
 - Data preprocessing transforms acquisition results before storage.
 - Acquisition frequency is configurable down to milliseconds.
-- Configuration files define table structures, column names, and sampling frequency.
+- Dynamic configuration allows defining table structures, column names, and sampling frequency via JSON files or databases.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
 ## 🏗️ Architecture Overview
@@ -29,13 +29,19 @@ The PLC Data Acquisition System collects real-time operational data from program
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
 ### 🧰 How to customize implementation
-1. Implement `IPlcClientService` and `IPlcClientFactory` to support other PLC protocols or communication methods.
-2. Implement `IDataStorageService` to use a different database or persistence layer.
-3. Implement `IQueueService` to integrate custom message queues.
-4. Implement `IOperationalEventsService` to record errors, logs, or other operational events.
-5. Implement `IDataProcessingService` to preprocess data before storage.
-6. Register these implementations in `Program.cs`, replacing the default dependencies.
-7. Build and run the project, adjusting configuration files as needed.
+
+#### Interfaces to implement
+- `IOperationalEventsService`: record operational events and logs.
+- `IDeviceConfigService`: load device configuration from JSON files, databases, or other sources.
+- `IPlcClientService`: handle low-level PLC communication.
+- `IPlcClientFactory`: create custom PLC clients.
+- `IDataProcessingService`: preprocess acquisition results.
+- `IDataStorageService`: persist processed data to a database.
+- `IQueueService`: push data to message queues.
+
+#### Integration steps
+1. Register these custom implementations in `Program.cs`, replacing the default dependencies.
+2. Build and run the project, adjusting configuration files as needed.
 
 ## 📦 NuGet Packages
 ### 🧱 Framework dependencies

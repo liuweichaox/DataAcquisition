@@ -19,7 +19,8 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 错误处理：提供断线重连和超时重试机制。
 - 数据预处理：在写入前转换和过滤采集数据。
 - 频率控制：采集频率可配置，最低支持毫秒级。
-- 动态配置：支持通过 JSON 文件或数据库等方式定义表结构、列名和频率。
+- 动态配置：支持通过 JSON 文件或数据库等方式定义表结构、列名和采集频率。
+
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
 ## 🏗️ 架构概览
@@ -29,15 +30,14 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
 ### 🧰 如何自定义实现
+- `IOperationalEventsService`：记录运行事件与日志。
+- `IDeviceConfigService`：读取设备配置，可从 JSON 文件、数据库等来源加载。
+- `IPlcClientService`：与 PLC 进行底层通讯。
+- `IPlcClientFactory`：创建自定义 PLC 客户端。
+- `IDataProcessingService`：实现采集结果的预处理逻辑。
+- `IDataStorageService`：将处理后的数据写入数据库。
+- `IQueueService`：将数据推送到消息队列。
 
-#### 实现接口（按依赖顺序）
-1. `IOperationalEventsService`：记录运行事件与日志。
-2. `IDeviceConfigService`：读取设备配置，可从 JSON 文件、数据库等来源加载。
-3. `IPlcClientService`：与 PLC 进行底层通讯。
-4. `IPlcClientFactory`：创建自定义 PLC 客户端。
-5. `IDataProcessingService`：实现采集结果的预处理逻辑。
-6. `IDataStorageService`：将处理后的数据写入数据库。
-7. `IQueueService`：将数据推送到消息队列。
 
 #### 集成步骤
 1. 在 `Program.cs` 中注册上述自定义实现，替换默认依赖。
