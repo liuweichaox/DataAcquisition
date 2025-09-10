@@ -7,6 +7,6 @@ public class PlcClientFactory : IPlcClientFactory
 {
     public IPlcClientService Create(DeviceConfig config)
     {
-        return new PlcClient(config);
+        return new PlcClientService(config);
     }
 }
