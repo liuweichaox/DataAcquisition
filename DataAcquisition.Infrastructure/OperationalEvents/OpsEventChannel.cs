@@ -13,6 +13,9 @@ public sealed class OpsEventChannel : IOpsEventBus
 {
     private readonly Channel<OpsEvent> _channel = Channel.CreateUnbounded<OpsEvent>();
 
+    /// <summary>
+    /// 发布事件到内存通道。
+    /// </summary>
     public ValueTask PublishAsync(OpsEvent evt, CancellationToken ct = default)
         => _channel.Writer.WriteAsync(evt, ct);
 

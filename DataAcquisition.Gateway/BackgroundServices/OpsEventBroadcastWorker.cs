@@ -18,6 +18,9 @@ public sealed class OpsEventBroadcastWorker : BackgroundService
         _hub = hub;
     }
 
+    /// <summary>
+    /// 读取事件并广播到所有客户端。
+    /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await foreach (var evt in _channel.Reader.ReadAllAsync(stoppingToken))

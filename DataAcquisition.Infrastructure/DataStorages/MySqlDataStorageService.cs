@@ -13,18 +13,28 @@ using Newtonsoft.Json;
 
 namespace DataAcquisition.Infrastructure.DataStorages;
 
+/// <summary>
+/// 使用 MySqlConnector 实现的数据存储服务。
+/// </summary>
 public class MySqlDataStorageService : IDataStorageService
 {
     private static readonly Regex ParamCleanRegex = new(@"[^\w]+", RegexOptions.Compiled);
     private static readonly ConcurrentDictionary<string, (string Sql, Dictionary<string, string> Mapping)> SqlCache = new();
     private readonly string _connectionString;
     private readonly IOperationalEventsService _events;
+    /// <summary>
+    /// 构造函数，初始化连接字符串和事件服务。
+    /// </summary>
     public MySqlDataStorageService(IConfiguration configuration, IOperationalEventsService events)
     {
         _connectionString = configuration.GetConnectionString("MySQL") ?? throw new ArgumentNullException("MySql connection string is not configured.");
         _events = events;
     }
 
+    /// <summary>
+    /// 保存单条数据消息。
+    /// </summary>
+    /// <param name="dataMessage">待保存的数据消息</param>
     public async Task SaveAsync(DataMessage dataMessage)
     {
         try
@@ -56,6 +66,10 @@ public class MySqlDataStorageService : IDataStorageService
         }
     }
 
+    /// <summary>
+    /// 批量保存数据消息。
+    /// </summary>
+    /// <param name="dataMessages">数据消息集合</param>
     public async Task SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
@@ -101,6 +115,12 @@ public class MySqlDataStorageService : IDataStorageService
         }
     }
 
+    /// <summary>
+    /// 根据条件更新记录。
+    /// </summary>
+    /// <param name="tableName">表名</param>
+    /// <param name="values">更新的字段和值</param>
+    /// <param name="conditions">更新条件</param>
     public async Task UpdateAsync(string tableName, Dictionary<string, object> values, Dictionary<string, object> conditions)
     {
         try

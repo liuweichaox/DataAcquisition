@@ -8,6 +8,9 @@ using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
+/// <summary>
+/// 模块采集器，根据配置从 PLC 读取数据并发布。
+/// </summary>
 public class ModuleCollector : IModuleCollector
 {
     private readonly IPlcStateManager _plcStateManager;
@@ -16,6 +19,9 @@ public class ModuleCollector : IModuleCollector
     private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
     private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
 
+    /// <summary>
+    /// 初始化模块采集器。
+    /// </summary>
     public ModuleCollector(IPlcStateManager plcStateManager, IOperationalEventsService events, IQueueService queue)
     {
         _plcStateManager = plcStateManager;
@@ -23,6 +29,9 @@ public class ModuleCollector : IModuleCollector
         _queue = queue;
     }
 
+    /// <summary>
+    /// 按模块配置执行采集任务。
+    /// </summary>
     public async Task CollectAsync(DeviceConfig config, Module module, IPlcClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
@@ -108,6 +117,9 @@ public class ModuleCollector : IModuleCollector
         }
     }
 
+    /// <summary>
+    /// 根据触发模式判断是否采样。
+    /// </summary>
     private static bool ShouldSample(TriggerMode mode, object? prev, object? curr)
     {
         if (prev == null || curr == null) return true;
@@ -124,6 +136,9 @@ public class ModuleCollector : IModuleCollector
         };
     }
 
+    /// <summary>
+    /// 读取指定寄存器的值。
+    /// </summary>
     private static async Task<object> ReadPlcValueAsync(IPlcClientService client, string register, string dataType)
     {
         return dataType switch
@@ -140,6 +155,9 @@ public class ModuleCollector : IModuleCollector
         };
     }
 
+    /// <summary>
+    /// 按数据类型转换缓冲区中的值。
+    /// </summary>
     private static dynamic? TransValue(IPlcClientService client, byte[] buffer, int index, int length, string dataType, string encoding)
     {
         return dataType.ToLower() switch
