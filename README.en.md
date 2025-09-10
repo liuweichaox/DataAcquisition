@@ -26,7 +26,7 @@ The PLC Data Acquisition System collects real-time operational data from program
 - **DataAcquisition.Core**: supplies interfaces and shared acquisition logic.
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
-### How to customize implementation
+### 🛠️ How to customize implementation
 1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
 2. Implement `IDataStorage` to use a different database or persistence layer.
 3. Implement `IQueue` to integrate custom message queues.

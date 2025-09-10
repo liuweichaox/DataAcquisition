@@ -26,7 +26,7 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - **DataAcquisition.Core**：提供采集相关的接口与通用逻辑。
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
-### 如何自定义实现
+### 🛠️ 如何自定义实现
 1. 实现 `ICommunication` 与 `ICommunicationFactory`，以接入新的 PLC 协议或通讯方式。
 2. 实现 `IDataStorage` 以支持不同的数据库或持久化方案。
 3. 实现 `IQueue` 以扩展消息队列。
