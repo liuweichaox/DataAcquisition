@@ -19,7 +19,7 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - 错误处理：提供断线重连和超时重试机制。
 - 数据预处理：在写入前转换和过滤采集数据。
 - 频率控制：采集频率可配置，最低支持毫秒级。
-- 动态配置：通过配置文件定义表结构、列名和频率。
+- 动态配置：支持通过 JSON 文件或数据库等方式定义表结构、列名和采集频率。
 - 多平台支持：基于 .NET 8.0，运行于 Windows、Linux 和 macOS。
 
 ## 🏗️ 架构概览
@@ -29,13 +29,19 @@ PLC 数据采集系统用于从可编程逻辑控制器实时收集运行数据�
 - **DataAcquisition.Gateway**：基于 HslCommunication 的参考实现，可作为自定义实现的示例。
 
 ### 🧰 如何自定义实现
-1. 实现 `IPlcClientService` 与 `IPlcClientFactory`，以接入新的 PLC 协议或通讯方式。
-2. 实现 `IDataStorageService` 以支持不同的数据库或持久化方案。
-3. 实现 `IQueueService` 以扩展消息队列。
-4. 实现 `IOperationalEventsService` 以记录错误、日志等运行事件。
-5. 实现 `IDataProcessingService` 以进行数据预处理。
-6. 在 `Program.cs` 中注册自定义实现，替换默认依赖。
-7. 构建并运行项目，按需调整配置文件。
+
+#### 需要自定义的接口
+- `IOperationalEventsService`：记录运行事件与日志。
+- `IDeviceConfigService`：读取设备配置，可从 JSON 文件、数据库等来源加载。
+- `IPlcClientService`：与 PLC 进行底层通讯。
+- `IPlcClientFactory`：创建自定义 PLC 客户端。
+- `IDataProcessingService`：实现采集结果的预处理逻辑。
+- `IDataStorageService`：将处理后的数据写入数据库。
+- `IQueueService`：将数据推送到消息队列。
+
+#### 集成步骤
+1. 在 `Program.cs` 中注册上述自定义实现，替换默认依赖。
+2. 构建并运行项目，按需调整配置文件。
 
 ## 📦 NuGet 包
 ### 🧱 基础框架依赖
@@ -73,37 +79,37 @@ dotnet restore
 ```text
 DataAcquisition/
 ├── DataAcquisition.Application/      # 接口与服务契约
-│   └── Abstractions/
+│   └── Abstractions/                 # 核心接口定义
 ├── DataAcquisition.Domain/           # 领域模型与枚举
-│   ├── Clients/
-│   ├── Models/
-│   └── OperationalEvents/
-├── DataAcquisition.Infrastructure/   # 接口实现
-│   ├── Clients/
-│   ├── DataAcquisitions/
-│   ├── DataProcessing/
-│   ├── DataStorages/
-│   ├── DeviceConfigs/
-│   ├── OperationalEvents/
-│   └── Queues/
-├── DataAcquisition.Gateway/          # 示例网关层
-│   ├── BackgroundServices/
-│   ├── Configs/
-│   ├── Controllers/
-│   ├── Hubs/
-│   ├── Models/
-│   ├── Views/
-│   └── wwwroot/
-├── DataAcquisition.sln
+│   ├── Clients/                      # PLC 客户端模型
+│   ├── Models/                       # 通用领域实体
+│   └── OperationalEvents/            # 运行事件模型
+├── DataAcquisition.Infrastructure/   # 默认接口实现
+│   ├── Clients/                      # PLC 客户端实现
+│   ├── DataAcquisitions/             # 采集流程服务
+│   ├── DataProcessing/               # 数据预处理实现
+│   ├── DataStorages/                 # 数据存储实现
+│   ├── DeviceConfigs/                # 设备配置加载
+│   ├── OperationalEvents/            # 运行事件处理
+│   └── Queues/                       # 消息队列实现
+├── DataAcquisition.Gateway/          # 网关层示例
+│   ├── BackgroundServices/           # 后台任务
+│   ├── Configs/                      # 采集配置文件
+│   ├── Controllers/                  # API 控制器
+│   ├── Hubs/                         # SignalR Hub
+│   ├── Models/                       # Web 层模型
+│   ├── Views/                        # Razor 视图
+│   └── wwwroot/                      # 静态资源
+├── DataAcquisition.sln               # 解决方案文件
 ├── README.md
 └── README.en.md
 ```
 
 ## 📝 配置
-`DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
+`DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。默认实现从这些 JSON 文件读取配置；若需改用数据库等其他来源，可自定义实现 `IDeviceConfigService`。
 
 ### 📐 配置结构说明
-配置文件使用 JSON 格式，结构如下（以 YAML 描述）：
+默认配置文件使用 JSON 格式，结构如下（以 YAML 描述）；如改用数据库等来源，可根据实际情况调整。
 
 ```yaml
 # 配置结构说明（仅用于展示）
