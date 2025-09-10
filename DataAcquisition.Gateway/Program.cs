@@ -1,7 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Gateway;
 using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Infrastructure.Clients;
 using DataAcquisition.Infrastructure.DataProcessing;
@@ -9,7 +8,7 @@ using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
 using DataAcquisition.Application;
-using DataAcquisition.Gateway.OperationalEvents;
+using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using Serilog;

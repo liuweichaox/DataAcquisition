@@ -1,6 +1,6 @@
 using DataAcquisition.Application.Abstractions;
 
-namespace DataAcquisition.Gateway;
+namespace DataAcquisition.Gateway.BackgroundServices;
 
 /// <summary>
 /// 后台服务，负责订阅并处理队列消息。

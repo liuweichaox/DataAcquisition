@@ -1,11 +1,8 @@
-using System.Threading;
-using System.Threading.Tasks;
 using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Hosting;
 
-namespace DataAcquisition.Gateway.OperationalEvents;
+namespace DataAcquisition.Gateway.BackgroundServices;
 
 /// <summary>
 /// 从事件通道读取并通过 SignalR 广播运行事件。
