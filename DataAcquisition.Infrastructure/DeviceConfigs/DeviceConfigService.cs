@@ -42,20 +42,20 @@ public class DeviceConfigService : IDeviceConfigService
     {
         var results = new List<T>();
 
-        // Retrieve all JSON files.
+        // 获取所有 JSON 文件。
         var jsonFiles = Directory.GetFiles(directoryPath, "*.json");
 
         foreach (var filePath in jsonFiles)
         {
             try
             {
-                // Load and deserialize each JSON file.
+                // 加载并反序列化每个 JSON 文件。
                 var config = await LoadConfigAsync<T>(filePath);
                 results.Add(config);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error loading file {filePath}: {ex.Message}");
+                Console.WriteLine($"加载文件 {filePath} 时出错: {ex.Message}");
             }
         }
 
