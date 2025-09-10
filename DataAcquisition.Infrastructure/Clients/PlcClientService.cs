@@ -12,18 +12,13 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class PlcClientService : IPlcClientService
+public class PlcClientService(DeviceConfig config) : IPlcClientService
 {
-    private readonly DeviceTcpNet _device;
-
-    public PlcClientService(DeviceConfig config)
+    private readonly DeviceTcpNet _device = new MelsecA1ENet(config.Host, config.Port)
     {
-        _device = new MelsecA1ENet(config.Host, config.Port)
-        {
-            ReceiveTimeOut = 2000,
-            ConnectTimeOut = 2000
-        };
-    }
+        ReceiveTimeOut = 2000,
+        ConnectTimeOut = 2000
+    };
 
     /// <summary>
     /// 关闭与 PLC 的连接。

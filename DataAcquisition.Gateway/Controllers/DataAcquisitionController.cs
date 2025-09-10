@@ -9,14 +9,8 @@ namespace DataAcquisition.Gateway.Controllers;
 /// 数据采集控制器
 /// </summary>
 [Route("api/[controller]/[action]")]
-public class DataAcquisitionController: ControllerBase
+public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionService) : ControllerBase
 {
-    private readonly IDataAcquisitionService _dataAcquisitionService;
-    public DataAcquisitionController(IDataAcquisitionService dataAcquisitionService)
-    {
-        _dataAcquisitionService = dataAcquisitionService;
-    }
-    
     /// <summary>
     /// 获取 PLC 连接状态
     /// </summary>
@@ -24,7 +18,7 @@ public class DataAcquisitionController: ControllerBase
     [HttpGet]
     public IActionResult GetPlcConnectionStatus()
     {
-        var plcConnectionStatus = _dataAcquisitionService.GetPlcConnectionStatus();
+        var plcConnectionStatus = dataAcquisitionService.GetPlcConnectionStatus();
         return Ok(plcConnectionStatus);
     }
 
@@ -40,7 +34,7 @@ public class DataAcquisitionController: ControllerBase
 
         foreach (var item in request.Items)
         {
-            var result = await _dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value, item.DataType);
+            var result = await dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value, item.DataType);
             results.Add(result);
             if (!result.IsSuccess)
             {

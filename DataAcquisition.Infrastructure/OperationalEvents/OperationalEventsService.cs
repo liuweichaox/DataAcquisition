@@ -10,17 +10,9 @@ namespace DataAcquisition.Infrastructure.OperationalEvents;
 /// <summary>
 /// 运行事件记录服务。
 /// </summary>
-public sealed class OperationalEventsService : IOperationalEventsService
+public sealed class OperationalEventsService(ILogger<OperationalEventsService> log, IOpsEventBus bus)
+    : IOperationalEventsService
 {
-    private readonly ILogger<OperationalEventsService> _log;
-    private readonly IOpsEventBus _bus;
-
-    public OperationalEventsService(ILogger<OperationalEventsService> log, IOpsEventBus bus)
-    {
-        _log = log;
-        _bus = bus;
-    }
-
     /// <summary>
     /// 记录信息级运行事件。
     /// </summary>
@@ -55,13 +47,13 @@ public sealed class OperationalEventsService : IOperationalEventsService
             switch (level)
             {
                 case LogLevel.Warning:
-                    _log.LogError(ex, "[{Device}] {Message} {@Data}", deviceCode, message, data);
+                    log.LogError(ex, "[{Device}] {Message} {@Data}", deviceCode, message, data);
                     break;
                 case LogLevel.Error:
-                    _log.LogWarning("[{Device}] {Message} {@Data}", deviceCode, message, data);
+                    log.LogWarning("[{Device}] {Message} {@Data}", deviceCode, message, data);
                     break;
                 default:
-                    _log.LogInformation("[{Device}] {Message} {@Data}", deviceCode, message, data);
+                    log.LogInformation("[{Device}] {Message} {@Data}", deviceCode, message, data);
                     break;
             }
         }
@@ -70,18 +62,18 @@ public sealed class OperationalEventsService : IOperationalEventsService
             switch (level)
             {
                 case LogLevel.Information:
-                    _log.LogError(ex, "[{Device}] {Message}", deviceCode, message);
+                    log.LogError(ex, "[{Device}] {Message}", deviceCode, message);
                     break;
                 case LogLevel.Warning:
-                    _log.LogWarning("[{Device}] {Message}", deviceCode, message);
+                    log.LogWarning("[{Device}] {Message}", deviceCode, message);
                     break;
                 default:
-                    _log.LogInformation("[{Device}] {Message}", deviceCode, message);
+                    log.LogInformation("[{Device}] {Message}", deviceCode, message);
                     break;
             }
         }
 
         var evt = new OpsEvent(DateTimeOffset.Now, deviceCode, level.ToString(), message, data);
-        await _bus.PublishAsync(evt, ct);
+        await bus.PublishAsync(evt, ct);
     }
 }
