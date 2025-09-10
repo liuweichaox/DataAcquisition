@@ -1,6 +1,3 @@
-using DataAcquisition.Core.Queues;
-using Microsoft.Extensions.Hosting;
-
 namespace DataAcquisition.Gateway;
 
 /// <summary>
