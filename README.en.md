@@ -23,7 +23,9 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
 ## 🏗️ Architecture Overview
-- **DataAcquisition.Core**: supplies interfaces and shared acquisition logic.
+- **DataAcquisition.Domain**: domain models and enums.
+- **DataAcquisition.Application**: service contracts and interfaces.
+- **DataAcquisition.Infrastructure**: default implementations.
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
 ### 🧰 How to customize implementation
@@ -236,8 +238,10 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
 ### 🗂️ Repository structure
-- `DataAcquisition.Core`: core interfaces and acquisition logic.
-- `DataAcquisition.Gateway` / `DataAcquisition.Infrastructure`: implementations of those interfaces.
+- `DataAcquisition.Domain`: domain models and enums.
+- `DataAcquisition.Application`: service contracts and interfaces.
+- `DataAcquisition.Infrastructure`: interface implementations.
+- `DataAcquisition.Gateway`: example gateway layer.
 
 ### 🔨 Build
 ```bash

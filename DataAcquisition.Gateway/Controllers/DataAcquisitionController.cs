@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text.Json;
-using DataAcquisition.Core.Clients;
-using DataAcquisition.Core.DataAcquisitions;
+using DataAcquisition.Application.DataAcquisitions;
+using DataAcquisition.Domain.Clients;
 using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;
 

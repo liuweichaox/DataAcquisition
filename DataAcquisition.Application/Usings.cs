@@ -1,0 +1,1 @@
+global using DataAcquisition.Domain.Models;
