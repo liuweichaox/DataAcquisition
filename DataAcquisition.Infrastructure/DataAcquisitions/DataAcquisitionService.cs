@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using DataAcquisition.Application;
+using DataAcquisition.Domain.Clients;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
 {    

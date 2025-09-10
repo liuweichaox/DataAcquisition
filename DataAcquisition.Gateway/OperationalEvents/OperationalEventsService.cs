@@ -1,13 +1,9 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.OperationalEvents;
 using DataAcquisition.Gateway.Hubs;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.Extensions.Logging;
 
-namespace DataAcquisition.Infrastructure.OperationalEvents;
+namespace DataAcquisition.Gateway.OperationalEvents;
 
 public sealed class OperationalEventsService : IOperationalEventsService
 {

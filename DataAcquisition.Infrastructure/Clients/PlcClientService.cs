@@ -2,6 +2,7 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
+using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
 using HslCommunication.Core.Device;
 using HslCommunication.Profinet.Melsec;
