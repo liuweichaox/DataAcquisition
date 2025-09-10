@@ -37,6 +37,23 @@ The PLC Data Acquisition System collects real-time operational data from program
 6. Register these implementations in `Program.cs`, replacing the default dependencies.
 7. Build and run the project, adjusting configuration files as needed.
 
+## 📦 NuGet Packages
+### 🧱 Framework dependencies
+The core framework relies on the following NuGet packages:
+- [Microsoft.Extensions.Caching.Memory](https://www.nuget.org/packages/Microsoft.Extensions.Caching.Memory) 9.0.2: in-memory caching.
+- [NCalcAsync](https://www.nuget.org/packages/NCalcAsync) 5.4.0: evaluates expressions before data persistence.
+- [Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json) 13.0.3: JSON serialization/deserialization.
+
+### 🧪 Example dependencies
+The reference gateway and sample implementations use:
+- [Dapper](https://www.nuget.org/packages/Dapper) 2.1.66: lightweight ORM for data access.
+- [HslCommunication](https://www.nuget.org/packages/HslCommunication) 12.2.0: PLC communication library.
+- [Microsoft.AspNetCore.SignalR](https://www.nuget.org/packages/Microsoft.AspNetCore.SignalR) 1.2.0: real-time web communication.
+- [MySqlConnector](https://www.nuget.org/packages/MySqlConnector) 2.4.0: high-performance MySQL client.
+- [Serilog.AspNetCore](https://www.nuget.org/packages/Serilog.AspNetCore) 9.0.0: Serilog logging integration.
+- [Serilog.Sinks.Console](https://www.nuget.org/packages/Serilog.Sinks.Console) 6.0.0: console log sink.
+- [Serilog.Sinks.File](https://www.nuget.org/packages/Serilog.Sinks.File) 7.0.0: file log sink.
+
 ## 🌐 Environment Requirements
 - .NET 8.0 SDK
 - Optional: RabbitMQ or Kafka (for message queues)
