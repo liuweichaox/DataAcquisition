@@ -85,21 +85,12 @@ public class ModuleCollector : IModuleCollector
                         {
                             foreach (var dataPoint in module.DataPoints)
                             {
-                                object value;
-                                switch (dataPoint.DataType.ToLower())
-                                {
-                                    case "string":
-                                        var strResult = await client.ReadAsync(dataPoint.Register, (ushort)dataPoint.StringByteLength);
-                                        value = client.TransString(strResult.Content, 0, dataPoint.StringByteLength, Encoding.GetEncoding(dataPoint.Encoding ?? "UTF8"));
-                                        break;
-                                    case "bool":
-                                        var boolResult = await client.ReadAsync(dataPoint.Register, 1);
-                                        value = client.TransBool(boolResult.Content, 0);
-                                        break;
-                                    default:
-                                        value = await ReadPlcValueAsync(client, dataPoint.Register, dataPoint.DataType);
-                                        break;
-                                }
+                                var value = await ReadPlcValueAsync(
+                                    client,
+                                    dataPoint.Register,
+                                    dataPoint.DataType,
+                                    dataPoint.StringByteLength,
+                                    dataPoint.Encoding);
                                 dataMessage.DataValues[dataPoint.ColumnName] = value;
                             }
                         }
@@ -164,9 +155,14 @@ public class ModuleCollector : IModuleCollector
     /// <summary>
     /// 读取指定寄存器的值。
     /// </summary>
-    private static async Task<object> ReadPlcValueAsync(IPlcClientService client, string register, string dataType)
+    private static async Task<object> ReadPlcValueAsync(
+        IPlcClientService client,
+        string register,
+        string dataType,
+        int stringLength = 0,
+        string? encoding = null)
     {
-        return dataType switch
+        return dataType.ToLower() switch
         {
             "ushort" => await client.ReadUShortAsync(register),
             "uint" => await client.ReadUIntAsync(register),
@@ -176,6 +172,8 @@ public class ModuleCollector : IModuleCollector
             "long" => await client.ReadLongAsync(register),
             "float" => await client.ReadFloatAsync(register),
             "double" => await client.ReadDoubleAsync(register),
+            "string" => await client.ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8")),
+            "bool" => await client.ReadBoolAsync(register),
             _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
         };
     }

@@ -69,6 +69,36 @@ git clone https://github.com/liuweichaox/DataAcquisition.git
 dotnet restore
 ```
 
+### 🗂️ 仓库结构
+```text
+DataAcquisition/
+├── DataAcquisition.Application/      # 接口与服务契约
+│   └── Abstractions/
+├── DataAcquisition.Domain/           # 领域模型与枚举
+│   ├── Clients/
+│   ├── Models/
+│   └── OperationalEvents/
+├── DataAcquisition.Infrastructure/   # 接口实现
+│   ├── Clients/
+│   ├── DataAcquisitions/
+│   ├── DataProcessing/
+│   ├── DataStorages/
+│   ├── DeviceConfigs/
+│   ├── OperationalEvents/
+│   └── Queues/
+├── DataAcquisition.Gateway/          # 示例网关层
+│   ├── BackgroundServices/
+│   ├── Configs/
+│   ├── Controllers/
+│   ├── Hubs/
+│   ├── Models/
+│   ├── Views/
+│   └── wwwroot/
+├── DataAcquisition.sln
+├── README.md
+└── README.en.md
+```
+
 ## 📝 配置
 `DataAcquisition.Gateway/Configs` 目录包含与数据库表对应的 JSON 文件，每个文件定义 PLC 地址、寄存器、数据类型等信息，可根据实际需求调整。
 
@@ -262,12 +292,6 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
-
-### 🗂️ 仓库结构
-- `DataAcquisition.Domain`：领域模型与枚举。
-- `DataAcquisition.Application`：接口与服务契约。
-- `DataAcquisition.Infrastructure`：接口实现。
-- `DataAcquisition.Gateway`：示例网关层。
 
 ### 🔨 构建
 ```bash
