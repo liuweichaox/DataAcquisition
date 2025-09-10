@@ -9,6 +9,7 @@ using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
+using DataAcquisition.Application;
 using Serilog;
 using Serilog.Events;
 
@@ -22,6 +23,9 @@ builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IQueueService, LocalQueue>();
 builder.Services.AddSingleton<IDataStorageService, MySqlDataStorage>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
+builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
+builder.Services.AddSingleton<IModuleCollector, ModuleCollector>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();

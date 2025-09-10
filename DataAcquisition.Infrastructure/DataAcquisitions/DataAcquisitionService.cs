@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using DataAcquisition.Application;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
 {    
@@ -16,13 +14,13 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService : IDataAcquisitionService
     {
-        private readonly PlcStateManager _plcStateManager;
+        private readonly IPlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
         private readonly IPlcClientFactory _plcClientFactory;
         private readonly IOperationalEventsService _events;
         private readonly IQueueService _queue;
-        private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
-        private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
+        private readonly IHeartbeatMonitor _heartbeatMonitor;
+        private readonly IModuleCollector _moduleCollector;
 
         /// <summary>
         /// 数据采集器
@@ -30,47 +28,18 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
             IPlcClientFactory plcClientFactory,
             IOperationalEventsService events,
-            IQueueService queue)
+            IQueueService queue,
+            IPlcStateManager plcStateManager,
+            IHeartbeatMonitor heartbeatMonitor,
+            IModuleCollector moduleCollector)
         {
-            _plcStateManager = new PlcStateManager();
             _deviceConfigService = deviceConfigService;
             _plcClientFactory = plcClientFactory;
             _events = events;
             _queue = queue;
-        }
-
-        /// <summary>
-        /// 内部类管理 PLC 状态
-        /// </summary>
-        private class PlcStateManager
-        {
-            /// <summary>
-            /// Runtime information for each PLC task.
-            /// </summary>
-            public readonly ConcurrentDictionary<string, PlcRuntime> Runtimes = new();
-
-            /// <summary>
-            /// PLC client associated with every device.
-            /// </summary>
-            public ConcurrentDictionary<string, IPlcClientService> PlcClients { get; } = new();
-
-            /// <summary>
-            /// Connection status for each PLC.
-            /// </summary>
-            public ConcurrentDictionary<string, bool> PlcConnectionHealth { get; } = new();
-
-            /// <summary>
-            /// Lock objects used to prevent concurrent access per PLC.
-            /// </summary>
-            public readonly ConcurrentDictionary<string, SemaphoreSlim> PlcLocks = new();
-
-            public void Clear()
-            {
-                PlcClients.Clear();
-                PlcConnectionHealth.Clear();
-                Runtimes.Clear();
-                PlcLocks.Clear();
-            }
+            _plcStateManager = plcStateManager;
+            _heartbeatMonitor = heartbeatMonitor;
+            _moduleCollector = moduleCollector;
         }
         
         /// <summary>
@@ -102,11 +71,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
 
             var client = CreatePlcClient(config);
                     
-            var tasks = new List<Task> { StartHeartbeatMonitor(config, ct) };
+            var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, ct) };
 
             foreach (var module in config.Modules)
             {
-                tasks.Add(ModuleLoopAsync(config, module, client, ct));
+                tasks.Add(_moduleCollector.CollectAsync(config, module, client, ct));
             }
                     
             var running = Task.WhenAll(tasks);
@@ -117,122 +86,6 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             }, TaskContinuationOptions.OnlyOnFaulted);
                     
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
-        }
-
-        private async Task ModuleLoopAsync(DeviceConfig config, Module module, IPlcClientService client,
-            CancellationToken ct = default)
-        {
-            await Task.Yield();
-            object? prevVal = null;
-            // Continue acquiring data until cancellation is requested.
-            while (!ct.IsCancellationRequested)
-            {
-                // Proceed only if the PLC is connected.
-                if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code,
-                        out var isConnected) || !isConnected)
-                {
-                    await Task.Delay(config.HeartbeatPollingInterval, ct);
-                    continue;
-                }
-
-                var locker = _plcStateManager.PlcLocks[config.Code];
-                await locker.WaitAsync(ct);
-
-                try
-                {
-                    var trigger = module.Trigger;
-
-                    var currVal = trigger.Mode == TriggerMode.Always
-                        ? null
-                        : await ReadPlcValueAsync(client, trigger.Register, trigger.DataType);
-
-                    if (!ShouldSample(trigger.Mode, prevVal, currVal))
-                    {
-                        await Task.Delay(100, ct); 
-                        continue;
-                    }
-
-                    try
-                    {
-                        var operation = trigger.Operation;
-                        var key = $"{config.Code}:{module.TableName}";
-                        var timestamp = DateTime.Now;
-                        var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize,
-                            module.DataPoints, operation);
-                        if (operation == DataOperation.Insert)
-                        {
-                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
-                            var buffer = batchData.Content;
-                            if (module.DataPoints != null)
-                            {
-                                foreach (var dataPoint in module.DataPoints)
-                                {
-                                    var value = TransValue(client, buffer, dataPoint.Index,
-                                        dataPoint.StringByteLength, dataPoint.DataType,
-                                        dataPoint.Encoding);
-                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
-                                }
-                            }
-
-                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                            {
-                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                                _lastStartTimes[key] = timestamp;
-                                _lastStartTimeColumns[key] = trigger.TimeColumnName;
-                            }
-
-                            await _queue.PublishAsync(dataMessage);
-                        }
-                        else if (_lastStartTimes.TryRemove(key, out var startTime))
-                        {
-                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
-                            {
-                                dataMessage.KeyValues[startColumn] = startTime;
-                            }
-
-                            if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                            {
-                                dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                            }
-
-                            await _queue.PublishAsync(dataMessage);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync(module.ChamberCode, $"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}", ex);
-                    }
-
-                    prevVal = currVal;
-                }
-                finally
-                {
-                    locker.Release();
-                }
-            }
-        }
-
-        /// <summary>
-        /// 触发模式下是否采样
-        /// </summary>
-        /// <param name="mode"></param>
-        /// <param name="prev"></param>
-        /// <param name="curr"></param>
-        /// <returns></returns>
-        private static bool ShouldSample(TriggerMode mode, object? prev, object? curr)
-        {
-            if (prev == null || curr == null) return true;
-            var p = Convert.ToDecimal(prev);
-            var c = Convert.ToDecimal(curr);
-            return mode switch
-            {
-                TriggerMode.Always => true,
-                TriggerMode.ValueIncrease => p < c,
-                TriggerMode.ValueDecrease => p > c,
-                TriggerMode.RisingEdge => p == 0 && c == 1,
-                TriggerMode.FallingEdge => p == 1 && c == 0,
-                _ => false
-            };
         }
 
         /// <summary>
@@ -249,107 +102,6 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _plcStateManager.PlcClients.TryAdd(config.Code, client);
             _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
             return client;
-        }
-
-        /// <summary>
-        /// 检查 PLC 连接状态，若断开则尝试重连
-        /// </summary>
-        private async Task StartHeartbeatMonitor(DeviceConfig config, CancellationToken ct = default)
-        {
-            await Task.Yield();
-            var lastOk = false;
-            ushort writeData = 0;
-
-            while (!ct.IsCancellationRequested)
-            {
-                try
-                {
-                    var client = _plcStateManager.PlcClients[config.Code];
-                    var ping = client.IpAddressPing();
-                    var ok = ping == IPStatus.Success;
-
-                    if (!ok)
-                    { 
-                        await _events.WarnAsync(config.Code, $"网络检测失败：IP {config.Host}，Ping 未响应");
-                        _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                    }
-                    else
-                    {
-                        var connect = await WritePlcAsync(config.Code, config.HeartbeatMonitorRegister, writeData,
-                            "ushort", ct);
-                        ok = connect.IsSuccess;
-                        if (ok)
-                        {
-                            writeData ^= 1;
-                            _plcStateManager.PlcConnectionHealth[config.Code] = true;
-                            if (!lastOk)
-                                await _events.HeartbeatChangedAsync(config.Code, true);
-                        }
-                        else
-                        {
-                            _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                            await _events.HeartbeatChangedAsync(config.Code, false, connect.Message);
-                        }
-                    }
-
-                    lastOk = ok;
-                }
-                catch (Exception ex)
-                {
-                    _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                    await _events.ErrorAsync(config.Code, $"系统异常: {ex.Message}", ex);
-                }
-                finally
-                {
-                    await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
-                }
-            }
-        }
-
-
-        /// <summary>
-        /// 读取 PLC 值
-        /// </summary>
-        /// <param name="client"></param>
-        /// <param name="register"></param>
-        /// <param name="dataType"></param>
-        /// <returns></returns>
-        /// <exception cref="NotSupportedException"></exception>
-        private static async Task<object> ReadPlcValueAsync(IPlcClientService client, string register,
-            string dataType)
-        {
-            return dataType switch
-            {
-                "ushort" => await client.ReadUShortAsync(register),
-                "uint" => await client.ReadUIntAsync(register),
-                "ulong" => await client.ReadULongAsync(register),
-                "short" => await client.ReadShortAsync(register),
-                "int" => await client.ReadIntAsync(register),
-                "long" => await client.ReadLongAsync(register),
-                "float" => await client.ReadFloatAsync(register),
-                "double" => await client.ReadDoubleAsync(register),
-                _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
-            };
-        }
-
-
-        private static dynamic? TransValue(IPlcClientService client, byte[] buffer, int index, int length, string dataType,
-            string encoding)
-        {
-            return dataType.ToLower() switch
-            {
-                "ushort" => client.TransUShort(buffer, index),
-                "uint" => client.TransUInt(buffer, index),
-                "ulong" => client.TransULong(buffer, index),
-                "short" => client.TransShort(buffer, index),
-                "int" => client.TransInt(buffer, index),
-                "long" => client.TransLong(buffer, index),
-                "float" => client.TransFloat(buffer, index),
-                "double" => client.TransDouble(buffer, index),
-                "string" => client.TransString(buffer, index, length, Encoding.GetEncoding(encoding)),
-                "bool" => client.TransBool(buffer, index),
-                _ => null
-            };
         }
 
         /// <summary>
