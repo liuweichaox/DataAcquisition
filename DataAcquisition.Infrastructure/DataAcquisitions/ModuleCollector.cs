@@ -31,7 +31,7 @@ public class ModuleCollector : IModuleCollector
         {
             if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) || !isConnected)
             {
-                await Task.Delay(config.HeartbeatPollingInterval, ct);
+                await Task.Delay(100, ct);
                 continue;
             }
 
