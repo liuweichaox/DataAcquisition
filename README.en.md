@@ -27,13 +27,13 @@ The PLC Data Acquisition System collects real-time operational data from program
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
 ### 🛠️ How to customize implementation
-1. 🔌 Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
-2. 🗄️ Implement `IDataStorage` to use a different database or persistence layer.
-3. 📬 Implement `IQueue` to integrate custom message queues.
-4. 📝 Implement `IOperationalEvents` to record errors, logs, or other operational events.
-5. 🧮 Implement `IDataProcessingService` to preprocess data before storage.
-6. 🧩 Register these implementations in `Program.cs`, replacing the default dependencies.
-7. 🚀 Build and run the project, adjusting configuration files as needed.
+1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
+2. Implement `IDataStorage` to use a different database or persistence layer.
+3. Implement `IQueue` to integrate custom message queues.
+4. Implement `IOperationalEvents` to record errors, logs, or other operational events.
+5. Implement `IDataProcessingService` to preprocess data before storage.
+6. Register these implementations in `Program.cs`, replacing the default dependencies.
+7. Build and run the project, adjusting configuration files as needed.
 
 ## 🧱 Environment Requirements
 - .NET 8.0 SDK
