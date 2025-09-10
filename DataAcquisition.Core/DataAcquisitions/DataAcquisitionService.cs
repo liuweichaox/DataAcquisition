@@ -12,7 +12,6 @@ using DataAcquisition.Core.OperationalEvents;
 
 namespace DataAcquisition.Core.DataAcquisitions
 {    
-    public sealed record PlcRuntime(CancellationTokenSource Cts, Task Running);
     /// <summary>
     /// 数据采集器实现
     /// </summary>
