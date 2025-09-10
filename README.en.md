@@ -1,4 +1,4 @@
-# 📡 PLC Data Acquisition System
+# 🛰️ PLC Data Acquisition System
 
 [![Stars](https://img.shields.io/github/stars/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/stargazers)
 [![Forks](https://img.shields.io/github/forks/liuweichaox/DataAcquisition?style=social)](https://github.com/liuweichaox/DataAcquisition/network/members)
@@ -7,10 +7,10 @@
 
 [中文](README.md) | **English**
 
-## 📘 Overview
+## 📙 Overview
 The PLC Data Acquisition System collects real-time operational data from programmable logic controllers and forwards the results to message queues and databases, supporting equipment monitoring, performance analysis, and fault diagnosis.
 
-## ✨ Key Features
+## 💡 Key Features
 - Efficient communication using the Modbus TCP protocol.
 - Message queues (RabbitMQ, Kafka, or a local queue) handle high-throughput acquisition results.
 - Data can be stored in SQLite or various cloud databases.
@@ -22,11 +22,11 @@ The PLC Data Acquisition System collects real-time operational data from program
 - Configuration files define table structures, column names, and sampling frequency.
 - Built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
-## 🏛️ Architecture Overview
+## 🏗️ Architecture Overview
 - **DataAcquisition.Core**: supplies interfaces and shared acquisition logic.
 - **DataAcquisition.Gateway**: a reference gateway built with HslCommunication, serving as an example implementation.
 
-### 🛠️ How to customize implementation
+### 🧰 How to customize implementation
 1. Implement `ICommunication` and `ICommunicationFactory` to support other PLC protocols or communication methods.
 2. Implement `IDataStorage` to use a different database or persistence layer.
 3. Implement `IQueue` to integrate custom message queues.
@@ -35,25 +35,25 @@ The PLC Data Acquisition System collects real-time operational data from program
 6. Register these implementations in `Program.cs`, replacing the default dependencies.
 7. Build and run the project, adjusting configuration files as needed.
 
-## 🧱 Environment Requirements
+## 🌐 Environment Requirements
 - .NET 8.0 SDK
 - Optional: RabbitMQ or Kafka (for message queues)
 - Optional: SQLite or other database drivers
 
-## 🛠️ Installation
-### 📥 Clone the repository
+## 🔧 Installation
+### ⬇️ Clone the repository
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 ```
-### 📦 Restore dependencies
+### 🔄 Restore dependencies
 ```bash
 dotnet restore
 ```
 
-## ⚙️ Configuration
+## 📝 Configuration
 The `DataAcquisition.Gateway/Configs` directory stores JSON files that correspond to database tables. Each file defines PLC addresses, registers, data types, and other settings.
 
-### 📑 Configuration structure
+### 📐 Configuration structure
 Configuration files use JSON format; the structure is described below using YAML:
 
 ```yaml
@@ -86,7 +86,7 @@ Modules:
         EvalExpression: string  # Expression for value conversion, use 'value' for the raw value
 ```
 
-### 📚 Enum descriptions
+### 🔢 Enum descriptions
 - **Type**
   - `Mitsubishi`: Mitsubishi PLC
   - `Inovance`: Inovance PLC
@@ -111,10 +111,10 @@ Modules:
     receives the new timestamp while the start-time column from the associated
     `Insert` trigger is used to locate the record.
 
-### ⚖️ EvalExpression usage
+### 🧮 EvalExpression usage
 `EvalExpression` converts the raw register value before storage. The expression may reference the variable `value` representing the raw number and can use basic arithmetic. For example, `"value / 1000.0"` scales the value; leave it empty to skip conversion.
 
-### 📄 Sample configuration
+### 🗒️ Sample configuration
 The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical configuration.
 
 ```json
@@ -209,7 +209,7 @@ The file `DataAcquisition.Gateway/Configs/M01C123.json` illustrates a typical co
 }
 ```
 
-## 🏃 Run
+## ▶️ Run
 Make sure the .NET 8.0 SDK is installed.
 
 ```bash
@@ -219,8 +219,8 @@ dotnet run --project DataAcquisition.Gateway
 
 The service listens on http://localhost:8000 by default.
 
-## 🧑‍💻 Development
-### 🧩 System configuration
+## 💻 Development
+### 🔧 System configuration
 Register the `IDataAcquisition` instance in `Program.cs` to manage acquisition tasks.
 
 ```csharp
@@ -235,22 +235,22 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 ```
 
-### 📁 Repository structure
+### 🗂️ Repository structure
 - `DataAcquisition.Core`: core interfaces and acquisition logic.
 - `DataAcquisition.Gateway` / `DataAcquisition.Infrastructure`: implementations of those interfaces.
 
-### 🧪 Build
+### 🔨 Build
 ```bash
 dotnet build
 ```
 
-## 🔌 API
-### 📡 Get PLC connection status
+## 🔗 API
+### 📶 Get PLC connection status
 - `GET /api/DataAcquisition/GetPlcConnectionStatus`
 
 The endpoint returns a dictionary of PLC connection states.
 
-### ✍️ Write to PLC register
+### ✏️ Write to PLC register
 - `POST /api/DataAcquisition/WriteRegister`
 
 Request example (batch write, `dataType` specifies the value type for each item):
@@ -265,7 +265,7 @@ Request example (batch write, `dataType` specifies the value type for each item)
 }
 ```
 
-## 🚀 Deployment
+## 🚢 Deployment
 Use `dotnet publish` to generate self-contained executables for different platforms:
 
 ```bash
@@ -276,9 +276,9 @@ dotnet publish DataAcquisition.Gateway -c Release -r osx-x64 --self-contained tr
 
 Copy the contents of the `publish` folder to the target environment and run the platform-specific executable.
 
-## 🤝 Contribution
+## 🙏 Contribution
 Contributions are welcome via Pull Requests. Ensure all relevant tests pass and avoid introducing breaking changes.
 
-## 📄 License
+## 📜 License
 This project is licensed under the MIT License; see [LICENSE](LICENSE) for details.
 
