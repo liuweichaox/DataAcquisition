@@ -10,6 +10,7 @@ using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
 using DataAcquisition.Application;
 using DataAcquisition.Gateway.OperationalEvents;
+using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using Serilog;
 using Serilog.Events;
@@ -19,6 +20,8 @@ builder.WebHost.UseUrls("http://localhost:8000");
 builder.Services.AddMemoryCache();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+builder.Services.AddSingleton<OpsEventChannel>();
+builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
@@ -31,6 +34,7 @@ builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>()
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
+builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 builder.Services.AddControllersWithViews();
 
 builder.Services.AddSignalR().AddJsonProtocol(o =>

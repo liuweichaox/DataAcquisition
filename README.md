@@ -224,7 +224,9 @@ dotnet run --project DataAcquisition.Gateway
 在 `Program.cs` 中注册 `IDataAcquisitionService` 实例以管理采集任务。
 
 ```csharp
-builder.Services.AddSingleton<IOperationalEventsService, OperationalEvents>();
+builder.Services.AddSingleton<OpsEventChannel>();
+builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
+builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
 builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
@@ -233,6 +235,7 @@ builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
+builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
 
 ### 🗂️ 仓库结构

@@ -8,7 +8,6 @@
   <ItemGroup>
     <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="HslCommunication" Version="12.2.0" />
-    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.2.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
     <PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="NCalcAsync" Version="5.4.0" />
