@@ -142,13 +142,32 @@ Modules:
 
 ### 🔢 Enums
 
-- **Type**: `Mitsubishi` | `Inovance` | `BeckhoffAds`
-- **Trigger.Mode**: `Always`, `ValueIncrease`, `ValueDecrease`, `RisingEdge`, `FallingEdge`
-- **Trigger.DataType / DataPoints.DataType**:
-  `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`, `string` (DataPoints only), `bool` (DataPoints only)
-- **Encoding**: `UTF8`, `GB2312`, `GBK`, `ASCII`
-- **Trigger.Operation**: `Insert` (append), `Update` (modify)
-- **Trigger.TimeColumnName**: with `Update`, stores end time; pairs with the `Insert` time column to locate the record.
+- **Type**
+  - `Mitsubishi`: Mitsubishi PLC
+  - `Inovance`: Inovance PLC
+  - `BeckhoffAds`: Beckhoff ADS
+
+- **Trigger.Mode**
+  - `Always`: sample unconditionally
+  - `ValueIncrease`: sample when the register increases
+  - `ValueDecrease`: sample when the register decreases
+  - `RisingEdge`: trigger on 0 → 1 transition
+  - `FallingEdge`: trigger on 1 → 0 transition
+
+- **Trigger.DataType / DataPoints.DataType**
+  - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`
+  - `string` (DataPoints only)
+  - `bool` (DataPoints only)
+
+- **Encoding**
+  - `UTF8`, `GB2312`, `GBK`, `ASCII`
+
+- **Trigger.Operation**
+  - `Insert`: append a new row
+  - `Update`: modify an existing row
+
+- **Trigger.TimeColumnName**
+  - With `Update`, stores end time; pairs with the `Insert` time column to locate the record.
 
 ### 🧮 EvalExpression
 
