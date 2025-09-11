@@ -142,13 +142,32 @@ Modules:
 
 ### 🔢 枚举说明
 
-- **Type**：`Mitsubishi`｜`Inovance`｜`BeckhoffAds`
-- **Trigger.Mode**：`Always`、`ValueIncrease`、`ValueDecrease`、`RisingEdge`、`FallingEdge`
-- **Trigger.DataType / DataPoints.DataType**：
-  `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`、`string`（仅 DataPoints）、`bool`（仅 DataPoints）
-- **Encoding**：`UTF8`、`GB2312`、`GBK`、`ASCII`
-- **Trigger.Operation**：`Insert`（插入）、`Update`（更新）
-- **Trigger.TimeColumnName**：在 `Update` 时写入结束时间；用于与对应 `Insert` 的时间列配对定位记录。
+- **Type**
+  - `Mitsubishi`：三菱 PLC
+  - `Inovance`：汇川 PLC
+  - `BeckhoffAds`：倍福 ADS
+
+- **Trigger.Mode**
+  - `Always`：无条件采集
+  - `ValueIncrease`：寄存器值增加时采集
+  - `ValueDecrease`：寄存器值减少时采集
+  - `RisingEdge`：寄存器从 0 变 1 触发
+  - `FallingEdge`：寄存器从 1 变 0 触发
+
+- **Trigger.DataType / DataPoints.DataType**
+  - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`
+  - `string`（仅 DataPoints）
+  - `bool`（仅 DataPoints）
+
+- **Encoding**
+  - `UTF8`、`GB2312`、`GBK`、`ASCII`
+
+- **Trigger.Operation**
+  - `Insert`（插入）
+  - `Update`（更新）
+
+- **Trigger.TimeColumnName**
+  - 在 `Update` 时写入结束时间；用于与对应 `Insert` 的时间列配对定位记录。
 
 ### 🧮 EvalExpression 用法
 
