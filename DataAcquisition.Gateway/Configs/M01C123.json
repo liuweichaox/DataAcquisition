@@ -34,13 +34,15 @@
         { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
       ],
       "Lifecycle": {
+        "Register": "D6200",
+        "DataType": "short",
         "Start": {
-          "Trigger": { "Mode": "RisingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "RisingEdge",
           "Operation": "Insert",
           "StampColumn": "start_time"
         },
         "End": {
-          "Trigger": { "Mode": "FallingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "FallingEdge",
           "Operation": "Update",
           "StampColumn": "end_time"
         }

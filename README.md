@@ -120,18 +120,14 @@ HeartbeatPollingInterval: number # [可选] 心跳轮询间隔(ms)
 Channels: # 采集通道列表，每个通道都是独立采集任务
   - ChannelName: string # 通道名称
     Lifecycle: # [可选] 采集开始/结束触发器
+      Register: string # [可选] 触发地址
+      DataType: ushort|uint|ulong|short|int|long|float|double # [可选]
       Start:
-        Trigger:
-          Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-          Register: string
-          DataType: ushort|uint|ulong|short|int|long|float|double
+        TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
         Operation: Insert|Update
         StampColumn: string # [可选] 开始时间列名
       End:
-        Trigger:
-          Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-          Register: string
-          DataType: ushort|uint|ulong|short|int|long|float|double
+        TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
         Operation: Insert|Update
         StampColumn: string # [可选] 结束时间列名
     EnableBatchRead: bool
@@ -156,14 +152,14 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   - `Inovance`：汇川 PLC
   - `BeckhoffAds`：倍福 ADS
 
-- **Trigger.Mode**
+- **Lifecycle.Start.TriggerMode / Lifecycle.End.TriggerMode**
   - `Always`：无条件采集
   - `ValueIncrease`：寄存器值增加时采集
   - `ValueDecrease`：寄存器值减少时采集
   - `RisingEdge`：寄存器从 0 变 1 触发
   - `FallingEdge`：寄存器从 1 变 0 触发
 
-- **Trigger.DataType / DataPoints.DataType**
+- **Lifecycle.DataType / DataPoints.DataType**
   - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`
   - `string`（仅 DataPoints）
   - `bool`（仅 DataPoints）
@@ -223,13 +219,15 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
         { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
       ],
       "Lifecycle": {
+        "Register": "D6200",
+        "DataType": "short",
         "Start": {
-          "Trigger": { "Mode": "RisingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "RisingEdge",
           "Operation": "Insert",
           "StampColumn": "start_time"
         },
         "End": {
-          "Trigger": { "Mode": "FallingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "FallingEdge",
           "Operation": "Update",
           "StampColumn": "end_time"
         }

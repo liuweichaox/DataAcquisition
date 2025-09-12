@@ -35,8 +35,7 @@ public class ChannelCollector : IChannelCollector
     public async Task CollectAsync(DeviceConfig config, Channel channel, IPlcClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
-        object? prevStart = null;
-        object? prevEnd = null;
+        object? prevValue = null;
         while (!ct.IsCancellationRequested)
         {
             if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) || !isConnected)
@@ -52,26 +51,29 @@ public class ChannelCollector : IChannelCollector
             {
                 var startCfg = channel.Lifecycle?.Start ?? new LifecycleEvent
                 {
-                    Trigger = new Trigger { Mode = TriggerMode.Always },
+                    TriggerMode = TriggerMode.Always,
                     Operation = DataOperation.Insert
                 };
                 var endCfg = channel.Lifecycle?.End;
+                var register = channel.Lifecycle?.Register;
+                var dataType = channel.Lifecycle?.DataType;
 
-                object? currStart = startCfg.Trigger.Mode == TriggerMode.Always
-                    ? null
-                    : await ReadPlcValueAsync(client, startCfg.Trigger.Register, startCfg.Trigger.DataType);
-                object? currEnd = endCfg == null || endCfg.Trigger.Mode == TriggerMode.Always
-                    ? null
-                    : await ReadPlcValueAsync(client, endCfg.Trigger.Register, endCfg.Trigger.DataType);
+                var needRead = register != null && dataType != null &&
+                              (startCfg.TriggerMode != TriggerMode.Always || (endCfg != null && endCfg.TriggerMode != TriggerMode.Always));
+                object? curr = null;
+                if (needRead)
+                {
+                    curr = await ReadPlcValueAsync(client, register!, dataType!);
+                }
 
-                var fireStart = ShouldSample(startCfg.Trigger.Mode, prevStart, currStart);
-                var fireEnd = endCfg != null && ShouldSample(endCfg.Trigger.Mode, prevEnd, currEnd);
+                var canFireStart = register != null && dataType != null || startCfg.TriggerMode == TriggerMode.Always;
+                var fireStart = canFireStart && ShouldSample(startCfg.TriggerMode, prevValue, curr);
+                var fireEnd = endCfg != null && register != null && dataType != null && ShouldSample(endCfg.TriggerMode, prevValue, curr);
 
                 if (!fireStart && !fireEnd)
                 {
                     await Task.Delay(100, ct);
-                    prevStart = currStart;
-                    prevEnd = currEnd;
+                    prevValue = curr;
                     continue;
                 }
 
@@ -154,8 +156,7 @@ public class ChannelCollector : IChannelCollector
                     }
                 }
 
-                prevStart = currStart;
-                prevEnd = currEnd;
+                prevValue = curr;
             }
             finally
             {
