@@ -78,18 +78,35 @@ public enum TriggerMode
 }
 
 /// <summary>
-/// 触发配置
+/// 生命周期触发配置
 /// </summary>
-public class Trigger
+public class LifecycleEvent
 {
     /// <summary>
     /// 触发模式
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public TriggerMode Mode { get; set; }
+    public TriggerMode TriggerModel { get; set; } = TriggerMode.Always;
 
     /// <summary>
-    /// 触发地址
+    /// 数据操作类型
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public DataOperation Operation { get; set; } = DataOperation.Insert;
+
+    /// <summary>
+    /// 时间戳列名
+    /// </summary>
+    public string StampColumn { get; set; }
+}
+
+/// <summary>
+/// 生命周期配置，包含开始与结束事件
+/// </summary>
+public class Lifecycle
+{
+    /// <summary>
+    /// 采集寄存器
     /// </summary>
     public string Register { get; set; }
 
@@ -99,15 +116,14 @@ public class Trigger
     public string DataType { get; set; }
 
     /// <summary>
-    /// 数据操作类型
+    /// 开始事件
     /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public DataOperation Operation { get; set; } = DataOperation.Insert;
+    public LifecycleEvent? Start { get; set; }
 
     /// <summary>
-    /// 时间列名
+    /// 结束事件
     /// </summary>
-    public string TimeColumnName { get; set; }
+    public LifecycleEvent? End { get; set; }
 }
 
 /// <summary>
@@ -116,14 +132,19 @@ public class Trigger
 public class Channel
 {
     /// <summary>
+    /// 通道标识
+    /// </summary>
+    public string ChannelId { get; set; }
+
+    /// <summary>
     /// 通道名称
     /// </summary>
     public string ChannelName { get; set; }
 
     /// <summary>
-    /// 触发配置
+    /// 生命周期配置，null 表示持续采集
     /// </summary>
-    public Trigger Trigger { get; set; }
+    public Lifecycle? Lifecycle { get; set; }
 
     /// <summary>
     /// 是否启用批量读取

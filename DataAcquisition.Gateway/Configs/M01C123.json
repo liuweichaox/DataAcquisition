@@ -8,89 +8,45 @@
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
+      "ChannelId": "01J9Z7R9C2M01C01",
       "ChannelName": "M01C01",
-      "Trigger": {
-        "Mode": "Always",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
-      },
+      "TableName": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
-      "TableName": "m01c01_sensor",
       "BatchSize": 1,
       "DataPoints": [
-        {
-          "ColumnName": "up_temp",
-          "Register": "D6002",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_temp",
-          "Register": "D6004",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
+        { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+      "Lifecycle": null
     },
     {
+      "ChannelId": "01J9Z7R9C2M01C02",
       "ChannelName": "M01C02",
-      "Trigger": {
-        "Mode": "RisingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Insert",
-        "TimeColumnName": "start_time"
-      },
+      "TableName": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
-      "TableName": "m01c01_recipe",
       "BatchSize": 1,
       "DataPoints": [
-        {
-          "ColumnName": "up_set_temp",
-          "Register": "D6102",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
+        { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+        "Lifecycle": {
+          "Register": "D6200",
           "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_set_temp",
-          "Register": "D6104",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
+          "Start": {
+            "TriggerModel": "RisingEdge",
+            "Operation": "Insert",
+            "StampColumn": "start_time"
+          },
+          "End": {
+            "TriggerModel": "FallingEdge",
+            "Operation": "Update",
+            "StampColumn": "end_time"
+          }
         }
-      ]
-    },
-    {
-      "ChannelName": "M01C02",
-      "Trigger": {
-        "Mode": "FallingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Update",
-        "TimeColumnName": "end_time"
-      },
-      "EnableBatchRead": false,
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": null
-    }
-  ]
-}
+      }
+    ]
+  }
