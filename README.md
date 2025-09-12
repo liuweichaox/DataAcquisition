@@ -193,7 +193,6 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "ChannelId": "01J9Z7R9C2M01C01",
       "ChannelName": "M01C01",
       "TableName": "m01c01_sensor",
       "EnableBatchRead": true,
@@ -207,7 +206,6 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
       "Lifecycle": null
     },
     {
-      "ChannelId": "01J9Z7R9C2M01C02",
       "ChannelName": "M01C02",
       "TableName": "m01c01_recipe",
       "EnableBatchRead": true,

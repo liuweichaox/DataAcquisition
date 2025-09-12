@@ -132,11 +132,6 @@ public class Lifecycle
 public class Channel
 {
     /// <summary>
-    /// 通道标识
-    /// </summary>
-    public string ChannelId { get; set; }
-
-    /// <summary>
     /// 通道名称
     /// </summary>
     public string ChannelName { get; set; }
