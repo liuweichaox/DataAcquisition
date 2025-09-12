@@ -120,18 +120,14 @@ HeartbeatPollingInterval: number # [optional] ms
 Channels: # acquisition channels, each channel is an independent acquisition task
   - ChannelName: string
     Lifecycle: # optional start/end triggers
+      Register: string # [optional] trigger address
+      DataType: ushort|uint|ulong|short|int|long|float|double # [optional]
       Start:
-        Trigger:
-          Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-          Register: string
-          DataType: ushort|uint|ulong|short|int|long|float|double
+        TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
         Operation: Insert|Update
         StampColumn: string # [optional] start time column
       End:
-        Trigger:
-          Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-          Register: string
-          DataType: ushort|uint|ulong|short|int|long|float|double
+        TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
         Operation: Insert|Update
         StampColumn: string # [optional] end time column
     EnableBatchRead: bool
@@ -156,14 +152,14 @@ Channels: # acquisition channels, each channel is an independent acquisition tas
   - `Inovance`: Inovance PLC
   - `BeckhoffAds`: Beckhoff ADS
 
-- **Trigger.Mode**
+- **Lifecycle.Start.TriggerMode / Lifecycle.End.TriggerMode**
   - `Always`: sample unconditionally
   - `ValueIncrease`: sample when the register increases
   - `ValueDecrease`: sample when the register decreases
   - `RisingEdge`: trigger on 0 → 1 transition
   - `FallingEdge`: trigger on 1 → 0 transition
 
-- **Trigger.DataType / DataPoints.DataType**
+- **Lifecycle.DataType / DataPoints.DataType**
   - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`
   - `string` (DataPoints only)
   - `bool` (DataPoints only)
@@ -223,13 +219,15 @@ Use an expression to transform the raw reading before persistence. The variable 
         { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
       ],
       "Lifecycle": {
+        "Register": "D6200",
+        "DataType": "short",
         "Start": {
-          "Trigger": { "Mode": "RisingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "RisingEdge",
           "Operation": "Insert",
           "StampColumn": "start_time"
         },
         "End": {
-          "Trigger": { "Mode": "FallingEdge", "Register": "D6200", "DataType": "short" },
+          "TriggerMode": "FallingEdge",
           "Operation": "Update",
           "StampColumn": "end_time"
         }

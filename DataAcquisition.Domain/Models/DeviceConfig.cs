@@ -78,36 +78,15 @@ public enum TriggerMode
 }
 
 /// <summary>
-/// 触发条件
-/// </summary>
-public class Trigger
-{
-    /// <summary>
-    /// 触发模式
-    /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public TriggerMode Mode { get; set; }
-
-    /// <summary>
-    /// 触发地址
-    /// </summary>
-    public string Register { get; set; }
-
-    /// <summary>
-    /// 数据类型
-    /// </summary>
-    public string DataType { get; set; }
-}
-
-/// <summary>
 /// 生命周期触发配置
 /// </summary>
 public class LifecycleEvent
 {
     /// <summary>
-    /// 触发条件
+    /// 触发模式
     /// </summary>
-    public Trigger Trigger { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public TriggerMode TriggerMode { get; set; }
 
     /// <summary>
     /// 数据操作类型
@@ -126,6 +105,16 @@ public class LifecycleEvent
 /// </summary>
 public class Lifecycle
 {
+    /// <summary>
+    /// 触发地址
+    /// </summary>
+    public string? Register { get; set; }
+
+    /// <summary>
+    /// 数据类型
+    /// </summary>
+    public string? DataType { get; set; }
+
     /// <summary>
     /// 开始事件
     /// </summary>
