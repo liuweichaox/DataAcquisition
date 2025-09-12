@@ -193,7 +193,6 @@ Use an expression to transform the raw reading before persistence. The variable 
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "ChannelId": "01J9Z7R9C2M01C01",
       "ChannelName": "M01C01",
       "TableName": "m01c01_sensor",
       "EnableBatchRead": true,
@@ -207,7 +206,6 @@ Use an expression to transform the raw reading before persistence. The variable 
       "Lifecycle": null
     },
     {
-      "ChannelId": "01J9Z7R9C2M01C02",
       "ChannelName": "M01C02",
       "TableName": "m01c01_recipe",
       "EnableBatchRead": true,
