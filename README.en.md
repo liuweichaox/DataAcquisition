@@ -175,7 +175,106 @@ Use an expression to transform the raw reading before persistence. The variable 
 
 ### 📘 Example
 
-Same as the Chinese section (`M01C123.json`) — see above JSON block.
+`DataAcquisition.Gateway/Configs/M01C123.json`:
+
+```json
+{
+  "IsEnabled": true,
+  "Code": "M01C123",
+  "Host": "192.168.1.110",
+  "Port": 4104,
+  "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatPollingInterval": 2000,
+  "Modules": [
+    {
+      "ModuleName": "M01C01",
+      "Trigger": {
+        "Mode": "Always",
+        "Register": null,
+        "DataType": null,
+        "Operation": "Insert"
+      },
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 70,
+      "TableName": "m01c01_sensor",
+      "BatchSize": 1,
+      "DataPoints": [
+        {
+          "ColumnName": "up_temp",
+          "Register": "D6002",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_temp",
+          "Register": "D6004",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ModuleName": "M01C02",
+      "Trigger": {
+        "Mode": "RisingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Insert",
+        "TimeColumnName": "start_time"
+      },
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": [
+        {
+          "ColumnName": "up_set_temp",
+          "Register": "D6102",
+          "Index": 2,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": ""
+        },
+        {
+          "ColumnName": "down_set_temp",
+          "Register": "D6104",
+          "Index": 4,
+          "StringByteLength": 0,
+          "Encoding": null,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
+      ]
+    },
+    {
+      "ModuleName": "M01C02",
+      "Trigger": {
+        "Mode": "FallingEdge",
+        "Register": "D6200",
+        "DataType": "short",
+        "Operation": "Update",
+        "TimeColumnName": "end_time"
+      },
+      "EnableBatchRead": false,
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "TableName": "m01c01_recipe",
+      "BatchSize": 1,
+      "DataPoints": null
+    }
+  ]
+}
+```
 
 ## 🔗 API
 
