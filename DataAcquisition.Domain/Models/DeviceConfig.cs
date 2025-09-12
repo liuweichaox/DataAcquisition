@@ -78,7 +78,7 @@ public enum TriggerMode
 }
 
 /// <summary>
-/// 触发配置
+/// 触发条件
 /// </summary>
 public class Trigger
 {
@@ -97,6 +97,17 @@ public class Trigger
     /// 数据类型
     /// </summary>
     public string DataType { get; set; }
+}
+
+/// <summary>
+/// 生命周期触发配置
+/// </summary>
+public class LifecycleEvent
+{
+    /// <summary>
+    /// 触发条件
+    /// </summary>
+    public Trigger Trigger { get; set; }
 
     /// <summary>
     /// 数据操作类型
@@ -105,9 +116,25 @@ public class Trigger
     public DataOperation Operation { get; set; } = DataOperation.Insert;
 
     /// <summary>
-    /// 时间列名
+    /// 时间戳列名
     /// </summary>
-    public string TimeColumnName { get; set; }
+    public string StampColumn { get; set; }
+}
+
+/// <summary>
+/// 生命周期配置，包含开始与结束事件
+/// </summary>
+public class Lifecycle
+{
+    /// <summary>
+    /// 开始事件
+    /// </summary>
+    public LifecycleEvent? Start { get; set; }
+
+    /// <summary>
+    /// 结束事件
+    /// </summary>
+    public LifecycleEvent? End { get; set; }
 }
 
 /// <summary>
@@ -116,14 +143,19 @@ public class Trigger
 public class Channel
 {
     /// <summary>
+    /// 通道标识
+    /// </summary>
+    public string ChannelId { get; set; }
+
+    /// <summary>
     /// 通道名称
     /// </summary>
     public string ChannelName { get; set; }
 
     /// <summary>
-    /// 触发配置
+    /// 生命周期配置，null 表示持续采集
     /// </summary>
-    public Trigger Trigger { get; set; }
+    public Lifecycle? Lifecycle { get; set; }
 
     /// <summary>
     /// 是否启用批量读取

@@ -35,7 +35,8 @@ public class ChannelCollector : IChannelCollector
     public async Task CollectAsync(DeviceConfig config, Channel channel, IPlcClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
-        object? prevVal = null;
+        object? prevStart = null;
+        object? prevEnd = null;
         while (!ct.IsCancellationRequested)
         {
             if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) || !isConnected)
@@ -49,82 +50,112 @@ public class ChannelCollector : IChannelCollector
 
             try
             {
-                var trigger = channel.Trigger;
-                var currVal = trigger.Mode == TriggerMode.Always
-                    ? null
-                    : await ReadPlcValueAsync(client, trigger.Register, trigger.DataType);
+                var startCfg = channel.Lifecycle?.Start ?? new LifecycleEvent
+                {
+                    Trigger = new Trigger { Mode = TriggerMode.Always },
+                    Operation = DataOperation.Insert
+                };
+                var endCfg = channel.Lifecycle?.End;
 
-                if (!ShouldSample(trigger.Mode, prevVal, currVal))
+                object? currStart = startCfg.Trigger.Mode == TriggerMode.Always
+                    ? null
+                    : await ReadPlcValueAsync(client, startCfg.Trigger.Register, startCfg.Trigger.DataType);
+                object? currEnd = endCfg == null || endCfg.Trigger.Mode == TriggerMode.Always
+                    ? null
+                    : await ReadPlcValueAsync(client, endCfg.Trigger.Register, endCfg.Trigger.DataType);
+
+                var fireStart = ShouldSample(startCfg.Trigger.Mode, prevStart, currStart);
+                var fireEnd = endCfg != null && ShouldSample(endCfg.Trigger.Mode, prevEnd, currEnd);
+
+                if (!fireStart && !fireEnd)
                 {
                     await Task.Delay(100, ct);
+                    prevStart = currStart;
+                    prevEnd = currEnd;
                     continue;
                 }
 
-                try
+                var key = $"{config.Code}:{channel.TableName}";
+                var timestamp = DateTime.Now;
+
+                if (fireStart)
                 {
-                    var operation = trigger.Operation;
-                    var key = $"{config.Code}:{channel.TableName}";
-                    var timestamp = DateTime.Now;
-                    var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, operation);
-                    if (operation == DataOperation.Insert)
+                    try
                     {
-                        if (channel.EnableBatchRead)
+                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, startCfg.Operation);
+                        if (startCfg.Operation == DataOperation.Insert)
                         {
-                            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
-                            var buffer = batchData.Content;
-                            if (channel.DataPoints != null)
+                            if (channel.EnableBatchRead)
+                            {
+                                var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
+                                var buffer = batchData.Content;
+                                if (channel.DataPoints != null)
+                                {
+                                    foreach (var dataPoint in channel.DataPoints)
+                                    {
+                                        var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                        dataMessage.DataValues[dataPoint.ColumnName] = value;
+                                    }
+                                }
+                            }
+                            else if (channel.DataPoints != null)
                             {
                                 foreach (var dataPoint in channel.DataPoints)
                                 {
-                                    var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                                    var value = await ReadPlcValueAsync(
+                                        client,
+                                        dataPoint.Register,
+                                        dataPoint.DataType,
+                                        dataPoint.StringByteLength,
+                                        dataPoint.Encoding);
                                     dataMessage.DataValues[dataPoint.ColumnName] = value;
                                 }
                             }
-                        }
-                        else if (channel.DataPoints != null)
-                        {
-                            foreach (var dataPoint in channel.DataPoints)
+
+                            if (!string.IsNullOrEmpty(startCfg.StampColumn))
                             {
-                                var value = await ReadPlcValueAsync(
-                                    client,
-                                    dataPoint.Register,
-                                    dataPoint.DataType,
-                                    dataPoint.StringByteLength,
-                                    dataPoint.Encoding);
-                                dataMessage.DataValues[dataPoint.ColumnName] = value;
+                                dataMessage.DataValues[startCfg.StampColumn] = timestamp;
+                                _lastStartTimes[key] = timestamp;
+                                _lastStartTimeColumns[key] = startCfg.StampColumn;
+                            }
+
+                            await _queue.PublishAsync(dataMessage);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
+                    }
+                }
+
+                if (fireEnd && endCfg != null)
+                {
+                    try
+                    {
+                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, endCfg.Operation);
+                        if (_lastStartTimes.TryRemove(key, out var startTime))
+                        {
+                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
+                            {
+                                dataMessage.KeyValues[startColumn] = startTime;
                             }
                         }
 
-                        if (!string.IsNullOrEmpty(trigger.TimeColumnName))
+                        if (!string.IsNullOrEmpty(endCfg.StampColumn))
                         {
-                            dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                            _lastStartTimes[key] = timestamp;
-                            _lastStartTimeColumns[key] = trigger.TimeColumnName;
+                            dataMessage.DataValues[endCfg.StampColumn] = timestamp;
                         }
 
                         await _queue.PublishAsync(dataMessage);
                     }
-                    else if (_lastStartTimes.TryRemove(key, out var startTime))
+                    catch (Exception ex)
                     {
-                        if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
-                        {
-                            dataMessage.KeyValues[startColumn] = startTime;
-                        }
-
-                        if (!string.IsNullOrEmpty(trigger.TimeColumnName))
-                        {
-                            dataMessage.DataValues[trigger.TimeColumnName] = timestamp;
-                        }
-
-                        await _queue.PublishAsync(dataMessage);
+                        await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
                     }
                 }
-                catch (Exception ex)
-                {
-                    await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
-                }
 
-                prevVal = currVal;
+                prevStart = currStart;
+                prevEnd = currEnd;
             }
             finally
             {
