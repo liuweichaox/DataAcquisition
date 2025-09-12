@@ -68,11 +68,10 @@ public class ChannelCollector : IChannelCollector
                 {
                     curr = await ReadPlcValueAsync(client, register!, dataType!);
                 }
-
-                var canFireStart = register != null && dataType != null || startCfg.TriggerMode == TriggerMode.Always;
-                var fireStart = canFireStart && ShouldSample(startCfg.TriggerMode, prevValue, curr);
+                
+                var fireStart = register != null && dataType != null && ShouldSample(startCfg.TriggerMode, prevValue, curr);
                 var fireEnd = endCfg != null && register != null && dataType != null && ShouldSample(endCfg.TriggerMode, prevValue, curr);
-
+                
                 if (!fireStart && !fireEnd)
                 {
                     await Task.Delay(100, ct);
@@ -124,8 +123,11 @@ public class ChannelCollector : IChannelCollector
                                 _lastStartTimeColumns[key] = startCfg.StampColumn;
                             }
 
-                            await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
-                            await _queue.PublishAsync(dataMessage);
+                            _ = Task.Run(async () =>
+                            {
+                                await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
+                                await _queue.PublishAsync(dataMessage);
+                            },ct);
                         }
                     }
                     catch (Exception ex)
@@ -151,9 +153,13 @@ public class ChannelCollector : IChannelCollector
                         {
                             dataMessage.DataValues[endCfg.StampColumn] = timestamp;
                         }
+                        
+                        _ = Task.Run(async () =>
+                        {
+                            await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
+                            await _queue.PublishAsync(dataMessage);
+                        },ct);
 
-                        await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
-                        await _queue.PublishAsync(dataMessage);
                     }
                     catch (Exception ex)
                     {
@@ -175,6 +181,7 @@ public class ChannelCollector : IChannelCollector
     /// </summary>
     private async Task EvaluateAsync(DataMessage dataMessage, List<DataPoint>? dataPoints)
     {
+        await Task.Yield();
         try
         {
             if (dataPoints == null) return;
