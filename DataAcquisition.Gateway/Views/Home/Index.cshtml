@@ -3,6 +3,7 @@
 }
 <!DOCTYPE html>
 <html lang="zh">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,11 +13,13 @@
 
     <style>
         /* 全局样式 */
-        html, body {
+        html,
+        body {
             height: 100%;
             margin: 0;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #4e8ef7, #00b8a9); /* 清新渐变背景 */
+            background: linear-gradient(135deg, #4e8ef7, #00b8a9);
+            /* 清新渐变背景 */
             color: #f1f1f1;
             box-sizing: border-box;
             overflow-x: hidden;
@@ -56,7 +59,8 @@
             margin-bottom: 30px;
             font-size: 16px;
             line-height: 1.8;
-            text-align: left; /* 设置消息内容靠左显示 */
+            text-align: left;
+            /* 设置消息内容靠左显示 */
         }
 
         .message-item {
@@ -65,7 +69,8 @@
             background-color: rgba(0, 0, 0, 0.3);
             border-radius: 8px;
             transition: all 0.3s ease;
-            word-wrap: break-word; /* 确保长单词或URL换行 */
+            word-wrap: break-word;
+            /* 确保长单词或URL换行 */
         }
 
         .message-item:hover {
@@ -153,107 +158,109 @@
     </style>
 
 </head>
+
 <body>
 
-<div id="app" class="container">
-    <h2>数据采集网关</h2>
-    <p v-if="message">{{ message }}</p>
+    <div id="app" class="container">
+        <h2>数据采集网关</h2>
+        <p v-if="message">{{ message }}</p>
 
-    <div class="message-list" ref="messageList">
-        <div v-for="(msg, index) in messageHistory" :key="index" class="message-item">
-            {{ msg }}
+        <div class="message-list" ref="messageList">
+            <div v-for="(msg, index) in messageHistory" :key="index" class="message-item">
+                {{ msg }}
+            </div>
         </div>
-    </div>
 
-    <div class="device-list">
-        <h3>设备状态</h3>
-        <div class="status-example">
-            <span class="status online"></span> <span>在线</span> |
-            <span class="status offline"></span> <span>离线</span>
-        </div>
-        <div class="device-grid">
-            <div v-for="(status, deviceId) in devices" :key="deviceId" class="device-card">
-                <span>{{ deviceId }}</span>
-                <span :class="['status', status ? 'online' : 'offline']"></span>
+        <div class="device-list">
+            <h3>设备状态</h3>
+            <div class="status-example">
+                <span class="status online"></span> <span>在线</span> |
+                <span class="status offline"></span> <span>离线</span>
+            </div>
+            <div class="device-grid">
+                <div v-for="(status, deviceId) in devices" :key="deviceId" class="device-card">
+                    <span>{{ deviceId }}</span>
+                    <span :class="['status', status ? 'online' : 'offline']"></span>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-    const { createApp, ref, onMounted, onUnmounted, nextTick } = Vue;
+    <script>
+        const { createApp, ref, onMounted, onUnmounted, nextTick } = Vue;
 
-    createApp({
-        setup() {
-            const loading = ref(false);
-            const message = ref('');
-            const messageHistory = ref([]);
-            const devices = ref({}); // 设备状态字典
-            let connection = null;
-            const MAX_MESSAGES = 1000;
+        createApp({
+            setup() {
+                const loading = ref(false);
+                const message = ref('');
+                const messageHistory = ref([]);
+                const devices = ref({}); // 设备状态字典
+                let connection = null;
+                const MAX_MESSAGES = 1000;
 
-            // 更新消息历史并滚动到最新
-            const updateMessages = (newMessage) => {
-                messageHistory.value.push(newMessage);
-                if (messageHistory.value.length > MAX_MESSAGES) {
-                    messageHistory.value.shift(); // 移除最早的一条消息
-                }
-                nextTick(() => {
-                    // 滚动到消息列表的底部
-                    const messageList = document.querySelector('.message-list');
-                    messageList.scrollTop = messageList.scrollHeight;
-                });
-            };
-
-            const fetchDeviceStatus = () => {
-                fetch('/api/DataAcquisition/GetPlcConnectionStatus')
-                    .then(response => response.json())
-                    .then(data => {
-                        devices.value = data;
-                    })
-                    .catch(error => {
-                        updateMessages(`获取设备状态失败: ${error}`);
+                // 更新消息历史并滚动到最新
+                const updateMessages = (newMessage) => {
+                    messageHistory.value.push(newMessage);
+                    if (messageHistory.value.length > MAX_MESSAGES) {
+                        messageHistory.value.shift(); // 移除最早的一条消息
+                    }
+                    nextTick(() => {
+                        // 滚动到消息列表的底部
+                        const messageList = document.querySelector('.message-list');
+                        messageList.scrollTop = messageList.scrollHeight;
                     });
-            };
+                };
 
-            // 设置 SignalR 连接
-            onMounted(() => {
-                connection = new signalR.HubConnectionBuilder()
-                    .withUrl("/dataHub") // SignalR Hub 地址
-                    .build();
+                const fetchDeviceStatus = () => {
+                    fetch('/api/DataAcquisition/GetPlcConnectionStatus')
+                        .then(response => response.json())
+                        .then(data => {
+                            devices.value = data;
+                        })
+                        .catch(error => {
+                            updateMessages(`获取设备状态失败: ${error}`);
+                        });
+                };
 
-                connection.on("ReceiveOpsEvent", (evt) => {
-                    // 当从服务器接收到运行事件时，格式化并更新消息
-                    updateMessages(`${new Date(evt.timestamp).toLocaleString()} [${evt.level}] [${evt.deviceCode}] ${evt.message}`);
+                // 设置 SignalR 连接
+                onMounted(() => {
+                    connection = new signalR.HubConnectionBuilder()
+                        .withUrl("/dataHub") // SignalR Hub 地址
+                        .build();
+
+                    connection.on("ReceiveOpsEvent", (evt) => {
+                        // 当从服务器接收到运行事件时，格式化并更新消息
+                        updateMessages(`${new Date(evt.timestamp).toLocaleString()} [${evt.level}] ${evt.message}`);
+                    });
+
+                    connection.start().then(() => {
+                        updateMessages('SignalR 连接已打开');
+                    }).catch(err => {
+                        updateMessages('SignalR 连接失败', err);
+                    });
+
+                    // 每隔2秒获取设备状态
+                    fetchDeviceStatus();
+                    setInterval(fetchDeviceStatus, 2000);
                 });
 
-                connection.start().then(() => {
-                    updateMessages('SignalR 连接已打开');
-                }).catch(err => {
-                    updateMessages('SignalR 连接失败', err);
+                // 关闭 SignalR 连接
+                onUnmounted(() => {
+                    if (connection) {
+                        connection.stop();
+                    }
                 });
 
-                // 每隔2秒获取设备状态
-                fetchDeviceStatus();
-                setInterval(fetchDeviceStatus, 2000);
-            });
-
-            // 关闭 SignalR 连接
-            onUnmounted(() => {
-                if (connection) {
-                    connection.stop();
-                }
-            });
-
-            return {
-                loading,
-                message,
-                messageHistory,
-                devices
-            };
-        }
-    }).mount('#app');
-</script>
+                return {
+                    loading,
+                    message,
+                    messageHistory,
+                    devices
+                };
+            }
+        }).mount('#app');
+    </script>
 
 </body>
+
 </html>

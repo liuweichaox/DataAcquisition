@@ -62,7 +62,7 @@ public class MySqlDataStorageService : IDataStorageService
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync("System", $"[ERROR] Insert failed: {ex.Message}\nData: {JsonSerializer.Serialize(dataMessage)}", ex);
+            await _events.ErrorAsync($"[ERROR] Insert failed: {ex.Message}\nData: {JsonSerializer.Serialize(dataMessage)}", ex);
         }
     }
 
@@ -111,7 +111,7 @@ public class MySqlDataStorageService : IDataStorageService
         catch (Exception ex)
         {
             await transaction.RollbackAsync();
-            await _events.ErrorAsync("System", $"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}", ex);
+            await _events.ErrorAsync($"[ERROR] Batch insert failed: {ex.Message}\n{ex.StackTrace}", ex);
         }
     }
 
@@ -156,7 +156,7 @@ public class MySqlDataStorageService : IDataStorageService
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync("System", $"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}", ex);
+            await _events.ErrorAsync($"[ERROR] Update failed: {ex.Message}\n{ex.StackTrace}", ex);
         }
     }
 }

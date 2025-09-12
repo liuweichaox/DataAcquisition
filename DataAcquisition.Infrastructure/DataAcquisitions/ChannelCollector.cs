@@ -35,7 +35,7 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 按通道配置执行采集任务。
     /// </summary>
-    public async Task CollectAsync(DeviceConfig config, Channel channel, IPlcClientService client, CancellationToken ct = default)
+    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPlcClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
         object? prevValue = null;
@@ -52,14 +52,14 @@ public class ChannelCollector : IChannelCollector
 
             try
             {
-                var startCfg = channel.Lifecycle?.Start ?? new LifecycleEvent
+                var startCfg = dataAcquisitionChannel.Lifecycle?.Start ?? new LifecycleEvent
                 {
                     TriggerMode = TriggerMode.Always,
                     Operation = DataOperation.Insert
                 };
-                var endCfg = channel.Lifecycle?.End;
-                var register = channel.Lifecycle?.Register;
-                var dataType = channel.Lifecycle?.DataType;
+                var endCfg = dataAcquisitionChannel.Lifecycle?.End;
+                var register = dataAcquisitionChannel.Lifecycle?.Register;
+                var dataType = dataAcquisitionChannel.Lifecycle?.DataType;
 
                 var needRead = register != null && dataType != null &&
                               (startCfg.TriggerMode != TriggerMode.Always || (endCfg != null && endCfg.TriggerMode != TriggerMode.Always));
@@ -80,32 +80,32 @@ public class ChannelCollector : IChannelCollector
                     continue;
                 }
 
-                var key = $"{config.Code}:{channel.TableName}";
+                var key = $"{config.Code}:{dataAcquisitionChannel.TableName}";
                 var timestamp = DateTime.Now;
 
                 if (fireStart)
                 {
                     try
                     {
-                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, startCfg.Operation);
+                        var dataMessage = new DataMessage(timestamp, dataAcquisitionChannel.TableName, dataAcquisitionChannel.BatchSize, startCfg.Operation);
                         if (startCfg.Operation == DataOperation.Insert)
                         {
-                            if (channel.EnableBatchRead)
+                            if (dataAcquisitionChannel.EnableBatchRead)
                             {
-                                var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
+                                var batchData = await client.ReadAsync(dataAcquisitionChannel.BatchReadRegister, dataAcquisitionChannel.BatchReadLength);
                                 var buffer = batchData.Content;
-                                if (channel.DataPoints != null)
+                                if (dataAcquisitionChannel.DataPoints != null)
                                 {
-                                    foreach (var dataPoint in channel.DataPoints)
+                                    foreach (var dataPoint in dataAcquisitionChannel.DataPoints)
                                     {
                                         var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                         dataMessage.DataValues[dataPoint.ColumnName] = value;
                                     }
                                 }
                             }
-                            else if (channel.DataPoints != null)
+                            else if (dataAcquisitionChannel.DataPoints != null)
                             {
-                                foreach (var dataPoint in channel.DataPoints)
+                                foreach (var dataPoint in dataAcquisitionChannel.DataPoints)
                                 {
                                     var value = await ReadPlcValueAsync(
                                         client,
@@ -124,13 +124,13 @@ public class ChannelCollector : IChannelCollector
                                 _lastStartTimeColumns[key] = startCfg.StampColumn;
                             }
 
-                            await EvaluateAsync(dataMessage, channel.DataPoints);
+                            await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
                             await _queue.PublishAsync(dataMessage);
                         }
                     }
                     catch (Exception ex)
                     {
-                        await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
+                        await _events.ErrorAsync($"{config.Code}-{dataAcquisitionChannel.ChannelName}:{dataAcquisitionChannel.TableName}采集异常: {ex.Message}", ex);
                     }
                 }
 
@@ -138,7 +138,7 @@ public class ChannelCollector : IChannelCollector
                 {
                     try
                     {
-                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, endCfg.Operation);
+                        var dataMessage = new DataMessage(timestamp, dataAcquisitionChannel.TableName, dataAcquisitionChannel.BatchSize, endCfg.Operation);
                         if (_lastStartTimes.TryRemove(key, out var startTime))
                         {
                             if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
@@ -152,12 +152,12 @@ public class ChannelCollector : IChannelCollector
                             dataMessage.DataValues[endCfg.StampColumn] = timestamp;
                         }
 
-                        await EvaluateAsync(dataMessage, channel.DataPoints);
+                        await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
                         await _queue.PublishAsync(dataMessage);
                     }
                     catch (Exception ex)
                     {
-                        await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
+                        await _events.ErrorAsync($"{config.Code}-{dataAcquisitionChannel.ChannelName}:{dataAcquisitionChannel.TableName}采集异常: {ex.Message}", ex);
                     }
                 }
 
@@ -200,7 +200,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync("System", $"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}", ex);
+            await _events.ErrorAsync($"Error handling data point: {ex.Message}- StackTrace: {ex.StackTrace}", ex);
         }
     }
 

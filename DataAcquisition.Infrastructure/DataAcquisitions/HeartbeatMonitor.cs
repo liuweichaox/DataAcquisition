@@ -44,7 +44,8 @@ public class HeartbeatMonitor : IHeartbeatMonitor
 
                 if (!ok)
                 {
-                    await _events.WarnAsync(config.Code, $"网络检测失败：IP {config.Host}，Ping 未响应");
+                    if (lastOk) 
+                        await _events.WarnAsync($"{config.Code}-网络检测失败：IP {config.Host}，Ping 未响应");
                     _plcStateManager.PlcConnectionHealth[config.Code] = false;
                 }
                 else
@@ -56,12 +57,12 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                         writeData ^= 1;
                         _plcStateManager.PlcConnectionHealth[config.Code] = true;
                         if (!lastOk)
-                            await _events.InfoAsync(config.Code, "心跳检测正常");
+                            await _events.InfoAsync($"{config.Code}-心跳检测正常");
                     }
                     else
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _events.WarnAsync(config.Code,"心跳检测失败", connect.Message);
+                        await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message);
                     }
                 }
 
@@ -70,7 +71,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             catch (Exception ex)
             {
                 _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                await _events.ErrorAsync(config.Code, $"系统异常: {ex.Message}", ex);
+                await _events.ErrorAsync($"{config.Code}-系统异常: {ex.Message}", ex);
             }
             finally
             {

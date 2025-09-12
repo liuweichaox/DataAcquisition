@@ -47,7 +47,7 @@ public class DeviceConfig
     /// <summary>
     /// 采集通道
     /// </summary>
-    public List<Channel> Channels { get; set; }
+    public List<DataAcquisitionChannel> Channels { get; set; }
 }
 
 /// <summary>
@@ -129,7 +129,7 @@ public class Lifecycle
 /// <summary>
 /// 通道
 /// </summary>
-public class Channel
+public class DataAcquisitionChannel
 {
     /// <summary>
     /// 通道名称

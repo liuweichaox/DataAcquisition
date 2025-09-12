@@ -7,7 +7,6 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using HslCommunication.BasicFramework;
 
 namespace DataAcquisition.Infrastructure.Queues;
 
@@ -47,7 +46,7 @@ public class LocalQueueService(
             }
             catch (Exception ex)
             {
-                await events.ErrorAsync("System", $"Error processing message: {ex.Message}");
+                await events.ErrorAsync($"Error processing message: {ex.Message}");
             }
         }
     }

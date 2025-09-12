@@ -9,7 +9,7 @@ using DataAcquisition.Application;
 using DataAcquisition.Domain.Clients;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
-{    
+{
     /// <summary>
     /// 数据采集器实现
     /// </summary>
@@ -42,7 +42,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _heartbeatMonitor = heartbeatMonitor;
             _channelCollector = channelCollector;
         }
-        
+
         /// <summary>
         /// 开始所有采集任务
         /// </summary>
@@ -71,21 +71,21 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             var ct = cts.Token;
 
             var client = CreatePlcClient(config);
-                    
+
             var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, ct) };
 
             foreach (var channel in config.Channels)
             {
                 tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
             }
-                    
+
             var running = Task.WhenAll(tasks);
             _ = running.ContinueWith(async t =>
             {
                 if (t.Exception != null)
-                    await _events.ErrorAsync(config.Code, $"采集任务异常: {t.Exception.Flatten().InnerException?.Message}", t.Exception.Flatten().InnerException);
+                    await _events.ErrorAsync($"{config.Code}-采集任务异常: {t.Exception.Flatten().InnerException?.Message}", t.Exception.Flatten().InnerException);
             }, TaskContinuationOptions.OnlyOnFaulted);
-                    
+
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
         }
 
