@@ -185,15 +185,15 @@ Modules:
   "Port": 4104,
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
+  "HeartbeatPollingInterval": 2000,
   "Modules": [
     {
       "ModuleName": "M01C01",
       "Trigger": {
         "Mode": "Always",
-        "Register": "D6000",
-        "DataType": "short",
-        "Operation": "Insert",
-        "TimeColumnName": ""
+        "Register": null,
+        "DataType": null,
+        "Operation": "Insert"
       },
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
@@ -221,21 +221,21 @@ Modules:
         }
       ]
     },
-    {
-      "ModuleName": "M01C02",
-      "Trigger": {
-        "Mode": "RisingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Insert",
-        "TimeColumnName": "start_time"
-      },
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6100",
-      "BatchReadLength": 200,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": [
+      {
+        "ModuleName": "M01C02",
+        "Trigger": {
+          "Mode": "RisingEdge",
+          "Register": "D6200",
+          "DataType": "short",
+          "Operation": "Insert",
+          "TimeColumnName": "start_time"
+        },
+        "EnableBatchRead": true,
+        "BatchReadRegister": "D6100",
+        "BatchReadLength": 200,
+        "TableName": "m01c01_recipe",
+        "BatchSize": 1,
+        "DataPoints": [
         {
           "ColumnName": "up_set_temp",
           "Register": "D6102",
@@ -256,24 +256,25 @@ Modules:
         }
       ]
     },
-    {
-      "ModuleName": "M01C02",
-      "Trigger": {
-        "Mode": "FallingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Update",
-        "TimeColumnName": "end_time"
-      },
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": null
-    }
-  ]
-}
-```
+      {
+        "ModuleName": "M01C02",
+        "Trigger": {
+          "Mode": "FallingEdge",
+          "Register": "D6200",
+          "DataType": "short",
+          "Operation": "Update",
+          "TimeColumnName": "end_time"
+        },
+        "EnableBatchRead": false,
+        "BatchReadRegister": null,
+        "BatchReadLength": 0,
+        "TableName": "m01c01_recipe",
+        "BatchSize": 1,
+        "DataPoints": null
+      }
+    ]
+  }
+  ```
 
 ## 🔗 API
 
