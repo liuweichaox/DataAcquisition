@@ -119,12 +119,17 @@ HeartbeatMonitorRegister: string # [optional]
 HeartbeatPollingInterval: number # [optional] ms
 Channels: # acquisition channels, each channel is an independent acquisition task
   - ChannelName: string
-    Trigger:
-      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+    Lifecycle: # optional start/end triggers (Start/End share Register/DataType)
       Register: string
       DataType: ushort|uint|ulong|short|int|long|float|double
-      Operation: Insert|Update
-      TimeColumnName: string # [optional]
+      Start:
+        TriggerModel: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+        Operation: Insert|Update
+        StampColumn: string # [optional] start time column
+      End:
+        TriggerModel: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+        Operation: Insert|Update
+        StampColumn: string # [optional] end time column
     EnableBatchRead: bool
     BatchReadRegister: string
     BatchReadLength: int
@@ -147,14 +152,14 @@ Channels: # acquisition channels, each channel is an independent acquisition tas
   - `Inovance`: Inovance PLC
   - `BeckhoffAds`: Beckhoff ADS
 
-- **Trigger.Mode**
+- **Lifecycle.Start.TriggerModel / Lifecycle.End.TriggerModel**
   - `Always`: sample unconditionally
   - `ValueIncrease`: sample when the register increases
   - `ValueDecrease`: sample when the register decreases
   - `RisingEdge`: trigger on 0 → 1 transition
   - `FallingEdge`: trigger on 1 → 0 transition
 
-- **Trigger.DataType / DataPoints.DataType**
+- **Lifecycle.DataType / DataPoints.DataType**
   - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`
   - `string` (DataPoints only)
   - `bool` (DataPoints only)
@@ -162,12 +167,12 @@ Channels: # acquisition channels, each channel is an independent acquisition tas
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`
 
-- **Trigger.Operation**
+- **Lifecycle.Start.Operation / Lifecycle.End.Operation**
   - `Insert`: append a new row
   - `Update`: modify an existing row
 
-- **Trigger.TimeColumnName**
-  - With `Update`, stores end time; pairs with the `Insert` time column to locate the record.
+- **Lifecycle.Start.StampColumn / Lifecycle.End.StampColumn**
+  - Column name for recording start or end time.
 
 ### 🧮 EvalExpression
 
@@ -188,89 +193,45 @@ Use an expression to transform the raw reading before persistence. The variable 
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
+      "ChannelId": "01J9Z7R9C2M01C01",
       "ChannelName": "M01C01",
-      "Trigger": {
-        "Mode": "Always",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
-      },
+      "TableName": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
-      "TableName": "m01c01_sensor",
       "BatchSize": 1,
       "DataPoints": [
-        {
-          "ColumnName": "up_temp",
-          "Register": "D6002",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_temp",
-          "Register": "D6004",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
+        { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+      "Lifecycle": null
     },
     {
+      "ChannelId": "01J9Z7R9C2M01C02",
       "ChannelName": "M01C02",
-      "Trigger": {
-        "Mode": "RisingEdge",
-        "Register": "D6200",
-        "DataType": "short",
-        "Operation": "Insert",
-        "TimeColumnName": "start_time"
-      },
+      "TableName": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
-      "TableName": "m01c01_recipe",
       "BatchSize": 1,
       "DataPoints": [
-        {
-          "ColumnName": "up_set_temp",
-          "Register": "D6102",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_set_temp",
-          "Register": "D6104",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
-    },
-    {
-      "ChannelName": "M01C02",
-      "Trigger": {
-        "Mode": "FallingEdge",
+        { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+      "Lifecycle": {
         "Register": "D6200",
         "DataType": "short",
-        "Operation": "Update",
-        "TimeColumnName": "end_time"
-      },
-      "EnableBatchRead": false,
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "TableName": "m01c01_recipe",
-      "BatchSize": 1,
-      "DataPoints": null
+        "Start": {
+          "TriggerModel": "RisingEdge",
+          "Operation": "Insert",
+          "StampColumn": "start_time"
+        },
+        "End": {
+          "TriggerModel": "FallingEdge",
+          "Operation": "Update",
+          "StampColumn": "end_time"
+        }
+      }
     }
   ]
 }

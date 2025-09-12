@@ -119,12 +119,17 @@ HeartbeatMonitorRegister: string # [可选] 心跳寄存器
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔(ms)
 Channels: # 采集通道列表，每个通道都是独立采集任务
   - ChannelName: string # 通道名称
-    Trigger:
-      Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+    Lifecycle: # [可选] 采集开始/结束触发器（Start/End 共用 Register/DataType）
       Register: string
       DataType: ushort|uint|ulong|short|int|long|float|double
-      Operation: Insert|Update
-      TimeColumnName: string # [可选] 时间列名（配合 Update/Insert）
+      Start:
+        TriggerModel: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+        Operation: Insert|Update
+        StampColumn: string # [可选] 开始时间列名
+      End:
+        TriggerModel: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
+        Operation: Insert|Update
+        StampColumn: string # [可选] 结束时间列名
     EnableBatchRead: bool
     BatchReadRegister: string
     BatchReadLength: int
@@ -147,14 +152,14 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   - `Inovance`：汇川 PLC
   - `BeckhoffAds`：倍福 ADS
 
-- **Trigger.Mode**
+- **Lifecycle.Start.TriggerModel / Lifecycle.End.TriggerModel**
   - `Always`：无条件采集
   - `ValueIncrease`：寄存器值增加时采集
   - `ValueDecrease`：寄存器值减少时采集
   - `RisingEdge`：寄存器从 0 变 1 触发
   - `FallingEdge`：寄存器从 1 变 0 触发
 
-- **Trigger.DataType / DataPoints.DataType**
+- **Lifecycle.DataType / DataPoints.DataType**
   - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`
   - `string`（仅 DataPoints）
   - `bool`（仅 DataPoints）
@@ -162,12 +167,12 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 - **Encoding**
   - `UTF8`、`GB2312`、`GBK`、`ASCII`
 
-- **Trigger.Operation**
+- **Lifecycle.Start.Operation / Lifecycle.End.Operation**
   - `Insert`（插入）
   - `Update`（更新）
 
-- **Trigger.TimeColumnName**
-  - 在 `Update` 时写入结束时间；用于与对应 `Insert` 的时间列配对定位记录。
+- **Lifecycle.Start.StampColumn / Lifecycle.End.StampColumn**
+  - 记录开始或结束时间的列名。
 
 ### 🧮 EvalExpression 用法
 
@@ -188,93 +193,49 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
+      "ChannelId": "01J9Z7R9C2M01C01",
       "ChannelName": "M01C01",
-      "Trigger": {
-        "Mode": "Always",
-        "Register": null,
-        "DataType": null,
-        "Operation": "Insert"
-      },
+      "TableName": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
-      "TableName": "m01c01_sensor",
       "BatchSize": 1,
       "DataPoints": [
-        {
-          "ColumnName": "up_temp",
-          "Register": "D6002",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_temp",
-          "Register": "D6004",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
+        { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+      "Lifecycle": null
     },
     {
+      "ChannelId": "01J9Z7R9C2M01C02",
       "ChannelName": "M01C02",
-        "Trigger": {
-          "Mode": "RisingEdge",
-          "Register": "D6200",
-          "DataType": "short",
+      "TableName": "m01c01_recipe",
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6100",
+      "BatchReadLength": 200,
+      "BatchSize": 1,
+      "DataPoints": [
+        { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
+        { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+      ],
+      "Lifecycle": {
+        "Register": "D6200",
+        "DataType": "short",
+        "Start": {
+          "TriggerModel": "RisingEdge",
           "Operation": "Insert",
-          "TimeColumnName": "start_time"
+          "StampColumn": "start_time"
         },
-        "EnableBatchRead": true,
-        "BatchReadRegister": "D6100",
-        "BatchReadLength": 200,
-        "TableName": "m01c01_recipe",
-        "BatchSize": 1,
-        "DataPoints": [
-        {
-          "ColumnName": "up_set_temp",
-          "Register": "D6102",
-          "Index": 2,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": ""
-        },
-        {
-          "ColumnName": "down_set_temp",
-          "Register": "D6104",
-          "Index": 4,
-          "StringByteLength": 0,
-          "Encoding": null,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ]
-    },
-    {
-      "ChannelName": "M01C02",
-        "Trigger": {
-          "Mode": "FallingEdge",
-          "Register": "D6200",
-          "DataType": "short",
+        "End": {
+          "TriggerModel": "FallingEdge",
           "Operation": "Update",
-          "TimeColumnName": "end_time"
-        },
-        "EnableBatchRead": false,
-        "BatchReadRegister": null,
-        "BatchReadLength": 0,
-        "TableName": "m01c01_recipe",
-        "BatchSize": 1,
-        "DataPoints": null
+          "StampColumn": "end_time"
+        }
       }
-    ]
-  }
-  ```
+    }
+  ]
+}
+```
 
 ## 🔗 API
 
