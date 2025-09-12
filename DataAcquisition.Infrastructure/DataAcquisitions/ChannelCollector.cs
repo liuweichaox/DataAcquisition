@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using NCalc;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -84,7 +87,7 @@ public class ChannelCollector : IChannelCollector
                 {
                     try
                     {
-                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, startCfg.Operation);
+                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, startCfg.Operation);
                         if (startCfg.Operation == DataOperation.Insert)
                         {
                             if (channel.EnableBatchRead)
@@ -121,6 +124,7 @@ public class ChannelCollector : IChannelCollector
                                 _lastStartTimeColumns[key] = startCfg.StampColumn;
                             }
 
+                            await EvaluateAsync(dataMessage, channel.DataPoints);
                             await _queue.PublishAsync(dataMessage);
                         }
                     }
@@ -134,7 +138,7 @@ public class ChannelCollector : IChannelCollector
                 {
                     try
                     {
-                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, endCfg.Operation);
+                        var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, endCfg.Operation);
                         if (_lastStartTimes.TryRemove(key, out var startTime))
                         {
                             if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
@@ -148,6 +152,7 @@ public class ChannelCollector : IChannelCollector
                             dataMessage.DataValues[endCfg.StampColumn] = timestamp;
                         }
 
+                        await EvaluateAsync(dataMessage, channel.DataPoints);
                         await _queue.PublishAsync(dataMessage);
                     }
                     catch (Exception ex)
@@ -163,6 +168,48 @@ public class ChannelCollector : IChannelCollector
                 locker.Release();
             }
         }
+    }
+
+    /// <summary>
+    /// 对数据消息进行表达式计算并记录异常。
+    /// </summary>
+    private async Task EvaluateAsync(DataMessage dataMessage, List<DataPoint>? dataPoints)
+    {
+        try
+        {
+            if (dataPoints == null) return;
+
+            foreach (var kv in dataMessage.DataValues.ToList())
+            {
+                if (!IsNumberType(kv.Value)) continue;
+
+                var register = dataPoints.SingleOrDefault(x => x.ColumnName == kv.Key);
+                if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
+
+                var expression = new AsyncExpression(register.EvalExpression)
+                {
+                    Parameters =
+                    {
+                        ["value"] = kv.Value
+                    }
+                };
+
+                var value = await expression.EvaluateAsync();
+                dataMessage.DataValues[kv.Key] = value ?? 0;
+            }
+        }
+        catch (Exception ex)
+        {
+            await _events.ErrorAsync("System", $"Error handling data point: {ex.Message} - StackTrace: {ex.StackTrace}", ex);
+        }
+    }
+
+    /// <summary>
+    /// 判断对象是否为数值类型。
+    /// </summary>
+    private static bool IsNumberType(object? value)
+    {
+        return value is ushort or uint or ulong or short or int or long or float or double;
     }
 
     /// <summary>
