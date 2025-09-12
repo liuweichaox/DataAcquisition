@@ -45,9 +45,9 @@ public class DeviceConfig
     public int HeartbeatPollingInterval { get; set; }
 
     /// <summary>
-    /// 模块
+    /// 采集通道
     /// </summary>
-    public List<Module> Modules { get; set; }
+    public List<Channel> Channels { get; set; }
 }
 
 /// <summary>
@@ -111,14 +111,14 @@ public class Trigger
 }
 
 /// <summary>
-/// 模块
+/// 通道
 /// </summary>
-public class Module
+public class Channel
 {
     /// <summary>
-    /// 模块名称
+    /// 通道名称
     /// </summary>
-    public string ModuleName { get; set; }
+    public string ChannelName { get; set; }
 
     /// <summary>
     /// 触发配置

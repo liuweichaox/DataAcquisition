@@ -9,9 +9,9 @@ using DataAcquisition.Domain.Models;
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
-/// 模块采集器，根据配置从 PLC 读取数据并发布。
+/// 通道采集器，根据配置从 PLC 读取数据并发布。
 /// </summary>
-public class ModuleCollector : IModuleCollector
+public class ChannelCollector : IChannelCollector
 {
     private readonly IPlcStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
@@ -20,9 +20,9 @@ public class ModuleCollector : IModuleCollector
     private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
 
     /// <summary>
-    /// 初始化模块采集器。
+    /// 初始化通道采集器。
     /// </summary>
-    public ModuleCollector(IPlcStateManager plcStateManager, IOperationalEventsService events, IQueueService queue)
+    public ChannelCollector(IPlcStateManager plcStateManager, IOperationalEventsService events, IQueueService queue)
     {
         _plcStateManager = plcStateManager;
         _events = events;
@@ -30,9 +30,9 @@ public class ModuleCollector : IModuleCollector
     }
 
     /// <summary>
-    /// 按模块配置执行采集任务。
+    /// 按通道配置执行采集任务。
     /// </summary>
-    public async Task CollectAsync(DeviceConfig config, Module module, IPlcClientService client, CancellationToken ct = default)
+    public async Task CollectAsync(DeviceConfig config, Channel channel, IPlcClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
         object? prevVal = null;
@@ -49,7 +49,7 @@ public class ModuleCollector : IModuleCollector
 
             try
             {
-                var trigger = module.Trigger;
+                var trigger = channel.Trigger;
                 var currVal = trigger.Mode == TriggerMode.Always
                     ? null
                     : await ReadPlcValueAsync(client, trigger.Register, trigger.DataType);
@@ -63,27 +63,27 @@ public class ModuleCollector : IModuleCollector
                 try
                 {
                     var operation = trigger.Operation;
-                    var key = $"{config.Code}:{module.TableName}";
+                    var key = $"{config.Code}:{channel.TableName}";
                     var timestamp = DateTime.Now;
-                    var dataMessage = new DataMessage(timestamp, module.TableName, module.BatchSize, module.DataPoints, operation);
+                    var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, channel.DataPoints, operation);
                     if (operation == DataOperation.Insert)
                     {
-                        if (module.EnableBatchRead)
+                        if (channel.EnableBatchRead)
                         {
-                            var batchData = await client.ReadAsync(module.BatchReadRegister, module.BatchReadLength);
+                            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
                             var buffer = batchData.Content;
-                            if (module.DataPoints != null)
+                            if (channel.DataPoints != null)
                             {
-                                foreach (var dataPoint in module.DataPoints)
+                                foreach (var dataPoint in channel.DataPoints)
                                 {
                                     var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
                                     dataMessage.DataValues[dataPoint.ColumnName] = value;
                                 }
                             }
                         }
-                        else if (module.DataPoints != null)
+                        else if (channel.DataPoints != null)
                         {
-                            foreach (var dataPoint in module.DataPoints)
+                            foreach (var dataPoint in channel.DataPoints)
                             {
                                 var value = await ReadPlcValueAsync(
                                     client,
@@ -121,7 +121,7 @@ public class ModuleCollector : IModuleCollector
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync(module.ModuleName, $"[{module.ModuleName}:{module.TableName}]采集异常: {ex.Message}", ex);
+                    await _events.ErrorAsync(channel.ChannelName, $"[{channel.ChannelName}:{channel.TableName}]采集异常: {ex.Message}", ex);
                 }
 
                 prevVal = currVal;
