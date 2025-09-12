@@ -117,8 +117,8 @@ Port: number # Port
 Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [optional]
 HeartbeatPollingInterval: number # [optional] ms
-Modules:
-  - ModuleName: string
+Channels: # acquisition channels, each channel is an independent acquisition task
+  - ChannelName: string
     Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
       Register: string
@@ -186,9 +186,9 @@ Use an expression to transform the raw reading before persistence. The variable 
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "Modules": [
+  "Channels": [
     {
-      "ModuleName": "M01C01",
+      "ChannelName": "M01C01",
       "Trigger": {
         "Mode": "Always",
         "Register": null,
@@ -222,7 +222,7 @@ Use an expression to transform the raw reading before persistence. The variable 
       ]
     },
     {
-      "ModuleName": "M01C02",
+      "ChannelName": "M01C02",
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": "D6200",
@@ -257,7 +257,7 @@ Use an expression to transform the raw reading before persistence. The variable 
       ]
     },
     {
-      "ModuleName": "M01C02",
+      "ChannelName": "M01C02",
       "Trigger": {
         "Mode": "FallingEdge",
         "Register": "D6200",

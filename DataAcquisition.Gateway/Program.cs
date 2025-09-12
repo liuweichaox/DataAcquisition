@@ -29,7 +29,7 @@ builder.Services.AddSingleton<IDataStorageService, MySqlDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
-builder.Services.AddSingleton<IModuleCollector, ModuleCollector>();
+builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();

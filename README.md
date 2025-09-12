@@ -117,8 +117,8 @@ Port: number # 通讯端口
 Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [可选] 心跳寄存器
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔(ms)
-Modules:
-  - ModuleName: string # 模块名称
+Channels: # 采集通道列表，每个通道都是独立采集任务
+  - ChannelName: string # 通道名称
     Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
       Register: string
@@ -186,9 +186,9 @@ Modules:
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "Modules": [
+  "Channels": [
     {
-      "ModuleName": "M01C01",
+      "ChannelName": "M01C01",
       "Trigger": {
         "Mode": "Always",
         "Register": null,
@@ -221,8 +221,8 @@ Modules:
         }
       ]
     },
-      {
-        "ModuleName": "M01C02",
+    {
+      "ChannelName": "M01C02",
         "Trigger": {
           "Mode": "RisingEdge",
           "Register": "D6200",
@@ -256,8 +256,8 @@ Modules:
         }
       ]
     },
-      {
-        "ModuleName": "M01C02",
+    {
+      "ChannelName": "M01C02",
         "Trigger": {
           "Mode": "FallingEdge",
           "Register": "D6200",

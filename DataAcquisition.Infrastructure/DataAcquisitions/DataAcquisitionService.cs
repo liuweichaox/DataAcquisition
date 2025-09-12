@@ -21,7 +21,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         private readonly IOperationalEventsService _events;
         private readonly IQueueService _queue;
         private readonly IHeartbeatMonitor _heartbeatMonitor;
-        private readonly IModuleCollector _moduleCollector;
+        private readonly IChannelCollector _channelCollector;
 
         /// <summary>
         /// 数据采集器
@@ -32,7 +32,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             IQueueService queue,
             IPlcStateManager plcStateManager,
             IHeartbeatMonitor heartbeatMonitor,
-            IModuleCollector moduleCollector)
+            IChannelCollector channelCollector)
         {
             _deviceConfigService = deviceConfigService;
             _plcClientFactory = plcClientFactory;
@@ -40,7 +40,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _queue = queue;
             _plcStateManager = plcStateManager;
             _heartbeatMonitor = heartbeatMonitor;
-            _moduleCollector = moduleCollector;
+            _channelCollector = channelCollector;
         }
         
         /// <summary>
@@ -74,9 +74,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                     
             var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, ct) };
 
-            foreach (var module in config.Modules)
+            foreach (var channel in config.Channels)
             {
-                tasks.Add(_moduleCollector.CollectAsync(config, module, client, ct));
+                tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
             }
                     
             var running = Task.WhenAll(tasks);

@@ -6,9 +6,9 @@
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,
-  "Modules": [
+  "Channels": [
     {
-      "ModuleName": "M01C01",
+      "ChannelName": "M01C01",
       "Trigger": {
         "Mode": "Always",
         "Register": null,
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "ModuleName": "M01C02",
+      "ChannelName": "M01C02",
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": "D6200",
@@ -77,7 +77,7 @@
       ]
     },
     {
-      "ModuleName": "M01C02",
+      "ChannelName": "M01C02",
       "Trigger": {
         "Mode": "FallingEdge",
         "Register": "D6200",
