@@ -116,9 +116,9 @@ public class Trigger
 public class Module
 {
     /// <summary>
-    /// 腔室编号
+    /// 模块名称
     /// </summary>
-    public string ChamberCode { get; set; }
+    public string ModuleName { get; set; }
 
     /// <summary>
     /// 触发配置
