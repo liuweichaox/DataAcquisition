@@ -118,7 +118,7 @@ Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [optional]
 HeartbeatPollingInterval: number # [optional] ms
 Modules:
-  - ChamberCode: string
+  - ModuleName: string
     Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
       Register: string

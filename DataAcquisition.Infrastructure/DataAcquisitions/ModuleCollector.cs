@@ -121,7 +121,7 @@ public class ModuleCollector : IModuleCollector
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync(module.ChamberCode, $"[{module.ChamberCode}:{module.TableName}]采集异常: {ex.Message}", ex);
+                    await _events.ErrorAsync(module.ModuleName, $"[{module.ModuleName}:{module.TableName}]采集异常: {ex.Message}", ex);
                 }
 
                 prevVal = currVal;

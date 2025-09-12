@@ -118,7 +118,7 @@ Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [可选] 心跳寄存器
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔(ms)
 Modules:
-  - ChamberCode: string # 采集通道编码
+  - ModuleName: string # 模块名称
     Trigger:
       Mode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
       Register: string
@@ -187,7 +187,7 @@ Modules:
   "HeartbeatMonitorRegister": "D6061",
   "Modules": [
     {
-      "ChamberCode": "M01C01",
+      "ModuleName": "M01C01",
       "Trigger": {
         "Mode": "Always",
         "Register": "D6000",
@@ -222,7 +222,7 @@ Modules:
       ]
     },
     {
-      "ChamberCode": "M01C02",
+      "ModuleName": "M01C02",
       "Trigger": {
         "Mode": "RisingEdge",
         "Register": "D6200",
@@ -257,7 +257,7 @@ Modules:
       ]
     },
     {
-      "ChamberCode": "M01C02",
+      "ModuleName": "M01C02",
       "Trigger": {
         "Mode": "FallingEdge",
         "Register": "D6200",
