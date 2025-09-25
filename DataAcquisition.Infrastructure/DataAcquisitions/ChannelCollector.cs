@@ -68,10 +68,10 @@ public class ChannelCollector : IChannelCollector
                 {
                     curr = await ReadPlcValueAsync(client, register!, dataType!);
                 }
-                
+
                 var fireStart = register != null && dataType != null && ShouldSample(startCfg.TriggerMode, prevValue, curr);
                 var fireEnd = endCfg != null && register != null && dataType != null && ShouldSample(endCfg.TriggerMode, prevValue, curr);
-                
+
                 if (!fireStart && !fireEnd)
                 {
                     await Task.Delay(100, ct);
@@ -127,7 +127,7 @@ public class ChannelCollector : IChannelCollector
                             {
                                 await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
                                 await _queue.PublishAsync(dataMessage);
-                            },ct);
+                            }, ct);
                         }
                     }
                     catch (Exception ex)
@@ -153,12 +153,11 @@ public class ChannelCollector : IChannelCollector
                         {
                             dataMessage.DataValues[endCfg.StampColumn] = timestamp;
                         }
-                        
+
                         _ = Task.Run(async () =>
                         {
-                            await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
                             await _queue.PublishAsync(dataMessage);
-                        },ct);
+                        }, ct);
 
                     }
                     catch (Exception ex)
