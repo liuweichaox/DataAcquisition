@@ -119,8 +119,7 @@ Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [可选] 心跳寄存器
 HeartbeatPollingInterval: number # [可选] 心跳轮询间隔(ms)
 Channels: # 采集通道列表，每个通道都是独立采集任务
-  - ChannelName: string # 通道名称
-    ConditionalAcquisition: # [可选] 条件采集配置，null 表示无条件采集
+  - ConditionalAcquisition: # [可选] 条件采集配置，null 表示无条件采集
       Register: string # [可选] 触发地址
       DataType: ushort|uint|ulong|short|int|long|float|double # [可选]
       Start:
@@ -212,7 +211,6 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 - **Measurement**：测量值名称（时序数据库中的表名/测量值标识）
 - **Tags**（标签，用于查询和分组）：
   - `device_code`：设备编码
-  - `channel_name`：通道名称
   - `cycle_id`：采集周期唯一标识（GUID）
   - `event_type`：事件类型（"start" | "end" | "data"）
 - **Fields**（字段，存储数值）：
@@ -223,8 +221,8 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 **示例（时序数据库 Line Protocol 格式）**：
 
 ```
-measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
-measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
+measurement,device_code=PLC01,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
+measurement,device_code=PLC01,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
 ```
 
 **查询示例**（以 InfluxDB 为例）：
@@ -282,7 +280,6 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "ChannelName": "M01C01",
       "Measurement": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
@@ -306,7 +303,6 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
       "ConditionalAcquisition": null
     },
     {
-      "ChannelName": "M01C02",
       "Measurement": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",

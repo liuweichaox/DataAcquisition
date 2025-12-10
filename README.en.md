@@ -119,8 +119,7 @@ Type: Mitsubishi|Inovance|BeckhoffAds
 HeartbeatMonitorRegister: string # [optional]
 HeartbeatPollingInterval: number # [optional] ms
 Channels: # acquisition channels, each channel is an independent acquisition task
-  - ChannelName: string
-    ConditionalAcquisition: # [optional] conditional acquisition config, null means unconditional
+  - ConditionalAcquisition: # [optional] conditional acquisition config, null means unconditional
       Register: string # [optional] trigger address
       DataType: ushort|uint|ulong|short|int|long|float|double # [optional]
       Start:
@@ -207,7 +206,6 @@ All collected data is written to the time-series database using the following st
 - **Measurement**: Measurement name (table/measurement identifier in time-series database)
 - **Tags** (for querying and grouping):
   - `device_code`: Device code
-  - `channel_name`: Channel name
   - `cycle_id`: Unique acquisition cycle identifier (GUID)
   - `event_type`: Event type ("start" | "end" | "data")
 - **Fields** (for storing values):
@@ -218,8 +216,8 @@ All collected data is written to the time-series database using the following st
 **Example (Time-Series Database Line Protocol Format)**:
 
 ```
-measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
-measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
+measurement,device_code=PLC01,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
+measurement,device_code=PLC01,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
 ```
 
 **Query Examples** (using InfluxDB as an example):
@@ -273,7 +271,6 @@ Use an expression to transform the raw reading before persistence. The variable 
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "ChannelName": "M01C01",
       "Measurement": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
@@ -298,7 +295,6 @@ Use an expression to transform the raw reading before persistence. The variable 
       "ConditionalAcquisition": null
     },
     {
-      "ChannelName": "M01C02",
       "Measurement": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
