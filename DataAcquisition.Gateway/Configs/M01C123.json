@@ -18,7 +18,7 @@
         { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
         { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
       ],
-      "Lifecycle": null
+      "ConditionalAcquisition": null
     },
     {
       "ChannelName": "M01C02",
@@ -31,7 +31,7 @@
         { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
         { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
       ],
-      "Lifecycle": {
+      "ConditionalAcquisition": {
         "Register": "D6200",
         "DataType": "short",
         "Start": {

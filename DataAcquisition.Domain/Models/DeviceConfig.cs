@@ -78,57 +78,87 @@ public enum TriggerMode
 }
 
 /// <summary>
-/// 生命周期触发配置
+/// 条件采集触发配置
+/// 用于定义条件采集的开始或结束事件触发规则。
+/// 典型应用场景：生产开始记录开始时间，生产结束记录结束时间，记录设备运行状态等。
 /// </summary>
-public class LifecycleEvent
+public class AcquisitionTrigger
 {
     /// <summary>
     /// 触发模式
+    /// 定义何时触发采集：Always（无条件）、RisingEdge（上升沿）、FallingEdge（下降沿）等
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public TriggerMode TriggerMode { get; set; }
 
     /// <summary>
     /// 数据操作类型
+    /// Insert：插入新记录（通常用于Start事件）
+    /// Update：更新现有记录（通常用于End事件，通过cycle_id更新对应的开始记录）
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public DataOperation Operation { get; set; } = DataOperation.Insert;
 
     /// <summary>
     /// 时间戳列名
+    /// 用于记录开始时间或结束时间的数据库列名
+    /// 例如："start_time" 或 "end_time"
     /// </summary>
     public string StampColumn { get; set; }
 }
 
 /// <summary>
-/// 生命周期配置，包含开始与结束事件
+/// 条件采集配置，包含开始与结束事件
+/// 用于实现条件采集：根据PLC寄存器状态判断何时开始采集，何时结束采集。
+///
+/// 典型应用场景：
+/// - 生产周期管理：生产开始（Start）时插入记录并记录开始时间，生产结束（End）时更新该记录并记录结束时间
+/// - 设备状态监控：设备启动（Start）时记录运行开始时间，设备停止（End）时更新记录并记录停止时间
+///
+/// 工作原理：
+/// 1. 系统持续监控指定的PLC寄存器（Register）
+/// 2. 当满足Start触发条件时，生成唯一的cycle_id（GUID），插入新记录并保存cycle_id
+/// 3. 当满足End触发条件时，使用cycle_id作为条件更新对应的记录
+/// 4. 使用cycle_id而非时间戳作为Update条件，避免并发冲突
+///
+/// 数据库兼容性：
+/// - 关系数据库（MySQL、PostgreSQL等）：cycle_id字段类型为VARCHAR(36)或CHAR(36)
+/// - 时序数据库（InfluxDB、TimescaleDB等）：cycle_id作为标签（tag）或字段（field），类型为字符串
 /// </summary>
-public class Lifecycle
+public class ConditionalAcquisition
 {
     /// <summary>
     /// 触发地址
+    /// 用于判断触发条件的PLC寄存器地址
+    /// 例如："D6200"（三菱PLC）或 "M100"（位寄存器）
     /// </summary>
     public string? Register { get; set; }
 
     /// <summary>
     /// 数据类型
+    /// 触发寄存器的数据类型：ushort、uint、ulong、short、int、long、float、double
     /// </summary>
     public string? DataType { get; set; }
 
     /// <summary>
-    /// 开始事件
+    /// 开始事件配置
+    /// 定义何时触发开始采集，通常使用RisingEdge（从0变1）或ValueIncrease（值增加）
+    /// 触发时会生成cycle_id并插入新记录
     /// </summary>
-    public LifecycleEvent? Start { get; set; }
+    public AcquisitionTrigger? Start { get; set; }
 
     /// <summary>
-    /// 结束事件
+    /// 结束事件配置
+    /// 定义何时触发结束采集，通常使用FallingEdge（从1变0）或ValueDecrease（值减少）
+    /// 触发时会使用cycle_id更新对应的开始记录
     /// </summary>
-    public LifecycleEvent? End { get; set; }
+    public AcquisitionTrigger? End { get; set; }
 }
 
 /// <summary>
 /// 通道
 /// </summary>
+[JsonConverter(typeof(DataAcquisitionChannelJsonConverter))]
 public class DataAcquisitionChannel
 {
     /// <summary>
@@ -137,9 +167,11 @@ public class DataAcquisitionChannel
     public string ChannelName { get; set; }
 
     /// <summary>
-    /// 生命周期配置，null 表示持续采集
+    /// 条件采集配置，null 表示持续采集（无条件采集）
+    /// 如果配置了ConditionalAcquisition，则根据触发条件进行条件采集
+    /// 如果为null，则按照采集频率持续采集所有数据点
     /// </summary>
-    public Lifecycle? Lifecycle { get; set; }
+    public ConditionalAcquisition? ConditionalAcquisition { get; set; }
 
     /// <summary>
     /// 是否启用批量读取

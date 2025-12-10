@@ -13,23 +13,35 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
 /// 通道采集器，根据配置从 PLC 读取数据并发布。
+/// 职责：
+/// - 监控PLC寄存器状态，判断触发条件
+/// - 执行数据采集（批量读取或单点读取）
+/// - 管理采集周期状态（通过IAcquisitionStateManager）
+/// - 发布数据消息到队列
 /// </summary>
 public class ChannelCollector : IChannelCollector
 {
     private readonly IPlcStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
     private readonly IQueueService _queue;
-    private readonly ConcurrentDictionary<string, DateTime> _lastStartTimes = new();
-    private readonly ConcurrentDictionary<string, string> _lastStartTimeColumns = new();
+    private readonly IAcquisitionStateManager _stateManager;
+    private readonly ITriggerEvaluator _triggerEvaluator;
 
     /// <summary>
     /// 初始化通道采集器。
     /// </summary>
-    public ChannelCollector(IPlcStateManager plcStateManager, IOperationalEventsService events, IQueueService queue)
+    public ChannelCollector(
+        IPlcStateManager plcStateManager,
+        IOperationalEventsService events,
+        IQueueService queue,
+        IAcquisitionStateManager stateManager,
+        ITriggerEvaluator triggerEvaluator)
     {
         _plcStateManager = plcStateManager;
         _events = events;
         _queue = queue;
+        _stateManager = stateManager;
+        _triggerEvaluator = triggerEvaluator;
     }
 
     /// <summary>
@@ -52,14 +64,14 @@ public class ChannelCollector : IChannelCollector
 
             try
             {
-                var startCfg = dataAcquisitionChannel.Lifecycle?.Start ?? new LifecycleEvent
+                var startCfg = dataAcquisitionChannel.ConditionalAcquisition?.Start ?? new AcquisitionTrigger
                 {
                     TriggerMode = TriggerMode.Always,
                     Operation = DataOperation.Insert
                 };
-                var endCfg = dataAcquisitionChannel.Lifecycle?.End;
-                var register = dataAcquisitionChannel.Lifecycle?.Register;
-                var dataType = dataAcquisitionChannel.Lifecycle?.DataType;
+                var endCfg = dataAcquisitionChannel.ConditionalAcquisition?.End;
+                var register = dataAcquisitionChannel.ConditionalAcquisition?.Register;
+                var dataType = dataAcquisitionChannel.ConditionalAcquisition?.DataType;
 
                 var needRead = register != null && dataType != null &&
                               (startCfg.TriggerMode != TriggerMode.Always || (endCfg != null && endCfg.TriggerMode != TriggerMode.Always));
@@ -69,8 +81,15 @@ public class ChannelCollector : IChannelCollector
                     curr = await ReadPlcValueAsync(client, register!, dataType!);
                 }
 
-                var fireStart = register != null && dataType != null && ShouldSample(startCfg.TriggerMode, prevValue, curr);
-                var fireEnd = endCfg != null && register != null && dataType != null && ShouldSample(endCfg.TriggerMode, prevValue, curr);
+                var fireStart = register != null && dataType != null && _triggerEvaluator.ShouldTrigger(startCfg.TriggerMode, prevValue, curr);
+                var fireEnd = endCfg != null && register != null && dataType != null && _triggerEvaluator.ShouldTrigger(endCfg.TriggerMode, prevValue, curr);
+
+                // 无条件采集：ConditionalAcquisition 为 null 时，Always 模式且没有 register，直接触发采集
+                var isUnconditionalAcquisition = dataAcquisitionChannel.ConditionalAcquisition == null;
+                if (isUnconditionalAcquisition)
+                {
+                    fireStart = true; // 无条件采集总是触发
+                }
 
                 if (!fireStart && !fireEnd)
                 {
@@ -79,94 +98,30 @@ public class ChannelCollector : IChannelCollector
                     continue;
                 }
 
-                var key = $"{config.Code}:{dataAcquisitionChannel.TableName}";
                 var timestamp = DateTime.Now;
 
                 if (fireStart)
                 {
-                    try
-                    {
-                        var dataMessage = new DataMessage(timestamp, dataAcquisitionChannel.TableName, dataAcquisitionChannel.BatchSize, startCfg.Operation);
-                        if (startCfg.Operation == DataOperation.Insert)
-                        {
-                            if (dataAcquisitionChannel.EnableBatchRead)
-                            {
-                                var batchData = await client.ReadAsync(dataAcquisitionChannel.BatchReadRegister, dataAcquisitionChannel.BatchReadLength);
-                                var buffer = batchData.Content;
-                                if (dataAcquisitionChannel.DataPoints != null)
-                                {
-                                    foreach (var dataPoint in dataAcquisitionChannel.DataPoints)
-                                    {
-                                        var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                                        dataMessage.DataValues[dataPoint.ColumnName] = value;
-                                    }
-                                }
-                            }
-                            else if (dataAcquisitionChannel.DataPoints != null)
-                            {
-                                foreach (var dataPoint in dataAcquisitionChannel.DataPoints)
-                                {
-                                    var value = await ReadPlcValueAsync(
-                                        client,
-                                        dataPoint.Register,
-                                        dataPoint.DataType,
-                                        dataPoint.StringByteLength,
-                                        dataPoint.Encoding);
-                                    dataMessage.DataValues[dataPoint.ColumnName] = value;
-                                }
-                            }
-
-                            if (!string.IsNullOrEmpty(startCfg.StampColumn))
-                            {
-                                dataMessage.DataValues[startCfg.StampColumn] = timestamp;
-                                _lastStartTimes[key] = timestamp;
-                                _lastStartTimeColumns[key] = startCfg.StampColumn;
-                            }
-
-                            _ = Task.Run(async () =>
-                            {
-                                await EvaluateAsync(dataMessage, dataAcquisitionChannel.DataPoints);
-                                await _queue.PublishAsync(dataMessage);
-                            }, ct);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"{config.Code}-{dataAcquisitionChannel.ChannelName}:{dataAcquisitionChannel.TableName}采集异常: {ex.Message}", ex);
-                    }
+                    await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, isUnconditionalAcquisition, ct);
                 }
 
                 if (fireEnd && endCfg != null)
                 {
-                    try
+                    var shouldContinue = await HandleEndEventAsync(config, dataAcquisitionChannel, endCfg, timestamp, ct);
+                    if (shouldContinue)
                     {
-                        var dataMessage = new DataMessage(timestamp, dataAcquisitionChannel.TableName, dataAcquisitionChannel.BatchSize, endCfg.Operation);
-                        if (_lastStartTimes.TryRemove(key, out var startTime))
-                        {
-                            if (_lastStartTimeColumns.TryRemove(key, out var startColumn))
-                            {
-                                dataMessage.KeyValues[startColumn] = startTime;
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(endCfg.StampColumn))
-                        {
-                            dataMessage.DataValues[endCfg.StampColumn] = timestamp;
-                        }
-
-                        _ = Task.Run(async () =>
-                        {
-                            await _queue.PublishAsync(dataMessage);
-                        }, ct);
-
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"{config.Code}-{dataAcquisitionChannel.ChannelName}:{dataAcquisitionChannel.TableName}采集异常: {ex.Message}", ex);
+                        prevValue = curr;
+                        continue;
                     }
                 }
 
                 prevValue = curr;
+
+                // 无条件采集时，采集后需要延迟，避免过于频繁
+                if (isUnconditionalAcquisition && fireStart)
+                {
+                    await Task.Delay(100, ct);
+                }
             }
             finally
             {
@@ -211,6 +166,155 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
+    /// 处理开始事件：生成采集周期，读取数据并发布消息。
+    /// </summary>
+    /// <param name="isUnconditionalAcquisition">是否为无条件采集（ConditionalAcquisition 为 null）</param>
+    private async Task HandleStartEventAsync(
+        DeviceConfig config,
+        DataAcquisitionChannel channel,
+        IPlcClientService client,
+        AcquisitionTrigger startCfg,
+        DateTime timestamp,
+        bool isUnconditionalAcquisition,
+        CancellationToken ct)
+    {
+        try
+        {
+            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, startCfg.Operation);
+            if (startCfg.Operation == DataOperation.Insert)
+            {
+                // 所有采集都生成 cycle_id
+                string cycleId;
+                if (isUnconditionalAcquisition)
+                {
+                    // 无条件采集：直接生成 cycle_id，不需要状态管理
+                    cycleId = Guid.NewGuid().ToString();
+                }
+                else
+                {
+                    // 条件采集：使用状态管理器生成 cycle_id
+                    if (!string.IsNullOrEmpty(startCfg.StampColumn))
+                    {
+                        var cycle = _stateManager.StartCycle(
+                            config.Code,
+                            channel.ChannelName,
+                            channel.TableName);
+                        cycleId = cycle.CycleId;
+                        dataMessage.DataValues[startCfg.StampColumn] = cycle.StartTime;
+                    }
+                    else
+                    {
+                        // 即使没有 StampColumn，也生成 cycle_id
+                        cycleId = Guid.NewGuid().ToString();
+                    }
+                }
+
+                // 设置 cycle_id
+                dataMessage.CycleId = cycleId;
+                dataMessage.DataValues["cycle_id"] = cycleId;
+
+                // 读取数据点
+                await ReadDataPointsAsync(client, channel, dataMessage);
+
+                // 异步处理表达式计算并发布消息
+                _ = Task.Run(async () =>
+                {
+                    await EvaluateAsync(dataMessage, channel.DataPoints);
+                    await _queue.PublishAsync(dataMessage);
+                }, ct);
+            }
+        }
+        catch (Exception ex)
+        {
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>
+    /// 处理结束事件：结束采集周期，更新记录。
+    /// </summary>
+    /// <returns>如果应该跳过后续处理则返回true，否则返回false</returns>
+    private async Task<bool> HandleEndEventAsync(
+        DeviceConfig config,
+        DataAcquisitionChannel channel,
+        AcquisitionTrigger endCfg,
+        DateTime timestamp,
+        CancellationToken ct)
+    {
+        try
+        {
+            // 结束采集周期，获取CycleId用于Update操作
+            var cycle = _stateManager.EndCycle(config.Code, channel.TableName);
+            if (cycle == null)
+            {
+                // 异常情况：找不到对应的cycle，记录警告并跳过
+                await _events.ErrorAsync(
+                    $"{config.Code}-{channel.ChannelName}:{channel.TableName} " +
+                    $"End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
+                    null);
+                return true; // 需要跳过后续处理
+            }
+
+            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, endCfg.Operation);
+            dataMessage.CycleId = cycle.CycleId;
+            // 只使用cycle_id作为Update条件，不需要时间戳
+            dataMessage.KeyValues["cycle_id"] = cycle.CycleId;
+
+            if (!string.IsNullOrEmpty(endCfg.StampColumn))
+            {
+                dataMessage.DataValues[endCfg.StampColumn] = timestamp;
+            }
+
+            _ = Task.Run(async () =>
+            {
+                await _queue.PublishAsync(dataMessage);
+            }, ct);
+
+            return false; // 正常处理，不需要跳过
+        }
+        catch (Exception ex)
+        {
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 读取数据点：支持批量读取和单点读取两种方式。
+    /// </summary>
+    private async Task ReadDataPointsAsync(
+        IPlcClientService client,
+        DataAcquisitionChannel channel,
+        DataMessage dataMessage)
+    {
+        if (channel.DataPoints == null) return;
+
+        if (channel.EnableBatchRead)
+        {
+            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
+            var buffer = batchData.Content;
+            foreach (var dataPoint in channel.DataPoints)
+            {
+                var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                dataMessage.DataValues[dataPoint.ColumnName] = value;
+            }
+        }
+        else
+        {
+            foreach (var dataPoint in channel.DataPoints)
+            {
+                var value = await ReadPlcValueAsync(
+                    client,
+                    dataPoint.Register,
+                    dataPoint.DataType,
+                    dataPoint.StringByteLength,
+                    dataPoint.Encoding);
+                dataMessage.DataValues[dataPoint.ColumnName] = value;
+            }
+        }
+    }
+
+    /// <summary>
     /// 判断对象是否为数值类型。
     /// </summary>
     private static bool IsNumberType(object? value)
@@ -218,24 +322,6 @@ public class ChannelCollector : IChannelCollector
         return value is ushort or uint or ulong or short or int or long or float or double;
     }
 
-    /// <summary>
-    /// 根据触发模式判断是否采样。
-    /// </summary>
-    private static bool ShouldSample(TriggerMode mode, object? prev, object? curr)
-    {
-        if (prev == null || curr == null) return true;
-        var p = Convert.ToDecimal(prev);
-        var c = Convert.ToDecimal(curr);
-        return mode switch
-        {
-            TriggerMode.Always => true,
-            TriggerMode.ValueIncrease => p < c,
-            TriggerMode.ValueDecrease => p > c,
-            TriggerMode.RisingEdge => p == 0 && c == 1,
-            TriggerMode.FallingEdge => p == 1 && c == 0,
-            _ => false
-        };
-    }
 
     /// <summary>
     /// 读取指定寄存器的值。

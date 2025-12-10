@@ -12,7 +12,12 @@ public class DataMessage(DateTime timestamp, string tableName, int batchSize, Da
     public string TableName => tableName;
     public int BatchSize => batchSize;
     public DataOperation Operation => operation;
+
+    /// <summary>
+    /// 采集周期唯一标识符（GUID），用于条件采集的Update操作
+    /// </summary>
+    public string? CycleId { get; set; }
+
     public ConcurrentDictionary<string, dynamic?> DataValues { get; } = new();
     public ConcurrentDictionary<string, dynamic> KeyValues { get; } = new();
 }
-
