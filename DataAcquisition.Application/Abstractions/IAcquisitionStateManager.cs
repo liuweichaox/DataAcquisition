@@ -25,10 +25,9 @@ public interface IAcquisitionStateManager
     /// 开始一个新的采集周期
     /// </summary>
     /// <param name="deviceCode">设备编码</param>
-    /// <param name="channelName">通道名称</param>
     /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，包含生成的CycleId</returns>
-    AcquisitionCycle StartCycle(string deviceCode, string channelName, string measurement);
+    AcquisitionCycle StartCycle(string deviceCode, string measurement);
 
     /// <summary>
     /// 结束一个采集周期

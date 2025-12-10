@@ -24,11 +24,6 @@ public class DataMessage(DateTime timestamp, string measurement, int batchSize, 
     public string? DeviceCode { get; set; }
 
     /// <summary>
-    /// 通道名称，用于时序数据库标签（tags）
-    /// </summary>
-    public string? ChannelName { get; set; }
-
-    /// <summary>
     /// 事件类型：start（开始事件）、end（结束事件）、data（普通数据点）
     /// </summary>
     public string? EventType { get; set; }

@@ -161,11 +161,6 @@ public class ConditionalAcquisition
 public class DataAcquisitionChannel
 {
     /// <summary>
-    /// 通道名称
-    /// </summary>
-    public string ChannelName { get; set; }
-
-    /// <summary>
     /// 条件采集配置，null 表示持续采集（无条件采集）
     /// 如果配置了ConditionalAcquisition，则根据触发条件进行条件采集
     /// 如果为null，则按照采集频率持续采集所有数据点

@@ -26,9 +26,4 @@ public class AcquisitionCycle
     /// 设备编码
     /// </summary>
     public string DeviceCode { get; set; }
-
-    /// <summary>
-    /// 通道名称
-    /// </summary>
-    public string ChannelName { get; set; }
 }

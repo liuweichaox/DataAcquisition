@@ -133,11 +133,6 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             point = point.Tag("device_code", dataMessage.DeviceCode);
         }
 
-        if (!string.IsNullOrEmpty(dataMessage.ChannelName))
-        {
-            point = point.Tag("channel_name", dataMessage.ChannelName);
-        }
-
         if (!string.IsNullOrEmpty(dataMessage.CycleId))
         {
             point = point.Tag("cycle_id", dataMessage.CycleId);

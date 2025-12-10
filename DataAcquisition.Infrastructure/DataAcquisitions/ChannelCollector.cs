@@ -197,9 +197,8 @@ public class ChannelCollector : IChannelCollector
         {
             var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
 
-            // 设置设备编码和通道名称（用于时序数据库标签）
+            // 设置设备编码（用于时序数据库标签）
             dataMessage.DeviceCode = config.Code;
-            dataMessage.ChannelName = channel.ChannelName;
 
             // 所有采集都生成 cycle_id
             string cycleId;
@@ -216,7 +215,6 @@ public class ChannelCollector : IChannelCollector
                 {
                     var cycle = _stateManager.StartCycle(
                         config.Code,
-                        channel.ChannelName,
                         channel.Measurement);
                     cycleId = cycle.CycleId;
                     dataMessage.DataValues[startCfg.TimestampField] = cycle.StartTime;
@@ -247,13 +245,13 @@ public class ChannelCollector : IChannelCollector
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                    await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
                 }
             }, ct);
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.Measurement}采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -276,7 +274,7 @@ public class ChannelCollector : IChannelCollector
             {
                 // 异常情况：找不到对应的cycle，记录警告并跳过
                 await _events.ErrorAsync(
-                    $"{config.Code}-{channel.ChannelName}:{channel.Measurement} " +
+                    $"{config.Code}-{channel.Measurement} " +
                     $"End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
                     null).ConfigureAwait(false);
                 return true; // 需要跳过后续处理
@@ -285,7 +283,6 @@ public class ChannelCollector : IChannelCollector
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
             var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
             dataMessage.DeviceCode = config.Code;
-            dataMessage.ChannelName = channel.ChannelName;
             dataMessage.CycleId = cycle.CycleId;
             dataMessage.EventType = "end"; // End事件标记
 
@@ -302,7 +299,7 @@ public class ChannelCollector : IChannelCollector
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                    await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
                 }
             }, ct);
 
@@ -310,7 +307,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.Measurement}采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
             return false;
         }
     }

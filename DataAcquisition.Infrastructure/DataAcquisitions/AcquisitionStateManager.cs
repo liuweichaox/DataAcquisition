@@ -28,7 +28,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 开始一个新的采集周期
     /// </summary>
-    public AcquisitionCycle StartCycle(string deviceCode, string channelName, string measurement)
+    public AcquisitionCycle StartCycle(string deviceCode, string measurement)
     {
         var key = GetKey(deviceCode, measurement);
         var cycle = new AcquisitionCycle
@@ -36,8 +36,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
             CycleId = Guid.NewGuid().ToString(),
             StartTime = DateTime.Now,
             Measurement = measurement,
-            DeviceCode = deviceCode,
-            ChannelName = channelName
+            DeviceCode = deviceCode
         };
 
         // 如果已存在活跃周期，先移除旧的（处理异常情况）

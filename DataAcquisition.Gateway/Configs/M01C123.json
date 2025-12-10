@@ -8,7 +8,6 @@
   "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "ChannelName": "M01C01",
       "Measurement": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
@@ -22,7 +21,6 @@
       "ConditionalAcquisition": null
     },
     {
-      "ChannelName": "M01C02",
       "Measurement": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",

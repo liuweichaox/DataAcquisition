@@ -39,9 +39,6 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
 
             switch (propertyName)
             {
-                case "ChannelName":
-                    channel.ChannelName = reader.GetString() ?? string.Empty;
-                    break;
                 case "ConditionalAcquisition":
                     // 仅支持 ConditionalAcquisition 命名
                     conditionalAcquisition = JsonSerializer.Deserialize<ConditionalAcquisition>(ref reader, options);
@@ -83,8 +80,6 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
     public override void Write(Utf8JsonWriter writer, DataAcquisitionChannel value, JsonSerializerOptions options)
     {
         writer.WriteStartObject();
-
-        writer.WriteString("ChannelName", value.ChannelName);
 
         // 序列化时使用 ConditionalAcquisition
         if (value.ConditionalAcquisition != null)
