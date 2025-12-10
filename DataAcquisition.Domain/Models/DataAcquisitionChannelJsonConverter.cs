@@ -56,7 +56,8 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                     channel.BatchReadLength = reader.GetUInt16();
                     break;
                 case "TableName":
-                    channel.TableName = reader.GetString() ?? string.Empty;
+                case "Measurement":
+                    channel.Measurement = reader.GetString() ?? string.Empty;
                     break;
                 case "BatchSize":
                     channel.BatchSize = reader.GetInt32();
@@ -92,7 +93,7 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
         writer.WriteBoolean("EnableBatchRead", value.EnableBatchRead);
         writer.WriteString("BatchReadRegister", value.BatchReadRegister);
         writer.WriteNumber("BatchReadLength", value.BatchReadLength);
-        writer.WriteString("TableName", value.TableName);
+        writer.WriteString("Measurement", value.Measurement);
         writer.WriteNumber("BatchSize", value.BatchSize);
 
         if (value.DataPoints != null)

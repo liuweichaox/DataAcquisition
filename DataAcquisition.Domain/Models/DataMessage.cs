@@ -6,10 +6,10 @@ namespace DataAcquisition.Domain.Models;
 /// <summary>
 /// 数据点消息
 /// </summary>
-public class DataMessage(DateTime timestamp, string tableName, int batchSize, DataOperation operation = DataOperation.Insert)
+public class DataMessage(DateTime timestamp, string measurement, int batchSize, DataOperation operation = DataOperation.Insert)
 {
     public DateTime Timestamp => timestamp;
-    public string TableName => tableName;
+    public string Measurement => measurement;
     public int BatchSize => batchSize;
     public DataOperation Operation => operation;
 
@@ -19,12 +19,12 @@ public class DataMessage(DateTime timestamp, string tableName, int batchSize, Da
     public string? CycleId { get; set; }
 
     /// <summary>
-    /// 设备编码，用于InfluxDB标签
+    /// 设备编码，用于时序数据库标签（tags）
     /// </summary>
     public string? DeviceCode { get; set; }
 
     /// <summary>
-    /// 通道名称，用于InfluxDB标签
+    /// 通道名称，用于时序数据库标签（tags）
     /// </summary>
     public string? ChannelName { get; set; }
 

@@ -150,7 +150,7 @@ public class ChannelCollector : IChannelCollector
             {
                 if (!IsNumberType(kv.Value)) continue;
 
-                var register = dataPoints.SingleOrDefault(x => x.ColumnName == kv.Key);
+                var register = dataPoints.SingleOrDefault(x => x.FieldName == kv.Key);
                 if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
 
                 var evalExpression = register.EvalExpression;
@@ -192,9 +192,9 @@ public class ChannelCollector : IChannelCollector
     {
         try
         {
-            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, DataOperation.Insert);
+            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
 
-            // 设置设备编码和通道名称（用于InfluxDB标签）
+            // 设置设备编码和通道名称（用于时序数据库标签）
             dataMessage.DeviceCode = config.Code;
             dataMessage.ChannelName = channel.ChannelName;
 
@@ -209,18 +209,18 @@ public class ChannelCollector : IChannelCollector
             else
             {
                 // 条件采集：使用状态管理器生成 cycle_id
-                if (!string.IsNullOrEmpty(startCfg.StampColumn))
+                if (!string.IsNullOrEmpty(startCfg.TimestampField))
                 {
                     var cycle = _stateManager.StartCycle(
                         config.Code,
                         channel.ChannelName,
-                        channel.TableName);
+                        channel.Measurement);
                     cycleId = cycle.CycleId;
-                    dataMessage.DataValues[startCfg.StampColumn] = cycle.StartTime;
+                    dataMessage.DataValues[startCfg.TimestampField] = cycle.StartTime;
                 }
                 else
                 {
-                    // 即使没有 StampColumn，也生成 cycle_id
+                    // 即使没有 TimestampField，也生成 cycle_id
                     cycleId = Guid.NewGuid().ToString();
                 }
                 dataMessage.EventType = "start"; // Start事件
@@ -249,7 +249,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.Measurement}采集异常: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -267,27 +267,27 @@ public class ChannelCollector : IChannelCollector
         try
         {
             // 结束采集周期，获取CycleId用于关联Start事件
-            var cycle = _stateManager.EndCycle(config.Code, channel.TableName);
+            var cycle = _stateManager.EndCycle(config.Code, channel.Measurement);
             if (cycle == null)
             {
                 // 异常情况：找不到对应的cycle，记录警告并跳过
                 await _events.ErrorAsync(
-                    $"{config.Code}-{channel.ChannelName}:{channel.TableName} " +
+                    $"{config.Code}-{channel.ChannelName}:{channel.Measurement} " +
                     $"End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
                     null).ConfigureAwait(false);
                 return true; // 需要跳过后续处理
             }
 
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
-            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, DataOperation.Insert);
+            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
             dataMessage.DeviceCode = config.Code;
             dataMessage.ChannelName = channel.ChannelName;
             dataMessage.CycleId = cycle.CycleId;
             dataMessage.EventType = "end"; // End事件标记
 
-            if (!string.IsNullOrEmpty(endCfg.StampColumn))
+            if (!string.IsNullOrEmpty(endCfg.TimestampField))
             {
-                dataMessage.DataValues[endCfg.StampColumn] = timestamp;
+                dataMessage.DataValues[endCfg.TimestampField] = timestamp;
             }
 
             _ = Task.Run(async () =>
@@ -306,7 +306,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.Measurement}采集异常: {ex.Message}", ex).ConfigureAwait(false);
             return false;
         }
     }
@@ -328,7 +328,7 @@ public class ChannelCollector : IChannelCollector
             foreach (var dataPoint in channel.DataPoints)
             {
                 var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
-                dataMessage.DataValues[dataPoint.ColumnName] = value;
+                dataMessage.DataValues[dataPoint.FieldName] = value;
             }
         }
         else
@@ -341,7 +341,7 @@ public class ChannelCollector : IChannelCollector
                     dataPoint.DataType,
                     dataPoint.StringByteLength,
                     dataPoint.Encoding).ConfigureAwait(false);
-                dataMessage.DataValues[dataPoint.ColumnName] = value;
+                dataMessage.DataValues[dataPoint.FieldName] = value;
             }
         }
     }

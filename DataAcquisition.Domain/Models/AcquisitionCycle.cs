@@ -18,9 +18,9 @@ public class AcquisitionCycle
     public DateTime StartTime { get; set; }
 
     /// <summary>
-    /// 表名
+    /// 测量值名称（Measurement），时序数据库中的表名/测量值标识
     /// </summary>
-    public string TableName { get; set; }
+    public string Measurement { get; set; }
 
     /// <summary>
     /// 设备编码

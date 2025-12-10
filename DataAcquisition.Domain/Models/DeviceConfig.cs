@@ -100,11 +100,11 @@ public class AcquisitionTrigger
     public DataOperation Operation { get; set; } = DataOperation.Insert;
 
     /// <summary>
-    /// 时间戳列名
-    /// 用于记录开始时间或结束时间的数据库列名
+    /// 时间戳字段名（Timestamp Field）
+    /// 用于记录开始时间或结束时间的字段名
     /// 例如："start_time" 或 "end_time"
     /// </summary>
-    public string StampColumn { get; set; }
+    public string TimestampField { get; set; }
 }
 
 /// <summary>
@@ -122,7 +122,7 @@ public class AcquisitionTrigger
 /// 4. 使用cycle_id而非时间戳作为Update条件，避免并发冲突
 ///
 /// 数据库兼容性：
-/// - 时序数据库（InfluxDB）：cycle_id作为标签（tag），类型为字符串
+/// - 时序数据库：cycle_id作为标签（tag），类型为字符串
 /// </summary>
 public class ConditionalAcquisition
 {
@@ -187,9 +187,9 @@ public class DataAcquisitionChannel
     /// </summary>
     public ushort BatchReadLength { get; set; }
     /// <summary>
-    /// 表名
+    /// 测量值名称（Measurement），时序数据库中的表名/测量值标识
     /// </summary>
-    public string TableName { get; set; }
+    public string Measurement { get; set; }
 
     /// <summary>
     /// 批量保存大小
@@ -208,9 +208,9 @@ public class DataAcquisitionChannel
 public class DataPoint
 {
     /// <summary>
-    /// 列名
+    /// 字段名称（Field Name），时序数据库中存储数值的字段名
     /// </summary>
-    public string ColumnName { get; set; }
+    public string FieldName { get; set; }
 
     /// <summary>
     /// 寄存器地址

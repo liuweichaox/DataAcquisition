@@ -28,14 +28,14 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 开始一个新的采集周期
     /// </summary>
-    public AcquisitionCycle StartCycle(string deviceCode, string channelName, string tableName)
+    public AcquisitionCycle StartCycle(string deviceCode, string channelName, string measurement)
     {
-        var key = GetKey(deviceCode, tableName);
+        var key = GetKey(deviceCode, measurement);
         var cycle = new AcquisitionCycle
         {
             CycleId = Guid.NewGuid().ToString(),
             StartTime = DateTime.Now,
-            TableName = tableName,
+            Measurement = measurement,
             DeviceCode = deviceCode,
             ChannelName = channelName
         };
@@ -50,9 +50,9 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 结束一个采集周期
     /// </summary>
-    public AcquisitionCycle? EndCycle(string deviceCode, string tableName)
+    public AcquisitionCycle? EndCycle(string deviceCode, string measurement)
     {
-        var key = GetKey(deviceCode, tableName);
+        var key = GetKey(deviceCode, measurement);
         if (_activeCycles.TryRemove(key, out var cycle))
         {
             return cycle;
@@ -64,9 +64,9 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 获取当前活跃的采集周期
     /// </summary>
-    public AcquisitionCycle? GetActiveCycle(string deviceCode, string tableName)
+    public AcquisitionCycle? GetActiveCycle(string deviceCode, string measurement)
     {
-        var key = GetKey(deviceCode, tableName);
+        var key = GetKey(deviceCode, measurement);
         return _activeCycles.TryGetValue(key, out var cycle) ? cycle : null;
     }
 
@@ -101,8 +101,8 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 生成复合键
     /// </summary>
-    private static string GetKey(string deviceCode, string tableName)
+    private static string GetKey(string deviceCode, string measurement)
     {
-        return $"{deviceCode}:{tableName}";
+        return $"{deviceCode}:{measurement}";
     }
 }

@@ -70,7 +70,7 @@ public class LocalQueueService(
         List<DataMessage>? batchToSave = null;
         lock (_batchLock)
         {
-            var batch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => new List<DataMessage>());
+            var batch = _dataBatchMap.GetOrAdd(dataMessage.Measurement, _ => new List<DataMessage>());
             batch.Add(dataMessage);
 
             if (batch.Count >= dataMessage.BatchSize)

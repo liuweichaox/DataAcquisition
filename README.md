@@ -9,20 +9,21 @@
 
 ## 📙 概述
 
-PLC 数据采集系统用于从可编程逻辑控制器（PLC）实时采集运行数据，并将结果写入**消息队列**与**数据库**，以支撑工业设备**在线监控、性能分析与故障诊断**。系统基于 .NET 8.0，跨平台运行于 Windows、Linux 与 macOS。
+PLC 数据采集系统用于从可编程逻辑控制器（PLC）实时采集运行数据，并将结果写入**消息队列**与**时序数据库**，以支撑工业设备**在线监控、性能分析与故障诊断**。系统基于 .NET 8.0，跨平台运行于 Windows、Linux 与 macOS。
 
 ## 💡 核心功能
 
-- **高效通讯**：基于 Modbus TCP（示例）实现稳定读写，可扩展其它协议。
-- **多 PLC 采集**：支持并行/周期性读取多个 PLC。
-- **频率控制**：采集频率可配置，最低支持毫秒级。
-- **数据预处理**：写入前支持表达式转换与过滤。
-- **错误处理**：断线重连、超时重试。
-- **消息队列**：对接 RabbitMQ、Kafka 或本地队列，缓冲高并发写入。
-- **数据存储**：基于 InfluxDB 时序数据库，专为高频时序数据采集优化。
-- **日志记录**：可自定义日志策略，便于审计与排障。
-- **动态配置**：通过 JSON/数据库定义表结构、列名、采集频率与触发规则。
-- **多平台支持**：.NET 8.0，Windows/Linux/macOS。
+- **高效通讯**：基于 Modbus TCP（示例）实现稳定读写，可扩展其它协议
+- **多 PLC 采集**：支持并行/周期性读取多个 PLC
+- **频率控制**：采集频率可配置，最低支持毫秒级
+- **数据预处理**：写入前支持表达式转换与过滤
+- **错误处理**：断线重连、超时重试
+- **消息队列**：对接 RabbitMQ、Kafka 或本地队列，缓冲高并发写入
+- **时序数据库**：专为高频时序数据采集优化，支持批量写入
+- **条件采集**：支持基于触发条件的开始/结束事件采集
+- **日志记录**：可自定义日志策略，便于审计与排障
+- **动态配置**：通过 JSON/数据库定义测量值、字段、采集频率与触发规则
+- **多平台支持**：.NET 8.0，Windows/Linux/macOS
 
 ## 🏗️ 架构总览
 
@@ -38,13 +39,13 @@ PLC 数据采集系统用于从可编程逻辑控制器（PLC）实时采集运�
 - `IPlcClientService`：PLC 底层通讯
 - `IPlcClientFactory`：自定义 PLC 客户端工厂
 - `IDataProcessingService`：采集结果预处理
-- `IDataStorageService`：数据写入数据库
+- `IDataStorageService`：数据写入时序数据库
 - `IQueueService`：推送数据到消息队列
 
 **集成步骤**
 
-1. 在 `Program.cs` 注册你的自定义实现，替换默认依赖。
-2. 构建并运行项目，按需调整配置。
+1. 在 `Program.cs` 注册你的自定义实现，替换默认依赖
+2. 构建并运行项目，按需调整配置
 
 ## 🚀 快速开始
 
@@ -52,7 +53,7 @@ PLC 数据采集系统用于从可编程逻辑控制器（PLC）实时采集运�
 
 - .NET 8.0 SDK
 - 可选：RabbitMQ 或 Kafka（消息队列）
-- 可选：SQLite 或其它数据库驱动
+- 可选：时序数据库（如 InfluxDB、TimescaleDB 等）
 
 ### ⬇️ 安装
 
@@ -104,7 +105,7 @@ DataAcquisition/
 
 ## 📝 配置
 
-`DataAcquisition.Gateway/Configs` 存放各 PLC/模块的 JSON 配置，定义 IP、寄存器、数据类型、触发与目标表等。默认从 JSON 加载；若需改为数据库等来源，实现 `IDeviceConfigService` 即可。
+`DataAcquisition.Gateway/Configs` 存放各 PLC/模块的 JSON 配置，定义 IP、寄存器、数据类型、触发与目标测量值等。默认从 JSON 加载；若需改为数据库等来源，实现 `IDeviceConfigService` 即可。
 
 ### 📐 配置结构（示意，以 YAML 说明）
 
@@ -124,19 +125,17 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
       DataType: ushort|uint|ulong|short|int|long|float|double # [可选]
       Start:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert
-        StampColumn: string # [可选] 开始时间列名
+        TimestampField: string # [可选] 开始时间字段名
       End:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert
-        StampColumn: string # [可选] 结束时间列名
+        TimestampField: string # [可选] 结束时间字段名
     EnableBatchRead: bool
     BatchReadRegister: string
     BatchReadLength: int
-    TableName: string
+    Measurement: string # 测量值名称（时序数据库中的表名/测量值标识）
     BatchSize: int # 1 表示逐条保存
     DataPoints:
-      - ColumnName: string
+      - FieldName: string # 字段名称（时序数据库中存储数值的字段名）
         Register: string
         Index: int
         StringByteLength: int
@@ -171,12 +170,8 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 
   - `UTF8`、`GB2312`、`GBK`、`ASCII`
 
-- **ConditionalAcquisition.Start.Operation / ConditionalAcquisition.End.Operation**
-
-  - `Insert`（插入，时序数据库统一使用 Insert 操作，End 事件通过 event_type 标签区分）
-
-- **ConditionalAcquisition.Start.StampColumn / ConditionalAcquisition.End.StampColumn**
-  - 记录开始或结束时间的列名。
+- **ConditionalAcquisition.Start.TimestampField / ConditionalAcquisition.End.TimestampField**
+  - 记录开始或结束时间的字段名
 
 ### 🔄 条件采集与 CycleId 机制
 
@@ -205,15 +200,15 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 - **时序数据库特性**：符合时序数据库设计，所有事件作为独立数据点存储，保留完整历史
 - **精确匹配**：每个采集周期都有唯一标识（cycle_id），确保 Start 和 End 正确关联
 - **易于追踪**：可以通过 `cycle_id` 标签查询完整的采集周期
-- **高性能写入**：InfluxDB 针对高频时序数据写入优化，支持批量写入
+- **高性能写入**：时序数据库针对高频时序数据写入优化，支持批量写入
 
-#### InfluxDB 数据结构
+#### 时序数据库数据结构
 
-所有采集数据写入 InfluxDB，使用以下结构：
+所有采集数据写入时序数据库，使用以下结构：
 
 **数据点结构**：
 
-- **Measurement**：表名（TableName）
+- **Measurement**：测量值名称（时序数据库中的表名/测量值标识）
 - **Tags**（标签，用于查询和分组）：
   - `device_code`：设备编码
   - `channel_name`：通道名称
@@ -224,14 +219,14 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   - 时间戳字段（如 start_time、end_time）
 - **Timestamp**：采集时间
 
-**示例（InfluxDB Line Protocol）**：
+**示例（时序数据库 Line Protocol 格式）**：
 
 ```
 measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
 measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
 ```
 
-**查询示例**：
+**查询示例**（以 InfluxDB 为例）：
 
 - 查询特定 cycle_id 的所有事件：`from(bucket: "plc_data") |> filter(fn: (r) => r["cycle_id"] == "xxx")`
 - 查询 Start 事件：`from(bucket: "plc_data") |> filter(fn: (r) => r["event_type"] == "start")`
@@ -240,19 +235,19 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
 
 1. **生产周期管理**
 
-   - 场景：生产线开始生产时记录开始时间，生产结束时更新结束时间
+   - 场景：生产线开始生产时记录开始时间，生产结束时记录结束时间
    - 配置：Start 使用 RisingEdge（生产开始信号从 0 变 1），End 使用 FallingEdge（生产结束信号从 1 变 0）
    - 数据：记录生产开始时间、结束时间、产量、质量等数据
 
 2. **设备运行状态监控**
 
-   - 场景：设备启动时记录运行开始时间，设备停止时更新停止时间
+   - 场景：设备启动时记录运行开始时间，设备停止时记录停止时间
    - 配置：Start 使用 RisingEdge（运行信号从 0 变 1），End 使用 FallingEdge（运行信号从 1 变 0）
    - 数据：记录设备运行时长、能耗、故障次数等
 
 3. **批次管理**
 
-   - 场景：批次开始插入记录，批次结束更新记录
+   - 场景：批次开始插入记录，批次结束插入记录
    - 配置：Start 使用 ValueIncrease（批次号增加），End 使用 ValueDecrease（批次号减少）
    - 数据：记录批次号、开始时间、结束时间、批次产量等
 
@@ -263,7 +258,7 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
    - 数据：记录温度、压力、速度等工艺参数的变化
 
 5. **质量检测周期**
-   - 场景：检测开始时记录检测参数，检测结束时更新检测结果
+   - 场景：检测开始时记录检测参数，检测结束时记录检测结果
    - 配置：Start 使用 RisingEdge（检测开始信号），End 使用 FallingEdge（检测结束信号）
    - 数据：记录检测时间、检测结果、合格率等
 
@@ -287,20 +282,20 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
   "Channels": [
     {
       "ChannelName": "M01C01",
-      "TableName": "m01c01_sensor",
+      "Measurement": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "BatchSize": 1,
       "DataPoints": [
         {
-          "ColumnName": "up_temp",
+          "FieldName": "up_temp",
           "Register": "D6002",
           "Index": 2,
           "DataType": "short"
         },
         {
-          "ColumnName": "down_temp",
+          "FieldName": "down_temp",
           "Register": "D6004",
           "Index": 4,
           "DataType": "short",
@@ -311,20 +306,20 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
     },
     {
       "ChannelName": "M01C02",
-      "TableName": "m01c01_recipe",
+      "Measurement": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "BatchSize": 1,
       "DataPoints": [
         {
-          "ColumnName": "up_set_temp",
+          "FieldName": "up_set_temp",
           "Register": "D6102",
           "Index": 2,
           "DataType": "short"
         },
         {
-          "ColumnName": "down_set_temp",
+          "FieldName": "down_set_temp",
           "Register": "D6104",
           "Index": 4,
           "DataType": "short",
@@ -336,13 +331,11 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
         "DataType": "short",
         "Start": {
           "TriggerMode": "RisingEdge",
-          "Operation": "Insert",
-          "StampColumn": "start_time"
+          "TimestampField": "start_time"
         },
         "End": {
           "TriggerMode": "FallingEdge",
-          "Operation": "Insert",
-          "StampColumn": "end_time"
+          "TimestampField": "end_time"
         }
       }
     }
@@ -382,7 +375,7 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
 
 ### 示例实现
 
-- InfluxDB.Client `2.0.0`
+- InfluxDB.Client `2.0.0`（时序数据库客户端，可根据需要替换为其他时序数据库实现）
 - HslCommunication `12.2.0`
 - Microsoft.AspNetCore.SignalR `1.2.0`
 - Serilog.AspNetCore `9.0.0`

@@ -26,9 +26,9 @@ public interface IDataStorageService
     /// 更新记录（时序数据库不支持更新，此方法将Update转换为Insert操作）。
     /// 对于End事件，会写入新的数据点，使用event_type="end"标签标识。
     /// </summary>
-    /// <param name="tableName">表名（measurement）</param>
+    /// <param name="measurement">测量值名称（Measurement）</param>
     /// <param name="values">需要写入的字段及其值</param>
     /// <param name="conditions">条件（如cycle_id，将作为标签）</param>
     /// <returns>表示异步操作的任务。</returns>
-    Task UpdateAsync(string tableName, Dictionary<string, object> values, Dictionary<string, object> conditions);
+    Task UpdateAsync(string measurement, Dictionary<string, object> values, Dictionary<string, object> conditions);
 }

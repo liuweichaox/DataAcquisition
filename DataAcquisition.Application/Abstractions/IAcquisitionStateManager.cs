@@ -26,25 +26,25 @@ public interface IAcquisitionStateManager
     /// </summary>
     /// <param name="deviceCode">设备编码</param>
     /// <param name="channelName">通道名称</param>
-    /// <param name="tableName">表名</param>
+    /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，包含生成的CycleId</returns>
-    AcquisitionCycle StartCycle(string deviceCode, string channelName, string tableName);
+    AcquisitionCycle StartCycle(string deviceCode, string channelName, string measurement);
 
     /// <summary>
     /// 结束一个采集周期
     /// </summary>
     /// <param name="deviceCode">设备编码</param>
-    /// <param name="tableName">表名</param>
+    /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，如果不存在则返回null</returns>
-    AcquisitionCycle? EndCycle(string deviceCode, string tableName);
+    AcquisitionCycle? EndCycle(string deviceCode, string measurement);
 
     /// <summary>
     /// 获取当前活跃的采集周期
     /// </summary>
     /// <param name="deviceCode">设备编码</param>
-    /// <param name="tableName">表名</param>
+    /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，如果不存在则返回null</returns>
-    AcquisitionCycle? GetActiveCycle(string deviceCode, string tableName);
+    AcquisitionCycle? GetActiveCycle(string deviceCode, string measurement);
 
     /// <summary>
     /// 清理指定设备的所有采集周期状态

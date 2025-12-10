@@ -12,7 +12,7 @@ using Microsoft.Extensions.Configuration;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-/// 使用 InfluxDB 实现的数据存储服务。
+/// 使用 InfluxDB 实现的时序数据库存储服务。
 /// </summary>
 public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 {
@@ -22,7 +22,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     private readonly IOperationalEventsService _events;
 
     /// <summary>
-    /// 构造函数，初始化 InfluxDB 客户端。
+    /// 构造函数，初始化时序数据库客户端。
     /// </summary>
     public InfluxDbDataStorageService(IConfiguration configuration, IOperationalEventsService events)
     {
@@ -49,7 +49,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"[ERROR] InfluxDB insert failed: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"[ERROR] 时序数据库插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -70,20 +70,20 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"[ERROR] InfluxDB batch insert failed: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"[ERROR] 时序数据库批量插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
     /// <summary>
     /// 更新记录（时序数据库不支持更新，改为写入新数据点）。
     /// </summary>
-    public async Task UpdateAsync(string tableName, Dictionary<string, object> values, Dictionary<string, object> conditions)
+    public async Task UpdateAsync(string measurement, Dictionary<string, object> values, Dictionary<string, object> conditions)
     {
-        // InfluxDB不支持更新操作，将Update转换为Insert操作
+        // 时序数据库不支持更新操作，将Update转换为Insert操作
         // 使用event_type="end"标签标识这是End事件
         try
         {
-            var point = PointData.Measurement(tableName)
+            var point = PointData.Measurement(measurement)
                 .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
 
             // 将conditions中的cycle_id作为tag
@@ -115,16 +115,16 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"[ERROR] InfluxDB update (as insert) failed: {ex.Message}", ex).ConfigureAwait(false);
+            await _events.ErrorAsync($"[ERROR] 时序数据库更新（转换为插入）失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
     /// <summary>
-    /// 将DataMessage转换为InfluxDB PointData。
+    /// 将DataMessage转换为时序数据库数据点。
     /// </summary>
     private PointData ConvertToPoint(DataMessage dataMessage)
     {
-        var point = PointData.Measurement(dataMessage.TableName)
+        var point = PointData.Measurement(dataMessage.Measurement)
             .Timestamp(dataMessage.Timestamp, WritePrecision.Ns);
 
         // 添加标签（tags）
@@ -168,7 +168,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 将对象值转换为InfluxDB字段值。
+    /// 将对象值转换为时序数据库字段值。
     /// </summary>
     private object ConvertToFieldValue(object? value)
     {
