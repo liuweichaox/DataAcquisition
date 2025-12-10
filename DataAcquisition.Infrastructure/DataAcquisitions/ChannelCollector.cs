@@ -97,11 +97,13 @@ public class ChannelCollector : IChannelCollector
                     fireStart = true; // 无条件采集总是触发
                 }
 
+                // 如果既没有触发开始事件也没有触发结束事件，则等待100ms后继续下一次循环
+                // 这样可以避免CPU空转，同时保存当前值用于下次比较（检测边沿变化）
                 if (!fireStart && !fireEnd)
                 {
                     await Task.Delay(100, ct).ConfigureAwait(false);
-                    prevValue = curr;
-                    continue;
+                    prevValue = curr; // 保存当前值，用于下次循环时比较（判断上升沿/下降沿等）
+                    continue; // 跳过后续处理，继续下一次循环
                 }
 
                 var timestamp = DateTime.Now;
@@ -123,10 +125,11 @@ public class ChannelCollector : IChannelCollector
 
                 prevValue = curr;
 
-                // 无条件采集时，采集后需要延迟，避免过于频繁
-                if (isUnconditionalAcquisition && fireStart)
+                // 无条件采集时，根据配置的采集频率进行延迟
+                // AcquisitionInterval = 0 表示最高频率采集（无延迟），> 0 表示延迟指定毫秒数
+                if (isUnconditionalAcquisition && fireStart && dataAcquisitionChannel.AcquisitionInterval > 0)
                 {
-                    await Task.Delay(100, ct).ConfigureAwait(false);
+                    await Task.Delay(dataAcquisitionChannel.AcquisitionInterval, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -233,7 +236,8 @@ public class ChannelCollector : IChannelCollector
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
-            // 异步处理表达式计算并发布消息
+            // 异步处理表达式计算并发布消息，不阻塞采集循环
+            // 使用 Task.Run 确保采集循环可以立即继续下一次采集，提高吞吐量
             _ = Task.Run(async () =>
             {
                 try

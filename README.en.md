@@ -9,7 +9,7 @@
 
 ## 📙 Overview
 
-This system collects real-time data from PLCs and pushes results to **message queues** and **databases** to support **online monitoring, performance analytics, and fault diagnostics**. It’s built on .NET 8.0 and runs on Windows, Linux, and macOS.
+This system collects real-time data from PLCs and pushes results to **message queues** and **time-series databases** to support **online monitoring, performance analytics, and fault diagnostics**. It's built on .NET 8.0 and runs on Windows, Linux, and macOS.
 
 ## 💡 Key Features
 
@@ -19,9 +19,10 @@ This system collects real-time data from PLCs and pushes results to **message qu
 - **Preprocessing**: Expression-based transforms & filtering before persistence
 - **Resilience**: Reconnect and timeout retries
 - **Queues**: RabbitMQ, Kafka, or local in-process queue for burst handling
-- **Storage**: SQLite and various cloud databases
+- **Time-Series Database**: Optimized for high-frequency time-series data collection with batch writes
+- **Conditional Acquisition**: Support for start/end event acquisition based on trigger conditions
 - **Logging**: Pluggable strategies for auditability and troubleshooting
-- **Dynamic Config**: JSON/DB-driven tables, columns, frequencies, and triggers
+- **Dynamic Config**: JSON/DB-driven measurements, fields, frequencies, and triggers
 - **Cross-Platform**: .NET 8.0 on Win/Linux/macOS
 
 ## 🏗️ Architecture
@@ -38,7 +39,7 @@ This system collects real-time data from PLCs and pushes results to **message qu
 - `IPlcClientService` – low-level PLC communication
 - `IPlcClientFactory` – custom PLC client factory
 - `IDataProcessingService` – preprocessing for sampled data
-- `IDataStorageService` – database persistence
+- `IDataStorageService` – time-series database persistence
 - `IQueueService` – message queue producer
 
 **Integration**
@@ -52,7 +53,7 @@ This system collects real-time data from PLCs and pushes results to **message qu
 
 - .NET 8.0 SDK
 - Optional: RabbitMQ or Kafka
-- Optional: SQLite or other DB drivers
+- Optional: Time-series database (e.g., InfluxDB, TimescaleDB, etc.)
 
 ### ⬇️ Install
 
@@ -104,7 +105,7 @@ DataAcquisition/
 
 ## 📝 Configuration
 
-JSON configs under `DataAcquisition.Gateway/Configs` define IPs, registers, data types, triggers, and target tables. The default loader reads JSON; to use DB or other sources, implement `IDeviceConfigService`.
+JSON configs under `DataAcquisition.Gateway/Configs` define IPs, registers, data types, triggers, and target measurements. The default loader reads JSON; to use DB or other sources, implement `IDeviceConfigService`.
 
 ### 📐 Schema (illustrative YAML)
 
@@ -119,24 +120,23 @@ HeartbeatMonitorRegister: string # [optional]
 HeartbeatPollingInterval: number # [optional] ms
 Channels: # acquisition channels, each channel is an independent acquisition task
   - ChannelName: string
-    Lifecycle: # optional start/end triggers
+    ConditionalAcquisition: # [optional] conditional acquisition config, null means unconditional
       Register: string # [optional] trigger address
       DataType: ushort|uint|ulong|short|int|long|float|double # [optional]
       Start:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert|Update
-        StampColumn: string # [optional] start time column
+        TimestampField: string # [optional] start time field name
       End:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert|Update
-        StampColumn: string # [optional] end time column
+        TimestampField: string # [optional] end time field name
     EnableBatchRead: bool
     BatchReadRegister: string
     BatchReadLength: int
-    TableName: string
+    Measurement: string # measurement name (table/measurement identifier in time-series database)
     BatchSize: int # 1 = row-by-row
+    AcquisitionInterval: int # [optional] acquisition interval (ms), 0 = highest frequency (no delay), default 100
     DataPoints:
-      - ColumnName: string
+      - FieldName: string # field name (field name for storing values in time-series database)
         Register: string
         Index: int
         StringByteLength: int
@@ -152,14 +152,14 @@ Channels: # acquisition channels, each channel is an independent acquisition tas
   - `Inovance`: Inovance PLC
   - `BeckhoffAds`: Beckhoff ADS
 
-- **Lifecycle.Start.TriggerMode / Lifecycle.End.TriggerMode**
+- **ConditionalAcquisition.Start.TriggerMode / ConditionalAcquisition.End.TriggerMode**
   - `Always`: sample unconditionally
   - `ValueIncrease`: sample when the register increases
   - `ValueDecrease`: sample when the register decreases
   - `RisingEdge`: trigger on 0 → 1 transition
   - `FallingEdge`: trigger on 1 → 0 transition
 
-- **Lifecycle.DataType / DataPoints.DataType**
+- **ConditionalAcquisition.DataType / DataPoints.DataType**
   - `ushort`, `uint`, `ulong`, `short`, `int`, `long`, `float`, `double`
   - `string` (DataPoints only)
   - `bool` (DataPoints only)
@@ -167,12 +167,92 @@ Channels: # acquisition channels, each channel is an independent acquisition tas
 - **Encoding**
   - `UTF8`, `GB2312`, `GBK`, `ASCII`
 
-- **Lifecycle.Start.Operation / Lifecycle.End.Operation**
-  - `Insert`: append a new row
-  - `Update`: modify an existing row
+- **ConditionalAcquisition.Start.TimestampField / ConditionalAcquisition.End.TimestampField**
+  - Field name for recording start or end time
 
-- **Lifecycle.Start.StampColumn / Lifecycle.End.StampColumn**
-  - Column name for recording start or end time.
+### 🔄 Conditional Acquisition & CycleId Mechanism
+
+When `ConditionalAcquisition` is configured, the system performs **conditional acquisition**, determining when to start and end acquisition based on PLC register states.
+
+**Note**: All acquisitions (including unconditional ones) generate a `cycle_id` for data tracking and management.
+
+#### How It Works
+
+1. **Start Event**:
+   - When the Start trigger condition is met (e.g., RisingEdge: 0 → 1), the system will:
+     - Generate a unique `cycle_id` (GUID format)
+     - Insert a new record with all data points, `cycle_id`, and start time
+     - Save the acquisition cycle state in memory
+
+2. **End Event**:
+   - When the End trigger condition is met (e.g., FallingEdge: 1 → 0), the system will:
+     - Retrieve the corresponding `cycle_id` from memory
+     - **Write a new data point** with `event_type="end"` tag
+     - Associate with the Start event via the `cycle_id` tag
+     - If the corresponding cycle is not found (abnormal case), log an error and skip
+
+#### Advantages
+
+- **Time-Series Database Features**: Aligns with time-series database design, storing all events as independent data points with complete history
+- **Precise Matching**: Each acquisition cycle has a unique identifier (cycle_id), ensuring correct Start and End association
+- **Easy Tracking**: Query complete acquisition cycles via the `cycle_id` tag
+- **High-Performance Writes**: Time-series databases are optimized for high-frequency time-series data writes with batch support
+
+#### Time-Series Database Data Structure
+
+All collected data is written to the time-series database using the following structure:
+
+**Data Point Structure**:
+
+- **Measurement**: Measurement name (table/measurement identifier in time-series database)
+- **Tags** (for querying and grouping):
+  - `device_code`: Device code
+  - `channel_name`: Channel name
+  - `cycle_id`: Unique acquisition cycle identifier (GUID)
+  - `event_type`: Event type ("start" | "end" | "data")
+- **Fields** (for storing values):
+  - All collected data point values
+  - Timestamp fields (e.g., start_time, end_time)
+- **Timestamp**: Collection time
+
+**Example (Time-Series Database Line Protocol Format)**:
+
+```
+measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
+measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
+```
+
+**Query Examples** (using InfluxDB as an example):
+
+- Query all events for a specific cycle_id: `from(bucket: "plc_data") |> filter(fn: (r) => r["cycle_id"] == "xxx")`
+- Query Start events: `from(bucket: "plc_data") |> filter(fn: (r) => r["event_type"] == "start")`
+
+#### Typical Use Cases
+
+1. **Production Cycle Management**
+   - Scenario: Record start time when production begins, record end time when production ends
+   - Config: Start uses RisingEdge (production start signal 0 → 1), End uses FallingEdge (production end signal 1 → 0)
+   - Data: Record production start time, end time, output, quality, etc.
+
+2. **Equipment Operation Status Monitoring**
+   - Scenario: Record operation start time when equipment starts, record stop time when equipment stops
+   - Config: Start uses RisingEdge (operation signal 0 → 1), End uses FallingEdge (operation signal 1 → 0)
+   - Data: Record equipment operation duration, energy consumption, failure count, etc.
+
+3. **Batch Management**
+   - Scenario: Insert record when batch starts, insert record when batch ends
+   - Config: Start uses ValueIncrease (batch number increases), End uses ValueDecrease (batch number decreases)
+   - Data: Record batch number, start time, end time, batch output, etc.
+
+4. **Process Parameter Collection**
+   - Scenario: Collect initial parameters when process starts, collect final parameters when process ends
+   - Config: Start uses RisingEdge (process start signal), End uses FallingEdge (process end signal)
+   - Data: Record temperature, pressure, speed, and other process parameter changes
+
+5. **Quality Inspection Cycle**
+   - Scenario: Record inspection parameters when inspection starts, record inspection results when inspection ends
+   - Config: Start uses RisingEdge (inspection start signal), End uses FallingEdge (inspection end signal)
+   - Data: Record inspection time, inspection results, pass rate, etc.
 
 ### 🧮 EvalExpression
 
@@ -194,40 +274,62 @@ Use an expression to transform the raw reading before persistence. The variable 
   "Channels": [
     {
       "ChannelName": "M01C01",
-      "TableName": "m01c01_sensor",
+      "Measurement": "m01c01_sensor",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "BatchSize": 1,
+      "AcquisitionInterval": 100,
       "DataPoints": [
-        { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
-        { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+        {
+          "FieldName": "up_temp",
+          "Register": "D6002",
+          "Index": 2,
+          "DataType": "short"
+        },
+        {
+          "FieldName": "down_temp",
+          "Register": "D6004",
+          "Index": 4,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
       ],
-      "Lifecycle": null
+      "ConditionalAcquisition": null
     },
     {
       "ChannelName": "M01C02",
-      "TableName": "m01c01_recipe",
+      "Measurement": "m01c01_recipe",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "BatchSize": 1,
+      "AcquisitionInterval": 0,
       "DataPoints": [
-        { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
-        { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+        {
+          "FieldName": "up_set_temp",
+          "Register": "D6102",
+          "Index": 2,
+          "DataType": "short"
+        },
+        {
+          "FieldName": "down_set_temp",
+          "Register": "D6104",
+          "Index": 4,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
       ],
-      "Lifecycle": {
+      "ConditionalAcquisition": {
         "Register": "D6200",
         "DataType": "short",
         "Start": {
           "TriggerMode": "RisingEdge",
-          "Operation": "Insert",
-          "StampColumn": "start_time"
+          "TimestampField": "start_time"
         },
         "End": {
           "TriggerMode": "FallingEdge",
-          "Operation": "Update",
-          "StampColumn": "end_time"
+          "TimestampField": "end_time"
         }
       }
     }
@@ -265,11 +367,10 @@ Use an expression to transform the raw reading before persistence. The variable 
 - NCalcAsync `5.4.0`
 - Newtonsoft.Json `13.0.3`
 
-### Sample
+### Sample Implementation
 
-- Dapper `2.1.66`
+- InfluxDB.Client `2.0.0` (Time-series database client, can be replaced with other time-series database implementations as needed)
 - HslCommunication `12.2.0`
-- MySqlConnector `2.4.0`
 - Microsoft.AspNetCore.SignalR `1.2.0`
 - Serilog.AspNetCore `9.0.0`
 - Serilog.Sinks.Console `6.0.0`
@@ -284,13 +385,17 @@ builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IDataStorageFactory, DataStorageFactory>();
-builder.Services.AddSingleton<IQueueFactory, QueueFactory>();
-builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
+builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
+builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();  // Acquisition cycle state management
+builder.Services.AddSingleton<ITriggerEvaluator, TriggerEvaluator>();                 // Trigger condition evaluation
+builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
+builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
+builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddHostedService<OpsEventBroadcastWorker>();
 ```
 

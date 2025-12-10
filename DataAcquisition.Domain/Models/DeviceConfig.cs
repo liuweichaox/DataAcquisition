@@ -197,6 +197,13 @@ public class DataAcquisitionChannel
     public int BatchSize { get; set; } = 1;
 
     /// <summary>
+    /// 采集频率间隔（毫秒），用于无条件采集时的采集频率控制
+    /// 0 表示最高频率采集（无延迟），大于0表示每次采集后延迟指定毫秒数
+    /// 默认值：100（毫秒）
+    /// </summary>
+    public int AcquisitionInterval { get; set; } = 100;
+
+    /// <summary>
     /// 采集位置配置
     /// </summary>
     public List<DataPoint>? DataPoints { get; set; }

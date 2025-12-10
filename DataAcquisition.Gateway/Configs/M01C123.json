@@ -14,6 +14,7 @@
       "BatchReadRegister": "D6000",
       "BatchReadLength": 70,
       "BatchSize": 1,
+      "AcquisitionInterval": 100,
       "DataPoints": [
         { "FieldName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
         { "FieldName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
@@ -27,6 +28,7 @@
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "BatchSize": 1,
+      "AcquisitionInterval": 0,
       "DataPoints": [
         { "FieldName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
         { "FieldName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }

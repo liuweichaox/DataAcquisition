@@ -134,6 +134,7 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
     BatchReadLength: int
     Measurement: string # 测量值名称（时序数据库中的表名/测量值标识）
     BatchSize: int # 1 表示逐条保存
+    AcquisitionInterval: int # [可选] 采集频率间隔（毫秒），0表示最高频率采集（无延迟），默认100
     DataPoints:
       - FieldName: string # 字段名称（时序数据库中存储数值的字段名）
         Register: string
@@ -311,6 +312,7 @@ measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end 
       "BatchReadRegister": "D6100",
       "BatchReadLength": 200,
       "BatchSize": 1,
+      "AcquisitionInterval": 0,
       "DataPoints": [
         {
           "FieldName": "up_set_temp",

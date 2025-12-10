@@ -62,6 +62,9 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                 case "BatchSize":
                     channel.BatchSize = reader.GetInt32();
                     break;
+                case "AcquisitionInterval":
+                    channel.AcquisitionInterval = reader.GetInt32();
+                    break;
                 case "DataPoints":
                     channel.DataPoints = JsonSerializer.Deserialize<List<DataPoint>>(ref reader, options);
                     break;
@@ -95,6 +98,7 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
         writer.WriteNumber("BatchReadLength", value.BatchReadLength);
         writer.WriteString("Measurement", value.Measurement);
         writer.WriteNumber("BatchSize", value.BatchSize);
+        writer.WriteNumber("AcquisitionInterval", value.AcquisitionInterval);
 
         if (value.DataPoints != null)
         {
