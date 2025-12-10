@@ -37,6 +37,5 @@ public class PlcWriteItem
     /// <summary>
     /// 写入值
     /// </summary>
-    public object Value { get; set; }
+    public object? Value { get; set; }
 }
-

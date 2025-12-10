@@ -38,31 +38,38 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         {
             try
             {
-                var client = _plcStateManager.PlcClients[config.Code];
+                if (!_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
+                {
+                    _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                    await _events.WarnAsync($"{config.Code}-未找到PLC客户端").ConfigureAwait(false);
+                    await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
+                    continue;
+                }
+
                 var ping = client.IpAddressPing();
                 var ok = ping == IPStatus.Success;
 
                 if (!ok)
                 {
-                    if (lastOk) 
-                        await _events.WarnAsync($"{config.Code}-网络检测失败：IP {config.Host}，Ping 未响应");
+                    if (lastOk)
+                        await _events.WarnAsync($"{config.Code}-网络检测失败：IP {config.Host}，Ping 未响应").ConfigureAwait(false);
                     _plcStateManager.PlcConnectionHealth[config.Code] = false;
                 }
                 else
                 {
-                    var connect = await WriteAsync(config.Code, config.HeartbeatMonitorRegister, writeData, ct);
+                    var connect = await WriteAsync(config.Code, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
                     ok = connect.IsSuccess;
                     if (ok)
                     {
                         writeData ^= 1;
                         _plcStateManager.PlcConnectionHealth[config.Code] = true;
                         if (!lastOk)
-                            await _events.InfoAsync($"{config.Code}-心跳检测正常");
+                            await _events.InfoAsync($"{config.Code}-心跳检测正常").ConfigureAwait(false);
                     }
                     else
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message);
+                        await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message).ConfigureAwait(false);
                     }
                 }
 
@@ -71,7 +78,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             catch (Exception ex)
             {
                 _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                await _events.ErrorAsync($"{config.Code}-系统异常: {ex.Message}", ex);
+                await _events.ErrorAsync($"{config.Code}-系统异常: {ex.Message}", ex).ConfigureAwait(false);
             }
             finally
             {
@@ -94,11 +101,19 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             };
         }
 
-        var locker = _plcStateManager.PlcLocks[plcCode];
-        await locker.WaitAsync(ct);
+        if (!_plcStateManager.PlcLocks.TryGetValue(plcCode, out var locker))
+        {
+            return new PlcWriteResult
+            {
+                IsSuccess = false,
+                Message = $"未找到 PLC {plcCode} 的锁对象"
+            };
+        }
+
+        await locker.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            return await client.WriteUShortAsync(address, value);
+            return await client.WriteUShortAsync(address, value).ConfigureAwait(false);
         }
         finally
         {

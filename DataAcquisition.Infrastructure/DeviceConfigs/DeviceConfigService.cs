@@ -29,7 +29,8 @@ public class DeviceConfigService : IDeviceConfigService
     {
         await using var stream = new FileStream(Path.Combine(AppContext.BaseDirectory, filePath), FileMode.Open,
             FileAccess.Read);
-        return await JsonSerializer.DeserializeAsync<T>(stream);
+        var result = await JsonSerializer.DeserializeAsync<T>(stream);
+        return result ?? throw new InvalidOperationException($"无法反序列化配置文件: {filePath}");
     }
 
     /// <summary>

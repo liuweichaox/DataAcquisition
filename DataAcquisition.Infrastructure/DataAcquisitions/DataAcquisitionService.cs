@@ -48,7 +48,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         public async Task StartCollectionTasks()
         {
-            var dataAcquisitionConfigs = await _deviceConfigService.GetConfigs();
+            var dataAcquisitionConfigs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
             foreach (var config in dataAcquisitionConfigs.Where(config => config.IsEnabled))
             {
                 StartCollectionTask(config);
@@ -83,8 +83,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _ = running.ContinueWith(async t =>
             {
                 if (t.Exception != null)
-                    await _events.ErrorAsync($"{config.Code}-采集任务异常: {t.Exception.Flatten().InnerException?.Message}", t.Exception.Flatten().InnerException);
-            }, TaskContinuationOptions.OnlyOnFaulted);
+                {
+                    var innerException = t.Exception.Flatten().InnerException;
+                    await _events.ErrorAsync($"{config.Code}-采集任务异常: {innerException?.Message}", innerException).ConfigureAwait(false);
+                }
+            }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
         }
@@ -94,15 +97,25 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         private IPlcClientService CreatePlcClient(DeviceConfig config)
         {
+            // 双重检查锁定模式，避免竞态条件
             if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
             {
                 return client;
             }
 
-            client = _plcClientFactory.Create(config);
-            _plcStateManager.PlcClients.TryAdd(config.Code, client);
-            _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
-            return client;
+            lock (_plcStateManager.PlcClients)
+            {
+                // 再次检查，防止多线程同时创建
+                if (_plcStateManager.PlcClients.TryGetValue(config.Code, out client))
+                {
+                    return client;
+                }
+
+                client = _plcClientFactory.Create(config);
+                _plcStateManager.PlcClients.TryAdd(config.Code, client);
+                _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
+                return client;
+            }
         }
 
         /// <summary>
@@ -110,33 +123,73 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         public async Task StopCollectionTasks()
         {
-            // Cancel the data acquisition tasks.
-            foreach (var kvp in _plcStateManager.Runtimes)
+            try
             {
-                await kvp.Value.Cts.CancelAsync();
-            }
+                // Cancel the data acquisition tasks.
+                foreach (var kvp in _plcStateManager.Runtimes)
+                {
+                    try
+                    {
+                        await kvp.Value.Cts.CancelAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"取消采集任务失败: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                }
 
-            foreach (var kv in _plcStateManager.Runtimes)
+                foreach (var kv in _plcStateManager.Runtimes)
+                {
+                    try
+                    {
+                        await kv.Value.Running.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // 预期的取消异常，忽略
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"等待任务完成失败: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        kv.Value.Cts.Dispose();
+                    }
+                }
+
+                // Close and clean up all PLC clients.
+                foreach (var client in _plcStateManager.PlcClients.Values)
+                {
+                    try
+                    {
+                        await client.ConnectCloseAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"关闭PLC客户端失败: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                }
+
+                foreach (var sem in _plcStateManager.PlcLocks.Values)
+                {
+                    try
+                    {
+                        sem.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"释放信号量失败: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                }
+
+                // Complete and dispose the queue.
+                await _queue.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
             {
-                try { await kv.Value.Running; } catch (OperationCanceledException) { }
-                kv.Value.Cts.Dispose();
+                _plcStateManager.Clear();
             }
-
-            // Close and clean up all PLC clients.
-            foreach (var client in _plcStateManager.PlcClients.Values)
-            {
-                await client.ConnectCloseAsync();
-            }
-
-            foreach (var sem in _plcStateManager.PlcLocks.Values)
-            {
-                sem.Dispose();
-            }
-
-            // Complete and dispose the queue.
-            await _queue.DisposeAsync();
-
-            _plcStateManager.Clear();
         }
 
         /// <summary>
@@ -160,22 +213,30 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 };
             }
 
-            var locker = _plcStateManager.PlcLocks[plcCode];
-            await locker.WaitAsync(ct);
+            if (!_plcStateManager.PlcLocks.TryGetValue(plcCode, out var locker))
+            {
+                return new PlcWriteResult
+                {
+                    IsSuccess = false,
+                    Message = $"未找到 PLC {plcCode} 的锁对象"
+                };
+            }
+
+            await locker.WaitAsync(ct).ConfigureAwait(false);
             try
             {
                 return dataType switch
                 {
-                    "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)),
-                    "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)),
-                    "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)),
-                    "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)),
-                    "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)),
-                    "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)),
-                    "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)),
-                    "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)),
-                    "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty),
-                    "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)),
+                    "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)).ConfigureAwait(false),
+                    "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)).ConfigureAwait(false),
+                    "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)).ConfigureAwait(false),
+                    "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)).ConfigureAwait(false),
+                    "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)).ConfigureAwait(false),
+                    "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)).ConfigureAwait(false),
+                    "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)).ConfigureAwait(false),
+                    "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)).ConfigureAwait(false),
+                    "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty).ConfigureAwait(false),
+                    "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
                     _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
                 };
             }
@@ -198,7 +259,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         public void Dispose()
         {
-            StopCollectionTasks().Wait();
+            // 使用 ConfigureAwait(false) 避免死锁
+            StopCollectionTasks().ConfigureAwait(false).GetAwaiter().GetResult();
         }
     }
 }

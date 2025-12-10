@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 

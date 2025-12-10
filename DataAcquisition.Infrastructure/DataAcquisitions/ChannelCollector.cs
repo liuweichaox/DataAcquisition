@@ -55,12 +55,18 @@ public class ChannelCollector : IChannelCollector
         {
             if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) || !isConnected)
             {
-                await Task.Delay(100, ct);
+                await Task.Delay(100, ct).ConfigureAwait(false);
                 continue;
             }
 
-            var locker = _plcStateManager.PlcLocks[config.Code];
-            await locker.WaitAsync(ct);
+            if (!_plcStateManager.PlcLocks.TryGetValue(config.Code, out var locker))
+            {
+                await _events.ErrorAsync($"{config.Code}-未找到锁对象，跳过本次采集", null).ConfigureAwait(false);
+                await Task.Delay(100, ct).ConfigureAwait(false);
+                continue;
+            }
+
+            await locker.WaitAsync(ct).ConfigureAwait(false);
 
             try
             {
@@ -93,7 +99,7 @@ public class ChannelCollector : IChannelCollector
 
                 if (!fireStart && !fireEnd)
                 {
-                    await Task.Delay(100, ct);
+                    await Task.Delay(100, ct).ConfigureAwait(false);
                     prevValue = curr;
                     continue;
                 }
@@ -102,12 +108,12 @@ public class ChannelCollector : IChannelCollector
 
                 if (fireStart)
                 {
-                    await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, isUnconditionalAcquisition, ct);
+                    await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, isUnconditionalAcquisition, ct).ConfigureAwait(false);
                 }
 
                 if (fireEnd && endCfg != null)
                 {
-                    var shouldContinue = await HandleEndEventAsync(config, dataAcquisitionChannel, endCfg, timestamp, ct);
+                    var shouldContinue = await HandleEndEventAsync(config, dataAcquisitionChannel, endCfg, timestamp, ct).ConfigureAwait(false);
                     if (shouldContinue)
                     {
                         prevValue = curr;
@@ -120,7 +126,7 @@ public class ChannelCollector : IChannelCollector
                 // 无条件采集时，采集后需要延迟，避免过于频繁
                 if (isUnconditionalAcquisition && fireStart)
                 {
-                    await Task.Delay(100, ct);
+                    await Task.Delay(100, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -147,21 +153,27 @@ public class ChannelCollector : IChannelCollector
                 var register = dataPoints.SingleOrDefault(x => x.ColumnName == kv.Key);
                 if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
 
-                var expression = new AsyncExpression(register.EvalExpression)
+                var evalExpression = register.EvalExpression;
+                if (string.IsNullOrWhiteSpace(evalExpression)) continue;
+
+                // kv.Value 已经在上面的 null 检查中验证，使用 ! 断言非空
+                var valueToEval = kv.Value;
+
+                var expression = new AsyncExpression(evalExpression)
                 {
                     Parameters =
                     {
-                        ["value"] = kv.Value
+                        ["value"] = valueToEval
                     }
                 };
 
-                var value = await expression.EvaluateAsync();
+                var value = await expression.EvaluateAsync().ConfigureAwait(false);
                 dataMessage.DataValues[kv.Key] = value ?? 0;
             }
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"Error handling data point: {ex.Message}- StackTrace: {ex.StackTrace}", ex);
+            await _events.ErrorAsync($"Error handling data point: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -214,19 +226,26 @@ public class ChannelCollector : IChannelCollector
                 dataMessage.DataValues["cycle_id"] = cycleId;
 
                 // 读取数据点
-                await ReadDataPointsAsync(client, channel, dataMessage);
+                await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
                 // 异步处理表达式计算并发布消息
                 _ = Task.Run(async () =>
                 {
-                    await EvaluateAsync(dataMessage, channel.DataPoints);
-                    await _queue.PublishAsync(dataMessage);
+                    try
+                    {
+                        await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+                        await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                    }
                 }, ct);
             }
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex);
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -251,7 +270,7 @@ public class ChannelCollector : IChannelCollector
                 await _events.ErrorAsync(
                     $"{config.Code}-{channel.ChannelName}:{channel.TableName} " +
                     $"End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
-                    null);
+                    null).ConfigureAwait(false);
                 return true; // 需要跳过后续处理
             }
 
@@ -267,14 +286,21 @@ public class ChannelCollector : IChannelCollector
 
             _ = Task.Run(async () =>
             {
-                await _queue.PublishAsync(dataMessage);
+                try
+                {
+                    await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                }
             }, ct);
 
             return false; // 正常处理，不需要跳过
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex);
+            await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:{channel.TableName}采集异常: {ex.Message}", ex).ConfigureAwait(false);
             return false;
         }
     }
@@ -291,7 +317,7 @@ public class ChannelCollector : IChannelCollector
 
         if (channel.EnableBatchRead)
         {
-            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength);
+            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength).ConfigureAwait(false);
             var buffer = batchData.Content;
             foreach (var dataPoint in channel.DataPoints)
             {
@@ -308,7 +334,7 @@ public class ChannelCollector : IChannelCollector
                     dataPoint.Register,
                     dataPoint.DataType,
                     dataPoint.StringByteLength,
-                    dataPoint.Encoding);
+                    dataPoint.Encoding).ConfigureAwait(false);
                 dataMessage.DataValues[dataPoint.ColumnName] = value;
             }
         }
@@ -335,16 +361,16 @@ public class ChannelCollector : IChannelCollector
     {
         return dataType.ToLower() switch
         {
-            "ushort" => await client.ReadUShortAsync(register),
-            "uint" => await client.ReadUIntAsync(register),
-            "ulong" => await client.ReadULongAsync(register),
-            "short" => await client.ReadShortAsync(register),
-            "int" => await client.ReadIntAsync(register),
-            "long" => await client.ReadLongAsync(register),
-            "float" => await client.ReadFloatAsync(register),
-            "double" => await client.ReadDoubleAsync(register),
-            "string" => await client.ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8")),
-            "bool" => await client.ReadBoolAsync(register),
+            "ushort" => await client.ReadUShortAsync(register).ConfigureAwait(false),
+            "uint" => await client.ReadUIntAsync(register).ConfigureAwait(false),
+            "ulong" => await client.ReadULongAsync(register).ConfigureAwait(false),
+            "short" => await client.ReadShortAsync(register).ConfigureAwait(false),
+            "int" => await client.ReadIntAsync(register).ConfigureAwait(false),
+            "long" => await client.ReadLongAsync(register).ConfigureAwait(false),
+            "float" => await client.ReadFloatAsync(register).ConfigureAwait(false),
+            "double" => await client.ReadDoubleAsync(register).ConfigureAwait(false),
+            "string" => await client.ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8")).ConfigureAwait(false),
+            "bool" => await client.ReadBoolAsync(register).ConfigureAwait(false),
             _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
         };
     }

@@ -21,6 +21,7 @@ public class LocalQueueService(
 {
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
+    private readonly object _batchLock = new object();
 
     /// <summary>
     /// 发布数据消息到队列。
@@ -28,7 +29,7 @@ public class LocalQueueService(
     /// <param name="dataMessage">数据消息</param>
     public async Task PublishAsync(DataMessage dataMessage)
     {
-        await _channel.Writer.WriteAsync(dataMessage);
+        await _channel.Writer.WriteAsync(dataMessage).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -41,12 +42,12 @@ public class LocalQueueService(
         {
             try
             {
-                await dataProcessingService.ExecuteAsync(dataMessage);
-                await StoreDataPointAsync(dataMessage);
+                await dataProcessingService.ExecuteAsync(dataMessage).ConfigureAwait(false);
+                await StoreDataPointAsync(dataMessage).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                await events.ErrorAsync($"Error processing message: {ex.Message}");
+                await events.ErrorAsync($"Error processing message: {ex.Message}", ex).ConfigureAwait(false);
             }
         }
     }
@@ -61,33 +62,70 @@ public class LocalQueueService(
         {
             await dataStorage.UpdateAsync(
                 dataMessage.TableName,
-                dataMessage.DataValues.ToDictionary(k => k.Key, k => (object)k.Value),
-                dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)k.Value));
+                dataMessage.DataValues.ToDictionary(k => k.Key, k => (object)(k.Value ?? string.Empty)),
+                dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)(k.Value ?? string.Empty))).ConfigureAwait(false);
             return;
         }
 
         if (dataMessage.BatchSize <= 1)
         {
-            await dataStorage.SaveAsync(dataMessage);
+            await dataStorage.SaveAsync(dataMessage).ConfigureAwait(false);
             return;
         }
 
-        var batch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => new List<DataMessage>());
-        batch.Add(dataMessage);
-
-        if (batch.Count >= dataMessage.BatchSize)
+        // 使用锁保护批量操作，确保线程安全
+        List<DataMessage>? batchToSave = null;
+        lock (_batchLock)
         {
-            await dataStorage.SaveBatchAsync(batch);
-            batch.Clear();
+            var batch = _dataBatchMap.GetOrAdd(dataMessage.TableName, _ => new List<DataMessage>());
+            batch.Add(dataMessage);
+
+            if (batch.Count >= dataMessage.BatchSize)
+            {
+                batchToSave = new List<DataMessage>(batch);
+                batch.Clear();
+            }
+        }
+
+        // 在锁外执行数据库操作，避免长时间持有锁
+        if (batchToSave != null)
+        {
+            await dataStorage.SaveBatchAsync(batchToSave).ConfigureAwait(false);
         }
     }
 
     /// <summary>
-    /// 释放队列资源。
+    /// 释放队列资源，并刷新所有未完成的批次。
     /// </summary>
     public ValueTask DisposeAsync()
     {
         _channel.Writer.Complete();
+
+        // 刷新所有未完成的批次，避免数据丢失
+        lock (_batchLock)
+        {
+            foreach (var kvp in _dataBatchMap)
+            {
+                if (kvp.Value.Count > 0)
+                {
+                    var batch = new List<DataMessage>(kvp.Value);
+                    // 使用 Task.Run 避免在 ValueTask 中使用 async/await
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await dataStorage.SaveBatchAsync(batch).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            await events.ErrorAsync($"刷新未完成批次失败: {ex.Message}", ex).ConfigureAwait(false);
+                        }
+                    });
+                }
+            }
+            _dataBatchMap.Clear();
+        }
+
         return ValueTask.CompletedTask;
     }
 }
