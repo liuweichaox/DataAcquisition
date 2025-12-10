@@ -112,8 +112,8 @@ public class AcquisitionTrigger
 /// 用于实现条件采集：根据PLC寄存器状态判断何时开始采集，何时结束采集。
 ///
 /// 典型应用场景：
-/// - 生产周期管理：生产开始（Start）时插入记录并记录开始时间，生产结束（End）时更新该记录并记录结束时间
-/// - 设备状态监控：设备启动（Start）时记录运行开始时间，设备停止（End）时更新记录并记录停止时间
+/// - 生产周期管理：生产开始（Start）时写入Start事件数据点，生产结束（End）时写入End事件数据点
+/// - 设备状态监控：设备启动（Start）时写入Start事件数据点，设备停止（End）时写入End事件数据点
 ///
 /// 工作原理：
 /// 1. 系统持续监控指定的PLC寄存器（Register）
@@ -122,8 +122,7 @@ public class AcquisitionTrigger
 /// 4. 使用cycle_id而非时间戳作为Update条件，避免并发冲突
 ///
 /// 数据库兼容性：
-/// - 关系数据库（MySQL、PostgreSQL等）：cycle_id字段类型为VARCHAR(36)或CHAR(36)
-/// - 时序数据库（InfluxDB、TimescaleDB等）：cycle_id作为标签（tag）或字段（field），类型为字符串
+/// - 时序数据库（InfluxDB）：cycle_id作为标签（tag），类型为字符串
 /// </summary>
 public class ConditionalAcquisition
 {

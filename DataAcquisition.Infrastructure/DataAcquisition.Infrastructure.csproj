@@ -6,10 +6,9 @@
     <RootNamespace>DataAcquisition.Infrastructure</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.66" />
     <PackageReference Include="HslCommunication" Version="12.2.0" />
+    <PackageReference Include="InfluxDB.Client" Version="1.45.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
-    <PackageReference Include="MySqlConnector" Version="2.4.0" />
     <PackageReference Include="NCalcAsync" Version="5.4.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>

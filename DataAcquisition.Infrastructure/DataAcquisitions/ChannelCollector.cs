@@ -192,56 +192,60 @@ public class ChannelCollector : IChannelCollector
     {
         try
         {
-            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, startCfg.Operation);
-            if (startCfg.Operation == DataOperation.Insert)
+            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, DataOperation.Insert);
+
+            // 设置设备编码和通道名称（用于InfluxDB标签）
+            dataMessage.DeviceCode = config.Code;
+            dataMessage.ChannelName = channel.ChannelName;
+
+            // 所有采集都生成 cycle_id
+            string cycleId;
+            if (isUnconditionalAcquisition)
             {
-                // 所有采集都生成 cycle_id
-                string cycleId;
-                if (isUnconditionalAcquisition)
+                // 无条件采集：直接生成 cycle_id，不需要状态管理
+                cycleId = Guid.NewGuid().ToString();
+                dataMessage.EventType = "data"; // 普通数据点
+            }
+            else
+            {
+                // 条件采集：使用状态管理器生成 cycle_id
+                if (!string.IsNullOrEmpty(startCfg.StampColumn))
                 {
-                    // 无条件采集：直接生成 cycle_id，不需要状态管理
-                    cycleId = Guid.NewGuid().ToString();
+                    var cycle = _stateManager.StartCycle(
+                        config.Code,
+                        channel.ChannelName,
+                        channel.TableName);
+                    cycleId = cycle.CycleId;
+                    dataMessage.DataValues[startCfg.StampColumn] = cycle.StartTime;
                 }
                 else
                 {
-                    // 条件采集：使用状态管理器生成 cycle_id
-                    if (!string.IsNullOrEmpty(startCfg.StampColumn))
-                    {
-                        var cycle = _stateManager.StartCycle(
-                            config.Code,
-                            channel.ChannelName,
-                            channel.TableName);
-                        cycleId = cycle.CycleId;
-                        dataMessage.DataValues[startCfg.StampColumn] = cycle.StartTime;
-                    }
-                    else
-                    {
-                        // 即使没有 StampColumn，也生成 cycle_id
-                        cycleId = Guid.NewGuid().ToString();
-                    }
+                    // 即使没有 StampColumn，也生成 cycle_id
+                    cycleId = Guid.NewGuid().ToString();
                 }
-
-                // 设置 cycle_id
-                dataMessage.CycleId = cycleId;
-                dataMessage.DataValues["cycle_id"] = cycleId;
-
-                // 读取数据点
-                await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
-
-                // 异步处理表达式计算并发布消息
-                _ = Task.Run(async () =>
-                {
-                    try
-                    {
-                        await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
-                        await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
-                    }
-                }, ct);
+                dataMessage.EventType = "start"; // Start事件
             }
+
+            // 设置 cycle_id
+            dataMessage.CycleId = cycleId;
+            dataMessage.DataValues["cycle_id"] = cycleId;
+
+            // 读取数据点
+            await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
+
+            // 异步处理表达式计算并发布消息
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+                    await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    await _events.ErrorAsync($"{config.Code}-{channel.ChannelName}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                }
+            }, ct);
         }
         catch (Exception ex)
         {
@@ -250,7 +254,7 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
-    /// 处理结束事件：结束采集周期，更新记录。
+    /// 处理结束事件：结束采集周期，写入End事件数据点。
     /// </summary>
     /// <returns>如果应该跳过后续处理则返回true，否则返回false</returns>
     private async Task<bool> HandleEndEventAsync(
@@ -262,7 +266,7 @@ public class ChannelCollector : IChannelCollector
     {
         try
         {
-            // 结束采集周期，获取CycleId用于Update操作
+            // 结束采集周期，获取CycleId用于关联Start事件
             var cycle = _stateManager.EndCycle(config.Code, channel.TableName);
             if (cycle == null)
             {
@@ -274,10 +278,12 @@ public class ChannelCollector : IChannelCollector
                 return true; // 需要跳过后续处理
             }
 
-            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, endCfg.Operation);
+            // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
+            var dataMessage = new DataMessage(timestamp, channel.TableName, channel.BatchSize, DataOperation.Insert);
+            dataMessage.DeviceCode = config.Code;
+            dataMessage.ChannelName = channel.ChannelName;
             dataMessage.CycleId = cycle.CycleId;
-            // 只使用cycle_id作为Update条件，不需要时间戳
-            dataMessage.KeyValues["cycle_id"] = cycle.CycleId;
+            dataMessage.EventType = "end"; // End事件标记
 
             if (!string.IsNullOrEmpty(endCfg.StampColumn))
             {

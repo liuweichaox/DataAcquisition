@@ -19,7 +19,7 @@ PLC 数据采集系统用于从可编程逻辑控制器（PLC）实时采集运�
 - **数据预处理**：写入前支持表达式转换与过滤。
 - **错误处理**：断线重连、超时重试。
 - **消息队列**：对接 RabbitMQ、Kafka 或本地队列，缓冲高并发写入。
-- **数据存储**：支持关系数据库（MySQL、PostgreSQL、SQL Server等）和时序数据库（InfluxDB、TimescaleDB等）。
+- **数据存储**：基于 InfluxDB 时序数据库，专为高频时序数据采集优化。
 - **日志记录**：可自定义日志策略，便于审计与排障。
 - **动态配置**：通过 JSON/数据库定义表结构、列名、采集频率与触发规则。
 - **多平台支持**：.NET 8.0，Windows/Linux/macOS。
@@ -124,11 +124,11 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
       DataType: ushort|uint|ulong|short|int|long|float|double # [可选]
       Start:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert|Update
+        Operation: Insert
         StampColumn: string # [可选] 开始时间列名
       End:
         TriggerMode: Always|ValueIncrease|ValueDecrease|RisingEdge|FallingEdge
-        Operation: Insert|Update
+        Operation: Insert
         StampColumn: string # [可选] 结束时间列名
     EnableBatchRead: bool
     BatchReadRegister: string
@@ -148,11 +148,13 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
 ### 🔢 枚举说明
 
 - **Type**
+
   - `Mitsubishi`：三菱 PLC
   - `Inovance`：汇川 PLC
   - `BeckhoffAds`：倍福 ADS
 
 - **ConditionalAcquisition.Start.TriggerMode / ConditionalAcquisition.End.TriggerMode**
+
   - `Always`：无条件采集
   - `ValueIncrease`：寄存器值增加时采集
   - `ValueDecrease`：寄存器值减少时采集
@@ -160,95 +162,109 @@ Channels: # 采集通道列表，每个通道都是独立采集任务
   - `FallingEdge`：寄存器从 1 变 0 触发
 
 - **ConditionalAcquisition.DataType / DataPoints.DataType**
+
   - `ushort`、`uint`、`ulong`、`short`、`int`、`long`、`float`、`double`
   - `string`（仅 DataPoints）
   - `bool`（仅 DataPoints）
 
 - **Encoding**
+
   - `UTF8`、`GB2312`、`GBK`、`ASCII`
 
 - **ConditionalAcquisition.Start.Operation / ConditionalAcquisition.End.Operation**
-  - `Insert`（插入）
-  - `Update`（更新）
+
+  - `Insert`（插入，时序数据库统一使用 Insert 操作，End 事件通过 event_type 标签区分）
 
 - **ConditionalAcquisition.Start.StampColumn / ConditionalAcquisition.End.StampColumn**
   - 记录开始或结束时间的列名。
 
 ### 🔄 条件采集与 CycleId 机制
 
-当配置了 `ConditionalAcquisition` 时，系统会进行**条件采集**，根据PLC寄存器状态判断何时开始和结束采集。
+当配置了 `ConditionalAcquisition` 时，系统会进行**条件采集**，根据 PLC 寄存器状态判断何时开始和结束采集。
 
 **注意**：所有采集（包括无条件采集）都会生成 `cycle_id`，便于数据追踪和管理。
 
 #### 工作原理
 
 1. **开始事件（Start）**：
-   - 当满足Start触发条件时（如RisingEdge：从0变1），系统会：
-     - 生成唯一的 `cycle_id`（GUID格式）
+
+   - 当满足 Start 触发条件时（如 RisingEdge：从 0 变 1），系统会：
+     - 生成唯一的 `cycle_id`（GUID 格式）
      - 插入新记录，包含所有数据点和 `cycle_id`、开始时间
      - 在内存中保存该采集周期的状态
 
 2. **结束事件（End）**：
-   - 当满足End触发条件时（如FallingEdge：从1变0），系统会：
+   - 当满足 End 触发条件时（如 FallingEdge：从 1 变 0），系统会：
      - 从内存中获取对应的 `cycle_id`
-     - **仅使用 `cycle_id` 作为Update条件**（不使用时间戳，避免并发冲突）
-     - 更新结束时间等字段
-     - 如果找不到对应的cycle（异常情况），会记录错误日志并跳过
+     - **写入新的数据点**，使用`event_type="end"`标签标识
+     - 通过`cycle_id`标签关联 Start 事件
+     - 如果找不到对应的 cycle（异常情况），会记录错误日志并跳过
 
 #### 优势
 
-- **避免并发冲突**：使用唯一ID而非时间戳作为Update条件，即使同一时间有多条记录也不会冲突
-- **精确匹配**：每个采集周期都有唯一标识，确保Start和End正确对应
-- **易于追踪**：可以通过 `cycle_id` 追踪完整的采集周期
+- **时序数据库特性**：符合时序数据库设计，所有事件作为独立数据点存储，保留完整历史
+- **精确匹配**：每个采集周期都有唯一标识（cycle_id），确保 Start 和 End 正确关联
+- **易于追踪**：可以通过 `cycle_id` 标签查询完整的采集周期
+- **高性能写入**：InfluxDB 针对高频时序数据写入优化，支持批量写入
 
-#### 数据库表要求
+#### InfluxDB 数据结构
 
-所有采集都会包含 `cycle_id` 字段，数据库表需要包含以下字段：
+所有采集数据写入 InfluxDB，使用以下结构：
 
-**关系数据库（MySQL、PostgreSQL、SQL Server等）**：
-```sql
-CREATE TABLE your_table (
-    cycle_id VARCHAR(36) NOT NULL,  -- 采集周期唯一标识（GUID）
-    start_time DATETIME,            -- 开始时间（由Start.StampColumn指定，可选）
-    end_time DATETIME,              -- 结束时间（由End.StampColumn指定，可选）
-    -- 其他数据点字段...
-    PRIMARY KEY (cycle_id)          -- 建议将cycle_id设为主键或唯一索引
-);
+**数据点结构**：
+
+- **Measurement**：表名（TableName）
+- **Tags**（标签，用于查询和分组）：
+  - `device_code`：设备编码
+  - `channel_name`：通道名称
+  - `cycle_id`：采集周期唯一标识（GUID）
+  - `event_type`：事件类型（"start" | "end" | "data"）
+- **Fields**（字段，存储数值）：
+  - 所有采集的数据点值
+  - 时间戳字段（如 start_time、end_time）
+- **Timestamp**：采集时间
+
+**示例（InfluxDB Line Protocol）**：
+
+```
+measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=start field1=value1,field2=value2 1234567890000000000
+measurement,device_code=PLC01,channel_name=Channel1,cycle_id=xxx,event_type=end end_time=1234567890000000000 1234567891000000000
 ```
 
-**时序数据库（InfluxDB、TimescaleDB等）**：
-- `cycle_id` 作为标签（tag）或字段（field），类型为字符串
-- 时间戳字段使用数据库的时序字段（如 InfluxDB 的 `time` 字段）
-- 示例（InfluxDB Line Protocol）：
-  ```
-  measurement,cycle_id=xxx start_time=xxx,end_time=xxx field1=value1,field2=value2
-  ```
+**查询示例**：
+
+- 查询特定 cycle_id 的所有事件：`from(bucket: "plc_data") |> filter(fn: (r) => r["cycle_id"] == "xxx")`
+- 查询 Start 事件：`from(bucket: "plc_data") |> filter(fn: (r) => r["event_type"] == "start")`
 
 #### 典型应用场景
 
 1. **生产周期管理**
+
    - 场景：生产线开始生产时记录开始时间，生产结束时更新结束时间
-   - 配置：Start使用RisingEdge（生产开始信号从0变1），End使用FallingEdge（生产结束信号从1变0）
+   - 配置：Start 使用 RisingEdge（生产开始信号从 0 变 1），End 使用 FallingEdge（生产结束信号从 1 变 0）
    - 数据：记录生产开始时间、结束时间、产量、质量等数据
 
 2. **设备运行状态监控**
+
    - 场景：设备启动时记录运行开始时间，设备停止时更新停止时间
-   - 配置：Start使用RisingEdge（运行信号从0变1），End使用FallingEdge（运行信号从1变0）
+   - 配置：Start 使用 RisingEdge（运行信号从 0 变 1），End 使用 FallingEdge（运行信号从 1 变 0）
    - 数据：记录设备运行时长、能耗、故障次数等
 
 3. **批次管理**
+
    - 场景：批次开始插入记录，批次结束更新记录
-   - 配置：Start使用ValueIncrease（批次号增加），End使用ValueDecrease（批次号减少）
+   - 配置：Start 使用 ValueIncrease（批次号增加），End 使用 ValueDecrease（批次号减少）
    - 数据：记录批次号、开始时间、结束时间、批次产量等
 
 4. **工艺参数采集**
+
    - 场景：工艺开始时采集初始参数，工艺结束时采集最终参数
-   - 配置：Start使用RisingEdge（工艺启动信号），End使用FallingEdge（工艺结束信号）
+   - 配置：Start 使用 RisingEdge（工艺启动信号），End 使用 FallingEdge（工艺结束信号）
    - 数据：记录温度、压力、速度等工艺参数的变化
 
 5. **质量检测周期**
    - 场景：检测开始时记录检测参数，检测结束时更新检测结果
-   - 配置：Start使用RisingEdge（检测开始信号），End使用FallingEdge（检测结束信号）
+   - 配置：Start 使用 RisingEdge（检测开始信号），End 使用 FallingEdge（检测结束信号）
    - 数据：记录检测时间、检测结果、合格率等
 
 ### 🧮 EvalExpression 用法
@@ -277,8 +293,19 @@ CREATE TABLE your_table (
       "BatchReadLength": 70,
       "BatchSize": 1,
       "DataPoints": [
-        { "ColumnName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
-        { "ColumnName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+        {
+          "ColumnName": "up_temp",
+          "Register": "D6002",
+          "Index": 2,
+          "DataType": "short"
+        },
+        {
+          "ColumnName": "down_temp",
+          "Register": "D6004",
+          "Index": 4,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
       ],
       "ConditionalAcquisition": null
     },
@@ -290,8 +317,19 @@ CREATE TABLE your_table (
       "BatchReadLength": 200,
       "BatchSize": 1,
       "DataPoints": [
-        { "ColumnName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
-        { "ColumnName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
+        {
+          "ColumnName": "up_set_temp",
+          "Register": "D6102",
+          "Index": 2,
+          "DataType": "short"
+        },
+        {
+          "ColumnName": "down_set_temp",
+          "Register": "D6104",
+          "Index": 4,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
       ],
       "ConditionalAcquisition": {
         "Register": "D6200",
@@ -303,7 +341,7 @@ CREATE TABLE your_table (
         },
         "End": {
           "TriggerMode": "FallingEdge",
-          "Operation": "Update",
+          "Operation": "Insert",
           "StampColumn": "end_time"
         }
       }
@@ -344,9 +382,8 @@ CREATE TABLE your_table (
 
 ### 示例实现
 
-- Dapper `2.1.66`
+- InfluxDB.Client `2.0.0`
 - HslCommunication `12.2.0`
-- MySqlConnector `2.4.0`
 - Microsoft.AspNetCore.SignalR `1.2.0`
 - Serilog.AspNetCore `9.0.0`
 - Serilog.Sinks.Console `6.0.0`
@@ -361,7 +398,7 @@ builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IDataStorageService, MySqlDataStorageService>();
+builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();

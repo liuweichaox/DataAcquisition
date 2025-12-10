@@ -54,19 +54,12 @@ public class LocalQueueService(
 
     /// <summary>
     /// 将数据消息存储至数据库，支持批量处理。
+    /// 时序数据库不支持Update操作，所有数据点统一使用Insert操作。
     /// </summary>
     /// <param name="dataMessage">数据消息</param>
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        if (dataMessage.Operation == DataOperation.Update)
-        {
-            await dataStorage.UpdateAsync(
-                dataMessage.TableName,
-                dataMessage.DataValues.ToDictionary(k => k.Key, k => (object)(k.Value ?? string.Empty)),
-                dataMessage.KeyValues.ToDictionary(k => k.Key, k => (object)(k.Value ?? string.Empty))).ConfigureAwait(false);
-            return;
-        }
-
+        // 时序数据库统一使用Insert操作，End事件通过event_type标签区分
         if (dataMessage.BatchSize <= 1)
         {
             await dataStorage.SaveAsync(dataMessage).ConfigureAwait(false);

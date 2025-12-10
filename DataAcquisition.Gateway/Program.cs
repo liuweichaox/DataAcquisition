@@ -30,7 +30,7 @@ builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEvent
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
-builder.Services.AddSingleton<IDataStorageService, MySqlDataStorageService>();
+builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
