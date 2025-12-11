@@ -8,7 +8,7 @@
 
 ## 📖 Project Overview
 
-G-DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET 8, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
+DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET 8, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
 
 ### 🎯 Core Features
 
@@ -63,7 +63,7 @@ G-DataAcquisition is a high-performance, high-reliability industrial data acquis
 ## 📁 Project Structure
 
 ```
-G-DataAcquisition/
+DataAcquisition/
 ├── DataAcquisition.Application/     # Application Layer - Interface Definitions
 │   ├── Abstractions/               # Core Interface Abstractions
 │   └── PlcRuntime.cs              # PLC Runtime Enums
@@ -94,25 +94,29 @@ G-DataAcquisition/
 ### Installation Steps
 
 1. **Clone the Repository**
+
 ```bash
 git clone https://github.com/your-username/G-DataAcquisition.git
 cd G-DataAcquisition
 ```
 
 2. **Restore Dependencies**
+
 ```bash
 dotnet restore
 ```
 
 3. **Configure Devices**
-Edit `DataAcquisition.Gateway/Configs/M01C123.json` file to configure your PLC device information.
+   Edit `DataAcquisition.Gateway/Configs/M01C123.json` file to configure your PLC device information.
 
 4. **Run the System**
+
 ```bash
 dotnet run --project DataAcquisition.Gateway
 ```
 
 5. **Access Monitoring Interface**
+
 - Metrics Visualization: http://localhost:8000/metrics
 - Prometheus Metrics: http://localhost:8000/metrics/raw
 - API Documentation: http://localhost:8000/swagger (if enabled)
@@ -195,15 +199,15 @@ dotnet run --project DataAcquisition.Gateway
 ```javascript
 // Frontend JavaScript Example
 const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/dataHub")
-    .build();
+  .withUrl("/dataHub")
+  .build();
 
 connection.on("DataReceived", (data) => {
-    console.log("Data received:", data);
+  console.log("Data received:", data);
 });
 
 connection.start().then(() => {
-    console.log("Connection established");
+  console.log("Connection established");
 });
 ```
 
@@ -221,11 +225,11 @@ curl http://localhost:8000/api/metrics-data
 
 ```csharp
 // C# Client Example
-var request = new PlcWriteRequest 
-{ 
-    DeviceCode = "PLC01", 
-    Register = "D300", 
-    Value = 100 
+var request = new PlcWriteRequest
+{
+    DeviceCode = "PLC01",
+    Register = "D300",
+    Value = 100
 };
 
 var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
@@ -242,10 +246,10 @@ public class ChannelCollector : IChannelCollector
     {
         // PLC connection health check
         await CheckPlcConnectionAsync();
-        
+
         // Trigger condition evaluation
         var shouldCollect = await EvaluateTriggerConditionsAsync();
-        
+
         if (shouldCollect)
         {
             // Execute data acquisition
@@ -265,7 +269,7 @@ public class InfluxDbDataStorageService : IDataStorageService
     {
         // Convert to InfluxDB data point
         var point = ConvertToDataPoint(dataMessage);
-        
+
         // Write to InfluxDB
         try
         {
@@ -284,6 +288,7 @@ public class InfluxDbDataStorageService : IDataStorageService
 ### MetricsCollector - Metrics Collector
 
 The system includes 9 core monitoring metrics:
+
 - `data_acquisition_collection_latency_ms` - Collection latency
 - `data_acquisition_collection_rate` - Collection frequency
 - `data_acquisition_queue_depth` - Queue depth
@@ -297,6 +302,7 @@ The system includes 9 core monitoring metrics:
 ## 🔄 Data Processing Flow
 
 ### Normal Flow
+
 1. **Data Acquisition**: ChannelCollector reads data from PLC
 2. **Data Processing**: DataProcessingService performs data transformation and validation
 3. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
@@ -305,6 +311,7 @@ The system includes 9 core monitoring metrics:
 6. **WAL Cleanup**: Delete corresponding Parquet files on successful write
 
 ### Exception Handling Flow
+
 1. **Network Exception**: Automatic reconnection mechanism, heartbeat monitoring ensures connection status
 2. **Storage Failure**: WAL files retained, periodically retried by ParquetRetryWorker
 3. **Configuration Error**: Configuration validation and hot reload mechanism
@@ -313,13 +320,14 @@ The system includes 9 core monitoring metrics:
 
 ### Acquisition Parameter Tuning
 
-| Parameter | Recommended Value | Description |
-|-----------|-------------------|-------------|
-| BatchSize | 10-50 | Balance latency and throughput |
-| AcquisitionInterval | 100-500ms | Adjust based on PLC performance |
-| HeartbeatInterval | 5000ms | Connection monitoring frequency |
+| Parameter           | Recommended Value | Description                     |
+| ------------------- | ----------------- | ------------------------------- |
+| BatchSize           | 10-50             | Balance latency and throughput  |
+| AcquisitionInterval | 100-500ms         | Adjust based on PLC performance |
+| HeartbeatInterval   | 5000ms            | Connection monitoring frequency |
 
 ### Storage Optimization
+
 - **Parquet Compression**: Use Snappy compression to reduce disk usage
 - **File Rotation**: Configure MaxFileSize and MaxFileAge to prevent oversized files
 - **Retry Interval**: RetryWorker defaults to 5 seconds, adjustable based on network conditions
@@ -327,29 +335,37 @@ The system includes 9 core monitoring metrics:
 ## ❓ Frequently Asked Questions (FAQ)
 
 ### Q: What if data is lost?
+
 A: The system uses a WAL-first architecture where all data is first written to Parquet files, then to InfluxDB. WAL files are only deleted when both writes succeed, ensuring zero data loss.
 
 ### Q: How to add new PLC protocols?
+
 A: Implement the `IPlcClientService` interface and register the new protocol support in `PlcClientFactory`.
 
 ### Q: Do I need to restart after configuration changes?
+
 A: No. The system uses FileSystemWatcher to monitor configuration file changes and supports hot reload.
 
 ### Q: Where can I view monitoring metrics?
+
 A: Visit http://localhost:8000/metrics for the visualization interface, or http://localhost:8000/metrics/raw for Prometheus format metrics.
 
 ### Q: How to extend storage backends?
+
 A: Implement the `IDataStorageService` interface while maintaining consistency with the queue service write contract.
 
 ## 🏆 Design Philosophy
 
 ### WAL-first Architecture
+
 The core design philosophy is "data safety first." All acquired data is immediately written to local Parquet files as write-ahead logs before being asynchronously written to InfluxDB. This design ensures data integrity even during network failures, storage service unavailability, and other exceptional conditions.
 
 ### Modular Design
+
 The system employs a clear layered architecture with interface abstractions for each module, supporting flexible extension and replacement. New PLC protocols, storage backends, and data processing logic can be quickly integrated by implementing the corresponding interfaces.
 
 ### Operations-Friendly
+
 Built-in comprehensive monitoring metrics and visualization interfaces, support for hot configuration updates, and detailed logging significantly reduce operational complexity.
 
 ## 🤝 Contributing Guidelines
@@ -379,6 +395,7 @@ dotnet build
 ```
 
 ### Code Standards
+
 - Follow .NET coding conventions
 - Use meaningful naming
 - Add necessary XML documentation
@@ -391,6 +408,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 Thanks to the following open-source projects:
+
 - [.NET](https://dotnet.microsoft.com/) - Powerful development platform
 - [InfluxDB](https://www.influxdata.com/) - High-performance time-series database
 - [Prometheus](https://prometheus.io/) - Monitoring system

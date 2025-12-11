@@ -1,14 +1,35 @@
-# 🛰️ G-DataAcquisition - 工业级PLC数据采集系统
+# 🛰️ G-DataAcquisition - 工业级 PLC 数据采集系统
 
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
 
 English: [README.en.md](README.en.md)
 
+## 📋 目录
+
+- [📖 项目简介](#-项目简介)
+- [🎯 核心特性](#-核心特性)
+- [🏗️ 系统架构](#️-系统架构)
+- [📁 项目结构](#-项目结构)
+- [🚀 快速开始](#-快速开始)
+- [⚙️ 配置说明](#️-配置说明)
+- [🔌 API 使用示例](#-api-使用示例)
+- [📊 核心模块文档](#-核心模块文档)
+- [🔄 数据处理流程](#-数据处理流程)
+- [🎯 性能优化](#-性能优化)
+- [❓ 常见问题](#-常见问题)
+- [🏆 设计理念](#-设计理念)
+- [🤝 贡献指南](#-贡献指南)
+- [📄 开源协议](#-开源协议)
+- [🙏 致谢](#-致谢)
+
 ## 📖 项目简介
 
-G-DataAcquisition 是一个基于 .NET 8 构建的高性能、高可靠性的工业数据采集系统，专门为 PLC（可编程逻辑控制器）数据采集场景设计。系统采用 WAL-first 架构，确保数据零丢失，支持多 PLC 并行采集、条件触发采集、批量读取等高级功能。
+DataAcquisition 是一个基于 .NET 8 构建的高性能、高可靠性的工业数据采集系统，专门为 PLC（可编程逻辑控制器）数据采集场景设计。系统采用 WAL-first 架构，确保数据零丢失，支持多 PLC 并行采集、条件触发采集、批量读取等高级功能。
 
 ### 🎯 核心特性
 
@@ -63,7 +84,7 @@ G-DataAcquisition 是一个基于 .NET 8 构建的高性能、高可靠性的工
 ## 📁 项目结构
 
 ```
-G-DataAcquisition/
+DataAcquisition/
 ├── DataAcquisition.Application/     # 应用层 - 接口定义
 │   ├── Abstractions/               # 核心接口抽象
 │   └── PlcRuntime.cs              # PLC 运行时枚举
@@ -94,25 +115,29 @@ G-DataAcquisition/
 ### 安装步骤
 
 1. **克隆项目**
+
 ```bash
 git clone https://github.com/your-username/G-DataAcquisition.git
 cd G-DataAcquisition
 ```
 
 2. **恢复依赖**
+
 ```bash
 dotnet restore
 ```
 
 3. **配置设备**
-编辑 `DataAcquisition.Gateway/Configs/M01C123.json` 文件，配置您的 PLC 设备信息。
+   编辑 `DataAcquisition.Gateway/Configs/M01C123.json` 文件，配置您的 PLC 设备信息。
 
 4. **运行系统**
+
 ```bash
 dotnet run --project DataAcquisition.Gateway
 ```
 
 5. **访问监控界面**
+
 - 指标可视化: http://localhost:8000/metrics
 - Prometheus 指标: http://localhost:8000/metrics/raw
 - API 文档: http://localhost:8000/swagger (如启用)
@@ -195,15 +220,15 @@ dotnet run --project DataAcquisition.Gateway
 ```javascript
 // 前端 JavaScript 示例
 const connection = new signalR.HubConnectionBuilder()
-    .withUrl("/dataHub")
-    .build();
+  .withUrl("/dataHub")
+  .build();
 
 connection.on("DataReceived", (data) => {
-    console.log("收到数据:", data);
+  console.log("收到数据:", data);
 });
 
 connection.start().then(() => {
-    console.log("连接成功");
+  console.log("连接成功");
 });
 ```
 
@@ -221,11 +246,11 @@ curl http://localhost:8000/api/metrics-data
 
 ```csharp
 // C# 客户端示例
-var request = new PlcWriteRequest 
-{ 
-    DeviceCode = "PLC01", 
-    Register = "D300", 
-    Value = 100 
+var request = new PlcWriteRequest
+{
+    DeviceCode = "PLC01",
+    Register = "D300",
+    Value = 100
 };
 
 var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
@@ -242,10 +267,10 @@ public class ChannelCollector : IChannelCollector
     {
         // PLC 连接健康检查
         await CheckPlcConnectionAsync();
-        
+
         // 触发条件评估
         var shouldCollect = await EvaluateTriggerConditionsAsync();
-        
+
         if (shouldCollect)
         {
             // 执行数据采集
@@ -265,7 +290,7 @@ public class InfluxDbDataStorageService : IDataStorageService
     {
         // 转换为 InfluxDB 数据点
         var point = ConvertToDataPoint(dataMessage);
-        
+
         // 写入 InfluxDB
         try
         {
@@ -284,6 +309,7 @@ public class InfluxDbDataStorageService : IDataStorageService
 ### MetricsCollector - 指标收集器
 
 系统内置 9 种核心监控指标：
+
 - `data_acquisition_collection_latency_ms` - 采集延迟
 - `data_acquisition_collection_rate` - 采集频率
 - `data_acquisition_queue_depth` - 队列深度
@@ -297,6 +323,7 @@ public class InfluxDbDataStorageService : IDataStorageService
 ## 🔄 数据处理流程
 
 ### 正常流程
+
 1. **数据采集**: ChannelCollector 从 PLC 读取数据
 2. **数据处理**: DataProcessingService 进行数据转换和验证
 3. **队列聚合**: LocalQueueService 按 BatchSize 聚合数据
@@ -305,6 +332,7 @@ public class InfluxDbDataStorageService : IDataStorageService
 6. **WAL 清理**: 写入成功则删除对应的 Parquet 文件
 
 ### 异常处理流程
+
 1. **网络异常**: 自动重连机制，心跳监控确保连接状态
 2. **存储失败**: WAL 文件保留，由 ParquetRetryWorker 定期重试
 3. **配置错误**: 配置验证和热重载机制
@@ -313,13 +341,14 @@ public class InfluxDbDataStorageService : IDataStorageService
 
 ### 采集参数调优
 
-| 参数 | 推荐值 | 说明 |
-|------|--------|------|
-| BatchSize | 10-50 | 平衡延迟和吞吐量 |
+| 参数                | 推荐值    | 说明              |
+| ------------------- | --------- | ----------------- |
+| BatchSize           | 10-50     | 平衡延迟和吞吐量  |
 | AcquisitionInterval | 100-500ms | 根据 PLC 性能调整 |
-| HeartbeatInterval | 5000ms | 连接监控频率 |
+| HeartbeatInterval   | 5000ms    | 连接监控频率      |
 
 ### 存储优化
+
 - **Parquet 压缩**: 使用 Snappy 压缩减少磁盘占用
 - **文件滚动**: 配置 MaxFileSize 和 MaxFileAge 避免文件过大
 - **重试间隔**: RetryWorker 默认 5 秒，可根据网络状况调整
@@ -327,29 +356,37 @@ public class InfluxDbDataStorageService : IDataStorageService
 ## ❓ 常见问题 (FAQ)
 
 ### Q: 数据丢失怎么办？
+
 A: 系统采用 WAL-first 架构，所有数据先写入 Parquet 文件，再写入 InfluxDB。只有两者都成功才会删除 WAL 文件，确保数据零丢失。
 
 ### Q: 如何添加新的 PLC 协议？
+
 A: 实现 `IPlcClientService` 接口，并在 `PlcClientFactory` 中注册新的协议支持。
 
 ### Q: 配置修改后需要重启吗？
+
 A: 不需要。系统使用 FileSystemWatcher 监控配置文件变化，支持热更新。
 
 ### Q: 监控指标在哪里查看？
+
 A: 访问 http://localhost:8000/metrics 查看可视化界面，或 http://localhost:8000/metrics/raw 获取 Prometheus 格式指标。
 
 ### Q: 如何扩展存储后端？
+
 A: 实现 `IDataStorageService` 接口，保持与队列服务的写入契约一致性。
 
 ## 🏆 设计理念
 
 ### WAL-first 架构
+
 系统核心设计理念是"数据安全第一"。所有数据采集后立即写入本地 Parquet 文件作为预写日志，然后再异步写入 InfluxDB。这种设计确保即使在网络故障、存储服务不可用等异常情况下，数据也不会丢失。
 
 ### 模块化设计
+
 系统采用清晰的分层架构，各模块通过接口抽象，支持灵活扩展和替换。新的 PLC 协议、存储后端、数据处理逻辑都可以通过实现相应接口快速集成。
 
 ### 运维友好
+
 内置完整的监控指标和可视化界面，支持配置热更新，提供详细的日志记录，大大降低了运维复杂度。
 
 ## 🤝 贡献指南
@@ -379,6 +416,7 @@ dotnet build
 ```
 
 ### 代码规范
+
 - 遵循 .NET 编码规范
 - 使用有意义的命名
 - 添加必要的 XML 注释
@@ -391,6 +429,7 @@ dotnet build
 ## 🙏 致谢
 
 感谢以下开源项目：
+
 - [.NET](https://dotnet.microsoft.com/) - 强大的开发平台
 - [InfluxDB](https://www.influxdata.com/) - 高性能时序数据库
 - [Prometheus](https://prometheus.io/) - 监控系统
