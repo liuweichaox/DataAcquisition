@@ -391,7 +391,7 @@ We welcome contributions of all kinds! Please follow these steps:
 
 ```bash
 # Clone the project
-git clone https://github.com/your-username/G-DataAcquisition.git
+git clone https://github.com/liuweichaox/DataAcquisition.git
 
 # Install dependencies
 dotnet restore
