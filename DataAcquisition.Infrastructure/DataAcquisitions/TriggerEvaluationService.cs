@@ -21,8 +21,14 @@ public class TriggerEvaluationService : ITriggerEvaluationService
     /// <summary>
     /// 判断是否应该触发采集
     /// </summary>
-    public bool ShouldTrigger(TriggerMode mode, object? previousValue, object? currentValue)
+    public bool ShouldTrigger(AcquisitionTrigger? mode, object? previousValue, object? currentValue)
     {
+        // 如果 mode 为 null，不触发
+        if (!mode.HasValue)
+        {
+            return false;
+        }
+
         // 如果前一个值或当前值为null，默认触发（首次读取）
         if (previousValue == null || currentValue == null)
         {
@@ -32,13 +38,12 @@ public class TriggerEvaluationService : ITriggerEvaluationService
         var prev = Convert.ToDecimal(previousValue);
         var curr = Convert.ToDecimal(currentValue);
 
-        return mode switch
+        return mode.Value switch
         {
-            TriggerMode.Always => true,
-            TriggerMode.ValueIncrease => prev < curr,
-            TriggerMode.ValueDecrease => prev > curr,
-            TriggerMode.RisingEdge => prev == 0 && curr == 1,
-            TriggerMode.FallingEdge => prev == 1 && curr == 0,
+            AcquisitionTrigger.ValueIncrease => prev < curr,
+            AcquisitionTrigger.ValueDecrease => prev > curr,
+            AcquisitionTrigger.RisingEdge => prev == 0 && curr == 1,
+            AcquisitionTrigger.FallingEdge => prev == 1 && curr == 0,
             _ => false
         };
     }

@@ -38,7 +38,7 @@ public class LocalQueueService : IQueueService
         InfluxDbDataStorageService influxStorage,
         IDataProcessingService dataProcessingService,
         IOperationalEventsService events,
-        Microsoft.Extensions.Configuration.IConfiguration configuration,
+        IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
         _parquetStorage = parquetStorage;
@@ -141,7 +141,7 @@ public class LocalQueueService : IQueueService
             catch (Exception ex)
             {
                 // Influx 失败，保留 WAL 文件，记录日志
-                _metricsCollector?.RecordError(messages.FirstOrDefault()?.DeviceCode ?? "unknown", measurement);
+                _metricsCollector?.RecordError(messages.FirstOrDefault()?.ChannelCode ?? "unknown", measurement);
                 await _events.WarnAsync($"写入 Influx 失败，保留 WAL 文件: {walPath}, {ex.Message}").ConfigureAwait(false);
             }
         }
@@ -182,7 +182,7 @@ public class LocalQueueService : IQueueService
             }
             catch (Exception ex)
             {
-                _metricsCollector?.RecordError(dataMessage.DeviceCode ?? "unknown", dataMessage.Measurement);
+                _metricsCollector?.RecordError(dataMessage.ChannelCode ?? "unknown", dataMessage.Measurement);
                 await _events.ErrorAsync($"Error processing message: {ex.Message}", ex).ConfigureAwait(false);
             }
         }

@@ -45,10 +45,10 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         {
             try
             {
-                if (!_plcLifecycle.TryGetClient(config.Code, out var client))
+                if (!_plcLifecycle.TryGetClient(config.PLCCode, out var client))
                 {
-                    _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                    await _events.WarnAsync($"{config.Code}-未找到PLC客户端").ConfigureAwait(false);
+                    _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                    await _events.WarnAsync($"{config.PLCCode}-未找到PLC客户端").ConfigureAwait(false);
                     await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
                     continue;
                 }
@@ -60,36 +60,36 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 {
                     if (lastOk)
                     {
-                        await _events.WarnAsync($"{config.Code}-网络检测失败：IP {config.Host}，Ping 未响应").ConfigureAwait(false);
-                        _metricsCollector?.RecordConnectionStatus(config.Code, false);
-                        RecordConnectionEnd(config.Code);
+                        await _events.WarnAsync($"{config.PLCCode}-网络检测失败：IP {config.Host}，Ping 未响应").ConfigureAwait(false);
+                        _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
+                        RecordConnectionEnd(config.PLCCode);
                     }
-                    _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                    _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
                 }
                 else
                 {
-                    var connect = await WriteAsync(config.Code, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
+                    var connect = await WriteAsync(config.PLCCode, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
                     ok = connect.IsSuccess;
                     if (ok)
                     {
                         writeData ^= 1;
-                        _plcStateManager.PlcConnectionHealth[config.Code] = true;
+                        _plcStateManager.PlcConnectionHealth[config.PLCCode] = true;
 
                         if (!lastOk)
                         {
-                            await _events.InfoAsync($"{config.Code}-心跳检测正常").ConfigureAwait(false);
-                            _metricsCollector?.RecordConnectionStatus(config.Code, true);
-                            RecordConnectionStart(config.Code);
+                            await _events.InfoAsync($"{config.PLCCode}-心跳检测正常").ConfigureAwait(false);
+                            _metricsCollector?.RecordConnectionStatus(config.PLCCode, true);
+                            RecordConnectionStart(config.PLCCode);
                         }
                     }
                     else
                     {
-                        _plcStateManager.PlcConnectionHealth[config.Code] = false;
+                        _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
                         if (lastOk)
                         {
-                            await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message).ConfigureAwait(false);
-                            _metricsCollector?.RecordConnectionStatus(config.Code, false);
-                            RecordConnectionEnd(config.Code);
+                            await _events.WarnAsync($"{config.PLCCode}-心跳检测失败", connect.Message).ConfigureAwait(false);
+                            _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
+                            RecordConnectionEnd(config.PLCCode);
                         }
                         // 连接恢复由下次心跳检测自动完成，无需额外重连逻辑
                     }
@@ -99,8 +99,8 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             }
             catch (Exception ex)
             {
-                _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                await _events.ErrorAsync($"{config.Code}-系统异常: {ex.Message}", ex).ConfigureAwait(false);
+                _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                await _events.ErrorAsync($"{config.PLCCode}-系统异常: {ex.Message}", ex).ConfigureAwait(false);
             }
             finally
             {

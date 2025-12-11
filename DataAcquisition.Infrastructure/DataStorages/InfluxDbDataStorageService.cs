@@ -56,7 +56,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            _metricsCollector?.RecordError(dataMessage.DeviceCode ?? "unknown", dataMessage.Measurement);
+            _metricsCollector?.RecordError(dataMessage.ChannelCode ?? "unknown", dataMessage.Measurement);
             await _events.ErrorAsync($"[ERROR] 时序数据库插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
@@ -87,55 +87,10 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            var deviceCode = dataMessages.FirstOrDefault()?.DeviceCode ?? "unknown";
+            var deviceCode = dataMessages.FirstOrDefault()?.ChannelCode ?? "unknown";
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             _metricsCollector?.RecordError(deviceCode, measurement);
             await _events.ErrorAsync($"[ERROR] 时序数据库批量插入失败: {ex.Message}", ex).ConfigureAwait(false);
-        }
-    }
-
-    /// <summary>
-    /// 更新记录（时序数据库不支持更新，改为写入新数据点）。
-    /// </summary>
-    public async Task UpdateAsync(string measurement, Dictionary<string, object> values, Dictionary<string, object> conditions)
-    {
-        // 时序数据库不支持更新操作，将Update转换为Insert操作
-        // 使用event_type="end"标签标识这是End事件
-        try
-        {
-            var point = PointData.Measurement(measurement)
-                .Timestamp(DateTime.Now, WritePrecision.Ns);
-
-            // 将conditions中的cycle_id作为tag
-            if (conditions.TryGetValue("cycle_id", out var cycleId))
-            {
-                point = point.Tag("cycle_id", cycleId.ToString() ?? string.Empty);
-            }
-
-            // 添加event_type="end"标签
-            point = point.Tag("event_type", "end");
-
-            // 添加所有values作为fields
-            foreach (var kvp in values)
-            {
-                var fieldValue = ConvertToFieldValue(kvp.Value);
-                point = fieldValue switch
-                {
-                    string s => point.Field(kvp.Key, s),
-                    bool b => point.Field(kvp.Key, b),
-                    long l => point.Field(kvp.Key, l),
-                    double d => point.Field(kvp.Key, d),
-                    _ => point.Field(kvp.Key, fieldValue.ToString() ?? string.Empty)
-                };
-            }
-
-            using var writeApi = _client.GetWriteApi();
-            writeApi.WritePoint(_bucket, _org, point);
-            await Task.CompletedTask.ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            await _events.ErrorAsync($"[ERROR] 时序数据库更新（转换为插入）失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
 
@@ -148,21 +103,27 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             .Timestamp(dataMessage.Timestamp, WritePrecision.Ns);
 
         // 添加标签（tags）
-        if (!string.IsNullOrEmpty(dataMessage.DeviceCode))
+        if (!string.IsNullOrEmpty(dataMessage.PLCCode))
         {
-            point = point.Tag("device_code", dataMessage.DeviceCode);
+            point = point.Tag("plc_code", dataMessage.PLCCode);
         }
 
-        if (!string.IsNullOrEmpty(dataMessage.CycleId))
+        if (!string.IsNullOrEmpty(dataMessage.ChannelCode))
         {
-            point = point.Tag("cycle_id", dataMessage.CycleId);
+            point = point.Tag("channel_code", dataMessage.ChannelCode);
         }
 
         // 添加event_type标签
-        var eventType = dataMessage.EventType ?? "data";
-        point = point.Tag("event_type", eventType);
+        var eventType = dataMessage.EventType ?? EventType.Data;
+        point = point.Tag("event_type", eventType.ToString());
 
         // 添加所有数据值作为字段（fields）
+        // 注意：cycle_id 作为 field 而不是 tag，因为它是高基数的唯一标识符（GUID）
+        if (!string.IsNullOrEmpty(dataMessage.CycleId))
+        {
+            point = point.Field("cycle_id", dataMessage.CycleId);
+        }
+
         foreach (var kvp in dataMessage.DataValues)
         {
             if (kvp.Value != null)

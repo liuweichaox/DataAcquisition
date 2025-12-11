@@ -191,15 +191,16 @@ dotnet build -f net8.0
 ```json
 {
   "IsEnabled": true,
-  "Code": "PLC01",
+  "PLCCode": "PLC01",
   "Host": "192.168.1.100",
   "Port": 502,
-  "Type": "ModbusTcp",
+  "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 5000,
   "Channels": [
     {
       "Measurement": "temperature",
+      "ChannelCode": "PLC01C01",
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Conditional",
@@ -211,21 +212,15 @@ dotnet build -f net8.0
           "FieldName": "temp_value",
           "Register": "D200",
           "Index": 0,
-          "DataType": "float",
+          "DataType": "short",
           "EvalExpression": "value * 0.1"
         }
       ],
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",
-        "Start": {
-          "TriggerMode": "RisingEdge",
-          "TimestampField": "start_time"
-        },
-        "End": {
-          "TriggerMode": "FallingEdge",
-          "TimestampField": "end_time"
-        }
+        "StartTriggerMode": "RisingEdge",
+        "EndTriggerMode": "FallingEdge"
       }
     }
   ]

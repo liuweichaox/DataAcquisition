@@ -28,21 +28,21 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
     public IPlcClientService GetOrCreateClient(DeviceConfig config)
     {
         // 双重检查，确保多线程安全
-        if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var existing))
+        if (_plcStateManager.PlcClients.TryGetValue(config.PLCCode, out var existing))
         {
             return existing;
         }
 
         lock (_plcStateManager.PlcClients)
         {
-            if (_plcStateManager.PlcClients.TryGetValue(config.Code, out existing))
+            if (_plcStateManager.PlcClients.TryGetValue(config.PLCCode, out existing))
             {
                 return existing;
             }
 
             var client = _plcClientFactory.Create(config);
-            _plcStateManager.PlcClients.TryAdd(config.Code, client);
-            _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
+            _plcStateManager.PlcClients.TryAdd(config.PLCCode, client);
+            _plcStateManager.PlcLocks.TryAdd(config.PLCCode, new SemaphoreSlim(1, 1));
             return client;
         }
     }

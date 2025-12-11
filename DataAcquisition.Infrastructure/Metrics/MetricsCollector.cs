@@ -82,7 +82,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs)
     {
-        var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
+        var tags = new KeyValuePair<string, object?>[]
         {
             new("device_code", deviceCode),
             new("measurement", measurement)
@@ -92,7 +92,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond)
     {
-        var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
+        var tags = new KeyValuePair<string, object?>[]
         {
             new("device_code", deviceCode),
             new("measurement", measurement)
@@ -112,7 +112,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordWriteLatency(string measurement, double latencyMs)
     {
-        var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
+        var tags = new KeyValuePair<string, object?>[]
         {
             new("measurement", measurement)
         };
@@ -130,7 +130,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordError(string deviceCode, string? measurement = null)
     {
-        var tagList = new List<System.Collections.Generic.KeyValuePair<string, object?>>
+        var tagList = new List<KeyValuePair<string, object?>>
         {
             new("device_code", deviceCode)
         };
@@ -143,7 +143,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordConnectionStatus(string deviceCode, bool isConnected)
     {
-        var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
+        var tags = new KeyValuePair<string, object?>[]
         {
             new("device_code", deviceCode),
             new("status", isConnected ? "connected" : "disconnected")
@@ -153,7 +153,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordConnectionDuration(string deviceCode, double durationSeconds)
     {
-        var tags = new System.Collections.Generic.KeyValuePair<string, object?>[]
+        var tags = new KeyValuePair<string, object?>[]
         {
             new("device_code", deviceCode)
         };

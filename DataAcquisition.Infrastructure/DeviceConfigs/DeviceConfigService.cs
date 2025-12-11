@@ -85,7 +85,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                DeviceCode = oldConfig.Code,
+                DeviceCode = oldConfig.PLCCode,
                 OldConfig = oldConfig
             });
         }
@@ -104,7 +104,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                DeviceCode = oldConfig.Code,
+                DeviceCode = oldConfig.PLCCode,
                 OldConfig = oldConfig
             });
         }
@@ -150,7 +150,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = changeType,
-                DeviceCode = newConfig.Code,
+                DeviceCode = newConfig.PLCCode,
                 NewConfig = newConfig,
                 OldConfig = oldConfig
             });
@@ -241,7 +241,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         var result = new ConfigValidationResult { IsValid = true };
 
         // 验证设备编码
-        if (string.IsNullOrWhiteSpace(config.Code))
+        if (string.IsNullOrWhiteSpace(config.PLCCode))
         {
             result.IsValid = false;
             result.Errors.Add("设备编码不能为空");

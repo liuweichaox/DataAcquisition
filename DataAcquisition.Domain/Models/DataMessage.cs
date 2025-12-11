@@ -6,29 +6,73 @@ namespace DataAcquisition.Domain.Models;
 /// <summary>
 /// 数据点消息
 /// </summary>
-public class DataMessage(DateTime timestamp, string measurement, int batchSize)
+public class DataMessage
 {
-    public DateTime Timestamp => timestamp;
-    public string Measurement => measurement;
-    public int BatchSize => batchSize;
+    /// <summary>
+    /// 采集周期唯一标识符（GUID），用于条件采集的Start/End事件关联[Field]
+    /// </summary>
+    public string? CycleId  { get; set; }
+    
+    /// <summary>
+    /// 测量[Measurement]
+    /// </summary>
+    public string Measurement  { get; set; }
+    
+    /// <summary>
+    /// PLC编码[Tag]
+    /// </summary>
+    public string? PLCCode { get; set; }
+    
+    /// <summary>
+    /// 通道编码[Tag]
+    /// </summary>
+    public string? ChannelCode { get; set; }
+    
+    /// <summary>
+    /// 事件类型：start（开始事件）、end（结束事件）、data（普通数据点）[Field]
+    /// </summary>
+    public EventType? EventType { get; set; }
 
     /// <summary>
-    /// 采集周期唯一标识符（GUID），用于条件采集的Start/End事件关联
+    /// 数据值字典，存储所有采集的数据点值[Field]
     /// </summary>
-    public string? CycleId { get; set; }
-
+    public ConcurrentDictionary<string, dynamic?> DataValues { get; private set; } = new();
+    
     /// <summary>
-    /// 设备编码，用于时序数据库标签（tags）
+    /// 时间戳[Time]
     /// </summary>
-    public string? DeviceCode { get; set; }
-
+    public DateTime Timestamp { get; set; }
+    
     /// <summary>
-    /// 事件类型：start（开始事件）、end（结束事件）、data（普通数据点）
+    /// 批量保存大小[Field]
     /// </summary>
-    public string? EventType { get; set; }
+    public int BatchSize { get; set; }
 
-    /// <summary>
-    /// 数据值字典，存储所有采集的数据点值
-    /// </summary>
-    public ConcurrentDictionary<string, dynamic?> DataValues { get; } = new();
+    public static DataMessage Create(string cycleId, string measurement, string plcCode, string channelCode,
+        EventType eventType, DateTime timestamp, int batchSize)
+    {
+        return new DataMessage()
+        {
+            CycleId = cycleId,
+            Measurement = measurement,
+            PLCCode =  plcCode,
+            ChannelCode = channelCode,
+            EventType = eventType,
+            Timestamp = timestamp,
+            BatchSize = batchSize
+        };
+    }
+
+
+    public void AddDataValue(string key, dynamic? value)
+    { 
+        DataValues.TryAdd(key, value);
+    }
+}
+
+public enum EventType
+{
+    Start,
+    End,
+    Data
 }

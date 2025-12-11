@@ -21,9 +21,9 @@ public interface ITriggerEvaluationService
     /// <summary>
     /// 判断是否应该触发采集
     /// </summary>
-    /// <param name="mode">触发模式：Always（无条件）、RisingEdge（上升沿）、FallingEdge（下降沿）、ValueIncrease（值增加）、ValueDecrease（值减少）</param>
+    /// <param name="mode">触发模式：RisingEdge（上升沿）、FallingEdge（下降沿）、ValueIncrease（值增加）、ValueDecrease（值减少）</param>
     /// <param name="previousValue">前一个读取的值，用于比较状态变化</param>
     /// <param name="currentValue">当前读取的值，用于比较状态变化</param>
     /// <returns>如果应该触发采集则返回true，否则返回false。如果previousValue或currentValue为null（首次读取），默认返回true</returns>
-    bool ShouldTrigger(TriggerMode mode, object? previousValue, object? currentValue);
+    bool ShouldTrigger(AcquisitionTrigger? mode, object? previousValue, object? currentValue);
 }

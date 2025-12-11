@@ -16,7 +16,7 @@ public class DeviceConfig
     /// <summary>
     /// PLC 编码
     /// </summary>
-    public string Code { get; set; }
+    public string PLCCode { get; set; }
 
     /// <summary>
     /// IP 地址
@@ -51,14 +51,12 @@ public class DeviceConfig
 }
 
 /// <summary>
-/// 触发模式
+/// 条件采集触发配置
+/// 用于定义条件采集的开始或结束事件触发规则。
+/// 典型应用场景：生产开始记录开始时间，生产结束记录结束时间，记录设备运行状态等。
 /// </summary>
-public enum TriggerMode
+public enum AcquisitionTrigger
 {
-    /// <summary>
-    /// 无条件触发
-    /// </summary>
-    Always,
     /// <summary>
     /// 数值增加时触发
     /// </summary>
@@ -78,28 +76,6 @@ public enum TriggerMode
 }
 
 /// <summary>
-/// 条件采集触发配置
-/// 用于定义条件采集的开始或结束事件触发规则。
-/// 典型应用场景：生产开始记录开始时间，生产结束记录结束时间，记录设备运行状态等。
-/// </summary>
-public class AcquisitionTrigger
-{
-    /// <summary>
-    /// 触发模式
-    /// 定义何时触发采集：Always（无条件）、RisingEdge（上升沿）、FallingEdge（下降沿）等
-    /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public TriggerMode TriggerMode { get; set; }
-
-    /// <summary>
-    /// 时间戳字段名（Timestamp Field）
-    /// 用于记录开始时间或结束时间的字段名
-    /// 例如："start_time" 或 "end_time"
-    /// </summary>
-    public string TimestampField { get; set; }
-}
-
-/// <summary>
 /// 条件采集配置，包含开始与结束事件
 /// 用于实现条件采集：根据PLC寄存器状态判断何时开始采集，何时结束采集。
 ///
@@ -114,7 +90,7 @@ public class AcquisitionTrigger
 /// 4. 使用cycle_id而非时间戳作为Update条件，避免并发冲突
 ///
 /// 数据库兼容性：
-/// - 时序数据库：cycle_id作为标签（tag），类型为字符串
+/// - 时序数据库：cycle_id作为字段（field），类型为字符串。因为cycle_id是GUID（高基数），作为field可以避免索引膨胀问题
 /// </summary>
 public class ConditionalAcquisition
 {
@@ -136,14 +112,16 @@ public class ConditionalAcquisition
     /// 定义何时触发开始采集，通常使用RisingEdge（从0变1）或ValueIncrease（值增加）
     /// 触发时会生成cycle_id并插入新记录
     /// </summary>
-    public AcquisitionTrigger? Start { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public AcquisitionTrigger? StartTriggerMode { get; set; }
 
     /// <summary>
     /// 结束事件配置
     /// 定义何时触发结束采集，通常使用FallingEdge（从1变0）或ValueDecrease（值减少）
     /// 触发时会使用cycle_id更新对应的开始记录
     /// </summary>
-    public AcquisitionTrigger? End { get; set; }
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public AcquisitionTrigger? EndTriggerMode { get; set; }
 }
 
 /// <summary>
@@ -153,17 +131,10 @@ public class ConditionalAcquisition
 public class DataAcquisitionChannel
 {
     /// <summary>
-    /// 采集模式：Always=无条件采集；Conditional=按触发条件采集
+    /// 通道编码
     /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public AcquisitionMode AcquisitionMode { get; set; } = AcquisitionMode.Always;
-    /// <summary>
-    /// 条件采集配置，null 表示持续采集（无条件采集）
-    /// 如果配置了ConditionalAcquisition，则根据触发条件进行条件采集
-    /// 如果为null，则按照采集频率持续采集所有数据点
-    /// </summary>
-    public ConditionalAcquisition? ConditionalAcquisition { get; set; }
-
+    public string ChannelCode { get; set; }
+    
     /// <summary>
     /// 是否启用批量读取
     /// </summary>
@@ -194,11 +165,23 @@ public class DataAcquisitionChannel
     /// 默认值：100（毫秒）
     /// </summary>
     public int AcquisitionInterval { get; set; } = 100;
-
+    
     /// <summary>
     /// 采集位置配置
     /// </summary>
     public List<DataPoint>? DataPoints { get; set; }
+    
+    /// <summary>
+    /// 采集模式：Always=无条件采集；Conditional=按触发条件采集
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public AcquisitionMode AcquisitionMode { get; set; } = AcquisitionMode.Always;
+    /// <summary>
+    /// 条件采集配置，null 表示持续采集（无条件采集）
+    /// 如果配置了ConditionalAcquisition，则根据触发条件进行条件采集
+    /// 如果为null，则按照采集频率持续采集所有数据点
+    /// </summary>
+    public ConditionalAcquisition? ConditionalAcquisition { get; set; }
 }
 
 /// <summary>

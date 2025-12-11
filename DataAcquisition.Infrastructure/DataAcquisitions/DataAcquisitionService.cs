@@ -63,7 +63,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         private void StartCollectionTask(DeviceConfig config)
         {
-            if (_plcStateManager.Runtimes.ContainsKey(config.Code))
+            if (_plcStateManager.Runtimes.ContainsKey(config.PLCCode))
             {
                 return;
             }
@@ -75,7 +75,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(config.Code))
+            if (string.IsNullOrWhiteSpace(config.PLCCode))
             {
                 _events.ErrorAsync("启动采集任务失败：设备编码为空", null).ConfigureAwait(false);
                 return;
@@ -83,11 +83,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
 
             if (config.Channels == null || config.Channels.Count == 0)
             {
-                _events.ErrorAsync($"启动采集任务失败：设备 {config.Code} 没有配置采集通道", null).ConfigureAwait(false);
+                _events.ErrorAsync($"启动采集任务失败：设备 {config.PLCCode} 没有配置采集通道", null).ConfigureAwait(false);
                 return;
             }
 
-            _plcStateManager.PlcConnectionHealth[config.Code] = false;
+            _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
 
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
@@ -107,11 +107,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 if (t.Exception != null)
                 {
                     var innerException = t.Exception.Flatten().InnerException;
-                    await _events.ErrorAsync($"{config.Code}-采集任务异常: {innerException?.Message}", innerException).ConfigureAwait(false);
+                    await _events.ErrorAsync($"{config.PLCCode}-采集任务异常: {innerException?.Message}", innerException).ConfigureAwait(false);
                 }
             }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
-            _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
+            _plcStateManager.Runtimes.TryAdd(config.PLCCode, new PlcRuntime(cts, running));
         }
 
         /// <summary>
@@ -248,7 +248,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                     case ConfigChangeType.Updated:
                         if (e.OldConfig != null)
                         {
-                            await StopCollectionTaskAsync(e.OldConfig.Code).ConfigureAwait(false);
+                            await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
                         }
                         if (e.NewConfig != null && e.NewConfig.IsEnabled)
                         {
@@ -261,7 +261,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                         if (e.OldConfig != null)
                         {
                             await _events.InfoAsync($"设备配置已删除: {e.DeviceCode}，停止采集任务").ConfigureAwait(false);
-                            await StopCollectionTaskAsync(e.OldConfig.Code).ConfigureAwait(false);
+                            await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
                         }
                         break;
                 }
