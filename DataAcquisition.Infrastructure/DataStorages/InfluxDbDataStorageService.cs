@@ -159,7 +159,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
 
         // 添加event_type标签
-        var eventType = dataMessage.EventType ?? (dataMessage.Operation == DataOperation.Insert ? "data" : "end");
+        var eventType = dataMessage.EventType ?? "data";
         point = point.Tag("event_type", eventType);
 
         // 添加所有数据值作为字段（fields）

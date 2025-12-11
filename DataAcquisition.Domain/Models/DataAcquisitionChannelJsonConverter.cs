@@ -43,6 +43,13 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                     // 仅支持 ConditionalAcquisition 命名
                     conditionalAcquisition = JsonSerializer.Deserialize<ConditionalAcquisition>(ref reader, options);
                     break;
+                case "AcquisitionMode":
+                    var modeStr = reader.GetString();
+                    if (!string.IsNullOrWhiteSpace(modeStr) && Enum.TryParse<AcquisitionMode>(modeStr, true, out var mode))
+                    {
+                        channel.AcquisitionMode = mode;
+                    }
+                    break;
                 case "EnableBatchRead":
                     channel.EnableBatchRead = reader.GetBoolean();
                     break;
@@ -88,6 +95,7 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
             JsonSerializer.Serialize(writer, value.ConditionalAcquisition, options);
         }
 
+        writer.WriteString("AcquisitionMode", value.AcquisitionMode.ToString());
         writer.WriteBoolean("EnableBatchRead", value.EnableBatchRead);
         writer.WriteString("BatchReadRegister", value.BatchReadRegister);
         writer.WriteNumber("BatchReadLength", value.BatchReadLength);

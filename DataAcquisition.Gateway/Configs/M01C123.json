@@ -14,6 +14,7 @@
       "BatchReadLength": 70,
       "BatchSize": 1,
       "AcquisitionInterval": 100,
+      "AcquisitionMode": "Conditional", // Conditional: 条件采集, Always: 无条件采集
       "DataPoints": [
         { "FieldName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
         { "FieldName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
@@ -27,6 +28,7 @@
       "BatchReadLength": 200,
       "BatchSize": 1,
       "AcquisitionInterval": 0,
+      "AcquisitionMode": "Conditional", // Conditional: 条件采集, Always: 无条件采集
       "DataPoints": [
         { "FieldName": "up_set_temp", "Register": "D6102", "Index": 2, "DataType": "short" },
         { "FieldName": "down_set_temp", "Register": "D6104", "Index": 4, "DataType": "short", "EvalExpression": "value / 1000.0" }
@@ -36,12 +38,10 @@
         "DataType": "short",
         "Start": {
           "TriggerMode": "RisingEdge",
-          "Operation": "Insert",
           "TimestampField": "start_time"
         },
         "End": {
           "TriggerMode": "FallingEdge",
-          "Operation": "Update",
           "TimestampField": "end_time"
         }
       }

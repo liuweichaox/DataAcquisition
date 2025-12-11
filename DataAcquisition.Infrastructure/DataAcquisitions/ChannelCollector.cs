@@ -91,8 +91,7 @@ public class ChannelCollector : IChannelCollector
             {
                 var startCfg = dataAcquisitionChannel.ConditionalAcquisition?.Start ?? new AcquisitionTrigger
                 {
-                    TriggerMode = TriggerMode.Always,
-                    Operation = DataOperation.Insert
+                    TriggerMode = TriggerMode.Always
                 };
                 var endCfg = dataAcquisitionChannel.ConditionalAcquisition?.End;
                 var register = dataAcquisitionChannel.ConditionalAcquisition?.Register;
@@ -109,8 +108,8 @@ public class ChannelCollector : IChannelCollector
                 var fireStart = register != null && dataType != null && _triggerEvaluationService.ShouldTrigger(startCfg.TriggerMode, prevValue, curr);
                 var fireEnd = endCfg != null && register != null && dataType != null && _triggerEvaluationService.ShouldTrigger(endCfg.TriggerMode, prevValue, curr);
 
-                // 无条件采集：ConditionalAcquisition 为 null 时，Always 模式且没有 register，直接触发采集
-                var isUnconditionalAcquisition = dataAcquisitionChannel.ConditionalAcquisition == null;
+                // 根据 AcquisitionMode 判断是否无条件采集
+                var isUnconditionalAcquisition = dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always;
                 if (isUnconditionalAcquisition)
                 {
                     fireStart = true; // 无条件采集总是触发
@@ -126,11 +125,11 @@ public class ChannelCollector : IChannelCollector
                 }
 
                 var timestamp = DateTime.Now;
-            _stopwatch.Restart();
+                _stopwatch.Restart();
 
                 if (fireStart)
                 {
-                    await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, isUnconditionalAcquisition, ct).ConfigureAwait(false);
+                    await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, ct).ConfigureAwait(false);
 
                     // 记录采集延迟和频率
                     _stopwatch.Stop();
@@ -223,26 +222,24 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 处理开始事件：生成采集周期，读取数据并发布消息。
     /// </summary>
-    /// <param name="isUnconditionalAcquisition">是否为无条件采集（ConditionalAcquisition 为 null）</param>
     private async Task HandleStartEventAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
         IPlcClientService client,
         AcquisitionTrigger startCfg,
         DateTime timestamp,
-        bool isUnconditionalAcquisition,
         CancellationToken ct)
     {
         try
         {
-            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
+            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize);
 
             // 设置设备编码（用于时序数据库标签）
             dataMessage.DeviceCode = config.Code;
 
             // 所有采集都生成 cycle_id
             string cycleId;
-            if (isUnconditionalAcquisition)
+            if (channel.AcquisitionMode == AcquisitionMode.Always)
             {
                 // 无条件采集：直接生成 cycle_id，不需要状态管理
                 cycleId = Guid.NewGuid().ToString();
@@ -323,7 +320,7 @@ public class ChannelCollector : IChannelCollector
             }
 
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
-            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize, DataOperation.Insert);
+            var dataMessage = new DataMessage(timestamp, channel.Measurement, channel.BatchSize);
             dataMessage.DeviceCode = config.Code;
             dataMessage.CycleId = cycle.CycleId;
             dataMessage.EventType = "end"; // End事件标记

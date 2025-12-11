@@ -6,12 +6,11 @@ namespace DataAcquisition.Domain.Models;
 /// <summary>
 /// 数据点消息
 /// </summary>
-public class DataMessage(DateTime timestamp, string measurement, int batchSize, DataOperation operation = DataOperation.Insert)
+public class DataMessage(DateTime timestamp, string measurement, int batchSize)
 {
     public DateTime Timestamp => timestamp;
     public string Measurement => measurement;
     public int BatchSize => batchSize;
-    public DataOperation Operation => operation;
 
     /// <summary>
     /// 采集周期唯一标识符（GUID），用于条件采集的Start/End事件关联

@@ -92,14 +92,6 @@ public class AcquisitionTrigger
     public TriggerMode TriggerMode { get; set; }
 
     /// <summary>
-    /// 数据操作类型
-    /// Insert：插入新记录（通常用于Start事件）
-    /// Update：更新现有记录（通常用于End事件，通过cycle_id更新对应的开始记录）
-    /// </summary>
-    [JsonConverter(typeof(JsonStringEnumConverter))]
-    public DataOperation Operation { get; set; } = DataOperation.Insert;
-
-    /// <summary>
     /// 时间戳字段名（Timestamp Field）
     /// 用于记录开始时间或结束时间的字段名
     /// 例如："start_time" 或 "end_time"
@@ -161,6 +153,11 @@ public class ConditionalAcquisition
 public class DataAcquisitionChannel
 {
     /// <summary>
+    /// 采集模式：Always=无条件采集；Conditional=按触发条件采集
+    /// </summary>
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public AcquisitionMode AcquisitionMode { get; set; } = AcquisitionMode.Always;
+    /// <summary>
     /// 条件采集配置，null 表示持续采集（无条件采集）
     /// 如果配置了ConditionalAcquisition，则根据触发条件进行条件采集
     /// 如果为null，则按照采集频率持续采集所有数据点
@@ -202,6 +199,21 @@ public class DataAcquisitionChannel
     /// 采集位置配置
     /// </summary>
     public List<DataPoint>? DataPoints { get; set; }
+}
+
+/// <summary>
+/// 采集模式
+/// </summary>
+public enum AcquisitionMode
+{
+    /// <summary>
+    /// 无条件采集
+    /// </summary>
+    Always,
+    /// <summary>
+    /// 条件采集（基于 ConditionalAcquisition 触发）
+    /// </summary>
+    Conditional
 }
 
 /// <summary>
