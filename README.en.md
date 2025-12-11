@@ -1,6 +1,6 @@
 # 🛰️ DataAcquisition - Industrial PLC Data Acquisition System
 
-[![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
 
@@ -8,7 +8,7 @@
 
 ## 📖 Project Overview
 
-DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET 8, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
+DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system supports .NET 10.0 and .NET 8.0 (both LTS versions), employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
 
 ### 🎯 Core Features
 
@@ -107,9 +107,15 @@ DataAcquisition/
 
 ### Prerequisites
 
-- .NET 8.0 SDK
+- .NET 10.0 or .NET 8.0 SDK (recommended to use the latest LTS version)
 - InfluxDB 2.x (optional, for time-series data storage)
 - Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
+
+> **Note**: The project supports multi-target frameworks (.NET 10.0, .NET 8.0). You can choose the appropriate version based on your deployment environment. Both versions are LTS (Long Term Support) versions, suitable for production use.
+> 
+> **Version Selection Recommendations**:
+> - **.NET 10.0**: Latest LTS version, supported until 2028, recommended for new deployments
+> - **.NET 8.0**: Stable LTS version, supported until 2026, recommended for production environments
 
 ### Installation Steps
 
@@ -132,10 +138,26 @@ dotnet restore
 4. **Run the System**
 
 ```bash
+# Run with default framework
 dotnet run --project DataAcquisition.Gateway
+
+# Or run with specific framework
+dotnet run -f net10.0 --project DataAcquisition.Gateway
+dotnet run -f net8.0 --project DataAcquisition.Gateway
 ```
 
-5. **Access Monitoring Interface**
+5. **Build for Specific Framework**
+
+```bash
+# Build for all target frameworks
+dotnet build
+
+# Build for specific framework
+dotnet build -f net10.0
+dotnet build -f net8.0
+```
+
+6. **Access Monitoring Interface**
 
 - Metrics Visualization: http://localhost:8000/metrics
 - Prometheus Metrics: http://localhost:8000/metrics/raw

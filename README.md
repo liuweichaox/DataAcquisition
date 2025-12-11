@@ -1,6 +1,6 @@
 # 🛰️ DataAcquisition - 工业级 PLC 数据采集系统
 
-[![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
@@ -29,7 +29,7 @@ English: [README.en.md](README.en.md)
 
 ## 📖 项目简介
 
-DataAcquisition 是一个基于 .NET 8 构建的高性能、高可靠性的工业数据采集系统，专门为 PLC（可编程逻辑控制器）数据采集场景设计。系统采用 WAL-first 架构，确保数据零丢失，支持多 PLC 并行采集、条件触发采集、批量读取等高级功能。
+DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业数据采集系统，专门为 PLC（可编程逻辑控制器）数据采集场景设计。系统支持 .NET 10.0 和 .NET 8.0 两个 LTS 版本，采用 WAL-first 架构，确保数据零丢失，支持多 PLC 并行采集、条件触发采集、批量读取等高级功能。
 
 ### 🎯 核心特性
 
@@ -128,9 +128,15 @@ DataAcquisition/
 
 ### 环境要求
 
-- .NET 8.0 SDK
+- .NET 10.0 或 .NET 8.0 SDK（推荐使用最新 LTS 版本）
 - InfluxDB 2.x (可选，用于时序数据存储)
 - 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
+
+> **注意**: 项目支持多目标框架（.NET 10.0、.NET 8.0），可根据部署环境选择合适的版本。两个版本均为 LTS（长期支持）版本，适合生产环境使用。
+> 
+> **版本选择建议**:
+> - **.NET 10.0**: 最新 LTS 版本，支持至 2028 年，推荐用于新部署
+> - **.NET 8.0**: 稳定 LTS 版本，支持至 2026 年，推荐用于生产环境
 
 ### 安装步骤
 
@@ -153,10 +159,26 @@ dotnet restore
 4. **运行系统**
 
 ```bash
+# 使用默认框架运行
 dotnet run --project DataAcquisition.Gateway
+
+# 或指定特定框架运行
+dotnet run -f net10.0 --project DataAcquisition.Gateway
+dotnet run -f net8.0 --project DataAcquisition.Gateway
 ```
 
-5. **访问监控界面**
+5. **构建特定框架**
+
+```bash
+# 构建所有目标框架
+dotnet build
+
+# 构建特定框架
+dotnet build -f net10.0
+dotnet build -f net8.0
+```
+
+6. **访问监控界面**
 
 - 指标可视化: http://localhost:8000/metrics
 - Prometheus 指标: http://localhost:8000/metrics/raw
