@@ -117,7 +117,7 @@ DataAcquisition/
 1. **克隆项目**
 
 ```bash
-git clone https://github.com/your-username/G-DataAcquisition.git
+git clone https://github.com/liuweichaox/DataAcquisition.git
 cd G-DataAcquisition
 ```
 
