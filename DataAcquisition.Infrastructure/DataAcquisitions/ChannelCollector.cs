@@ -103,14 +103,8 @@ public class ChannelCollector : IChannelCollector
                 else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
                 {
                     // 检查 ConditionalAcquisition 是否为 null
-                    // 如果为 null，按照采集频率持续采集（退化为无条件采集）
                     if (dataAcquisitionChannel.ConditionalAcquisition == null)
                     {
-                        await HandleUnconditionalEventAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
-                        if (dataAcquisitionChannel.AcquisitionInterval > 0)
-                        {
-                            await Task.Delay(dataAcquisitionChannel.AcquisitionInterval, ct).ConfigureAwait(false);
-                        }
                         continue; // 跳过后续的条件采集逻辑
                     }
 
