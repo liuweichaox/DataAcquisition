@@ -138,7 +138,7 @@ DataAcquisition/
 
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
-cd G-DataAcquisition
+cd DataAcquisition
 ```
 
 2. **恢复依赖**
