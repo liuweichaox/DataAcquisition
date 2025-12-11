@@ -3,7 +3,7 @@ using DataAcquisition.Domain.Models;
 namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
-/// 触发条件评估器接口，用于判断是否满足触发条件
+/// 触发条件评估服务接口，用于判断是否满足触发条件
 ///
 /// 职责：
 /// - 根据触发模式（TriggerMode）判断是否应该触发采集
@@ -16,7 +16,7 @@ namespace DataAcquisition.Application.Abstractions;
 /// - ValueIncrease：批次号增加
 /// - ValueDecrease：批次号减少
 /// </summary>
-public interface ITriggerEvaluator
+public interface ITriggerEvaluationService
 {
     /// <summary>
     /// 判断是否应该触发采集

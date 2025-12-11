@@ -15,9 +15,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService : IDataAcquisitionService
     {
-        private readonly IPlcStateManager _plcStateManager;
+        private readonly IPLCStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
-        private readonly IPlcClientFactory _plcClientFactory;
+        private readonly IPLCClientLifecycleService _plcLifecycle;
         private readonly IOperationalEventsService _events;
         private readonly IQueueService _queue;
         private readonly IHeartbeatMonitor _heartbeatMonitor;
@@ -27,15 +27,15 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// 数据采集器
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-            IPlcClientFactory plcClientFactory,
+            IPLCClientLifecycleService plcLifecycle,
             IOperationalEventsService events,
             IQueueService queue,
-            IPlcStateManager plcStateManager,
+            IPLCStateManager plcStateManager,
             IHeartbeatMonitor heartbeatMonitor,
             IChannelCollector channelCollector)
         {
             _deviceConfigService = deviceConfigService;
-            _plcClientFactory = plcClientFactory;
+            _plcLifecycle = plcLifecycle;
             _events = events;
             _queue = queue;
             _plcStateManager = plcStateManager;
@@ -92,7 +92,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
 
-            var client = CreatePlcClient(config);
+            var client = _plcLifecycle.GetOrCreateClient(config);
 
             var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, ct) };
 
@@ -112,32 +112,6 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
             _plcStateManager.Runtimes.TryAdd(config.Code, new PlcRuntime(cts, running));
-        }
-
-        /// <summary>
-        /// 创建 PLC 客户端（若已存在则直接返回）
-        /// </summary>
-        private IPlcClientService CreatePlcClient(DeviceConfig config)
-        {
-            // 双重检查锁定模式，避免竞态条件
-            if (_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
-            {
-                return client;
-            }
-
-            lock (_plcStateManager.PlcClients)
-            {
-                // 再次检查，防止多线程同时创建
-                if (_plcStateManager.PlcClients.TryGetValue(config.Code, out client))
-                {
-                    return client;
-                }
-
-                client = _plcClientFactory.Create(config);
-                _plcStateManager.PlcClients.TryAdd(config.Code, client);
-                _plcStateManager.PlcLocks.TryAdd(config.Code, new SemaphoreSlim(1, 1));
-                return client;
-            }
         }
 
         /// <summary>
@@ -180,30 +154,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                     }
                 }
 
-                // Close and clean up all PLC clients.
-                foreach (var client in _plcStateManager.PlcClients.Values)
-                {
-                    try
-                    {
-                        await client.ConnectCloseAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"关闭PLC客户端失败: {ex.Message}", ex).ConfigureAwait(false);
-                    }
-                }
-
-                foreach (var sem in _plcStateManager.PlcLocks.Values)
-                {
-                    try
-                    {
-                        sem.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"释放信号量失败: {ex.Message}", ex).ConfigureAwait(false);
-                    }
-                }
+                // 关闭并清理所有 PLC 客户端与锁
+                await _plcLifecycle.CloseAllAsync().ConfigureAwait(false);
 
                 // Complete and dispose the queue.
                 await _queue.DisposeAsync().ConfigureAwait(false);
@@ -346,33 +298,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                     runtime.Cts.Dispose();
                 }
 
-                // 关闭PLC客户端
-                if (_plcStateManager.PlcClients.TryRemove(deviceCode, out var client))
-                {
-                    try
-                    {
-                        await client.ConnectCloseAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"关闭PLC客户端失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
-                    }
-                }
-
-                // 释放锁
-                if (_plcStateManager.PlcLocks.TryRemove(deviceCode, out var sem))
-                {
-                    try
-                    {
-                        sem.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        await _events.ErrorAsync($"释放信号量失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
-                    }
-                }
-
-                _plcStateManager.PlcConnectionHealth.TryRemove(deviceCode, out _);
+                // 关闭并清理 PLC 客户端与锁
+                await _plcLifecycle.CloseAsync(deviceCode).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

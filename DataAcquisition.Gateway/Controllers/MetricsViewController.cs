@@ -10,7 +10,7 @@ public class MetricsViewController : Controller
     /// <summary>
     /// 显示指标可视化页面
     /// </summary>
-    [HttpGet("/metrics/view")]
+    [HttpGet("/metrics")]
     public IActionResult Index()
     {
         // 显式指定视图路径，避免查找错误

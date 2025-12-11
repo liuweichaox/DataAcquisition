@@ -6,7 +6,7 @@ namespace DataAcquisition.Application.Abstractions;
 /// <summary>
 /// PLC 状态管理器接口。
 /// </summary>
-public interface IPlcStateManager
+public interface IPLCStateManager
 {
     /// <summary>
     /// 运行时状态集合。

@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using Microsoft.Extensions.Configuration;
 using NCalc;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
@@ -21,34 +22,45 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class ChannelCollector : IChannelCollector
 {
-    private readonly IPlcStateManager _plcStateManager;
+    private readonly IPLCStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
-    private readonly ITriggerEvaluator _triggerEvaluator;
+    private readonly ITriggerEvaluationService _triggerEvaluationService;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
-    private DateTime _lastCollectionTime = DateTime.UtcNow;
+    private DateTime _lastCollectionTime = DateTime.Now;
     private int _collectionCount = 0;
     private readonly object _rateLock = new object();
+    private readonly int _connectionCheckRetryDelayMs;
+    private readonly int _triggerWaitDelayMs;
 
     /// <summary>
     /// 初始化通道采集器。
     /// </summary>
     public ChannelCollector(
-        IPlcStateManager plcStateManager,
+        IPLCStateManager plcStateManager,
         IOperationalEventsService events,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
-        ITriggerEvaluator triggerEvaluator,
+        ITriggerEvaluationService triggerEvaluationService,
+        Microsoft.Extensions.Configuration.IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
         _plcStateManager = plcStateManager;
         _events = events;
         _queue = queue;
         _stateManager = stateManager;
-        _triggerEvaluator = triggerEvaluator;
+        _triggerEvaluationService = triggerEvaluationService;
         _metricsCollector = metricsCollector;
+
+        var options = new Domain.Models.ChannelCollectorOptions
+        {
+            ConnectionCheckRetryDelayMs = int.TryParse(configuration["Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs"], out var retryDelay) ? retryDelay : 100,
+            TriggerWaitDelayMs = int.TryParse(configuration["Acquisition:ChannelCollector:TriggerWaitDelayMs"], out var waitDelay) ? waitDelay : 100
+        };
+        _connectionCheckRetryDelayMs = options.ConnectionCheckRetryDelayMs;
+        _triggerWaitDelayMs = options.TriggerWaitDelayMs;
     }
 
     /// <summary>
@@ -62,14 +74,14 @@ public class ChannelCollector : IChannelCollector
         {
             if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.Code, out var isConnected) || !isConnected)
             {
-                await Task.Delay(100, ct).ConfigureAwait(false);
+                await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
                 continue;
             }
 
             if (!_plcStateManager.PlcLocks.TryGetValue(config.Code, out var locker))
             {
                 await _events.ErrorAsync($"{config.Code}-未找到锁对象，跳过本次采集", null).ConfigureAwait(false);
-                await Task.Delay(100, ct).ConfigureAwait(false);
+                await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
                 continue;
             }
 
@@ -94,8 +106,8 @@ public class ChannelCollector : IChannelCollector
                     curr = await ReadPlcValueAsync(client, register!, dataType!);
                 }
 
-                var fireStart = register != null && dataType != null && _triggerEvaluator.ShouldTrigger(startCfg.TriggerMode, prevValue, curr);
-                var fireEnd = endCfg != null && register != null && dataType != null && _triggerEvaluator.ShouldTrigger(endCfg.TriggerMode, prevValue, curr);
+                var fireStart = register != null && dataType != null && _triggerEvaluationService.ShouldTrigger(startCfg.TriggerMode, prevValue, curr);
+                var fireEnd = endCfg != null && register != null && dataType != null && _triggerEvaluationService.ShouldTrigger(endCfg.TriggerMode, prevValue, curr);
 
                 // 无条件采集：ConditionalAcquisition 为 null 时，Always 模式且没有 register，直接触发采集
                 var isUnconditionalAcquisition = dataAcquisitionChannel.ConditionalAcquisition == null;
@@ -104,11 +116,11 @@ public class ChannelCollector : IChannelCollector
                     fireStart = true; // 无条件采集总是触发
                 }
 
-                // 如果既没有触发开始事件也没有触发结束事件，则等待100ms后继续下一次循环
+                // 如果既没有触发开始事件也没有触发结束事件，则等待后继续下一次循环
                 // 这样可以避免CPU空转，同时保存当前值用于下次比较（检测边沿变化）
                 if (!fireStart && !fireEnd)
                 {
-                    await Task.Delay(100, ct).ConfigureAwait(false);
+                    await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
                     prevValue = curr; // 保存当前值，用于下次循环时比较（判断上升沿/下降沿等）
                     continue; // 跳过后续处理，继续下一次循环
                 }
@@ -129,13 +141,13 @@ public class ChannelCollector : IChannelCollector
                         lock (_rateLock)
                         {
                             _collectionCount++;
-                            var elapsed = (DateTime.UtcNow - _lastCollectionTime).TotalSeconds;
+                            var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
                             if (elapsed >= 1.0) // 每秒更新一次频率
                             {
                                 var rate = _collectionCount / elapsed;
                                 _metricsCollector.RecordCollectionRate(config.Code, dataAcquisitionChannel.Measurement, rate);
                                 _collectionCount = 0;
-                                _lastCollectionTime = DateTime.UtcNow;
+                                _lastCollectionTime = DateTime.Now;
                             }
                         }
                     }

@@ -16,7 +16,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 ///
 /// 首次读取处理：如果previousValue或currentValue为null，默认返回true（触发采集）
 /// </summary>
-public class TriggerEvaluator : ITriggerEvaluator
+public class TriggerEvaluationService : ITriggerEvaluationService
 {
     /// <summary>
     /// 判断是否应该触发采集

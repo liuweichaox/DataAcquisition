@@ -15,7 +15,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
-    private readonly IPlcStateManager _plcStateManager;
+    private readonly IPLCStateManager _plcStateManager;
+    private readonly IPLCClientLifecycleService _plcLifecycle;
     private readonly IOperationalEventsService _events;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
@@ -23,9 +24,10 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     /// 初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(IPlcStateManager plcStateManager, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
+    public HeartbeatMonitor(IPLCStateManager plcStateManager, IPLCClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
     {
         _plcStateManager = plcStateManager;
+        _plcLifecycle = plcLifecycle;
         _events = events;
         _metricsCollector = metricsCollector;
     }
@@ -43,7 +45,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         {
             try
             {
-                if (!_plcStateManager.PlcClients.TryGetValue(config.Code, out var client))
+                if (!_plcLifecycle.TryGetClient(config.Code, out var client))
                 {
                     _plcStateManager.PlcConnectionHealth[config.Code] = false;
                     await _events.WarnAsync($"{config.Code}-未找到PLC客户端").ConfigureAwait(false);
@@ -112,7 +114,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// </summary>
     private void RecordConnectionStart(string deviceCode)
     {
-        _connectionStartTimes[deviceCode] = DateTime.UtcNow;
+        _connectionStartTimes[deviceCode] = DateTime.Now;
     }
 
     /// <summary>
@@ -122,7 +124,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     {
         if (_connectionStartTimes.TryGetValue(deviceCode, out var startTime))
         {
-            var duration = (DateTime.UtcNow - startTime).TotalSeconds;
+            var duration = (DateTime.Now - startTime).TotalSeconds;
             _metricsCollector?.RecordConnectionDuration(deviceCode, duration);
             _connectionStartTimes.Remove(deviceCode);
         }

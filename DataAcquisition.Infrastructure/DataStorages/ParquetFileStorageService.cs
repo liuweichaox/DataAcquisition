@@ -24,7 +24,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private string _currentFilePath = string.Empty;
-    private DateTime _currentFileCreatedAt = DateTime.UtcNow;
+    private DateTime _currentFileCreatedAt = DateTime.Now;
 
     public ParquetFileStorageService(IConfiguration configuration)
     {
@@ -55,7 +55,9 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             using var rowGroupWriter = parquetWriter.CreateRowGroup();
 
             // 列数据
-            var timestamps = dataMessages.Select(x => x.Timestamp.ToUniversalTime()).ToArray();
+            // 保持本地时间，不再转换为 UTC
+            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
+            var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
             var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
             var deviceCodes = dataMessages.Select(x => x.DeviceCode ?? string.Empty).ToArray();
             var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
@@ -64,11 +66,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                 System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
 
             await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], measurements)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], deviceCodes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], cycleIds)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], eventTypes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], dataJsons)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], deviceCodes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], cycleIds)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], eventTypes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], dataJsons)).ConfigureAwait(false);
 
             // 滚动判断
             await RollIfNeededAsync().ConfigureAwait(false);
@@ -82,7 +85,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     public Task UpdateAsync(string measurement, Dictionary<string, object> values, Dictionary<string, object> conditions)
     {
         // 与 Influx 行为保持一致，更新视为追加一条 end 事件
-        var message = new DataMessage(DateTime.UtcNow, measurement, 1)
+        var message = new DataMessage(DateTime.Now, measurement, 1)
         {
             EventType = "end"
         };
@@ -125,13 +128,15 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         {
             using var rowGroupReader = reader.OpenRowGroupReader(i);
             var tsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[0]).ConfigureAwait(false);
-            var msColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[1]).ConfigureAwait(false);
-            var dcColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[2]).ConfigureAwait(false);
-            var ciColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[3]).ConfigureAwait(false);
-            var etColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[4]).ConfigureAwait(false);
-            var jsonColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[5]).ConfigureAwait(false);
+            var bsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[1]).ConfigureAwait(false);
+            var msColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[2]).ConfigureAwait(false);
+            var dcColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[3]).ConfigureAwait(false);
+            var ciColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[4]).ConfigureAwait(false);
+            var etColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[5]).ConfigureAwait(false);
+            var jsonColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[6]).ConfigureAwait(false);
 
             var timestamps = tsColumn.Data.Cast<DateTime>().ToArray();
+            var batchSizes = bsColumn.Data.Cast<int>().ToArray();
             var measurements = msColumn.Data.Cast<string>().ToArray();
             var deviceCodes = dcColumn.Data.Cast<string>().ToArray();
             var cycleIds = ciColumn.Data.Cast<string>().ToArray();
@@ -140,7 +145,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
             for (int row = 0; row < timestamps.Length; row++)
             {
-                var msg = new DataMessage(timestamps[row], measurements[row], 1)
+                var batchSize = (batchSizes != null && batchSizes.Length > row) ? batchSizes[row] : 1;
+                var msg = new DataMessage(timestamps[row], measurements[row], batchSize)
                 {
                     DeviceCode = deviceCodes[row],
                     CycleId = cycleIds[row],
@@ -172,12 +178,54 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         return Task.CompletedTask;
     }
 
+    /// <summary>
+    /// 将一批消息写入一个新的 Parquet 文件，返回文件路径。
+    /// </summary>
+    public async Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
+    {
+        var filePath = CreateNewFilePath();
+        await _lock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _currentFilePath = filePath;
+            _currentFileCreatedAt = DateTime.Now;
+
+            var schema = GetSchema();
+            using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
+            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: true).ConfigureAwait(false);
+            using var rowGroupWriter = parquetWriter.CreateRowGroup();
+
+            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
+            var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
+            var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
+            var deviceCodes = dataMessages.Select(x => x.DeviceCode ?? string.Empty).ToArray();
+            var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
+            var eventTypes = dataMessages.Select(x => x.EventType ?? string.Empty).ToArray();
+            var dataJsons = dataMessages.Select(x =>
+                System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], deviceCodes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], cycleIds)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], eventTypes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], dataJsons)).ConfigureAwait(false);
+
+            return _currentFilePath;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
     private async Task EnsureCurrentFileAsync()
     {
         if (string.IsNullOrEmpty(_currentFilePath) || !File.Exists(_currentFilePath))
         {
             _currentFilePath = CreateNewFilePath();
-            _currentFileCreatedAt = DateTime.UtcNow;
+            _currentFileCreatedAt = DateTime.Now;
             using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
             var schema = GetSchema();
             using var writer = await ParquetWriter.CreateAsync(schema, stream).ConfigureAwait(false);
@@ -190,11 +238,11 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     private async Task RollIfNeededAsync()
     {
         var info = new FileInfo(_currentFilePath);
-        var age = DateTime.UtcNow - _currentFileCreatedAt;
+        var age = DateTime.Now - _currentFileCreatedAt;
         if (info.Length >= _maxFileSizeBytes || age >= _maxFileAge)
         {
             _currentFilePath = CreateNewFilePath();
-            _currentFileCreatedAt = DateTime.UtcNow;
+            _currentFileCreatedAt = DateTime.Now;
             using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
             var schema = GetSchema();
             using var writer = await ParquetWriter.CreateAsync(schema, stream).ConfigureAwait(false);
@@ -206,7 +254,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     private string CreateNewFilePath()
     {
-        var fileName = $"data_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.parquet";
+        var fileName = $"data_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
         return Path.Combine(_directory, fileName);
     }
 
@@ -214,6 +262,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     {
         return new ParquetSchema(
             new DateTimeDataField("timestamp", DateTimeFormat.DateAndTime, true),
+            new DataField<int>("batch_size"),
             new DataField<string>("measurement"),
             new DataField<string>("device_code"),
             new DataField<string>("cycle_id"),

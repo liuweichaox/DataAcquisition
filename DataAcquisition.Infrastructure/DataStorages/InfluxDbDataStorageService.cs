@@ -104,7 +104,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         try
         {
             var point = PointData.Measurement(measurement)
-                .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+                .Timestamp(DateTime.Now, WritePrecision.Ns);
 
             // 将conditions中的cycle_id作为tag
             if (conditions.TryGetValue("cycle_id", out var cycleId))

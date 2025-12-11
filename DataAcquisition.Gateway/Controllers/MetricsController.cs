@@ -12,7 +12,7 @@ namespace DataAcquisition.Gateway.Controllers;
 /// 指标查看控制器
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/metrics-data")]
 public class MetricsController : ControllerBase
 {
     private readonly IHttpClientFactory _httpClientFactory;
@@ -25,7 +25,7 @@ public class MetricsController : ControllerBase
     /// <summary>
     /// 获取格式化的指标数据（JSON 格式）
     /// </summary>
-    [HttpGet("json")]
+    [HttpGet]
     public async Task<IActionResult> GetMetricsJson()
     {
         try
@@ -33,13 +33,15 @@ public class MetricsController : ControllerBase
             var client = _httpClientFactory.CreateClient();
             // 使用相对路径，避免硬编码
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            var response = await client.GetStringAsync($"{baseUrl}/metrics");
+            // 使用原始 Prometheus 端点（已改为 /metrics/raw）
+            var response = await client.GetStringAsync($"{baseUrl}/metrics/raw");
 
             var metrics = ParsePrometheusMetrics(response);
 
             return Ok(new
             {
-                timestamp = DateTime.UtcNow,
+                // 使用本地时间，避免 UTC 显示
+                timestamp = DateTime.Now,
                 metrics = metrics
             });
         }
@@ -52,7 +54,7 @@ public class MetricsController : ControllerBase
     /// <summary>
     /// 获取指标信息（说明如何查看指标）
     /// </summary>
-    [HttpGet]
+    [HttpGet("info")]
     public IActionResult GetMetricsInfo()
     {
         return Ok(new
@@ -60,9 +62,9 @@ public class MetricsController : ControllerBase
             message = "指标数据查看方式",
             endpoints = new
             {
-                json = "/api/metrics/json - JSON 格式的指标数据（推荐）",
-                prometheus = "/metrics - Prometheus 原始格式",
-                html = "/metrics/view - HTML 可视化页面"
+                json = "/api/metrics-data - JSON 格式的指标数据（推荐）",
+                prometheus = "/metrics/raw - Prometheus 原始格式",
+                html = "/metrics - HTML 可视化页面"
             },
             availableMetrics = new[]
             {

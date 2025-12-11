@@ -7,6 +7,8 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using DataAcquisition.Infrastructure.DataStorages;
+using Microsoft.Extensions.Configuration;
 
 namespace DataAcquisition.Infrastructure.Queues;
 
@@ -15,7 +17,8 @@ namespace DataAcquisition.Infrastructure.Queues;
 /// </summary>
 public class LocalQueueService : IQueueService
 {
-    private readonly IDataStorageService _dataStorage;
+    private readonly ParquetFileStorageService _parquetStorage;
+    private readonly InfluxDbDataStorageService _influxStorage;
     private readonly IDataProcessingService _dataProcessingService;
     private readonly IOperationalEventsService _events;
     private readonly IMetricsCollector? _metricsCollector;
@@ -26,19 +29,33 @@ public class LocalQueueService : IQueueService
     private readonly System.Diagnostics.Stopwatch _processingStopwatch = new();
     private Timer? _flushTimer;
     private Timer? _retryTimer;
-    private readonly TimeSpan _flushInterval = TimeSpan.FromSeconds(5); // 定时刷新间隔
-    private readonly TimeSpan _retryInterval = TimeSpan.FromSeconds(10); // 重试间隔
+    private readonly TimeSpan _flushInterval;
+    private readonly TimeSpan _retryInterval;
+    private readonly int _maxRetryCount;
 
     public LocalQueueService(
-        IDataStorageService dataStorage,
+        ParquetFileStorageService parquetStorage,
+        InfluxDbDataStorageService influxStorage,
         IDataProcessingService dataProcessingService,
         IOperationalEventsService events,
+        Microsoft.Extensions.Configuration.IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
-        _dataStorage = dataStorage;
+        _parquetStorage = parquetStorage;
+        _influxStorage = influxStorage;
         _dataProcessingService = dataProcessingService;
         _events = events;
         _metricsCollector = metricsCollector;
+
+        var options = new Domain.Models.QueueServiceOptions
+        {
+            FlushIntervalSeconds = int.TryParse(configuration["Acquisition:QueueService:FlushIntervalSeconds"], out var flushInterval) ? flushInterval : 5,
+            RetryIntervalSeconds = int.TryParse(configuration["Acquisition:QueueService:RetryIntervalSeconds"], out var retryInterval) ? retryInterval : 10,
+            MaxRetryCount = int.TryParse(configuration["Acquisition:QueueService:MaxRetryCount"], out var maxRetry) ? maxRetry : 3
+        };
+        _flushInterval = TimeSpan.FromSeconds(options.FlushIntervalSeconds);
+        _retryInterval = TimeSpan.FromSeconds(options.RetryIntervalSeconds);
+        _maxRetryCount = options.MaxRetryCount;
 
         // 启动定时刷新和重试任务
         _flushTimer = new Timer(FlushBatches, null, _flushInterval, _flushInterval);
@@ -66,22 +83,7 @@ public class LocalQueueService : IQueueService
 
         foreach (var batch in batchesToFlush)
         {
-            try
-            {
-                await _dataStorage.SaveBatchAsync(batch.Value).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // 保存失败，加入重试队列
-                _failedBatches.Enqueue(new FailedBatch
-                {
-                    Measurement = batch.Key,
-                    Messages = batch.Value,
-                    RetryCount = 0,
-                    LastError = ex.Message
-                });
-                await _events.ErrorAsync($"定时刷新批次失败 {batch.Key}: {ex.Message}", ex).ConfigureAwait(false);
-            }
+            await WriteWalAndTryInfluxAsync(batch.Key, batch.Value).ConfigureAwait(false);
         }
     }
 
@@ -94,7 +96,7 @@ public class LocalQueueService : IQueueService
 
         while (_failedBatches.TryDequeue(out var failedBatch))
         {
-            if (failedBatch.RetryCount >= 3) // 最多重试3次
+            if (failedBatch.RetryCount >= _maxRetryCount)
             {
                 await _events.ErrorAsync($"批次重试次数已达上限，放弃重试: {failedBatch.Measurement}", null).ConfigureAwait(false);
                 continue;
@@ -105,19 +107,7 @@ public class LocalQueueService : IQueueService
 
         foreach (var batch in batchesToRetry)
         {
-            try
-            {
-                await _dataStorage.SaveBatchAsync(batch.Messages).ConfigureAwait(false);
-                // 重试成功，记录指标
-                _metricsCollector?.RecordBatchWriteEfficiency(batch.Messages.Count, 0);
-            }
-            catch (Exception ex)
-            {
-                // 重试失败，重新加入队列
-                batch.RetryCount++;
-                batch.LastError = ex.Message;
-                _failedBatches.Enqueue(batch);
-            }
+            await WriteWalAndTryInfluxAsync(batch.Measurement, batch.Messages).ConfigureAwait(false);
         }
     }
 
@@ -131,6 +121,34 @@ public class LocalQueueService : IQueueService
         public List<DataMessage> Messages { get; set; } = new();
         public int RetryCount { get; set; }
         public string LastError { get; set; } = string.Empty;
+    }
+
+    /// <summary>
+    /// 立即写 WAL 并尝试写入 Influx，成功则删除 WAL 文件，失败保留文件。
+    /// </summary>
+    private async Task WriteWalAndTryInfluxAsync(string measurement, List<DataMessage> messages)
+    {
+        try
+        {
+            // 写入独立 WAL 文件
+            var walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
+
+            try
+            {
+                await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);
+                await _parquetStorage.DeleteFileAsync(walPath).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                // Influx 失败，保留 WAL 文件，记录日志
+                _metricsCollector?.RecordError(messages.FirstOrDefault()?.DeviceCode ?? "unknown", measurement);
+                await _events.WarnAsync($"写入 Influx 失败，保留 WAL 文件: {walPath}, {ex.Message}").ConfigureAwait(false);
+            }
+        }
+        catch (Exception ex)
+        {
+            await _events.ErrorAsync($"写 WAL 失败 {measurement}: {ex.Message}", ex).ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -180,22 +198,7 @@ public class LocalQueueService : IQueueService
         // 时序数据库统一使用Insert操作，End事件通过event_type标签区分
         if (dataMessage.BatchSize <= 1)
         {
-            try
-            {
-                await _dataStorage.SaveAsync(dataMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // 单条写入失败，加入重试队列
-                _failedBatches.Enqueue(new FailedBatch
-                {
-                    Measurement = dataMessage.Measurement,
-                    Messages = new List<DataMessage> { dataMessage },
-                    RetryCount = 0,
-                    LastError = ex.Message
-                });
-                throw;
-            }
+            await WriteWalAndTryInfluxAsync(dataMessage.Measurement, new List<DataMessage> { dataMessage }).ConfigureAwait(false);
             return;
         }
 
@@ -208,30 +211,15 @@ public class LocalQueueService : IQueueService
 
             if (batch.Count >= dataMessage.BatchSize)
             {
-                batchToSave = new List<DataMessage>(batch);
-                batch.Clear();
+                batchToSave = batch.Take(dataMessage.BatchSize).ToList();
+                batch.RemoveRange(0, dataMessage.BatchSize);
             }
         }
 
-        // 在锁外执行数据库操作，避免长时间持有锁
+        // 在锁外执行 WAL + Influx
         if (batchToSave != null)
         {
-            try
-            {
-                await _dataStorage.SaveBatchAsync(batchToSave).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                // 批量写入失败，加入重试队列
-                _failedBatches.Enqueue(new FailedBatch
-                {
-                    Measurement = dataMessage.Measurement,
-                    Messages = batchToSave,
-                    RetryCount = 0,
-                    LastError = ex.Message
-                });
-                await _events.ErrorAsync($"批量写入失败 {dataMessage.Measurement}: {ex.Message}", ex).ConfigureAwait(false);
-            }
+            await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
         }
     }
 
@@ -267,7 +255,7 @@ public class LocalQueueService : IQueueService
         {
             try
             {
-                await _dataStorage.SaveBatchAsync(batch.Value).ConfigureAwait(false);
+                await WriteWalAndTryInfluxAsync(batch.Key, batch.Value).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -280,7 +268,7 @@ public class LocalQueueService : IQueueService
         {
             try
             {
-                await _dataStorage.SaveBatchAsync(failedBatch.Messages).ConfigureAwait(false);
+                await WriteWalAndTryInfluxAsync(failedBatch.Measurement, failedBatch.Messages).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

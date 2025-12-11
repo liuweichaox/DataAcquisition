@@ -17,8 +17,8 @@ public class ParquetRetryWorker : BackgroundService
     private readonly ParquetFileStorageService _parquetStorage;
     private readonly InfluxDbDataStorageService _influxStorage;
     private readonly IOperationalEventsService _events;
-    private readonly TimeSpan _interval = TimeSpan.FromMinutes(1);
-    private const int BatchSize = 500;
+    // 缩短扫描间隔，加快 WAL → Influx 写入延迟
+    private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
     public ParquetRetryWorker(
         ParquetFileStorageService parquetStorage,
@@ -71,7 +71,8 @@ public class ParquetRetryWorker : BackgroundService
                 var offset = 0;
                 while (offset < messages.Count)
                 {
-                    var batch = messages.Skip(offset).Take(BatchSize).ToList();
+                    var currentBatchSize = messages[offset].BatchSize > 0 ? messages[offset].BatchSize : 500;
+                    var batch = messages.Skip(offset).Take(currentBatchSize).ToList();
                     await _influxStorage.SaveBatchAsync(batch).ConfigureAwait(false);
                     offset += batch.Count;
                 }

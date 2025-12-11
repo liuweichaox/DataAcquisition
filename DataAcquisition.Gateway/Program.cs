@@ -13,6 +13,7 @@ using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Metrics;
+using DataAcquisition.Infrastructure;
 using DataAcquisition.Gateway.Services;
 using Prometheus;
 using Serilog;
@@ -35,15 +36,15 @@ builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
+builder.Services.AddSingleton<IPLCStateManager, PLCStateManager>();
+builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
-builder.Services.AddSingleton<ITriggerEvaluator, TriggerEvaluator>();
+builder.Services.AddSingleton<ITriggerEvaluationService, TriggerEvaluationService>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
-// 注册存储服务（Influx 主库 + Parquet 降级）
-builder.Services.AddSingleton<InfluxDbDataStorageService>();
+// 存储：Parquet 作为 WAL，后台重传到 Influx
 builder.Services.AddSingleton<ParquetFileStorageService>();
-builder.Services.AddSingleton<IDataStorageService, FallbackDataStorageService>();
+builder.Services.AddSingleton<InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
@@ -93,8 +94,8 @@ var metricsBridge = app.Services.GetRequiredService<DataAcquisition.Gateway.Serv
 
 app.UseAuthorization();
 
-// 暴露 Prometheus 指标端点
-app.MapMetrics();
+// 暴露 Prometheus 指标端点（避开 /metrics 页面冲突）
+app.MapMetrics("/metrics/raw");
 
 app.MapControllerRoute(
     name: "default",

@@ -97,7 +97,7 @@
                         <span v-else>正在加载...</span>
                     </div>
                 </div>
-                <div>
+                <div style="display: flex; gap: 12px; align-items: center;">
                     <el-button type="primary" :icon="Refresh" @@click="loadMetrics" :loading="loading">
                         刷新
                     </el-button>
@@ -107,6 +107,22 @@
                     <el-button v-else @@click="toggleAutoRefresh">
                         自动刷新: 关闭
                     </el-button>
+                    <el-select
+                        v-model="selectedMetrics"
+                        multiple
+                        clearable
+                        collapse-tags
+                        filterable
+                        placeholder="选择要展示的指标"
+                        style="min-width: 260px;"
+                    >
+                        <el-option
+                            v-for="name in availableMetrics"
+                            :key="name"
+                            :label="getMetricTitle(name)"
+                            :value="name"
+                        > </el-option>
+                    </el-select>
                 </div>
             </el-header>
 
@@ -177,7 +193,7 @@
                         <div v-if="metric.data && metric.data.length > 0">
                             <!-- 最新值 -->
                             <div class="metric-value">
-                                {{ formatMetricValue(metricName, getLatestValue(metric.data)) }}
+                                {{ formatMetricValue(metricName, getLatestValue(metric.data).value ?? getLatestValue(metric.data)) }}
                             </div>
 
                             <!-- 描述 -->
@@ -248,7 +264,7 @@
     <script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
 
     <script>
-        const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
         const { ElMessage } = ElementPlus;
 
         const app = createApp({
@@ -264,26 +280,64 @@
                 let refreshTimer = null;
                 const chartInstances = {};
 
-                // 过滤出我们关心的指标
-                const importantMetrics = [
+                // 核心概要指标（不参与下拉选择，始终在概览卡片展示）
+                const coreMetrics = [
                     'data_acquisition_collection_latency_ms',
                     'data_acquisition_collection_rate',
                     'data_acquisition_queue_depth',
+                    'data_acquisition_errors_total'
+                ];
+
+                // 可选的详细指标默认列表（不含核心概要指标）
+                const importantMetrics = [
                     'data_acquisition_processing_latency_ms',
                     'data_acquisition_write_latency_ms',
                     'data_acquisition_batch_write_efficiency',
-                    'data_acquisition_errors_total',
                     'data_acquisition_connection_status_changes_total',
                     'data_acquisition_connection_duration_seconds'
                 ];
 
+                const selectedMetrics = ref([]);
+                const availableMetrics = ref([...importantMetrics]); // 不含核心指标
+                // 恢复已选择的指标
+                const storedSelected = localStorage.getItem('metrics-selected');
+                if (storedSelected) {
+                    try {
+                        const parsed = JSON.parse(storedSelected);
+                        if (Array.isArray(parsed)) {
+                            // 过滤掉核心指标，确保不参与勾选
+                            selectedMetrics.value = parsed.filter(x => !coreMetrics.includes(x));
+                        }
+                    } catch { /* ignore */ }
+                }
+
                 const filteredMetrics = computed(() => {
                     const result = {};
-                    importantMetrics.forEach(name => {
+                    const sourceKeys = (selectedMetrics.value && selectedMetrics.value.length > 0)
+                        ? selectedMetrics.value
+                        : availableMetrics.value;
+
+                    sourceKeys.forEach(name => {
                         if (metrics.value[name]) {
                             result[name] = metrics.value[name];
+                        } else {
+                            // 即使当前没有数据，也保留卡片占位，便于观察
+                            result[name] = {
+                                type: '',
+                                help: '暂无数据',
+                                data: []
+                            };
                         }
                     });
+
+                    // 如果没有匹配的，回退展示全部
+                    if (Object.keys(result).length === 0 && metrics.value) {
+                        Object.keys(metrics.value).forEach(name => {
+                            if (!coreMetrics.includes(name)) {
+                                result[name] = metrics.value[name];
+                            }
+                        });
+                    }
                     return result;
                 });
 
@@ -292,13 +346,18 @@
                     error.value = '';
 
                     try {
-                        const response = await fetch('/api/metrics/json');
+                        const response = await fetch('/api/metrics-data');
                         if (!response.ok) {
                             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
 
                         const data = await response.json();
                         metrics.value = data.metrics || {};
+                        // 更新可选指标列表：重要指标 + 返回指标键（排除核心概要指标）
+                        const keys = Object.keys(metrics.value || {});
+                        availableMetrics.value = Array.from(
+                            new Set([...importantMetrics, ...keys.filter(k => !coreMetrics.includes(k))])
+                        );
                         lastUpdate.value = new Date(data.timestamp).toLocaleString('zh-CN');
 
                         // 渲染图表
@@ -432,21 +491,22 @@
                 }
 
                 function formatMetricValue(metricName, value) {
+                    if (value && typeof value === 'object' && 'value' in value) {
+                        value = value.value;
+                    }
                     if (typeof value !== 'number') return value;
 
-                    if (metricName.includes('latency_ms') || metricName.includes('_ms')) {
-                        return value.toFixed(2) + ' ms';
-                    }
-                    if (metricName.includes('_rate')) {
-                        return value.toFixed(2) + ' points/s';
-                    }
-                    if (metricName.includes('_seconds')) {
-                        return value.toFixed(2) + ' s';
-                    }
-                    if (metricName.includes('efficiency')) {
-                        return value.toFixed(2) + ' points/ms';
-                    }
-                    return value.toFixed(2);
+                    const unit = getMetricUnit(metricName);
+                    const fixed = value.toFixed(2);
+
+                    if (unit === '毫秒') return fixed + ' ms';
+                    if (unit === 'points/s') return fixed + ' points/s';
+                    if (unit === '秒') return fixed + ' s';
+                    if (unit === '消息数') return fixed + ' messages';
+                    if (unit === '次') return fixed + ' 次';
+                    if (metricName.includes('efficiency')) return fixed + ' points/ms';
+
+                    return fixed;
                 }
 
                 function getLatestValue(data) {
@@ -474,6 +534,11 @@
                     loadMetrics();
                 });
 
+                // 记住选择
+                watch(selectedMetrics, (val) => {
+                    localStorage.setItem('metrics-selected', JSON.stringify(val || []));
+                }, { deep: true });
+
                 onUnmounted(() => {
                     if (refreshTimer) {
                         clearInterval(refreshTimer);
@@ -489,6 +554,8 @@
                     metrics,
                     lastUpdate,
                     autoRefresh,
+                    selectedMetrics,
+                    availableMetrics,
                     filteredMetrics,
                     loadMetrics,
                     toggleAutoRefresh,
