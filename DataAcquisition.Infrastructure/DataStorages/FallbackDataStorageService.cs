@@ -38,16 +38,16 @@ public class FallbackDataStorageService : IDataStorageService
         }
         catch (Exception ex)
         {
-            // InfluxDB 写入失败，降级到 DuckDB
-            await _events.WarnAsync($"InfluxDB 写入失败，降级到 DuckDB: {ex.Message}").ConfigureAwait(false);
+            // InfluxDB 写入失败，降级到 Parquet
+            await _events.WarnAsync($"InfluxDB 写入失败，降级到 Parquet: {ex.Message}").ConfigureAwait(false);
             try
             {
                 await _fallbackStorage.SaveAsync(dataMessage).ConfigureAwait(false);
-                await _events.InfoAsync($"数据已降级存储到 DuckDB: {dataMessage.Measurement}").ConfigureAwait(false);
+                await _events.InfoAsync($"数据已降级存储到 Parquet: {dataMessage.Measurement}").ConfigureAwait(false);
             }
             catch (Exception fallbackEx)
             {
-                await _events.ErrorAsync($"DuckDB 降级存储也失败: {fallbackEx.Message}", fallbackEx).ConfigureAwait(false);
+                await _events.ErrorAsync($"Parquet 降级存储也失败: {fallbackEx.Message}", fallbackEx).ConfigureAwait(false);
                 throw; // 如果降级存储也失败，抛出异常
             }
         }
@@ -65,16 +65,16 @@ public class FallbackDataStorageService : IDataStorageService
         }
         catch (Exception ex)
         {
-            // InfluxDB 批量写入失败，降级到 DuckDB
-            await _events.WarnAsync($"InfluxDB 批量写入失败，降级到 DuckDB: {ex.Message}").ConfigureAwait(false);
+            // InfluxDB 批量写入失败，降级到 Parquet
+            await _events.WarnAsync($"InfluxDB 批量写入失败，降级到 Parquet: {ex.Message}").ConfigureAwait(false);
             try
             {
                 await _fallbackStorage.SaveBatchAsync(dataPoints).ConfigureAwait(false);
-                await _events.InfoAsync($"批量数据已降级存储到 DuckDB: {dataPoints.Count} 条").ConfigureAwait(false);
+                await _events.InfoAsync($"批量数据已降级存储到 Parquet: {dataPoints.Count} 条").ConfigureAwait(false);
             }
             catch (Exception fallbackEx)
             {
-                await _events.ErrorAsync($"DuckDB 降级存储也失败: {fallbackEx.Message}", fallbackEx).ConfigureAwait(false);
+                await _events.ErrorAsync($"Parquet 降级存储也失败: {fallbackEx.Message}", fallbackEx).ConfigureAwait(false);
                 throw; // 如果降级存储也失败，抛出异常
             }
         }
@@ -91,7 +91,7 @@ public class FallbackDataStorageService : IDataStorageService
         }
         catch (Exception ex)
         {
-            await _events.WarnAsync($"InfluxDB 更新失败，降级到 DuckDB: {ex.Message}").ConfigureAwait(false);
+            await _events.WarnAsync($"InfluxDB 更新失败，降级到 Parquet: {ex.Message}").ConfigureAwait(false);
             await _fallbackStorage.UpdateAsync(measurement, values, conditions).ConfigureAwait(false);
         }
     }
