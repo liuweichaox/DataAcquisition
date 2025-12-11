@@ -96,8 +96,8 @@ DataAcquisition/
 1. **Clone the Repository**
 
 ```bash
-git clone https://github.com/your-username/G-DataAcquisition.git
-cd G-DataAcquisition
+git clone https://github.com/liuweichaox/DataAcquisition.git
+cd DataAcquisition
 ```
 
 2. **Restore Dependencies**

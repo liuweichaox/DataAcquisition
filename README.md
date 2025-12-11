@@ -412,7 +412,7 @@ A: 实现 `IDataStorageService` 接口，保持与队列服务的写入契约一
 
 ```bash
 # 克隆项目
-git clone https://github.com/your-username/G-DataAcquisition.git
+git clone https://github.com/liuweichaox/DataAcquisition.git
 
 # 安装依赖
 dotnet restore
