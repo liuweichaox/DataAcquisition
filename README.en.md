@@ -1,4 +1,4 @@
-# 🛰️ G-DataAcquisition - Industrial PLC Data Acquisition System
+# 🛰️ DataAcquisition - Industrial PLC Data Acquisition System
 
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -13,7 +13,7 @@ DataAcquisition is a high-performance, high-reliability industrial data acquisit
 ### 🎯 Core Features
 
 - ✅ **WAL-first Architecture** - Write-ahead logging guarantees data integrity
-- ✅ **Multi-PLC Parallel Acquisition** - Supports multiple PLC protocols (Modbus, Beckhoff ADS, Inovance, Mitsubishi)
+- ✅ **Multi-PLC Parallel Acquisition** - Supports multiple PLC protocols (Modbus, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
 - ✅ **Conditional Trigger Acquisition** - Intelligent acquisition modes including edge triggering, value change triggering
 - ✅ **Batch Reading Optimization** - Reduces network round-trips, improves efficiency
 - ✅ **Hot Configuration Reload** - JSON configuration + file monitoring, no restart required
@@ -89,7 +89,7 @@ DataAcquisition/
 
 - .NET 8.0 SDK
 - InfluxDB 2.x (optional, for time-series data storage)
-- Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi)
+- Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
 
 ### Installation Steps
 
@@ -236,6 +236,15 @@ var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
 ```
 
 ## 📊 Core Module Documentation
+
+### PLC Client Implementations
+
+| Protocol     | Implementation Class          | Description                         |
+| ------------ | ----------------------------- | ----------------------------------- |
+| Mitsubishi   | `MitsubishiPlcClientService`  | Mitsubishi PLC communication client |
+| Inovance     | `InovancePlcClientService`    | Inovance PLC communication client   |
+| Beckhoff ADS | `BeckhoffAdsPlcClientService` | Beckhoff ADS protocol client        |
+| Siemens      | `SiemensPlcClientService`     | Siemens PLC communication client    |
 
 ### ChannelCollector - Channel Collector
 

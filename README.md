@@ -1,4 +1,4 @@
-# 🛰️ G-DataAcquisition - 工业级 PLC 数据采集系统
+# 🛰️ DataAcquisition - 工业级 PLC 数据采集系统
 
 [![.NET 8](https://img.shields.io/badge/.NET-8-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
