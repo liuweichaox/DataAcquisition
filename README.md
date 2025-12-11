@@ -258,6 +258,15 @@ var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
 
 ## 📊 核心模块说明
 
+### PLC 客户端实现
+
+| 协议         | 实现类                        | 描述                  |
+| ------------ | ----------------------------- | --------------------- |
+| Mitsubishi   | `MitsubishiPlcClientService`  | 三菱 PLC 通讯客户端   |
+| Inovance     | `InovancePlcClientService`    | 汇川 PLC 通讯客户端   |
+| Beckhoff ADS | `BeckhoffAdsPlcClientService` | 倍福 ADS 协议客户端   |
+| Siemens      | `SiemensPlcClientService`     | 西门子 PLC 通讯客户端 |
+
 ### ChannelCollector - 通道采集器
 
 ```csharp
