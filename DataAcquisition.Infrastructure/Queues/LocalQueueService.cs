@@ -28,9 +28,6 @@ public class LocalQueueService : IQueueService
     private Timer? _retryTimer;
     private readonly TimeSpan _flushInterval = TimeSpan.FromSeconds(5); // 定时刷新间隔
     private readonly TimeSpan _retryInterval = TimeSpan.FromSeconds(10); // 重试间隔
-    private readonly Dictionary<string, int> _dynamicBatchSizes = new(); // 动态批量大小
-    private readonly Dictionary<string, double> _writeLatencies = new(); // 写入延迟记录
-    private readonly object _dynamicBatchLock = new object();
 
     public LocalQueueService(
         IDataStorageService dataStorage,
@@ -124,67 +121,6 @@ public class LocalQueueService : IQueueService
         }
     }
 
-    /// <summary>
-    /// 获取动态批量大小
-    /// </summary>
-    private int GetDynamicBatchSize(string measurement, int defaultBatchSize)
-    {
-        lock (_dynamicBatchLock)
-        {
-            if (_dynamicBatchSizes.TryGetValue(measurement, out var size))
-            {
-                return size;
-            }
-
-            // 根据写入延迟调整批量大小
-            if (_writeLatencies.TryGetValue(measurement, out var latency))
-            {
-                if (latency > 1000) // 延迟超过1秒，减小批量大小
-                {
-                    size = Math.Max(1, defaultBatchSize / 2);
-                }
-                else if (latency < 100) // 延迟小于100ms，增大批量大小
-                {
-                    size = defaultBatchSize * 2;
-                }
-                else
-                {
-                    size = defaultBatchSize;
-                }
-            }
-            else
-            {
-                size = defaultBatchSize;
-            }
-
-            _dynamicBatchSizes[measurement] = size;
-            return size;
-        }
-    }
-
-    /// <summary>
-    /// 记录写入延迟并更新动态批量大小
-    /// </summary>
-    private void UpdateWriteLatency(string measurement, double latencyMs)
-    {
-        lock (_dynamicBatchLock)
-        {
-            _writeLatencies[measurement] = latencyMs;
-
-            // 根据延迟调整批量大小
-            if (_dynamicBatchSizes.TryGetValue(measurement, out var currentSize))
-            {
-                if (latencyMs > 1000 && currentSize > 1)
-                {
-                    _dynamicBatchSizes[measurement] = Math.Max(1, currentSize / 2);
-                }
-                else if (latencyMs < 100 && currentSize < 1000)
-                {
-                    _dynamicBatchSizes[measurement] = Math.Min(1000, currentSize * 2);
-                }
-            }
-        }
-    }
 
     /// <summary>
     /// 失败的批次
@@ -244,12 +180,9 @@ public class LocalQueueService : IQueueService
         // 时序数据库统一使用Insert操作，End事件通过event_type标签区分
         if (dataMessage.BatchSize <= 1)
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 await _dataStorage.SaveAsync(dataMessage).ConfigureAwait(false);
-                stopwatch.Stop();
-                UpdateWriteLatency(dataMessage.Measurement, stopwatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
@@ -266,10 +199,6 @@ public class LocalQueueService : IQueueService
             return;
         }
 
-        // 获取动态批量大小
-        var dynamicBatchSize = GetDynamicBatchSize(dataMessage.Measurement, dataMessage.BatchSize);
-        var effectiveBatchSize = Math.Max(1, dynamicBatchSize);
-
         // 使用锁保护批量操作，确保线程安全
         List<DataMessage>? batchToSave = null;
         lock (_batchLock)
@@ -277,7 +206,7 @@ public class LocalQueueService : IQueueService
             var batch = _dataBatchMap.GetOrAdd(dataMessage.Measurement, _ => new List<DataMessage>());
             batch.Add(dataMessage);
 
-            if (batch.Count >= effectiveBatchSize)
+            if (batch.Count >= dataMessage.BatchSize)
             {
                 batchToSave = new List<DataMessage>(batch);
                 batch.Clear();
@@ -287,12 +216,9 @@ public class LocalQueueService : IQueueService
         // 在锁外执行数据库操作，避免长时间持有锁
         if (batchToSave != null)
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
                 await _dataStorage.SaveBatchAsync(batchToSave).ConfigureAwait(false);
-                stopwatch.Stop();
-                UpdateWriteLatency(dataMessage.Measurement, stopwatch.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {

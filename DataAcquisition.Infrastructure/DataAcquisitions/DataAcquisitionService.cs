@@ -68,6 +68,25 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 return;
             }
 
+            // 防御性检查：确保配置有效
+            if (config == null)
+            {
+                _events.ErrorAsync("启动采集任务失败：配置为 null", null).ConfigureAwait(false);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(config.Code))
+            {
+                _events.ErrorAsync("启动采集任务失败：设备编码为空", null).ConfigureAwait(false);
+                return;
+            }
+
+            if (config.Channels == null || config.Channels.Count == 0)
+            {
+                _events.ErrorAsync($"启动采集任务失败：设备 {config.Code} 没有配置采集通道", null).ConfigureAwait(false);
+                return;
+            }
+
             _plcStateManager.PlcConnectionHealth[config.Code] = false;
 
             var cts = new CancellationTokenSource();

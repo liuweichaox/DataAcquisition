@@ -13,6 +13,7 @@ using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Metrics;
+using DataAcquisition.Gateway.Services;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
@@ -20,6 +21,7 @@ using Serilog.Events;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://localhost:8000");
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient();
 builder.Services.AddSignalR().AddJsonProtocol(o =>
 {
     o.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
@@ -27,6 +29,7 @@ builder.Services.AddSignalR().AddJsonProtocol(o =>
     o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
+builder.Services.AddSingleton<DataAcquisition.Gateway.Services.MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
@@ -37,7 +40,10 @@ builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>
 builder.Services.AddSingleton<ITriggerEvaluator, TriggerEvaluator>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
-builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
+// 注册存储服务（Influx 主库 + Parquet 降级）
+builder.Services.AddSingleton<InfluxDbDataStorageService>();
+builder.Services.AddSingleton<ParquetFileStorageService>();
+builder.Services.AddSingleton<IDataStorageService, FallbackDataStorageService>();
 builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
@@ -45,6 +51,7 @@ builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>()
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddHostedService<OpsEventBroadcastWorker>();
+builder.Services.AddHostedService<ParquetRetryWorker>();
 builder.Services.AddControllersWithViews();
 
 Log.Logger = new LoggerConfiguration()
@@ -80,6 +87,9 @@ app.UseRouting();
 
 // 添加 Prometheus HTTP 指标收集
 app.UseHttpMetrics();
+
+// 初始化 System.Diagnostics.Metrics 到 Prometheus 的桥接
+var metricsBridge = app.Services.GetRequiredService<DataAcquisition.Gateway.Services.MetricsBridge>();
 
 app.UseAuthorization();
 

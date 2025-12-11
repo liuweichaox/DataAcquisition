@@ -186,6 +186,14 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             try
             {
                 var config = await LoadConfigAsync<DeviceConfig>(filePath).ConfigureAwait(false);
+                var validationResult = await ValidateConfigAsync(config).ConfigureAwait(false);
+
+                if (!validationResult.IsValid)
+                {
+                    Console.WriteLine($"配置验证失败 {filePath}: {string.Join(", ", validationResult.Errors)}");
+                    continue;
+                }
+
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
                 if (fileName != null)
                 {
