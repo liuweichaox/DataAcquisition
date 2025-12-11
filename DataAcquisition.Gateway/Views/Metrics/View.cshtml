@@ -1,0 +1,484 @@
+@{
+    ViewData["Title"] = "系统指标监控";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"]</title>
+
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <!-- Element Plus Icons -->
+    <link rel="stylesheet" href="https://unpkg.com/@element-plus/icons-vue/dist/index.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f2f5;
+        }
+
+        .metrics-container {
+            padding: 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header-card {
+            margin-bottom: 20px;
+        }
+
+        .metric-card {
+            margin-bottom: 20px;
+        }
+
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #409eff;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #909399;
+            margin-top: 5px;
+        }
+
+        .chart-wrapper {
+            height: 300px;
+            margin-top: 15px;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-item {
+            flex: 1;
+        }
+
+        .refresh-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #67c23a;
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        .status-dot.offline {
+            background: #f56c6c;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="metrics-container">
+            <!-- 头部信息 -->
+            <el-card class="header-card" shadow="hover">
+                <template #header>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h2 style="margin: 0; color: #303133;">
+                                <el-icon><Monitor /></el-icon>
+                                系统指标监控
+                            </h2>
+                        </div>
+                        <div class="refresh-info">
+                            <span :class="['status-dot', isOnline ? '' : 'offline']"></span>
+                            <span style="color: #909399; font-size: 14px;">{{ statusText }}</span>
+                            <el-button type="primary" :icon="Refresh" @click="loadMetrics" :loading="loading">
+                                刷新
+                            </el-button>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- 统计卡片 -->
+                <div class="stats-row" v-if="summaryStats">
+                    <el-card class="stat-item" shadow="hover">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #409eff;">
+                                {{ summaryStats.totalMetrics }}
+                            </div>
+                            <div style="color: #909399; margin-top: 5px;">指标总数</div>
+                        </div>
+                    </el-card>
+                    <el-card class="stat-item" shadow="hover">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #67c23a;">
+                                {{ summaryStats.activeDevices }}
+                            </div>
+                            <div style="color: #909399; margin-top: 5px;">活跃设备</div>
+                        </div>
+                    </el-card>
+                    <el-card class="stat-item" shadow="hover">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #e6a23c;">
+                                {{ summaryStats.totalErrors }}
+                            </div>
+                            <div style="color: #909399; margin-top: 5px;">错误总数</div>
+                        </div>
+                    </el-card>
+                    <el-card class="stat-item" shadow="hover">
+                        <div style="text-align: center;">
+                            <div style="font-size: 24px; font-weight: bold; color: #f56c6c;">
+                                {{ summaryStats.avgLatency }}ms
+                            </div>
+                            <div style="color: #909399; margin-top: 5px;">平均延迟</div>
+                        </div>
+                    </el-card>
+                </div>
+            </el-card>
+
+            <!-- 错误提示 -->
+            <el-alert
+                v-if="error"
+                :title="error"
+                type="error"
+                :closable="false"
+                show-icon
+                style="margin-bottom: 20px;">
+            </el-alert>
+
+            <!-- 指标卡片 -->
+            <el-row :gutter="20" v-if="!loading && metrics.length > 0">
+                <el-col :xs="24" :sm="12" :md="12" :lg="12" :xl="12" v-for="metric in metrics" :key="metric.name">
+                    <el-card class="metric-card" shadow="hover">
+                        <template #header>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: bold;">{{ metric.title }}</span>
+                                <el-tag :type="getMetricType(metric.type)" size="small">
+                                    {{ metric.type }}
+                                </el-tag>
+                            </div>
+                        </template>
+
+                        <div v-if="metric.data && metric.data.length > 0">
+                            <!-- 当前值 -->
+                            <div class="metric-value">
+                                {{ formatValue(metric.name, metric.data[metric.data.length - 1].value) }}
+                            </div>
+                            <div class="metric-label">
+                                {{ metric.help || '无描述' }}
+                            </div>
+
+                            <!-- 标签信息 -->
+                            <div v-if="metric.data[metric.data.length - 1].labels" style="margin-top: 15px;">
+                                <el-tag
+                                    v-for="(value, key) in metric.data[metric.data.length - 1].labels"
+                                    :key="key"
+                                    size="small"
+                                    style="margin-right: 8px; margin-bottom: 5px;">
+                                    {{ key }}: {{ value }}
+                                </el-tag>
+                            </div>
+
+                            <!-- 图表 -->
+                            <div class="chart-wrapper" v-if="metric.data.length > 1">
+                                <canvas :ref="'chart_' + metric.name"></canvas>
+                            </div>
+
+                            <!-- 数据表格 -->
+                            <el-table
+                                v-if="metric.data.length <= 10"
+                                :data="metric.data.slice().reverse()"
+                                size="small"
+                                style="margin-top: 15px;"
+                                max-height="200">
+                                <el-table-column prop="value" label="值" width="120">
+                                    <template #default="scope">
+                                        {{ formatValue(metric.name, scope.row.value) }}
+                                    </template>
+                                </el-table-column>
+                                <el-table-column label="标签" v-if="metric.data[0].labels">
+                                    <template #default="scope">
+                                        <el-tag
+                                            v-for="(value, key) in scope.row.labels"
+                                            :key="key"
+                                            size="small"
+                                            style="margin-right: 5px;">
+                                            {{ key }}: {{ value }}
+                                        </el-tag>
+                                    </template>
+                                </el-table-column>
+                            </el-table>
+                        </div>
+                        <el-empty v-else description="暂无数据" :image-size="80"></el-empty>
+                    </el-card>
+                </el-col>
+            </el-row>
+
+            <!-- 加载中 -->
+            <el-card v-if="loading" shadow="hover">
+                <el-skeleton :rows="5" animated />
+            </el-card>
+
+            <!-- 无数据 -->
+            <el-empty v-if="!loading && metrics.length === 0" description="暂无指标数据"></el-empty>
+        </div>
+    </div>
+
+    <!-- Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Element Plus -->
+    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+    <!-- Element Plus Icons -->
+    <script src="https://unpkg.com/@element-plus/icons-vue/dist/index.iife.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <script>
+        const { createApp } = Vue;
+        const { ElMessage } = ElementPlus;
+
+        createApp({
+            data() {
+                return {
+                    loading: false,
+                    error: null,
+                    metrics: [],
+                    summaryStats: null,
+                    isOnline: false,
+                    statusText: '正在加载...',
+                    lastUpdate: null,
+                    charts: {},
+                    refreshTimer: null
+                };
+            },
+            mounted() {
+                this.loadMetrics();
+                // 每30秒自动刷新
+                this.refreshTimer = setInterval(() => {
+                    this.loadMetrics();
+                }, 30000);
+            },
+            beforeUnmount() {
+                if (this.refreshTimer) {
+                    clearInterval(this.refreshTimer);
+                }
+                // 销毁所有图表
+                Object.values(this.charts).forEach(chart => {
+                    if (chart) chart.destroy();
+                });
+            },
+            methods: {
+                async loadMetrics() {
+                    this.loading = true;
+                    this.error = null;
+
+                    try {
+                        const response = await fetch('/api/metrics/json');
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const data = await response.json();
+                        this.lastUpdate = new Date(data.timestamp);
+                        this.statusText = `最后更新: ${this.lastUpdate.toLocaleString('zh-CN')}`;
+                        this.isOnline = true;
+
+                        // 处理指标数据
+                        this.processMetrics(data.metrics);
+                        this.calculateSummary(data.metrics);
+
+                        this.$nextTick(() => {
+                            this.renderCharts();
+                        });
+                    } catch (error) {
+                        this.error = `加载失败: ${error.message}`;
+                        this.isOnline = false;
+                        this.statusText = '连接失败';
+                        ElMessage.error(this.error);
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                processMetrics(rawMetrics) {
+                    const importantMetrics = [
+                        'data_acquisition_collection_latency_ms',
+                        'data_acquisition_collection_rate',
+                        'data_acquisition_queue_depth',
+                        'data_acquisition_processing_latency_ms',
+                        'data_acquisition_write_latency_ms',
+                        'data_acquisition_batch_write_efficiency',
+                        'data_acquisition_errors_total',
+                        'data_acquisition_connection_status_changes_total',
+                        'data_acquisition_connection_duration_seconds'
+                    ];
+
+                    this.metrics = importantMetrics
+                        .filter(name => rawMetrics[name])
+                        .map(name => {
+                            const metric = rawMetrics[name];
+                            return {
+                                name: name,
+                                title: this.getMetricTitle(name),
+                                type: metric.type || 'unknown',
+                                help: metric.help || '',
+                                data: metric.data || []
+                            };
+                        });
+                },
+                calculateSummary(rawMetrics) {
+                    let totalMetrics = 0;
+                    let totalErrors = 0;
+                    let totalLatency = 0;
+                    let latencyCount = 0;
+                    const devices = new Set();
+
+                    Object.keys(rawMetrics).forEach(name => {
+                        totalMetrics++;
+                        const metric = rawMetrics[name];
+
+                        if (metric.data && metric.data.length > 0) {
+                            metric.data.forEach(dataPoint => {
+                                // 统计错误
+                                if (name.includes('error')) {
+                                    totalErrors += dataPoint.value || 0;
+                                }
+
+                                // 统计延迟
+                                if (name.includes('latency')) {
+                                    totalLatency += dataPoint.value || 0;
+                                    latencyCount++;
+                                }
+
+                                // 统计设备
+                                if (dataPoint.labels && dataPoint.labels.device_code) {
+                                    devices.add(dataPoint.labels.device_code);
+                                }
+                            });
+                        }
+                    });
+
+                    this.summaryStats = {
+                        totalMetrics: totalMetrics,
+                        activeDevices: devices.size,
+                        totalErrors: totalErrors,
+                        avgLatency: latencyCount > 0 ? Math.round(totalLatency / latencyCount) : 0
+                    };
+                },
+                renderCharts() {
+                    this.metrics.forEach(metric => {
+                        if (metric.data && metric.data.length > 1) {
+                            const chartId = 'chart_' + metric.name;
+                            const canvas = this.$refs[chartId];
+
+                            if (canvas && canvas.length > 0) {
+                                const canvasElement = canvas[0];
+
+                                // 销毁旧图表
+                                if (this.charts[metric.name]) {
+                                    this.charts[metric.name].destroy();
+                                }
+
+                                // 创建新图表
+                                const ctx = canvasElement.getContext('2d');
+                                this.charts[metric.name] = new Chart(ctx, {
+                                    type: 'line',
+                                    data: {
+                                        labels: metric.data.map((_, i) => `#${i + 1}`),
+                                        datasets: [{
+                                            label: metric.title,
+                                            data: metric.data.map(d => d.value),
+                                            borderColor: '#409eff',
+                                            backgroundColor: 'rgba(64, 158, 255, 0.1)',
+                                            tension: 0.4,
+                                            fill: true
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            },
+                                            tooltip: {
+                                                mode: 'index',
+                                                intersect: false
+                                            }
+                                        },
+                                        scales: {
+                                            y: {
+                                                beginAtZero: true,
+                                                grid: {
+                                                    color: 'rgba(0, 0, 0, 0.05)'
+                                                }
+                                            },
+                                            x: {
+                                                grid: {
+                                                    display: false
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        }
+                    });
+                },
+                getMetricTitle(name) {
+                    const titles = {
+                        'data_acquisition_collection_latency_ms': '采集延迟',
+                        'data_acquisition_collection_rate': '采集频率',
+                        'data_acquisition_queue_depth': '队列深度',
+                        'data_acquisition_processing_latency_ms': '处理延迟',
+                        'data_acquisition_write_latency_ms': '写入延迟',
+                        'data_acquisition_batch_write_efficiency': '批量写入效率',
+                        'data_acquisition_errors_total': '错误总数',
+                        'data_acquisition_connection_status_changes_total': '连接状态变化',
+                        'data_acquisition_connection_duration_seconds': '连接持续时间'
+                    };
+                    return titles[name] || name;
+                },
+                getMetricType(type) {
+                    const types = {
+                        'histogram': 'primary',
+                        'counter': 'success',
+                        'gauge': 'warning',
+                        'summary': 'info'
+                    };
+                    return types[type] || '';
+                },
+                formatValue(metricName, value) {
+                    if (typeof value !== 'number') return value;
+
+                    if (metricName.includes('latency_ms') || metricName.includes('latency')) {
+                        return value.toFixed(2) + ' ms';
+                    } else if (metricName.includes('rate')) {
+                        return value.toFixed(2) + ' points/s';
+                    } else if (metricName.includes('efficiency')) {
+                        return value.toFixed(2) + ' points/ms';
+                    } else if (metricName.includes('duration_seconds')) {
+                        return value.toFixed(2) + ' s';
+                    } else if (metricName.includes('total') || metricName.includes('count')) {
+                        return Math.round(value).toLocaleString();
+                    } else {
+                        return value.toFixed(2);
+                    }
+                }
+            }
+        }).use(ElementPlus).mount('#app');
+    </script>
+</body>
+</html>
