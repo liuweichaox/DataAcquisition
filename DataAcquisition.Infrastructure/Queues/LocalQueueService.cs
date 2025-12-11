@@ -318,7 +318,9 @@ public class LocalQueueService : IQueueService
         _flushTimer?.Dispose();
         _retryTimer?.Dispose();
 
-        _channel.Writer.Complete();
+        // 安全地关闭 Channel（如果尚未关闭）
+        // TryComplete 不会抛出异常，返回 false 表示已经关闭
+        _channel.Writer.TryComplete();
 
         // 刷新所有未完成的批次，避免数据丢失
         List<KeyValuePair<string, List<DataMessage>>> batchesToFlush = new();
