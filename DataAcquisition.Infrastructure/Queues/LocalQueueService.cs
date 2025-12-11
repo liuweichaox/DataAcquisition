@@ -141,7 +141,8 @@ public class LocalQueueService : IQueueService
             catch (Exception ex)
             {
                 // Influx 失败，保留 WAL 文件，记录日志
-                _metricsCollector?.RecordError(messages.FirstOrDefault()?.ChannelCode ?? "unknown", measurement);
+                var firstMessage = messages.FirstOrDefault();
+                _metricsCollector?.RecordError(firstMessage?.PLCCode ?? "unknown", measurement, firstMessage?.ChannelCode);
                 await _events.WarnAsync($"写入 Influx 失败，保留 WAL 文件: {walPath}, {ex.Message}").ConfigureAwait(false);
             }
         }
@@ -182,7 +183,7 @@ public class LocalQueueService : IQueueService
             }
             catch (Exception ex)
             {
-                _metricsCollector?.RecordError(dataMessage.ChannelCode ?? "unknown", dataMessage.Measurement);
+                _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
                 await _events.ErrorAsync($"Error processing message: {ex.Message}", ex).ConfigureAwait(false);
             }
         }

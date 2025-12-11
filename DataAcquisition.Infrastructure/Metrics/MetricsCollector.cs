@@ -80,24 +80,32 @@ public class MetricsCollector : IMetricsCollector
             "连接持续时间（秒）");
     }
 
-    public void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs)
+    public void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs, string? channelCode = null)
     {
-        var tags = new KeyValuePair<string, object?>[]
+        var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("device_code", deviceCode),
+            new("plc_code", deviceCode),
             new("measurement", measurement)
         };
-        _collectionLatencyHistogram.Record(latencyMs, tags);
+        if (!string.IsNullOrEmpty(channelCode))
+        {
+            tagList.Add(new("channel_code", channelCode));
+        }
+        _collectionLatencyHistogram.Record(latencyMs, tagList.ToArray());
     }
 
-    public void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond)
+    public void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond, string? channelCode = null)
     {
-        var tags = new KeyValuePair<string, object?>[]
+        var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("device_code", deviceCode),
+            new("plc_code", deviceCode),
             new("measurement", measurement)
         };
-        _collectionRateHistogram.Record(pointsPerSecond, tags);
+        if (!string.IsNullOrEmpty(channelCode))
+        {
+            tagList.Add(new("channel_code", channelCode));
+        }
+        _collectionRateHistogram.Record(pointsPerSecond, tagList.ToArray());
     }
 
     public void RecordQueueDepth(int depth)
@@ -128,15 +136,19 @@ public class MetricsCollector : IMetricsCollector
         }
     }
 
-    public void RecordError(string deviceCode, string? measurement = null)
+    public void RecordError(string deviceCode, string? measurement = null, string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("device_code", deviceCode)
+            new("plc_code", deviceCode)
         };
         if (!string.IsNullOrEmpty(measurement))
         {
             tagList.Add(new("measurement", measurement));
+        }
+        if (!string.IsNullOrEmpty(channelCode))
+        {
+            tagList.Add(new("channel_code", channelCode));
         }
         _errorCounter.Add(1, tagList.ToArray());
     }
@@ -145,7 +157,7 @@ public class MetricsCollector : IMetricsCollector
     {
         var tags = new KeyValuePair<string, object?>[]
         {
-            new("device_code", deviceCode),
+            new("plc_code", deviceCode),
             new("status", isConnected ? "connected" : "disconnected")
         };
         _connectionStatusCounter.Add(1, tags);
@@ -155,7 +167,7 @@ public class MetricsCollector : IMetricsCollector
     {
         var tags = new KeyValuePair<string, object?>[]
         {
-            new("device_code", deviceCode)
+            new("plc_code", deviceCode)
         };
         _connectionDurationHistogram.Record(durationSeconds, tags);
     }

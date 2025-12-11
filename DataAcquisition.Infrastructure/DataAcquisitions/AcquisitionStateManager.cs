@@ -11,7 +11,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 ///
 /// 实现特点：
 /// - 使用内存存储（ConcurrentDictionary），线程安全
-/// - 使用复合键（deviceCode:tableName）区分不同设备的采集周期
+/// - 使用复合键（plcCode:tableName）区分不同设备的采集周期
 /// - 支持同一设备的多个表同时进行条件采集
 /// - 如果StartCycle时已存在活跃周期，会先移除旧的（处理异常情况）
 ///
@@ -21,14 +21,14 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class AcquisitionStateManager : IAcquisitionStateManager
 {
-    // 使用复合键：deviceCode:tableName -> AcquisitionCycle
+    // 使用复合键：plcCode:tableName -> AcquisitionCycle
     // 支持同一设备的多个表同时进行条件采集
     private readonly ConcurrentDictionary<string, AcquisitionCycle> _activeCycles = new();
 
     /// <summary>
     /// 开始一个新的采集周期
     /// </summary>
-    public AcquisitionCycle StartCycle(string deviceCode, string measurement)
+    public AcquisitionCycle StartCycle(string deviceCode, string measurement, string channelCode)
     {
         var key = GetKey(deviceCode, measurement);
         var cycle = new AcquisitionCycle
@@ -36,7 +36,8 @@ public class AcquisitionStateManager : IAcquisitionStateManager
             CycleId = Guid.NewGuid().ToString(),
             StartTime = DateTime.Now,
             Measurement = measurement,
-            DeviceCode = deviceCode
+            PLCCode = deviceCode,
+            ChannelCode = channelCode
         };
 
         // 如果已存在活跃周期，先移除旧的（处理异常情况）
@@ -77,7 +78,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
         var keysToRemove = new List<string>();
         foreach (var kvp in _activeCycles)
         {
-            if (kvp.Value.DeviceCode == deviceCode)
+            if (kvp.Value.PLCCode == deviceCode)
             {
                 keysToRemove.Add(kvp.Key);
             }
@@ -100,6 +101,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     /// 生成复合键
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     private static string GetKey(string deviceCode, string measurement)
     {
         return $"{deviceCode}:{measurement}";

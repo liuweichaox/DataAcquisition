@@ -142,7 +142,7 @@ public class ChannelCollector : IChannelCollector
                         
                         if (_metricsCollector != null)
                         {
-                            _metricsCollector.RecordCollectionLatency(config.PLCCode, dataAcquisitionChannel.Measurement, _stopwatch.ElapsedMilliseconds);
+                            _metricsCollector.RecordCollectionLatency(config.PLCCode, dataAcquisitionChannel.Measurement, _stopwatch.ElapsedMilliseconds, dataAcquisitionChannel.ChannelCode);
 
                             lock (_rateLock)
                             {
@@ -151,7 +151,7 @@ public class ChannelCollector : IChannelCollector
                                 if (elapsed >= 1.0) // 每秒更新一次频率
                                 {
                                     var rate = _collectionCount / elapsed;
-                                    _metricsCollector.RecordCollectionRate(config.PLCCode, dataAcquisitionChannel.Measurement, rate);
+                                    _metricsCollector.RecordCollectionRate(config.PLCCode, dataAcquisitionChannel.Measurement, rate, dataAcquisitionChannel.ChannelCode);
                                     _collectionCount = 0;
                                     _lastCollectionTime = DateTime.Now;
                                 }
@@ -243,7 +243,7 @@ public class ChannelCollector : IChannelCollector
                 }
                 catch (Exception ex)
                 {
-                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
+                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
                     await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
                 }
             }, ct);
@@ -269,7 +269,8 @@ public class ChannelCollector : IChannelCollector
         {
             var cycle = _stateManager.StartCycle(
                 config.PLCCode,
-                channel.Measurement);
+                channel.Measurement,
+                channel.ChannelCode);
             var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Start, timestamp, channel.BatchSize);
             
             // 读取数据点
@@ -286,7 +287,7 @@ public class ChannelCollector : IChannelCollector
                 }
                 catch (Exception ex)
                 {
-                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
+                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
                     await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
                 }
             }, ct);

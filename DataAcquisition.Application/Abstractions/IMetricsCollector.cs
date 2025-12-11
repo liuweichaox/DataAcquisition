@@ -11,12 +11,20 @@ public interface IMetricsCollector
     /// <summary>
     /// 记录采集延迟（从PLC读取到写入数据库的时间，毫秒）
     /// </summary>
-    void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs);
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="measurement">测量值名称</param>
+    /// <param name="latencyMs">延迟（毫秒）</param>
+    /// <param name="channelCode">通道编码（可选）</param>
+    void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs, string? channelCode = null);
 
     /// <summary>
     /// 记录采集频率（每秒采集的数据点数）
     /// </summary>
-    void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond);
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="measurement">测量值名称</param>
+    /// <param name="pointsPerSecond">每秒采集的数据点数</param>
+    /// <param name="channelCode">通道编码（可选）</param>
+    void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond, string? channelCode = null);
 
     /// <summary>
     /// 记录队列深度（当前待处理消息数）
@@ -41,15 +49,20 @@ public interface IMetricsCollector
     /// <summary>
     /// 记录错误（按设备/通道统计）
     /// </summary>
-    void RecordError(string deviceCode, string? measurement = null);
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="measurement">测量值名称（可选）</param>
+    /// <param name="channelCode">通道编码（可选）</param>
+    void RecordError(string deviceCode, string? measurement = null, string? channelCode = null);
 
     /// <summary>
     /// 记录PLC连接状态变化
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     void RecordConnectionStatus(string deviceCode, bool isConnected);
 
     /// <summary>
     /// 记录连接持续时间（秒）
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     void RecordConnectionDuration(string deviceCode, double durationSeconds);
 }

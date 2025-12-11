@@ -264,9 +264,16 @@ curl http://localhost:8000/api/metrics-data
 // C# Client Example
 var request = new PlcWriteRequest
 {
-    DeviceCode = "PLC01",
-    Register = "D300",
-    Value = 100
+    PlcCode = "M01C123",
+    Items = new List<PlcWriteItem>
+    {
+        new PlcWriteItem
+        {
+            Address = "D300",
+            DataType = "short",
+            Value = 100
+        }
+    }
 };
 
 var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);

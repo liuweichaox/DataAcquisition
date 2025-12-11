@@ -17,16 +17,19 @@ public interface IPLCClientLifecycleService
     /// <summary>
     /// 尝试获取已存在的 PLC 客户端。
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     bool TryGetClient(string deviceCode, out IPlcClientService client);
 
     /// <summary>
     /// 尝试获取设备级锁。
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     bool TryGetLock(string deviceCode, out SemaphoreSlim locker);
 
     /// <summary>
     /// 关闭并移除指定设备的客户端与锁。
     /// </summary>
+    /// <param name="deviceCode">PLC编码（PLCCode）</param>
     Task CloseAsync(string deviceCode);
 
     /// <summary>

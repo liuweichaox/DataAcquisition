@@ -23,7 +23,12 @@ public class AcquisitionCycle
     public string Measurement { get; set; }
 
     /// <summary>
-    /// 设备编码
+    /// PLC 编码
     /// </summary>
-    public string DeviceCode { get; set; }
+    public string PLCCode { get; set; }
+    
+    /// <summary>
+    /// 通道编码
+    /// </summary>
+    public string ChannelCode { get; set; }
 }

@@ -40,7 +40,7 @@ public class ConfigChangedEventArgs : EventArgs
     public ConfigChangeType ChangeType { get; set; }
 
     /// <summary>
-    /// 设备编码
+    /// PLC编码（PLCCode），用于标识设备
     /// </summary>
     public string DeviceCode { get; set; } = string.Empty;
 

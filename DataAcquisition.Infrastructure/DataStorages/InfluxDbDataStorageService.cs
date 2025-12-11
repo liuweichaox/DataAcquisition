@@ -56,7 +56,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            _metricsCollector?.RecordError(dataMessage.ChannelCode ?? "unknown", dataMessage.Measurement);
+            _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
             await _events.ErrorAsync($"[ERROR] 时序数据库插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
@@ -87,9 +87,10 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            var deviceCode = dataMessages.FirstOrDefault()?.ChannelCode ?? "unknown";
+            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordError(deviceCode, measurement);
+            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
+            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
             await _events.ErrorAsync($"[ERROR] 时序数据库批量插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
