@@ -34,7 +34,7 @@ DataAcquisition 是一个基于 .NET 8 构建的高性能、高可靠性的工�
 ### 🎯 核心特性
 
 - ✅ **WAL-first 架构** - 写前日志保证数据不丢失
-- ✅ **多 PLC 并行采集** - 支持多种 PLC 协议（Modbus, Beckhoff ADS, Inovance, Mitsubishi）
+- ✅ **多 PLC 并行采集** - 支持多种 PLC 协议（Modbus, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
 - ✅ **条件触发采集** - 支持边沿触发、值变化触发等智能采集模式
 - ✅ **批量读取优化** - 减少网络往返，提升采集效率
 - ✅ **配置热更新** - JSON 配置 + 文件监控，无需重启
@@ -110,7 +110,7 @@ DataAcquisition/
 
 - .NET 8.0 SDK
 - InfluxDB 2.x (可选，用于时序数据存储)
-- 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi）
+- 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
 
 ### 安装步骤
 
