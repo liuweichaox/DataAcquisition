@@ -20,17 +20,20 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     private readonly string _bucket;
     private readonly string _org;
     private readonly IOperationalEventsService _events;
+    private readonly IMetricsCollector? _metricsCollector;
+    private readonly System.Diagnostics.Stopwatch _writeStopwatch = new();
 
     /// <summary>
     /// 构造函数，初始化时序数据库客户端。
     /// </summary>
-    public InfluxDbDataStorageService(IConfiguration configuration, IOperationalEventsService events)
+    public InfluxDbDataStorageService(IConfiguration configuration, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
     {
         var url = configuration["InfluxDB:Url"] ?? throw new ArgumentNullException("InfluxDB:Url is not configured.");
         var token = configuration["InfluxDB:Token"] ?? throw new ArgumentNullException("InfluxDB:Token is not configured.");
         _bucket = configuration["InfluxDB:Bucket"] ?? throw new ArgumentNullException("InfluxDB:Bucket is not configured.");
         _org = configuration["InfluxDB:Org"] ?? throw new ArgumentNullException("InfluxDB:Org is not configured.");
         _events = events;
+        _metricsCollector = metricsCollector;
 
         _client = InfluxDBClientFactory.Create(url, token.ToCharArray());
     }
@@ -40,15 +43,20 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     /// </summary>
     public async Task SaveAsync(DataMessage dataMessage)
     {
+        _writeStopwatch.Restart();
         try
         {
             var point = ConvertToPoint(dataMessage);
             using var writeApi = _client.GetWriteApi();
             writeApi.WritePoint(_bucket, _org, point);
             await Task.CompletedTask.ConfigureAwait(false);
+
+            _writeStopwatch.Stop();
+            _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
+            _metricsCollector?.RecordError(dataMessage.DeviceCode ?? "unknown", dataMessage.Measurement);
             await _events.ErrorAsync($"[ERROR] 时序数据库插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
@@ -61,15 +69,27 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         if (dataMessages == null || dataMessages.Count == 0)
             return;
 
+        _writeStopwatch.Restart();
         try
         {
             var points = dataMessages.Select(ConvertToPoint).ToList();
             using var writeApi = _client.GetWriteApi();
             writeApi.WritePoints(_bucket, _org, points);
             await Task.CompletedTask.ConfigureAwait(false);
+
+            _writeStopwatch.Stop();
+            var batchSize = dataMessages.Count;
+            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
+
+            // 记录每个测量值的写入延迟
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
+            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
+            var deviceCode = dataMessages.FirstOrDefault()?.DeviceCode ?? "unknown";
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
+            _metricsCollector?.RecordError(deviceCode, measurement);
             await _events.ErrorAsync($"[ERROR] 时序数据库批量插入失败: {ex.Message}", ex).ConfigureAwait(false);
         }
     }

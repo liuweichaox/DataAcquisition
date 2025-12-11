@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,19 +11,23 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
 /// 心跳监控器，周期性检测 PLC 连通性。
+/// 连接恢复由下次心跳检测自动完成，无需额外重连逻辑。
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
     private readonly IPlcStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
+    private readonly IMetricsCollector? _metricsCollector;
+    private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
 
     /// <summary>
     /// 初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(IPlcStateManager plcStateManager, IOperationalEventsService events)
+    public HeartbeatMonitor(IPlcStateManager plcStateManager, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
     {
         _plcStateManager = plcStateManager;
         _events = events;
+        _metricsCollector = metricsCollector;
     }
 
     /// <summary>
@@ -52,7 +57,11 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 if (!ok)
                 {
                     if (lastOk)
+                    {
                         await _events.WarnAsync($"{config.Code}-网络检测失败：IP {config.Host}，Ping 未响应").ConfigureAwait(false);
+                        _metricsCollector?.RecordConnectionStatus(config.Code, false);
+                        RecordConnectionEnd(config.Code);
+                    }
                     _plcStateManager.PlcConnectionHealth[config.Code] = false;
                 }
                 else
@@ -63,13 +72,24 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     {
                         writeData ^= 1;
                         _plcStateManager.PlcConnectionHealth[config.Code] = true;
+
                         if (!lastOk)
+                        {
                             await _events.InfoAsync($"{config.Code}-心跳检测正常").ConfigureAwait(false);
+                            _metricsCollector?.RecordConnectionStatus(config.Code, true);
+                            RecordConnectionStart(config.Code);
+                        }
                     }
                     else
                     {
                         _plcStateManager.PlcConnectionHealth[config.Code] = false;
-                        await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message).ConfigureAwait(false);
+                        if (lastOk)
+                        {
+                            await _events.WarnAsync($"{config.Code}-心跳检测失败", connect.Message).ConfigureAwait(false);
+                            _metricsCollector?.RecordConnectionStatus(config.Code, false);
+                            RecordConnectionEnd(config.Code);
+                        }
+                        // 连接恢复由下次心跳检测自动完成，无需额外重连逻辑
                     }
                 }
 
@@ -84,6 +104,27 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             {
                 await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// 记录连接开始时间
+    /// </summary>
+    private void RecordConnectionStart(string deviceCode)
+    {
+        _connectionStartTimes[deviceCode] = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// 记录连接结束并计算持续时间
+    /// </summary>
+    private void RecordConnectionEnd(string deviceCode)
+    {
+        if (_connectionStartTimes.TryGetValue(deviceCode, out var startTime))
+        {
+            var duration = (DateTime.UtcNow - startTime).TotalSeconds;
+            _metricsCollector?.RecordConnectionDuration(deviceCode, duration);
+            _connectionStartTimes.Remove(deviceCode);
         }
     }
 

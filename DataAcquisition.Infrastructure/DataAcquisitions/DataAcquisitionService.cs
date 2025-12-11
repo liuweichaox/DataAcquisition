@@ -41,6 +41,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _plcStateManager = plcStateManager;
             _heartbeatMonitor = heartbeatMonitor;
             _channelCollector = channelCollector;
+
+            // 订阅配置变更事件
+            _deviceConfigService.ConfigChanged += OnConfigChanged;
         }
 
         /// <summary>
@@ -252,6 +255,110 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         public SortedDictionary<string, bool> GetPlcConnectionStatus()
         {
             return new SortedDictionary<string, bool>(_plcStateManager.PlcConnectionHealth);
+        }
+
+        /// <summary>
+        /// 配置变更处理
+        /// </summary>
+        private async void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
+        {
+            try
+            {
+                switch (e.ChangeType)
+                {
+                    case ConfigChangeType.Added:
+                        if (e.NewConfig != null && e.NewConfig.IsEnabled)
+                        {
+                            await _events.InfoAsync($"检测到新设备配置: {e.DeviceCode}，启动采集任务").ConfigureAwait(false);
+                            StartCollectionTask(e.NewConfig);
+                        }
+                        break;
+
+                    case ConfigChangeType.Updated:
+                        if (e.OldConfig != null)
+                        {
+                            await StopCollectionTaskAsync(e.OldConfig.Code).ConfigureAwait(false);
+                        }
+                        if (e.NewConfig != null && e.NewConfig.IsEnabled)
+                        {
+                            await _events.InfoAsync($"设备配置已更新: {e.DeviceCode}，重启采集任务").ConfigureAwait(false);
+                            StartCollectionTask(e.NewConfig);
+                        }
+                        break;
+
+                    case ConfigChangeType.Removed:
+                        if (e.OldConfig != null)
+                        {
+                            await _events.InfoAsync($"设备配置已删除: {e.DeviceCode}，停止采集任务").ConfigureAwait(false);
+                            await StopCollectionTaskAsync(e.OldConfig.Code).ConfigureAwait(false);
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                await _events.ErrorAsync($"处理配置变更失败: {ex.Message}", ex).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// 停止单个采集任务
+        /// </summary>
+        private async Task StopCollectionTaskAsync(string deviceCode)
+        {
+            if (!_plcStateManager.Runtimes.TryRemove(deviceCode, out var runtime))
+            {
+                return;
+            }
+
+            try
+            {
+                await runtime.Cts.CancelAsync().ConfigureAwait(false);
+                try
+                {
+                    await runtime.Running.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    // 预期的取消异常，忽略
+                }
+                finally
+                {
+                    runtime.Cts.Dispose();
+                }
+
+                // 关闭PLC客户端
+                if (_plcStateManager.PlcClients.TryRemove(deviceCode, out var client))
+                {
+                    try
+                    {
+                        await client.ConnectCloseAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"关闭PLC客户端失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                }
+
+                // 释放锁
+                if (_plcStateManager.PlcLocks.TryRemove(deviceCode, out var sem))
+                {
+                    try
+                    {
+                        sem.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        await _events.ErrorAsync($"释放信号量失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
+                    }
+                }
+
+                _plcStateManager.PlcConnectionHealth.TryRemove(deviceCode, out _);
+            }
+            catch (Exception ex)
+            {
+                await _events.ErrorAsync($"停止采集任务失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
+            }
         }
 
         /// <summary>

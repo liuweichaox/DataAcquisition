@@ -12,6 +12,8 @@ using DataAcquisition.Application;
 using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
+using DataAcquisition.Infrastructure.Metrics;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
 
@@ -24,19 +26,20 @@ builder.Services.AddSignalR().AddJsonProtocol(o =>
     o.PayloadSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
     o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IQueueService, LocalQueueService>();
-builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IPlcStateManager, PlcStateManager>();
-builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
 builder.Services.AddSingleton<ITriggerEvaluator, TriggerEvaluator>();
+builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
+builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
+builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
+builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
@@ -75,7 +78,13 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+// 添加 Prometheus HTTP 指标收集
+app.UseHttpMetrics();
+
 app.UseAuthorization();
+
+// 暴露 Prometheus 指标端点
+app.MapMetrics();
 
 app.MapControllerRoute(
     name: "default",

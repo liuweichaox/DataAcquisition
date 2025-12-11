@@ -26,6 +26,11 @@ public class ChannelCollector : IChannelCollector
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
     private readonly ITriggerEvaluator _triggerEvaluator;
+    private readonly IMetricsCollector? _metricsCollector;
+    private readonly System.Diagnostics.Stopwatch _stopwatch = new();
+    private DateTime _lastCollectionTime = DateTime.UtcNow;
+    private int _collectionCount = 0;
+    private readonly object _rateLock = new object();
 
     /// <summary>
     /// 初始化通道采集器。
@@ -35,13 +40,15 @@ public class ChannelCollector : IChannelCollector
         IOperationalEventsService events,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
-        ITriggerEvaluator triggerEvaluator)
+        ITriggerEvaluator triggerEvaluator,
+        IMetricsCollector? metricsCollector = null)
     {
         _plcStateManager = plcStateManager;
         _events = events;
         _queue = queue;
         _stateManager = stateManager;
         _triggerEvaluator = triggerEvaluator;
+        _metricsCollector = metricsCollector;
     }
 
     /// <summary>
@@ -107,10 +114,31 @@ public class ChannelCollector : IChannelCollector
                 }
 
                 var timestamp = DateTime.Now;
+            _stopwatch.Restart();
 
                 if (fireStart)
                 {
                     await HandleStartEventAsync(config, dataAcquisitionChannel, client, startCfg, timestamp, isUnconditionalAcquisition, ct).ConfigureAwait(false);
+
+                    // 记录采集延迟和频率
+                    _stopwatch.Stop();
+                    if (_metricsCollector != null)
+                    {
+                        _metricsCollector.RecordCollectionLatency(config.Code, dataAcquisitionChannel.Measurement, _stopwatch.ElapsedMilliseconds);
+
+                        lock (_rateLock)
+                        {
+                            _collectionCount++;
+                            var elapsed = (DateTime.UtcNow - _lastCollectionTime).TotalSeconds;
+                            if (elapsed >= 1.0) // 每秒更新一次频率
+                            {
+                                var rate = _collectionCount / elapsed;
+                                _metricsCollector.RecordCollectionRate(config.Code, dataAcquisitionChannel.Measurement, rate);
+                                _collectionCount = 0;
+                                _lastCollectionTime = DateTime.UtcNow;
+                            }
+                        }
+                    }
                 }
 
                 if (fireEnd && endCfg != null)
@@ -245,12 +273,14 @@ public class ChannelCollector : IChannelCollector
                 }
                 catch (Exception ex)
                 {
+                    _metricsCollector?.RecordError(config.Code, channel.Measurement);
                     await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
                 }
             }, ct);
         }
         catch (Exception ex)
         {
+            _metricsCollector?.RecordError(config.Code, channel.Measurement);
             await _events.ErrorAsync($"{config.Code}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
