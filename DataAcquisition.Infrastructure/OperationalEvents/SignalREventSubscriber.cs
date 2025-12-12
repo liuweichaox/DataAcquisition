@@ -38,8 +38,7 @@ public sealed class SignalREventSubscriber : IOpsEventSubscriber
         }
         catch (OperationCanceledException)
         {
-            // 操作取消是预期的，不记录
-            throw; // 重新抛出，让调用者知道操作被取消
+            // 操作取消是预期的，忽略（Fire-and-Forget 策略）
         }
         catch (Exception ex)
         {
