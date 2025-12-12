@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -18,17 +19,17 @@ public class HeartbeatMonitor : IHeartbeatMonitor
 {
     private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
     private readonly IPLCClientLifecycleService _plcLifecycle;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<HeartbeatMonitor> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
 
     /// <summary>
     /// 初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(IPLCClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
+    public HeartbeatMonitor(IPLCClientLifecycleService plcLifecycle, ILogger<HeartbeatMonitor> logger, IMetricsCollector? metricsCollector = null)
     {
         _plcLifecycle = plcLifecycle;
-        _events = events;
+        _logger = logger;
         _metricsCollector = metricsCollector;
     }
 
@@ -48,7 +49,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 if (!_plcLifecycle.TryGetClient(config.PLCCode, out var client))
                 {
                     _plcConnectionHealth[config.PLCCode] = false;
-                    await _events.WarnAsync($"{config.PLCCode}-未找到PLC客户端").ConfigureAwait(false);
+                    _logger.LogWarning("{PLCCode}-未找到PLC客户端", config.PLCCode);
                     await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
                     continue;
                 }
@@ -60,7 +61,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 {
                     if (lastOk)
                     {
-                        await _events.WarnAsync($"{config.PLCCode}-网络检测失败：IP {config.Host}，Ping 未响应").ConfigureAwait(false);
+                        _logger.LogWarning("{PLCCode}-网络检测失败：IP {Host}，Ping 未响应", config.PLCCode, config.Host);
                         _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
                         RecordConnectionEnd(config.PLCCode);
                     }
@@ -77,7 +78,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
 
                         if (!lastOk)
                         {
-                            await _events.InfoAsync($"{config.PLCCode}-心跳检测正常").ConfigureAwait(false);
+                            _logger.LogInformation("{PLCCode}-心跳检测正常", config.PLCCode);
                             _metricsCollector?.RecordConnectionStatus(config.PLCCode, true);
                             RecordConnectionStart(config.PLCCode);
                         }
@@ -87,7 +88,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                         _plcConnectionHealth[config.PLCCode] = false;
                         if (lastOk)
                         {
-                            await _events.WarnAsync($"{config.PLCCode}-心跳检测失败", connect.Message).ConfigureAwait(false);
+                            _logger.LogWarning("{PLCCode}-心跳检测失败: {Message}", config.PLCCode, connect.Message);
                             _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
                             RecordConnectionEnd(config.PLCCode);
                         }
@@ -100,7 +101,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             catch (Exception ex)
             {
                 _plcConnectionHealth[config.PLCCode] = false;
-                await _events.ErrorAsync($"{config.PLCCode}-系统异常: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "{PLCCode}-系统异常: {Message}", config.PLCCode, ex.Message);
             }
             finally
             {

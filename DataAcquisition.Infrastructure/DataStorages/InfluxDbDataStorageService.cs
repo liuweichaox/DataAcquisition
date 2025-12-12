@@ -8,6 +8,7 @@ using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.DataStorages;
 
@@ -19,20 +20,20 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     private readonly InfluxDBClient _client;
     private readonly string _bucket;
     private readonly string _org;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<InfluxDbDataStorageService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly System.Diagnostics.Stopwatch _writeStopwatch = new();
 
     /// <summary>
     /// 构造函数，初始化时序数据库客户端。
     /// </summary>
-    public InfluxDbDataStorageService(IConfiguration configuration, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
+    public InfluxDbDataStorageService(IConfiguration configuration, ILogger<InfluxDbDataStorageService> logger, IMetricsCollector? metricsCollector = null)
     {
         var url = configuration["InfluxDB:Url"] ?? throw new ArgumentNullException("InfluxDB:Url is not configured.");
         var token = configuration["InfluxDB:Token"] ?? throw new ArgumentNullException("InfluxDB:Token is not configured.");
         _bucket = configuration["InfluxDB:Bucket"] ?? throw new ArgumentNullException("InfluxDB:Bucket is not configured.");
         _org = configuration["InfluxDB:Org"] ?? throw new ArgumentNullException("InfluxDB:Org is not configured.");
-        _events = events;
+        _logger = logger;
         _metricsCollector = metricsCollector;
 
         _client = InfluxDBClientFactory.Create(url, token.ToCharArray());
@@ -57,7 +58,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
-            await _events.ErrorAsync($"[ERROR] 时序数据库插入失败: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "[ERROR] 时序数据库插入失败: {Message}", ex.Message);
         }
     }
 
@@ -91,7 +92,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
             _metricsCollector?.RecordError(plcCode, measurement, channelCode);
-            await _events.ErrorAsync($"[ERROR] 时序数据库批量插入失败: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
         }
     }
 

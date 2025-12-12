@@ -2,14 +2,12 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Infrastructure.Clients;
 using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
 using DataAcquisition.Application;
 using DataAcquisition.Gateway.BackgroundServices;
-using DataAcquisition.Infrastructure.OperationalEvents;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Metrics;
 using DataAcquisition.Infrastructure;
@@ -24,23 +22,9 @@ var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_UR
 builder.WebHost.UseUrls(urls);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
-builder.Services.AddSignalR().AddJsonProtocol(o =>
-{
-    o.PayloadSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-    o.PayloadSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-    o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<DataAcquisition.Gateway.Services.MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-// 运行事件系统：使用观察者模式，职责分离
-// 注册事件订阅者（可以灵活添加/移除）
-builder.Services.AddSingleton<IOpsEventSubscriber, LoggingEventSubscriber>();
-builder.Services.AddSingleton<IOpsEventSubscriber, SignalREventSubscriber>();
-
-// 注册事件总线：直接调用订阅者，无需中间缓冲层
-builder.Services.AddSingleton<IOpsEventBus, InMemoryOpsEventBus>();
-builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPLCClientFactory, PLCClientFactory>();
 builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
@@ -82,8 +66,6 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
 }
 
-app.MapHub<DataHub>("/dataHub");
-
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -96,11 +78,11 @@ var metricsBridge = app.Services.GetRequiredService<DataAcquisition.Gateway.Serv
 
 app.UseAuthorization();
 
-// 暴露 Prometheus 指标端点（避开 /metrics 页面冲突）
-app.MapMetrics("/metrics/raw");
+// 暴露 Prometheus 指标端点
+app.MapMetrics("/metrics");
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller=MetricsView}/{action=Index}/{id?}");
 
 app.Run();

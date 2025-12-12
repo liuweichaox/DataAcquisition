@@ -9,6 +9,7 @@ using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using DataAcquisition.Infrastructure.DataStorages;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.Queues;
 
@@ -19,7 +20,7 @@ public class LocalQueueService : IQueueService
 {
     private readonly ParquetFileStorageService _parquetStorage;
     private readonly InfluxDbDataStorageService _influxStorage;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<LocalQueueService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
@@ -35,13 +36,13 @@ public class LocalQueueService : IQueueService
     public LocalQueueService(
         ParquetFileStorageService parquetStorage,
         InfluxDbDataStorageService influxStorage,
-        IOperationalEventsService events,
+        ILogger<LocalQueueService> logger,
         IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
         _parquetStorage = parquetStorage;
         _influxStorage = influxStorage;
-        _events = events;
+        _logger = logger;
         _metricsCollector = metricsCollector;
 
         var options = new Domain.Models.QueueServiceOptions
@@ -98,7 +99,7 @@ public class LocalQueueService : IQueueService
         {
             if (failedBatch.RetryCount >= _maxRetryCount)
             {
-                await _events.ErrorAsync($"批次重试次数已达上限，放弃重试: {failedBatch.Measurement}", null).ConfigureAwait(false);
+                _logger.LogError("批次重试次数已达上限，放弃重试: {Measurement}", failedBatch.Measurement);
                 continue;
             }
 
@@ -193,12 +194,12 @@ public class LocalQueueService : IQueueService
                 // Influx 失败，保留 WAL 文件，记录日志
                 var firstMessage = messages.FirstOrDefault();
                 _metricsCollector?.RecordError(firstMessage?.PLCCode ?? "unknown", measurement, firstMessage?.ChannelCode);
-                await _events.WarnAsync($"写入 Influx 失败，保留 WAL 文件: {walPath}, {ex.Message}").ConfigureAwait(false);
+                _logger.LogWarning(ex, "写入 Influx 失败，保留 WAL 文件: {WalPath}, {Message}", walPath, ex.Message);
             }
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"写 WAL 失败 {measurement}: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "写 WAL 失败 {Measurement}: {Message}", measurement, ex.Message);
         }
     }
 
@@ -234,7 +235,7 @@ public class LocalQueueService : IQueueService
             catch (Exception ex)
             {
                 _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
-                await _events.ErrorAsync($"Error processing message: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "Error processing message: {Message}", ex.Message);
             }
         }
     }
@@ -252,7 +253,7 @@ public class LocalQueueService : IQueueService
         lock (_batchLock)
         {
             batchDepth = _dataBatchMap.Values.Sum(list => list.Count);
-        }
+            }
 
         return channelDepth + batchDepth;
     }
@@ -357,7 +358,7 @@ public class LocalQueueService : IQueueService
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"刷新未完成批次失败 {batch.Key}: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "刷新未完成批次失败 {BatchKey}: {Message}", batch.Key, ex.Message);
             }
         }
 
@@ -370,7 +371,7 @@ public class LocalQueueService : IQueueService
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"最终重试失败批次失败 {failedBatch.Measurement}: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "最终重试失败批次失败 {Measurement}: {Message}", failedBatch.Measurement, ex.Message);
             }
         }
     }

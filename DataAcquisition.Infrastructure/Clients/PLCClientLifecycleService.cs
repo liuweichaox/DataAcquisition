@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.Clients;
 
@@ -17,14 +18,14 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
     private readonly ConcurrentDictionary<string, IPlcClientService> _plcClients = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _plcLocks = new();
     private readonly IPLCClientFactory _plcClientFactory;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<PLCClientLifecycleService> _logger;
 
     public PLCClientLifecycleService(
         IPLCClientFactory plcClientFactory,
-        IOperationalEventsService events)
+        ILogger<PLCClientLifecycleService> logger)
     {
         _plcClientFactory = plcClientFactory;
-        _events = events;
+        _logger = logger;
     }
 
     /// <summary>
@@ -80,7 +81,7 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"关闭 PLC 客户端失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "关闭 PLC 客户端失败 {PLCCode}: {Message}", plcCode, ex.Message);
             }
         }
 
@@ -92,7 +93,7 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"释放 PLC 锁失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "释放 PLC 锁失败 {PLCCode}: {Message}", plcCode, ex.Message);
             }
         }
     }

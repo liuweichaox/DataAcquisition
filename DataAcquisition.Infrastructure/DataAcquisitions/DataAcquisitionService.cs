@@ -8,6 +8,7 @@ using DataAcquisition.Application;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -19,7 +20,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly ConcurrentDictionary<string, PLCRuntime> _runtimes = new();
     private readonly IDeviceConfigService _deviceConfigService;
     private readonly IPLCClientLifecycleService _plcLifecycle;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<DataAcquisitionService> _logger;
     private readonly IQueueService _queue;
     private readonly IHeartbeatMonitor _heartbeatMonitor;
     private readonly IChannelCollector _channelCollector;
@@ -29,14 +30,14 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     public DataAcquisitionService(IDeviceConfigService deviceConfigService,
         IPLCClientLifecycleService plcLifecycle,
-        IOperationalEventsService events,
+        ILogger<DataAcquisitionService> logger,
         IQueueService queue,
         IHeartbeatMonitor heartbeatMonitor,
         IChannelCollector channelCollector)
     {
         _deviceConfigService = deviceConfigService;
         _plcLifecycle = plcLifecycle;
-        _events = events;
+        _logger = logger;
         _queue = queue;
         _heartbeatMonitor = heartbeatMonitor;
         _channelCollector = channelCollector;
@@ -77,19 +78,19 @@ public class DataAcquisitionService : IDataAcquisitionService
         // 防御性检查：确保配置有效
         if (config == null)
         {
-            _events.ErrorAsync("启动采集任务失败：配置为 null", null).ConfigureAwait(false);
+            _logger.LogError("启动采集任务失败：配置为 null");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(config.PLCCode))
         {
-            _events.ErrorAsync("启动采集任务失败：设备编码为空", null).ConfigureAwait(false);
+            _logger.LogError("启动采集任务失败：设备编码为空");
             return;
         }
 
         if (config.Channels == null || config.Channels.Count == 0)
         {
-            _events.ErrorAsync($"启动采集任务失败：设备 {config.PLCCode} 没有配置采集通道", null).ConfigureAwait(false);
+            _logger.LogError("启动采集任务失败：设备 {PLCCode} 没有配置采集通道", config.PLCCode);
             return;
         }
 
@@ -112,7 +113,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             if (t.Exception != null)
             {
                 var innerException = t.Exception.Flatten().InnerException;
-                await _events.ErrorAsync($"{config.PLCCode}-采集任务异常: {innerException?.Message}", innerException).ConfigureAwait(false);
+                _logger.LogError(innerException, "{PLCCode}-采集任务异常: {Message}", config.PLCCode, innerException?.Message);
             }
         }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
@@ -137,7 +138,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync($"取消采集任务失败: {ex.Message}", ex).ConfigureAwait(false);
+                    _logger.LogError(ex, "取消采集任务失败: {Message}", ex.Message);
                 }
             }
 
@@ -153,7 +154,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 }
                 catch (Exception ex)
                 {
-                    await _events.ErrorAsync($"等待任务完成失败: {ex.Message}", ex).ConfigureAwait(false);
+                    _logger.LogError(ex, "等待任务完成失败: {Message}", ex.Message);
                 }
                 finally
                 {
@@ -257,7 +258,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Added:
                     if (e.NewConfig != null && e.NewConfig.IsEnabled)
                     {
-                        await _events.InfoAsync($"检测到新设备配置: {e.DeviceCode}，启动采集任务").ConfigureAwait(false);
+                        _logger.LogInformation("检测到新设备配置: {DeviceCode}，启动采集任务", e.DeviceCode);
                         StartCollectionTask(e.NewConfig);
                     }
                     break;
@@ -269,7 +270,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                     }
                     if (e.NewConfig != null && e.NewConfig.IsEnabled)
                     {
-                        await _events.InfoAsync($"设备配置已更新: {e.DeviceCode}，重启采集任务").ConfigureAwait(false);
+                        _logger.LogInformation("设备配置已更新: {DeviceCode}，重启采集任务", e.DeviceCode);
                         StartCollectionTask(e.NewConfig);
                     }
                     break;
@@ -277,7 +278,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Removed:
                     if (e.OldConfig != null)
                     {
-                        await _events.InfoAsync($"设备配置已删除: {e.DeviceCode}，停止采集任务").ConfigureAwait(false);
+                        _logger.LogInformation("设备配置已删除: {DeviceCode}，停止采集任务", e.DeviceCode);
                         await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
                     }
                     break;
@@ -288,7 +289,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             // async void 方法中的异常必须完全捕获，否则可能导致应用程序崩溃
             try
             {
-                await _events.ErrorAsync($"处理配置变更失败: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "处理配置变更失败: {Message}", ex.Message);
             }
             catch
             {
@@ -329,7 +330,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"停止采集任务失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "停止采集任务失败 {PLCCode}: {Message}", plcCode, ex.Message);
         }
     }
 

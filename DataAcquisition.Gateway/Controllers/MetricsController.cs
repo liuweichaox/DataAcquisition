@@ -33,8 +33,8 @@ public class MetricsController : ControllerBase
             var client = _httpClientFactory.CreateClient();
             // 使用相对路径，避免硬编码
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            // 使用原始 Prometheus 端点（已改为 /metrics/raw）
-            var response = await client.GetStringAsync($"{baseUrl}/metrics/raw");
+            // 使用原始 Prometheus 端点
+            var response = await client.GetStringAsync($"{baseUrl}/metrics");
 
             var metrics = ParsePrometheusMetrics(response);
 
@@ -63,7 +63,7 @@ public class MetricsController : ControllerBase
             endpoints = new
             {
                 json = "/api/metrics-data - JSON 格式的指标数据（推荐）",
-                prometheus = "/metrics/raw - Prometheus 原始格式",
+                prometheus = "/metrics - Prometheus 原始格式",
                 html = "/metrics - HTML 可视化页面"
             },
             availableMetrics = new[]

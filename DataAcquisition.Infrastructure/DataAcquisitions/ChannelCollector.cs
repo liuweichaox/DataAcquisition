@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NCalc;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
@@ -24,7 +25,7 @@ public class ChannelCollector : IChannelCollector
 {
     private readonly IHeartbeatMonitor _heartbeatMonitor;
     private readonly IPLCClientLifecycleService _plcLifecycle;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<ChannelCollector> _logger;
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
     private readonly IMetricsCollector? _metricsCollector;
@@ -41,7 +42,7 @@ public class ChannelCollector : IChannelCollector
     public ChannelCollector(
         IHeartbeatMonitor heartbeatMonitor,
         IPLCClientLifecycleService plcLifecycle,
-        IOperationalEventsService events,
+        ILogger<ChannelCollector> logger,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration,
@@ -49,7 +50,7 @@ public class ChannelCollector : IChannelCollector
     {
         _heartbeatMonitor = heartbeatMonitor;
         _plcLifecycle = plcLifecycle;
-        _events = events;
+        _logger = logger;
         _queue = queue;
         _stateManager = stateManager;
         _metricsCollector = metricsCollector;
@@ -118,7 +119,7 @@ public class ChannelCollector : IChannelCollector
             // 获取锁并执行采集
             if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
             {
-                await _events.ErrorAsync($"{config.PLCCode}-未找到锁对象，跳过本次采集", null).ConfigureAwait(false);
+                _logger.LogError("{PLCCode}-未找到锁对象，跳过本次采集", config.PLCCode);
                 await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
                 continue;
             }
@@ -196,7 +197,7 @@ public class ChannelCollector : IChannelCollector
         var conditionalAcq = channel.ConditionalAcquisition;
         if (string.IsNullOrWhiteSpace(conditionalAcq.Register) || string.IsNullOrWhiteSpace(conditionalAcq.DataType))
                     {
-            await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:条件采集配置不完整，Register或DataType为空", null).ConfigureAwait(false);
+            _logger.LogError("{PLCCode}-{Measurement}:条件采集配置不完整，Register或DataType为空", config.PLCCode, channel.Measurement);
                         await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
             return prevValue;
                     }
@@ -343,7 +344,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"Error handling data point: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "Error handling data point: {Message}", ex.Message);
         }
     }
 
@@ -397,7 +398,7 @@ public class ChannelCollector : IChannelCollector
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
-            await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
         }
     }
 
@@ -457,7 +458,7 @@ public class ChannelCollector : IChannelCollector
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
-            await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
         }
     }
 
@@ -518,10 +519,9 @@ public class ChannelCollector : IChannelCollector
             if (cycle == null)
             {
                 // 异常情况：找不到对应的cycle，记录警告并跳过
-                await _events.ErrorAsync(
-                    $"{config.PLCCode}-{channel.Measurement} " +
-                    $"End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
-                    null).ConfigureAwait(false);
+                _logger.LogError(
+                    "{PLCCode}-{Measurement} End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
+                    config.PLCCode, channel.Measurement);
                 return true; // 需要跳过后续处理
             }
 
@@ -533,7 +533,7 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
             return false;
         }
     }
@@ -627,7 +627,7 @@ public class ChannelCollector : IChannelCollector
             catch (Exception ex)
             {
                 _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-                await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
             }
         }, ct);
     }
@@ -645,7 +645,7 @@ public class ChannelCollector : IChannelCollector
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
             }
         }, ct);
     }

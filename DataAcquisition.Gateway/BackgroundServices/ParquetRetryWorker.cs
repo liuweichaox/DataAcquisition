@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Infrastructure.DataStorages;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Gateway.BackgroundServices;
 
@@ -16,18 +16,18 @@ public class ParquetRetryWorker : BackgroundService
 {
     private readonly ParquetFileStorageService _parquetStorage;
     private readonly InfluxDbDataStorageService _influxStorage;
-    private readonly IOperationalEventsService _events;
+    private readonly ILogger<ParquetRetryWorker> _logger;
     // 缩短扫描间隔，加快 WAL → Influx 写入延迟
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
 
     public ParquetRetryWorker(
         ParquetFileStorageService parquetStorage,
         InfluxDbDataStorageService influxStorage,
-        IOperationalEventsService events)
+        ILogger<ParquetRetryWorker> logger)
     {
         _parquetStorage = parquetStorage;
         _influxStorage = influxStorage;
-        _events = events;
+        _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -42,7 +42,7 @@ public class ParquetRetryWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"Parquet 重传任务异常: {ex.Message}", ex).ConfigureAwait(false);
+                _logger.LogError(ex, "Parquet 重传任务异常: {Message}", ex.Message);
             }
 
             await Task.Delay(_interval, stoppingToken).ConfigureAwait(false);
@@ -54,7 +54,7 @@ public class ParquetRetryWorker : BackgroundService
         var files = await _parquetStorage.GetPendingFilesAsync().ConfigureAwait(false);
         if (files.Count == 0) return;
 
-        await _events.InfoAsync($"发现 {files.Count} 个待上传的 Parquet 文件").ConfigureAwait(false);
+        _logger.LogInformation("发现 {Count} 个待上传的 Parquet 文件", files.Count);
 
         foreach (var file in files)
         {
@@ -78,11 +78,11 @@ public class ParquetRetryWorker : BackgroundService
                 }
 
                 await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
-                await _events.InfoAsync($"成功写回并删除文件: {file}").ConfigureAwait(false);
+                _logger.LogInformation("成功写回并删除文件: {File}", file);
             }
             catch (Exception ex)
             {
-                await _events.WarnAsync($"处理 Parquet 文件失败，保留文件以便下次重试: {file}, 原因: {ex.Message}").ConfigureAwait(false);
+                _logger.LogWarning(ex, "处理 Parquet 文件失败，保留文件以便下次重试: {File}, 原因: {Message}", file, ex.Message);
             }
         }
     }
