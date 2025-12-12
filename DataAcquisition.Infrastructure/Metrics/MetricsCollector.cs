@@ -80,11 +80,11 @@ public class MetricsCollector : IMetricsCollector
             "连接持续时间（秒）");
     }
 
-    public void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs, string? channelCode = null)
+    public void RecordCollectionLatency(string plcCode, string measurement, double latencyMs, string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("plc_code", deviceCode),
+            new("plc_code", plcCode),
             new("measurement", measurement)
         };
         if (!string.IsNullOrEmpty(channelCode))
@@ -94,11 +94,11 @@ public class MetricsCollector : IMetricsCollector
         _collectionLatencyHistogram.Record(latencyMs, tagList.ToArray());
     }
 
-    public void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond, string? channelCode = null)
+    public void RecordCollectionRate(string plcCode, string measurement, double pointsPerSecond, string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("plc_code", deviceCode),
+            new("plc_code", plcCode),
             new("measurement", measurement)
         };
         if (!string.IsNullOrEmpty(channelCode))
@@ -136,11 +136,11 @@ public class MetricsCollector : IMetricsCollector
         }
     }
 
-    public void RecordError(string deviceCode, string? measurement = null, string? channelCode = null)
+    public void RecordError(string plcCode, string? measurement = null, string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("plc_code", deviceCode)
+            new("plc_code", plcCode)
         };
         if (!string.IsNullOrEmpty(measurement))
         {
@@ -153,21 +153,21 @@ public class MetricsCollector : IMetricsCollector
         _errorCounter.Add(1, tagList.ToArray());
     }
 
-    public void RecordConnectionStatus(string deviceCode, bool isConnected)
+    public void RecordConnectionStatus(string plcCode, bool isConnected)
     {
         var tags = new KeyValuePair<string, object?>[]
         {
-            new("plc_code", deviceCode),
+            new("plc_code", plcCode),
             new("status", isConnected ? "connected" : "disconnected")
         };
         _connectionStatusCounter.Add(1, tags);
     }
 
-    public void RecordConnectionDuration(string deviceCode, double durationSeconds)
+    public void RecordConnectionDuration(string plcCode, double durationSeconds)
     {
         var tags = new KeyValuePair<string, object?>[]
         {
-            new("plc_code", deviceCode)
+            new("plc_code", plcCode)
         };
         _connectionDurationHistogram.Record(durationSeconds, tags);
     }

@@ -11,20 +11,20 @@ public interface IMetricsCollector
     /// <summary>
     /// 记录采集延迟（从PLC读取到写入数据库的时间，毫秒）
     /// </summary>
-    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码（PLCCode）</param>
     /// <param name="measurement">测量值名称</param>
     /// <param name="latencyMs">延迟（毫秒）</param>
     /// <param name="channelCode">通道编码（可选）</param>
-    void RecordCollectionLatency(string deviceCode, string measurement, double latencyMs, string? channelCode = null);
+    void RecordCollectionLatency(string plcCode, string measurement, double latencyMs, string? channelCode = null);
 
     /// <summary>
     /// 记录采集频率（每秒采集的数据点数）
     /// </summary>
-    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码（PLCCode）</param>
     /// <param name="measurement">测量值名称</param>
     /// <param name="pointsPerSecond">每秒采集的数据点数</param>
     /// <param name="channelCode">通道编码（可选）</param>
-    void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond, string? channelCode = null);
+    void RecordCollectionRate(string plcCode, string measurement, double pointsPerSecond, string? channelCode = null);
 
     /// <summary>
     /// 记录队列深度（Channel待读取 + 批量积累的待处理消息总数）
@@ -49,20 +49,20 @@ public interface IMetricsCollector
     /// <summary>
     /// 记录错误（按设备/通道统计）
     /// </summary>
-    /// <param name="deviceCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码（PLCCode）</param>
     /// <param name="measurement">测量值名称（可选）</param>
     /// <param name="channelCode">通道编码（可选）</param>
-    void RecordError(string deviceCode, string? measurement = null, string? channelCode = null);
+    void RecordError(string plcCode, string? measurement = null, string? channelCode = null);
 
     /// <summary>
     /// 记录PLC连接状态变化
     /// </summary>
-    /// <param name="deviceCode">PLC编码（PLCCode）</param>
-    void RecordConnectionStatus(string deviceCode, bool isConnected);
+    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    void RecordConnectionStatus(string plcCode, bool isConnected);
 
     /// <summary>
     /// 记录连接持续时间（秒）
     /// </summary>
-    /// <param name="deviceCode">PLC编码（PLCCode）</param>
-    void RecordConnectionDuration(string deviceCode, double durationSeconds);
+    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    void RecordConnectionDuration(string plcCode, double durationSeconds);
 }

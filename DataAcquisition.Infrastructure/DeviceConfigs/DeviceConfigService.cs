@@ -215,9 +215,28 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// <summary>
     /// 获取配置文件路径
     /// </summary>
-    private string GetConfigFilePath(string deviceCode)
+    private string GetConfigFilePath(string plcCode)
     {
-        return Path.Combine(_configDirectory, $"{deviceCode}.json");
+        // 验证 plcCode 不包含路径遍历字符，防止路径遍历攻击
+        if (string.IsNullOrWhiteSpace(plcCode))
+        {
+            throw new ArgumentException("设备编码不能为空", nameof(plcCode));
+        }
+
+        if (plcCode.Contains("..") || plcCode.Contains("/") || plcCode.Contains("\\"))
+        {
+            throw new ArgumentException($"无效的设备编码: {plcCode}，不能包含路径遍历字符", nameof(plcCode));
+        }
+
+        // 验证文件名合法（不能包含系统保留字符）
+        var fileName = $"{plcCode}.json";
+        var invalidChars = Path.GetInvalidFileNameChars();
+        if (fileName.IndexOfAny(invalidChars) >= 0)
+        {
+            throw new ArgumentException($"无效的设备编码: {plcCode}，包含非法字符", nameof(plcCode));
+        }
+
+        return Path.Combine(_configDirectory, fileName);
     }
 
     /// <summary>

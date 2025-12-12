@@ -19,7 +19,9 @@ using Serilog;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.WebHost.UseUrls("http://localhost:8000");
+// 从配置读取 URL，支持环境变量和配置文件
+var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:8000";
+builder.WebHost.UseUrls(urls);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 builder.Services.AddSignalR().AddJsonProtocol(o =>
@@ -34,9 +36,8 @@ builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
-builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<PlcStateManager>();
-builder.Services.AddSingleton<IPlcClientLifecycleService, PlcClientLifecycleService>();
+builder.Services.AddSingleton<IPLCClientFactory, PLCClientFactory>();
+builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();

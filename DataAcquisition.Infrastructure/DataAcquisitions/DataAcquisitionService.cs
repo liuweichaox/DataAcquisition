@@ -1,14 +1,13 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Domain.Models;
 using DataAcquisition.Application;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
-using DataAcquisition.Infrastructure;
-using DataAcquisition.Infrastructure;
+using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
 {
@@ -17,9 +16,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService : IDataAcquisitionService
     {
-        private readonly PlcStateManager _plcStateManager;
+        private readonly ConcurrentDictionary<string, PLCRuntime> _runtimes = new();
         private readonly IDeviceConfigService _deviceConfigService;
-        private readonly IPlcClientLifecycleService _plcLifecycle;
+        private readonly IPLCClientLifecycleService _plcLifecycle;
         private readonly IOperationalEventsService _events;
         private readonly IQueueService _queue;
         private readonly IHeartbeatMonitor _heartbeatMonitor;
@@ -29,10 +28,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// 数据采集器
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-            IPlcClientLifecycleService plcLifecycle,
+            IPLCClientLifecycleService plcLifecycle,
             IOperationalEventsService events,
             IQueueService queue,
-            PlcStateManager plcStateManager,
             IHeartbeatMonitor heartbeatMonitor,
             IChannelCollector channelCollector)
         {
@@ -40,7 +38,6 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             _plcLifecycle = plcLifecycle;
             _events = events;
             _queue = queue;
-            _plcStateManager = plcStateManager;
             _heartbeatMonitor = heartbeatMonitor;
             _channelCollector = channelCollector;
 
@@ -65,7 +62,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         private void StartCollectionTask(DeviceConfig config)
         {
-            if (_plcStateManager.Runtimes.ContainsKey(config.PLCCode))
+            if (_runtimes.ContainsKey(config.PLCCode))
             {
                 return;
             }
@@ -89,7 +86,6 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 return;
             }
 
-            _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
 
             var cts = new CancellationTokenSource();
             var ct = cts.Token;
@@ -113,7 +109,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 }
             }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
-            _plcStateManager.Runtimes.TryAdd(config.PLCCode, new PlcRuntime(cts, running));
+            _runtimes.TryAdd(config.PLCCode, new PLCRuntime(cts, running));
         }
 
         /// <summary>
@@ -124,7 +120,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             try
             {
                 // Cancel the data acquisition tasks.
-                foreach (var kvp in _plcStateManager.Runtimes)
+                foreach (var kvp in _runtimes)
                 {
                     try
                     {
@@ -136,7 +132,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                     }
                 }
 
-                foreach (var kv in _plcStateManager.Runtimes)
+                foreach (var kv in _runtimes)
                 {
                     try
                     {
@@ -164,7 +160,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
             }
             finally
             {
-                _plcStateManager.Clear();
+                _runtimes.Clear();
             }
         }
 
@@ -180,7 +176,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
             string dataType, CancellationToken ct = default)
         {
-            if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
+            if (!_plcLifecycle.TryGetClient(plcCode, out var client))
             {
                 return new PlcWriteResult
                 {
@@ -189,7 +185,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 };
             }
 
-            if (!_plcStateManager.PlcLocks.TryGetValue(plcCode, out var locker))
+            if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
             {
                 return new PlcWriteResult
                 {
@@ -227,7 +223,16 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// </summary>
         public SortedDictionary<string, bool> GetPlcConnectionStatus()
         {
-            return new SortedDictionary<string, bool>(_plcStateManager.PlcConnectionHealth);
+            // 从 HeartbeatMonitor 获取连接状态
+            var connectionHealth = new SortedDictionary<string, bool>();
+            foreach (var runtime in _runtimes)
+            {
+                if (_heartbeatMonitor.TryGetConnectionHealth(runtime.Key, out var isConnected))
+                {
+                    connectionHealth[runtime.Key] = isConnected;
+                }
+            }
+            return connectionHealth;
         }
 
         /// <summary>
@@ -277,9 +282,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// <summary>
         /// 停止单个采集任务
         /// </summary>
-        private async Task StopCollectionTaskAsync(string deviceCode)
+        private async Task StopCollectionTaskAsync(string plcCode)
         {
-            if (!_plcStateManager.Runtimes.TryRemove(deviceCode, out var runtime))
+            if (!_runtimes.TryRemove(plcCode, out var runtime))
             {
                 return;
             }
@@ -301,11 +306,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
                 }
 
                 // 关闭并清理 PLC 客户端与锁
-                await _plcLifecycle.CloseAsync(deviceCode).ConfigureAwait(false);
+                await _plcLifecycle.CloseAsync(plcCode).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                await _events.ErrorAsync($"停止采集任务失败 {deviceCode}: {ex.Message}", ex).ConfigureAwait(false);
+                await _events.ErrorAsync($"停止采集任务失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
             }
         }
 

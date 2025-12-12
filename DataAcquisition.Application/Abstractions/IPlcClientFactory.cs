@@ -3,7 +3,7 @@ namespace DataAcquisition.Application.Abstractions;
 /// <summary>
 /// 通讯客户端工厂。
 /// </summary>
-public interface IPlcClientFactory
+public interface IPLCClientFactory
 {
     /// <summary>
     /// 创建对应协议的通讯客户端。

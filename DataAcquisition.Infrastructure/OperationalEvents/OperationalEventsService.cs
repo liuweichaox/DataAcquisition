@@ -40,11 +40,14 @@ public sealed class OperationalEventsService(ILogger<OperationalEventsService> l
         {
             switch (level)
             {
+                case LogLevel.Information:
+                    log.LogInformation("{Message} {@Data}", message, data);
+                    break;
                 case LogLevel.Warning:
-                    log.LogError(ex, "{Message} {@Data}", message, data);
+                    log.LogWarning(ex, "{Message} {@Data}", message, data);
                     break;
                 case LogLevel.Error:
-                    log.LogWarning("{Message} {@Data}", message, data);
+                    log.LogError(ex, "{Message} {@Data}", message, data);
                     break;
                 default:
                     log.LogInformation("{Message} {@Data}", message, data);
@@ -56,10 +59,13 @@ public sealed class OperationalEventsService(ILogger<OperationalEventsService> l
             switch (level)
             {
                 case LogLevel.Information:
-                    log.LogError(ex, "{Message}", message);
+                    log.LogInformation("{Message}", message);
                     break;
                 case LogLevel.Warning:
-                    log.LogWarning("{Message}", message);
+                    log.LogWarning(ex, "{Message}", message);
+                    break;
+                case LogLevel.Error:
+                    log.LogError(ex, "{Message}", message);
                     break;
                 default:
                     log.LogInformation("{Message}", message);

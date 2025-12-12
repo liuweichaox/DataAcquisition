@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.NetworkInformation;
 using System.Threading;
@@ -6,7 +7,6 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
-using DataAcquisition.Infrastructure;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -16,8 +16,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
-    private readonly PlcStateManager _plcStateManager;
-    private readonly IPlcClientLifecycleService _plcLifecycle;
+    private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
+    private readonly IPLCClientLifecycleService _plcLifecycle;
     private readonly IOperationalEventsService _events;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
@@ -25,9 +25,8 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     /// 初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(PlcStateManager plcStateManager, IPlcClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
+    public HeartbeatMonitor(IPLCClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
     {
-        _plcStateManager = plcStateManager;
         _plcLifecycle = plcLifecycle;
         _events = events;
         _metricsCollector = metricsCollector;
@@ -48,7 +47,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             {
                 if (!_plcLifecycle.TryGetClient(config.PLCCode, out var client))
                 {
-                    _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                    _plcConnectionHealth[config.PLCCode] = false;
                     await _events.WarnAsync($"{config.PLCCode}-未找到PLC客户端").ConfigureAwait(false);
                     await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
                     continue;
@@ -65,7 +64,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                         _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
                         RecordConnectionEnd(config.PLCCode);
                     }
-                    _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                    _plcConnectionHealth[config.PLCCode] = false;
                 }
                 else
                 {
@@ -74,7 +73,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     if (ok)
                     {
                         writeData ^= 1;
-                        _plcStateManager.PlcConnectionHealth[config.PLCCode] = true;
+                        _plcConnectionHealth[config.PLCCode] = true;
 
                         if (!lastOk)
                         {
@@ -85,7 +84,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     }
                     else
                     {
-                        _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                        _plcConnectionHealth[config.PLCCode] = false;
                         if (lastOk)
                         {
                             await _events.WarnAsync($"{config.PLCCode}-心跳检测失败", connect.Message).ConfigureAwait(false);
@@ -100,7 +99,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             }
             catch (Exception ex)
             {
-                _plcStateManager.PlcConnectionHealth[config.PLCCode] = false;
+                _plcConnectionHealth[config.PLCCode] = false;
                 await _events.ErrorAsync($"{config.PLCCode}-系统异常: {ex.Message}", ex).ConfigureAwait(false);
             }
             finally
@@ -113,22 +112,30 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     /// 记录连接开始时间
     /// </summary>
-    private void RecordConnectionStart(string deviceCode)
+    private void RecordConnectionStart(string plcCode)
     {
-        _connectionStartTimes[deviceCode] = DateTime.Now;
+        _connectionStartTimes[plcCode] = DateTime.Now;
     }
 
     /// <summary>
     /// 记录连接结束并计算持续时间
     /// </summary>
-    private void RecordConnectionEnd(string deviceCode)
+    private void RecordConnectionEnd(string plcCode)
     {
-        if (_connectionStartTimes.TryGetValue(deviceCode, out var startTime))
+        if (_connectionStartTimes.TryGetValue(plcCode, out var startTime))
         {
             var duration = (DateTime.Now - startTime).TotalSeconds;
-            _metricsCollector?.RecordConnectionDuration(deviceCode, duration);
-            _connectionStartTimes.Remove(deviceCode);
+            _metricsCollector?.RecordConnectionDuration(plcCode, duration);
+            _connectionStartTimes.Remove(plcCode);
         }
+    }
+
+    /// <summary>
+    /// 获取 PLC 连接状态。
+    /// </summary>
+    public bool TryGetConnectionHealth(string plcCode, out bool isConnected)
+    {
+        return _plcConnectionHealth.TryGetValue(plcCode, out isConnected);
     }
 
     /// <summary>
@@ -136,7 +143,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// </summary>
     private async Task<PlcWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct)
     {
-        if (!_plcStateManager.PlcClients.TryGetValue(plcCode, out var client))
+        if (!_plcLifecycle.TryGetClient(plcCode, out var client))
         {
             return new PlcWriteResult
             {
@@ -145,7 +152,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             };
         }
 
-        if (!_plcStateManager.PlcLocks.TryGetValue(plcCode, out var locker))
+        if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
         {
             return new PlcWriteResult
             {

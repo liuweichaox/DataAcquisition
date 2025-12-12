@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using DataAcquisition.Application.Abstractions;
+using DataAcquisition.Domain.Models;
+
+namespace DataAcquisition.Infrastructure.Clients;
+
+/// <summary>
+/// PLC 客户端生命周期管理：创建、获取、关闭、清理。
+/// </summary>
+public class PLCClientLifecycleService : IPLCClientLifecycleService
+{
+    private readonly ConcurrentDictionary<string, IPlcClientService> _plcClients = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _plcLocks = new();
+    private readonly IPLCClientFactory _plcClientFactory;
+    private readonly IOperationalEventsService _events;
+
+    public PLCClientLifecycleService(
+        IPLCClientFactory plcClientFactory,
+        IOperationalEventsService events)
+    {
+        _plcClientFactory = plcClientFactory;
+        _events = events;
+    }
+
+    /// <summary>
+    /// 获取或创建 PLC 客户端。
+    /// </summary>
+    public IPlcClientService GetOrCreateClient(DeviceConfig config)
+    {
+        if (_plcClients.TryGetValue(config.PLCCode, out var existingClient))
+        {
+            return existingClient;
+        }
+
+        var client = _plcClientFactory.Create(config);
+        _plcClients.TryAdd(config.PLCCode, client);
+        _plcLocks.TryAdd(config.PLCCode, new SemaphoreSlim(1, 1));
+
+        return client;
+    }
+
+    /// <summary>
+    /// 尝试获取 PLC 客户端。
+    /// </summary>
+    public bool TryGetClient(string plcCode, out IPlcClientService client)
+    {
+        return _plcClients.TryGetValue(plcCode, out client!);
+    }
+
+    /// <summary>
+    /// 尝试获取 PLC 锁对象。
+    /// </summary>
+    public bool TryGetLock(string plcCode, out SemaphoreSlim locker)
+    {
+        return _plcLocks.TryGetValue(plcCode, out locker!);
+    }
+
+    /// <summary>
+    /// 关闭指定设备的 PLC 客户端并清理相关资源。
+    /// </summary>
+    public async Task CloseAsync(string plcCode)
+    {
+        if (_plcClients.TryRemove(plcCode, out var client))
+        {
+            try
+            {
+                await client.ConnectCloseAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await _events.ErrorAsync($"关闭 PLC 客户端失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
+            }
+        }
+
+        if (_plcLocks.TryRemove(plcCode, out var locker))
+        {
+            try
+            {
+                locker.Dispose();
+            }
+            catch (Exception ex)
+            {
+                await _events.ErrorAsync($"释放 PLC 锁失败 {plcCode}: {ex.Message}", ex).ConfigureAwait(false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 关闭所有 PLC 客户端并清理相关资源。
+    /// </summary>
+    public async Task CloseAllAsync()
+    {
+        var tasks = new List<Task>();
+        var plcCodes = _plcClients.Keys.ToList();
+
+        foreach (var plcCode in plcCodes)
+        {
+            tasks.Add(CloseAsync(plcCode));
+        }
+
+        await Task.WhenAll(tasks).ConfigureAwait(false);
+    }
+}

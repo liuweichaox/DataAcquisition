@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using DataAcquisition.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using NCalc;
 
@@ -23,7 +22,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class ChannelCollector : IChannelCollector
 {
-    private readonly PlcStateManager _plcStateManager;
+    private readonly IHeartbeatMonitor _heartbeatMonitor;
+    private readonly IPLCClientLifecycleService _plcLifecycle;
     private readonly IOperationalEventsService _events;
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
@@ -39,14 +39,16 @@ public class ChannelCollector : IChannelCollector
     /// 初始化通道采集器。
     /// </summary>
     public ChannelCollector(
-        PlcStateManager plcStateManager,
+        IHeartbeatMonitor heartbeatMonitor,
+        IPLCClientLifecycleService plcLifecycle,
         IOperationalEventsService events,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
         Microsoft.Extensions.Configuration.IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
-        _plcStateManager = plcStateManager;
+        _heartbeatMonitor = heartbeatMonitor;
+        _plcLifecycle = plcLifecycle;
         _events = events;
         _queue = queue;
         _stateManager = stateManager;
@@ -107,13 +109,13 @@ public class ChannelCollector : IChannelCollector
         object? prevValue = null;
         while (!ct.IsCancellationRequested)
         {
-            if (!_plcStateManager.PlcConnectionHealth.TryGetValue(config.PLCCode, out var isConnected) || !isConnected)
+            if (!_heartbeatMonitor.TryGetConnectionHealth(config.PLCCode, out var isConnected) || !isConnected)
             {
                 await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
                 continue;
             }
 
-            if (!_plcStateManager.PlcLocks.TryGetValue(config.PLCCode, out var locker))
+            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
             {
                 await _events.ErrorAsync($"{config.PLCCode}-未找到锁对象，跳过本次采集", null).ConfigureAwait(false);
                 await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
