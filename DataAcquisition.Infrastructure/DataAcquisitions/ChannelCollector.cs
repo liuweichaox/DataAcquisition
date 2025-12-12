@@ -417,7 +417,7 @@ public class ChannelCollector : IChannelCollector
     /// 4. 异步执行表达式计算和消息发布（不阻塞采集循环）
     ///
     /// 采集周期管理：
-    /// - 使用复合键（deviceCode:measurement）存储周期状态
+    /// - 使用复合键（plcCode:measurement）存储周期状态
     /// - 如果已存在活跃周期，会先移除旧的周期（处理异常情况）
     /// - 同一设备的多个测量值可以同时进行条件采集（独立周期）
     ///

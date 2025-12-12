@@ -36,18 +36,25 @@ public class LogsController : Controller
         [FromQuery] int pageSize = 100,
         CancellationToken cancellationToken = default)
     {
-        var skip = (page - 1) * pageSize;
-        var (entries, totalCount) = await _logViewService.GetLogsAsync(
-            level, keyword, skip, pageSize, cancellationToken);
-
-        return Ok(new
+        try
         {
-            Data = entries,
-            Total = totalCount,
-            Page = page,
-            PageSize = pageSize,
-            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-        });
+            var skip = (page - 1) * pageSize;
+            var (entries, totalCount) = await _logViewService.GetLogsAsync(
+                level, keyword, skip, pageSize, cancellationToken);
+
+            return Ok(new
+            {
+                Data = entries,
+                Total = totalCount,
+                Page = page,
+                PageSize = pageSize,
+                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { error = ex.Message, stackTrace = ex.StackTrace });
+        }
     }
 
     /// <summary>

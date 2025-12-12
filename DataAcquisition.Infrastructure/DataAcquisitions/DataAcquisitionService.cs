@@ -258,7 +258,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Added:
                     if (e.NewConfig != null && e.NewConfig.IsEnabled)
                     {
-                        _logger.LogInformation("检测到新设备配置: {DeviceCode}，启动采集任务", e.DeviceCode);
+                        _logger.LogInformation("检测到新设备配置: {PLCCode}，启动采集任务", e.PLCCode);
                         StartCollectionTask(e.NewConfig);
                     }
                     break;
@@ -270,7 +270,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                     }
                     if (e.NewConfig != null && e.NewConfig.IsEnabled)
                     {
-                        _logger.LogInformation("设备配置已更新: {DeviceCode}，重启采集任务", e.DeviceCode);
+                        _logger.LogInformation("设备配置已更新: {PLCCode}，重启采集任务", e.PLCCode);
                         StartCollectionTask(e.NewConfig);
                     }
                     break;
@@ -278,7 +278,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Removed:
                     if (e.OldConfig != null)
                     {
-                        _logger.LogInformation("设备配置已删除: {DeviceCode}，停止采集任务", e.DeviceCode);
+                        _logger.LogInformation("设备配置已删除: {PLCCode}，停止采集任务", e.PLCCode);
                         await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
                     }
                     break;

@@ -28,7 +28,27 @@
         }
 
         .metrics-container {
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 20px;
+        }
+
+        .page-header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .page-header h2 {
+            margin: 0;
+            color: #303133;
+            font-size: 20px;
+            font-weight: 600;
         }
 
         .metric-card {
@@ -81,15 +101,44 @@
             color: #909399;
             font-size: 12px;
         }
+
+        .filter-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-menu {
+            margin-bottom: 0;
+        }
+
+        .nav-menu-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .nav-menu .el-menu-item {
+            height: 60px;
+            line-height: 60px;
+            padding: 0 20px;
+        }
+
+        .nav-menu .el-menu-item.is-active {
+            color: #409eff;
+            border-bottom: 2px solid #409eff;
+        }
     </style>
 </head>
 <body>
     <div id="app">
-        <el-container>
-            <el-header style="background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 0 20px; display: flex; align-items: center; justify-content: space-between;">
+        <partial name="_NavigationMenu" />
+        <div class="metrics-container">
+            <div class="page-header">
                 <div>
-                    <h2 style="margin: 0; color: #303133;">
-                        <el-icon><Monitor /></el-icon>
+                    <h2>
+                        <el-icon><Monitor></Monitor></el-icon>
                         系统指标监控
                     </h2>
                     <div class="refresh-info" style="margin-top: 5px;">
@@ -98,35 +147,57 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
-                    <el-button type="primary" :icon="Refresh" @@click="loadMetrics" :loading="loading">
+                    <el-button type="primary" @@click="loadMetrics" :loading="loading">
+                        <el-icon><Refresh /></el-icon>
                         刷新
                     </el-button>
-                    <el-button v-if="autoRefresh" type="info" @@click="toggleAutoRefresh">
-                        自动刷新: 开启
-                    </el-button>
-                    <el-button v-else @@click="toggleAutoRefresh">
-                        自动刷新: 关闭
-                    </el-button>
-                    <el-select
-                        v-model="selectedMetrics"
-                        multiple
-                        clearable
-                        collapse-tags
-                        filterable
-                        placeholder="选择要展示的指标"
-                        style="min-width: 260px;"
-                    >
-                        <el-option
-                            v-for="name in availableMetrics"
-                            :key="name"
-                            :label="getMetricTitle(name)"
-                            :value="name"
-                        > </el-option>
-                    </el-select>
                 </div>
-            </el-header>
+            </div>
 
-            <el-main class="metrics-container">
+            <div class="filter-card">
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-select
+                            v-model="selectedMetrics"
+                            multiple
+                            clearable
+                            collapse-tags
+                            filterable
+                            placeholder="选择要展示的指标"
+                            style="width: 100%;">
+                            <el-option
+                                v-for="name in availableMetrics"
+                                :key="name"
+                                :label="getMetricTitle(name)"
+                                :value="name">
+                            </el-option>
+                        </el-select>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-input
+                            v-model="searchKeyword"
+                            placeholder="搜索指标名称"
+                            clearable
+                            @@keyup.enter="searchMetrics">
+                            <template #prefix>
+                                <el-icon><Search /></el-icon>
+                            </template>
+                        </el-input>
+                    </el-col>
+                    <el-col :span="6">
+                        <div style="display: flex; gap: 10px;">
+                            <el-button type="primary" @@click="searchMetrics" :loading="loading" icon="Search">
+                                搜索
+                            </el-button>
+                            <el-button @@click="clearFilters" icon="Refresh">
+                                清空
+                            </el-button>
+                        </div>
+                    </el-col>
+                </el-row>
+            </div>
+
+            <div>
                 <el-alert
                     v-if="error"
                     :title="error"
@@ -250,8 +321,8 @@
                         <el-empty v-else description="暂无数据" :image-size="80" />
                     </el-card>
                 </div>
-            </el-main>
-        </el-container>
+            </div>
+        </div>
     </div>
 
     <!-- Vue 3 (production build) -->
@@ -266,17 +337,44 @@
     <script>
         const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
         const { ElMessage } = ElementPlus;
+        // 配置中文语言包
+        // 手动配置 Element Plus 中文语言
+        const zhCn = {
+            el: {
+                pagination: {
+                    goto: '前往',
+                    pagesize: '条/页',
+                    total: '共 {total} 条',
+                    pageClassifier: '页',
+                    page: '页',
+                    prev: '上一页',
+                    next: '下一页',
+                    currentPage: '当前页',
+                    prevPages: '向前 {pagerCount} 页',
+                    nextPages: '向后 {pagerCount} 页'
+                }
+            }
+        };
 
         const app = createApp({
             setup() {
                 // 按需使用的图标（绑定到按钮的 :icon）
                 const Refresh = ElementPlusIconsVue.Refresh;
+                const Monitor = ElementPlusIconsVue.Monitor;
+                const Document = ElementPlusIconsVue.Document;
+                const Search = ElementPlusIconsVue.Search;
+
+                // 导航菜单
+                const activeMenu = ref('/Home/Index');
+                const handleMenuSelect = (key) => {
+                    window.location.href = key;
+                };
 
                 const loading = ref(false);
                 const error = ref('');
                 const metrics = ref({});
                 const lastUpdate = ref('');
-                const autoRefresh = ref(false);
+                const autoRefresh = ref(true); // 默认开启自动刷新
                 let refreshTimer = null;
                 const chartInstances = {};
 
@@ -298,6 +396,7 @@
                 ];
 
                 const selectedMetrics = ref([]);
+                const searchKeyword = ref('');
                 const availableMetrics = ref([...importantMetrics]); // 不含核心指标
                 // 恢复已选择的指标
                 const storedSelected = localStorage.getItem('metrics-selected');
@@ -313,9 +412,18 @@
 
                 const filteredMetrics = computed(() => {
                     const result = {};
-                    const sourceKeys = (selectedMetrics.value && selectedMetrics.value.length > 0)
+                    let sourceKeys = (selectedMetrics.value && selectedMetrics.value.length > 0)
                         ? selectedMetrics.value
                         : availableMetrics.value;
+
+                    // 应用搜索关键词过滤
+                    if (searchKeyword.value && searchKeyword.value.trim()) {
+                        const keyword = searchKeyword.value.toLowerCase();
+                        sourceKeys = sourceKeys.filter(name => {
+                            const title = getMetricTitle(name).toLowerCase();
+                            return title.includes(keyword) || name.toLowerCase().includes(keyword);
+                        });
+                    }
 
                     sourceKeys.forEach(name => {
                         if (metrics.value[name]) {
@@ -530,8 +638,24 @@
                     return types[type] || '';
                 }
 
+                function searchMetrics() {
+                    // 搜索功能由 computed filteredMetrics 自动处理
+                    // 这里可以添加额外的搜索逻辑，如果需要的话
+                }
+
+                function clearFilters() {
+                    selectedMetrics.value = [];
+                    searchKeyword.value = '';
+                    // 清空本地存储
+                    localStorage.removeItem('metrics-selected');
+                }
+
                 onMounted(() => {
                     loadMetrics();
+                    // 默认开启自动刷新
+                    if (autoRefresh.value) {
+                        refreshTimer = setInterval(loadMetrics, 5000); // 每5秒刷新
+                    }
                 });
 
                 // 记住选择
@@ -554,18 +678,25 @@
                     metrics,
                     lastUpdate,
                     autoRefresh,
+                    Refresh,
+                    Monitor,
+                    Document,
+                    activeMenu,
+                    handleMenuSelect,
                     selectedMetrics,
+                    searchKeyword,
                     availableMetrics,
                     filteredMetrics,
                     loadMetrics,
-                    toggleAutoRefresh,
+                    searchMetrics,
+                    clearFilters,
                     getMetricTitle,
                     getMetricUnit,
                     formatMetricValue,
                     getLatestValue,
                     getMetricValue,
                     getMetricType,
-                    Refresh
+                    Search
                 };
             }
         })
@@ -575,7 +706,10 @@
             app.component(name, component);
         });
 
-        app.use(ElementPlus);
+        // 配置中文语言
+        app.use(ElementPlus, {
+            locale: zhCn
+        });
         app.mount('#app');
     </script>
 </body>

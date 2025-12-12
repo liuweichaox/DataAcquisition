@@ -42,7 +42,7 @@ public class ConfigChangedEventArgs : EventArgs
     /// <summary>
     /// PLC编码（PLCCode），用于标识设备
     /// </summary>
-    public string DeviceCode { get; set; } = string.Empty;
+    public string PLCCode { get; set; } = string.Empty;
 
     /// <summary>
     /// 新的配置（如果是删除则为null）

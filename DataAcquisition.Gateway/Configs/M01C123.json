@@ -1,8 +1,8 @@
 {
   "IsEnabled": true,
   "PLCCode": "M01C123",
-  "Host": "192.168.1.110",
-  "Port": 4104,
+  "Host": "192.168.0.110",
+  "Port": 502,
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D6061",
   "HeartbeatPollingInterval": 2000,

@@ -85,7 +85,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                DeviceCode = oldConfig.PLCCode,
+                PLCCode = oldConfig.PLCCode,
                 OldConfig = oldConfig
             });
         }
@@ -104,7 +104,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                DeviceCode = oldConfig.PLCCode,
+                PLCCode = oldConfig.PLCCode,
                 OldConfig = oldConfig
             });
         }
@@ -150,7 +150,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = changeType,
-                DeviceCode = newConfig.PLCCode,
+                PLCCode = newConfig.PLCCode,
                 NewConfig = newConfig,
                 OldConfig = oldConfig
             });
