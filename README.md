@@ -121,6 +121,10 @@ DataAcquisition/
 │   ├── Controllers/                # API 控制器
 │   ├── Services/                   # 网关服务
 │   └── Views/                      # 视图页面
+├── DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
+│   ├── Simulator.cs               # 模拟器核心逻辑
+│   ├── Program.cs                 # 程序入口
+│   └── README.md                  # 模拟器文档
 └── DataAcquisition.sln             # 解决方案文件
 ```
 
@@ -184,6 +188,52 @@ dotnet build -f net8.0
 - 指标可视化: http://localhost:8000/metrics
 - Prometheus 指标: http://localhost:8000/metrics
 - API 文档: 未配置 Swagger（可通过代码启用）
+
+### 🧪 使用 PLC 模拟器进行测试
+
+项目提供了独立的 PLC 模拟器（`DataAcquisition.Simulator`），可以模拟三菱 PLC 的行为，用于测试数据采集功能，无需真实的 PLC 设备。
+
+#### 启动模拟器
+
+```bash
+cd DataAcquisition.Simulator
+dotnet run
+```
+
+#### 模拟器特性
+
+- ✅ 模拟三菱 PLC（MelsecMcServer）
+- ✅ 自动更新心跳寄存器（D100）
+- ✅ 模拟 7 个传感器指标（温度、压力、电流、电压、光栅位置、伺服速度、生产序号）
+- ✅ 支持条件采集测试（生产序号触发）
+- ✅ 交互式命令控制（set/get/info/exit）
+- ✅ 实时数据显示
+
+#### 快速测试流程
+
+1. **启动模拟器**：
+
+```bash
+cd DataAcquisition.Simulator
+dotnet run
+```
+
+2. **配置测试设备**：
+
+   在 `DataAcquisition.Gateway/Configs/` 目录创建 `TEST_PLC.json`（参考 `DataAcquisition.Simulator/README.md` 中的完整配置示例）
+
+3. **启动采集系统**：
+
+```bash
+dotnet run --project DataAcquisition.Gateway
+```
+
+4. **观察数据采集**：
+   - 访问 http://localhost:8000/metrics 查看系统指标
+   - 访问 http://localhost:8000/logs 查看采集日志
+   - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
+
+详细说明请参考：[DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
 
 ## ⚙️ 配置说明
 
@@ -595,6 +645,7 @@ A: 实现 `IPlcClientService` 接口，并在 `PlcClientFactory` 中注册新的
 A: 不需要。系统使用 FileSystemWatcher 监控配置文件变化，支持热更新。
 
 ### Q: 监控指标在哪里查看？
+
 A: 访问 http://localhost:8000/metrics 查看可视化界面或获取 Prometheus 原始格式指标，或 http://localhost:8000/api/metrics-data 获取 JSON 格式指标数据（推荐）。
 
 ### Q: 如何扩展存储后端？

@@ -100,6 +100,10 @@ DataAcquisition/
 │   ├── Controllers/                # API Controllers
 │   ├── Services/                   # Gateway Services
 │   └── Views/                      # View Pages
+├── DataAcquisition.Simulator/      # PLC Simulator - For Testing
+│   ├── Simulator.cs               # Simulator Core Logic
+│   ├── Program.cs                 # Program Entry Point
+│   └── README.md                  # Simulator Documentation
 └── DataAcquisition.sln             # Solution File
 ```
 
@@ -163,6 +167,52 @@ dotnet build -f net8.0
 - Metrics Visualization: http://localhost:8000/metrics
 - Prometheus Metrics: http://localhost:8000/metrics
 - API Documentation: Swagger not configured (can be enabled in code)
+
+### 🧪 Testing with PLC Simulator
+
+The project includes a standalone PLC simulator (`DataAcquisition.Simulator`) that simulates Mitsubishi PLC behavior for testing data acquisition functionality without requiring actual PLC hardware.
+
+#### Start the Simulator
+
+```bash
+cd DataAcquisition.Simulator
+dotnet run
+```
+
+#### Simulator Features
+
+- ✅ Simulates Mitsubishi PLC (MelsecMcServer)
+- ✅ Auto-updates heartbeat register (D100)
+- ✅ Simulates 7 sensor metrics (temperature, pressure, current, voltage, light barrier position, servo speed, production serial number)
+- ✅ Supports conditional acquisition testing (production serial trigger)
+- ✅ Interactive command control (set/get/info/exit)
+- ✅ Real-time data display
+
+#### Quick Test Flow
+
+1. **Start the Simulator**:
+
+```bash
+cd DataAcquisition.Simulator
+dotnet run
+```
+
+2. **Configure Test Device**:
+
+   Create `TEST_PLC.json` in `DataAcquisition.Gateway/Configs/` directory (refer to the complete configuration example in `DataAcquisition.Simulator/README.md`)
+
+3. **Start the Acquisition System**:
+
+```bash
+dotnet run --project DataAcquisition.Gateway
+```
+
+4. **Observe Data Acquisition**:
+   - Visit http://localhost:8000/metrics to view system metrics
+   - Visit http://localhost:8000/logs to view acquisition logs
+   - Check the `sensor` and `production` measurements in InfluxDB
+
+For detailed information, please refer to: [DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
 
 ## ⚙️ Configuration Guide
 
