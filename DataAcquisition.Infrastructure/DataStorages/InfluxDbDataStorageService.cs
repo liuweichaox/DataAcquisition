@@ -45,14 +45,52 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     public async Task<bool> SaveAsync(DataMessage dataMessage)
     {
         _writeStopwatch.Restart();
+        var writeSuccess = false;
+        Exception? writeException = null;
+        var resetEvent = new System.Threading.ManualResetEventSlim(false);
+
         try
         {
             var point = ConvertToPoint(dataMessage);
             using var writeApi = _client.GetWriteApi();
+
+            // 设置错误处理回调，捕获写入失败
+            writeApi.EventHandler += (sender, args) =>
+            {
+                writeException = new Exception($"InfluxDB 写入失败: {args}");
+                writeSuccess = false;
+                resetEvent.Set();
+                _logger.LogError(writeException, "[ERROR] InfluxDB 写入错误事件触发: {Message}", writeException.Message);
+            };
+
             writeApi.WritePoint(_bucket, _org, point);
-            await Task.CompletedTask.ConfigureAwait(false);
+            writeApi.Flush();
+
+            // 等待足够长的时间来检测错误（InfluxDB 异步写入，错误可能延迟）
+            // 增加等待时间到 5 秒，以确保捕获到连接或配置错误
+            _logger.LogDebug("等待 InfluxDB 写入响应，最多等待 5 秒...");
+            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
+
+            if (errorOccurred)
+            {
+                // 有错误发生，writeSuccess 已经在回调中设置为 false
+                _logger.LogWarning("InfluxDB 写入错误事件已触发");
+            }
+            else
+            {
+                // 5 秒内没有错误事件，假设写入成功
+                // 注意：这可能不准确，因为 InfluxDB 是异步的，错误可能延迟
+                writeSuccess = true;
+                _logger.LogDebug("InfluxDB 写入在 5 秒内未检测到错误，假设写入成功");
+            }
 
             _writeStopwatch.Stop();
+
+            if (!writeSuccess)
+            {
+                throw writeException ?? new Exception("InfluxDB 写入失败");
+            }
+
             _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
             return true;
         }
@@ -61,6 +99,10 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
             _logger.LogError(ex, "[ERROR] 时序数据库插入失败: {Message}", ex.Message);
             return false;
+        }
+        finally
+        {
+            resetEvent.Dispose();
         }
     }
 
@@ -73,14 +115,55 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             return true;
 
         _writeStopwatch.Restart();
+        var writeSuccess = false;
+        Exception? writeException = null;
+        var resetEvent = new System.Threading.ManualResetEventSlim(false);
+
         try
         {
             var points = dataMessages.Select(ConvertToPoint).ToList();
             using var writeApi = _client.GetWriteApi();
+
+            // 设置错误处理回调，捕获写入失败
+            // 注意：所有错误事件（包括 WriteRetriableErrorEvent）都应被视为失败
+            writeApi.EventHandler += (sender, args) =>
+            {
+                // WriteRetriableErrorEvent 也是错误，需要处理
+                writeException = new Exception($"InfluxDB 写入失败: {args.GetType().Name} - {args}");
+                writeSuccess = false;
+                resetEvent.Set();
+                _logger.LogError(writeException, "[ERROR] InfluxDB 写入错误事件触发: {EventType} - {Message}",
+                    args.GetType().Name, writeException.Message);
+            };
+
             writeApi.WritePoints(_bucket, _org, points);
-            await Task.CompletedTask.ConfigureAwait(false);
+            writeApi.Flush();
+
+            // 等待足够长的时间来检测错误（InfluxDB 异步写入，错误可能延迟）
+            // 增加等待时间到 5 秒，与 SaveAsync 保持一致，以确保捕获到连接或配置错误
+            _logger.LogDebug("等待 InfluxDB 批量写入响应，最多等待 5 秒...");
+            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
+
+            if (errorOccurred)
+            {
+                // 有错误发生，writeSuccess 已经在回调中设置为 false
+                _logger.LogWarning("InfluxDB 批量写入错误事件已触发");
+            }
+            else
+            {
+                // 5 秒内没有错误事件，假设写入成功
+                // 注意：这可能不准确，因为 InfluxDB 是异步的，错误可能延迟
+                writeSuccess = true;
+                _logger.LogDebug("InfluxDB 批量写入在 5 秒内未检测到错误，假设写入成功");
+            }
 
             _writeStopwatch.Stop();
+
+            if (!writeSuccess)
+            {
+                throw writeException ?? new Exception("InfluxDB 写入失败");
+            }
+
             var batchSize = dataMessages.Count;
             _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
 
@@ -97,6 +180,10 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             _metricsCollector?.RecordError(plcCode, measurement, channelCode);
             _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
             return false;
+        }
+        finally
+        {
+            resetEvent.Dispose();
         }
     }
 

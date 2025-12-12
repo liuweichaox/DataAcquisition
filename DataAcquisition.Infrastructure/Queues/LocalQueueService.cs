@@ -299,6 +299,8 @@ public class LocalQueueService : IQueueService
     /// </remarks>
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
+        var json = System.Text.Json.JsonSerializer.Serialize(dataMessage);
+        _logger.LogInformation("StoreDataPointAsync: {Json}", json);
         // 时序数据库统一使用Insert操作，End事件通过event_type标签区分
         if (dataMessage.BatchSize <= 1)
         {

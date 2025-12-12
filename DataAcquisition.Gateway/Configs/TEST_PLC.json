@@ -14,7 +14,7 @@
       "BatchReadRegister": "D6000",
       "BatchReadLength": 14,
       "BatchSize": 1,
-      "AcquisitionInterval": 100,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
       "DataPoints": [
         { "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
@@ -33,7 +33,7 @@
       "BatchReadRegister": null,
       "BatchReadLength": 0,
       "BatchSize": 1,
-      "AcquisitionInterval": 100,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
       "DataPoints": null,
       "ConditionalAcquisition": {
