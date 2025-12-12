@@ -19,7 +19,6 @@ public class LocalQueueService : IQueueService
 {
     private readonly ParquetFileStorageService _parquetStorage;
     private readonly InfluxDbDataStorageService _influxStorage;
-    private readonly IDataProcessingService _dataProcessingService;
     private readonly IOperationalEventsService _events;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
@@ -36,14 +35,12 @@ public class LocalQueueService : IQueueService
     public LocalQueueService(
         ParquetFileStorageService parquetStorage,
         InfluxDbDataStorageService influxStorage,
-        IDataProcessingService dataProcessingService,
         IOperationalEventsService events,
         IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
         _parquetStorage = parquetStorage;
         _influxStorage = influxStorage;
-        _dataProcessingService = dataProcessingService;
         _events = events;
         _metricsCollector = metricsCollector;
 
@@ -59,11 +56,12 @@ public class LocalQueueService : IQueueService
 
         // 启动定时刷新和重试任务
         _flushTimer = new Timer(FlushBatches, null, _flushInterval, _flushInterval);
-        _retryTimer = new Timer(RetryFailedBatches, null, _retryInterval, _retryInterval);
+        _retryTimer = new Timer(RetryMemoryFailedBatches, null, _retryInterval, _retryInterval);
     }
 
     /// <summary>
-    /// 定时刷新批次
+    /// 定时刷新批次（内存中未达到 BatchSize 的数据）
+    /// 当批次未达到 BatchSize 时，定时刷新避免数据长时间积压
     /// </summary>
     private async void FlushBatches(object? state)
     {
@@ -88,9 +86,11 @@ public class LocalQueueService : IQueueService
     }
 
     /// <summary>
-    /// 重试失败的批次
+    /// 重试内存中失败的批次（在 WriteWalAndTryInfluxAsync 中失败后加入 _failedBatches 的批次）
+    /// 注意：此方法仅处理内存中的失败批次。
+    /// ParquetRetryWorker 负责扫描磁盘上的 Parquet 文件并重试（处理 InfluxDB 写入失败后保留的 WAL 文件）
     /// </summary>
-    private async void RetryFailedBatches(object? state)
+    private async void RetryMemoryFailedBatches(object? state)
     {
         var batchesToRetry = new List<FailedBatch>();
 
@@ -124,7 +124,10 @@ public class LocalQueueService : IQueueService
     }
 
     /// <summary>
-    /// 立即写 WAL 并尝试写入 Influx，成功则删除 WAL 文件，失败保留文件。
+    /// 立即写 WAL（Parquet 文件）并尝试写入 InfluxDB
+    /// - 成功：删除 WAL 文件
+    /// - InfluxDB 写入失败：保留 WAL 文件，由 ParquetRetryWorker 后续扫描并重试
+    /// - WAL 写入失败：记录错误，不加入重试队列（避免重复失败）
     /// </summary>
     private async Task WriteWalAndTryInfluxAsync(string measurement, List<DataMessage> messages)
     {
@@ -172,10 +175,10 @@ public class LocalQueueService : IQueueService
             _processingStopwatch.Restart();
             try
             {
-                // 记录队列深度
-                _metricsCollector?.RecordQueueDepth(_channel.Reader.Count);
+                // 记录队列深度（包括 Channel 待读取 + 批量积累的消息）
+                var totalDepth = GetTotalQueueDepth();
+                _metricsCollector?.RecordQueueDepth(totalDepth);
 
-                await _dataProcessingService.ExecuteAsync(dataMessage).ConfigureAwait(false);
                 await StoreDataPointAsync(dataMessage).ConfigureAwait(false);
 
                 _processingStopwatch.Stop();
@@ -187,6 +190,24 @@ public class LocalQueueService : IQueueService
                 await _events.ErrorAsync($"Error processing message: {ex.Message}", ex).ConfigureAwait(false);
             }
         }
+    }
+
+    /// <summary>
+    /// 获取当前队列总深度（Channel 待读取 + 批量积累的消息）
+    /// </summary>
+    private int GetTotalQueueDepth()
+    {
+        // Channel 中待读取的消息数（近似值）
+        var channelDepth = _channel.Reader.Count;
+
+        // _dataBatchMap 中积累的消息总数
+        int batchDepth = 0;
+        lock (_batchLock)
+        {
+            batchDepth = _dataBatchMap.Values.Sum(list => list.Count);
+        }
+
+        return channelDepth + batchDepth;
     }
 
     /// <summary>

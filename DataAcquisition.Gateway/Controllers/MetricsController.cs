@@ -70,7 +70,7 @@ public class MetricsController : ControllerBase
             {
                 "data_acquisition_collection_latency_ms - 采集延迟（毫秒）",
                 "data_acquisition_collection_rate - 采集频率（points/s）",
-                "data_acquisition_queue_depth - 队列深度（消息数）",
+                "data_acquisition_queue_depth - 队列深度（Channel待读取 + 批量积累，消息数）",
                 "data_acquisition_processing_latency_ms - 处理延迟（毫秒）",
                 "data_acquisition_write_latency_ms - 写入延迟（毫秒）",
                 "data_acquisition_batch_write_efficiency - 批量写入效率（points/ms）",

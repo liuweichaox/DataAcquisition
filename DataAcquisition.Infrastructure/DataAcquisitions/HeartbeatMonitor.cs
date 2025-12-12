@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
+using DataAcquisition.Infrastructure;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -15,8 +16,8 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
-    private readonly IPLCStateManager _plcStateManager;
-    private readonly IPLCClientLifecycleService _plcLifecycle;
+    private readonly PlcStateManager _plcStateManager;
+    private readonly IPlcClientLifecycleService _plcLifecycle;
     private readonly IOperationalEventsService _events;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
@@ -24,7 +25,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     /// 初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(IPLCStateManager plcStateManager, IPLCClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
+    public HeartbeatMonitor(PlcStateManager plcStateManager, IPlcClientLifecycleService plcLifecycle, IOperationalEventsService events, IMetricsCollector? metricsCollector = null)
     {
         _plcStateManager = plcStateManager;
         _plcLifecycle = plcLifecycle;

@@ -112,7 +112,7 @@ DataAcquisition/
 - Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
 
 > **Note**: The project supports multi-target frameworks (.NET 10.0, .NET 8.0). You can choose the appropriate version based on your deployment environment. Both versions are LTS (Long Term Support) versions, suitable for production use.
-> 
+>
 > **Version Selection Recommendations**:
 > - **.NET 10.0**: Latest LTS version, supported until 2028, recommended for new deployments
 > - **.NET 8.0**: Stable LTS version, supported until 2026, recommended for production environments
@@ -229,6 +229,109 @@ dotnet build -f net8.0
 }
 ```
 
+### 📊 Configuration to Database Mapping
+
+The system maps configuration files to InfluxDB time-series database. Here's the mapping relationship:
+
+#### Mapping Table
+
+| Configuration Field | InfluxDB Structure | Description | Example |
+|-------------------|-------------------|-------------|---------|
+| `Channels[].Measurement` | **Measurement** | Measurement name (table name) | `"sensor"` |
+| `PLCCode` | **Tag**: `plc_code` | PLC device code tag | `"M01C123"` |
+| `Channels[].ChannelCode` | **Tag**: `channel_code` | Channel code tag | `"M01C01"` |
+| `EventType` | **Tag**: `event_type` | Event type tag (Start/End/Data) | `"Start"`, `"End"`, `"Data"` |
+| `Channels[].DataPoints[].FieldName` | **Field** | Data field name | `"up_temp"`, `"down_temp"` |
+| `CycleId` | **Field**: `cycle_id` | Acquisition cycle unique identifier (GUID) | `"guid-xxx"` |
+| Acquisition time | **Timestamp** | Data point timestamp | `2025-01-15T10:30:00Z` |
+
+#### Configuration Example and Line Protocol
+
+**Configuration File** (`M01C123.json`):
+```json
+{
+  "PLCCode": "M01C123",
+  "Channels": [
+    {
+      "Measurement": "sensor",
+      "ChannelCode": "M01C01",
+      "DataPoints": [
+        { "FieldName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
+        { "FieldName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short",
+          "EvalExpression": "value / 1000.0" }
+      ],
+      "ConditionalAcquisition": {
+        "StartTriggerMode": "RisingEdge",
+        "EndTriggerMode": "FallingEdge"
+      }
+    }
+  ]
+}
+```
+
+**Generated InfluxDB Line Protocol**:
+
+**Start Event** (conditional acquisition start):
+```
+sensor,plc_code=M01C123,channel_code=M01C01,event_type=Start up_temp=250i,down_temp=0.18,cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312200000000000
+```
+
+**Data Event** (normal data point):
+```
+sensor,plc_code=M01C123,channel_code=M01C01,event_type=Data up_temp=255i,down_temp=0.19 1705312210000000000
+```
+
+**End Event** (conditional acquisition end):
+```
+sensor,plc_code=M01C123,channel_code=M01C01,event_type=End cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312300000000000
+```
+
+#### Line Protocol Format Explanation
+
+InfluxDB Line Protocol format:
+```
+measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
+```
+
+**Field Type Explanation**:
+- **Measurement**: From configuration `Measurement`, e.g., `"sensor"`
+- **Tags** (for filtering and grouping, indexed fields):
+  - `plc_code`: PLC device code
+  - `channel_code`: Channel code
+  - `event_type`: Event type (`Start`/`End`/`Data`)
+- **Fields** (actual data values):
+  - All fields from `DataPoints[].FieldName` (e.g., `up_temp`, `down_temp`)
+  - `cycle_id`: Conditional acquisition cycle ID (GUID, used to link Start/End events)
+  - Numeric types: integers use `i` suffix (e.g., `250i`), floats are written directly (e.g., `0.18`)
+- **Timestamp**: Data acquisition time (nanosecond precision)
+
+#### Query Examples
+
+**Query all data from a specific PLC**:
+```flux
+from(bucket: "your-bucket")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensor")
+  |> filter(fn: (r) => r["plc_code"] == "M01C123")
+```
+
+**Query a complete conditional acquisition cycle**:
+```flux
+from(bucket: "your-bucket")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensor")
+  |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
+```
+
+**Query specific field**:
+```flux
+from(bucket: "your-bucket")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensor")
+  |> filter(fn: (r) => r["_field"] == "up_temp")
+  |> aggregateWindow(every: 1m, fn: mean)
+```
+
 ## 🔌 API Usage Examples
 
 ### Real-time Data Subscription (SignalR)
@@ -340,17 +443,24 @@ public class InfluxDbDataStorageService : IDataStorageService
 
 ### MetricsCollector - Metrics Collector
 
-The system includes 9 core monitoring metrics:
+The system includes the following core monitoring metrics:
 
-- `data_acquisition_collection_latency_ms` - Collection latency
-- `data_acquisition_collection_rate` - Collection frequency
-- `data_acquisition_queue_depth` - Queue depth
-- `data_acquisition_write_latency_ms` - Write latency
-- `data_acquisition_errors_total` - Error count
-- `data_acquisition_connection_status_changes_total` - Connection status changes
-- `data_acquisition_connection_duration_seconds` - Connection duration
-- `data_acquisition_batch_size` - Batch size statistics
-- `data_acquisition_throughput` - System throughput
+#### Acquisition Metrics
+- **`data_acquisition_collection_latency_ms`** - Collection latency (time from PLC read to database write, milliseconds)
+- **`data_acquisition_collection_rate`** - Collection rate (data points per second, points/s)
+
+#### Queue Metrics
+- **`data_acquisition_queue_depth`** - Queue depth (Channel pending + batch accumulated total pending messages)
+- **`data_acquisition_processing_latency_ms`** - Processing latency (queue processing delay, milliseconds)
+
+#### Storage Metrics
+- **`data_acquisition_write_latency_ms`** - Write latency (database write delay, milliseconds)
+- **`data_acquisition_batch_write_efficiency`** - Batch write efficiency (batch size / write time, points/ms)
+
+#### Error & Connection Metrics
+- **`data_acquisition_errors_total`** - Total errors (by device/channel)
+- **`data_acquisition_connection_status_changes_total`** - Connection status change count
+- **`data_acquisition_connection_duration_seconds`** - Connection duration (seconds)
 
 ## 🔄 Data Processing Flow
 

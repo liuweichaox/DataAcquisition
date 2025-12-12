@@ -37,11 +37,11 @@ public class MetricsCollector : IMetricsCollector
             "points/s",
             "采集频率（每秒采集的数据点数）");
 
-        // 队列深度指标
+        // 队列深度指标（包括 Channel 待读取 + 批量积累）
         _queueDepthHistogram = _meter.CreateHistogram<int>(
             "data_acquisition.queue_depth",
             "messages",
-            "队列深度（当前待处理消息数）");
+            "队列深度（Channel待读取 + 批量积累的待处理消息总数）");
 
         // 处理延迟指标
         _processingLatencyHistogram = _meter.CreateHistogram<double>(

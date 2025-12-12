@@ -7,6 +7,8 @@ using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using DataAcquisition.Application;
 using DataAcquisition.Domain.Clients;
+using DataAcquisition.Infrastructure;
+using DataAcquisition.Infrastructure;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions
 {
@@ -15,9 +17,9 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
     /// </summary>
     public class DataAcquisitionService : IDataAcquisitionService
     {
-        private readonly IPLCStateManager _plcStateManager;
+        private readonly PlcStateManager _plcStateManager;
         private readonly IDeviceConfigService _deviceConfigService;
-        private readonly IPLCClientLifecycleService _plcLifecycle;
+        private readonly IPlcClientLifecycleService _plcLifecycle;
         private readonly IOperationalEventsService _events;
         private readonly IQueueService _queue;
         private readonly IHeartbeatMonitor _heartbeatMonitor;
@@ -27,10 +29,10 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions
         /// 数据采集器
         /// </summary>
         public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-            IPLCClientLifecycleService plcLifecycle,
+            IPlcClientLifecycleService plcLifecycle,
             IOperationalEventsService events,
             IQueueService queue,
-            IPLCStateManager plcStateManager,
+            PlcStateManager plcStateManager,
             IHeartbeatMonitor heartbeatMonitor,
             IChannelCollector channelCollector)
         {

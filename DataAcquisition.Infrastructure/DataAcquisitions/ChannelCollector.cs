@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using DataAcquisition.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using NCalc;
 
@@ -22,11 +23,10 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class ChannelCollector : IChannelCollector
 {
-    private readonly IPLCStateManager _plcStateManager;
+    private readonly PlcStateManager _plcStateManager;
     private readonly IOperationalEventsService _events;
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
-    private readonly ITriggerEvaluationService _triggerEvaluationService;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
     private DateTime _lastCollectionTime = DateTime.Now;
@@ -39,11 +39,10 @@ public class ChannelCollector : IChannelCollector
     /// 初始化通道采集器。
     /// </summary>
     public ChannelCollector(
-        IPLCStateManager plcStateManager,
+        PlcStateManager plcStateManager,
         IOperationalEventsService events,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
-        ITriggerEvaluationService triggerEvaluationService,
         Microsoft.Extensions.Configuration.IConfiguration configuration,
         IMetricsCollector? metricsCollector = null)
     {
@@ -51,7 +50,6 @@ public class ChannelCollector : IChannelCollector
         _events = events;
         _queue = queue;
         _stateManager = stateManager;
-        _triggerEvaluationService = triggerEvaluationService;
         _metricsCollector = metricsCollector;
 
         var options = new Domain.Models.ChannelCollectorOptions
@@ -99,7 +97,7 @@ public class ChannelCollector : IChannelCollector
                     {
                         await Task.Delay(dataAcquisitionChannel.AcquisitionInterval, ct).ConfigureAwait(false);
                     }
-                } 
+                }
                 else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
                 {
                     // 检查 ConditionalAcquisition 是否为 null
@@ -122,24 +120,24 @@ public class ChannelCollector : IChannelCollector
                     }
 
                     object? curr = await ReadPlcValueAsync(client, register, dataType);
-                    
-                    // 评估触发条件（ShouldTrigger 内部会检查 mode 是否为 null）
-                    var shouldStartTrigger = _triggerEvaluationService.ShouldTrigger(startCfg, prevValue, curr);
-                    var shouldEndTrigger = _triggerEvaluationService.ShouldTrigger(endCfg, prevValue, curr);
+
+                    // 评估触发条件
+                    var shouldStartTrigger = ShouldTrigger(startCfg, prevValue, curr);
+                    var shouldEndTrigger = ShouldTrigger(endCfg, prevValue, curr);
 
                     // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
                     if (shouldEndTrigger)
                     {
                         await HandleEndEventAsync(config, dataAcquisitionChannel, timestamp, ct).ConfigureAwait(false);
                     }
-                    
+
                     if (shouldStartTrigger)
                     {
                         _stopwatch.Restart();
                         await HandleStartEventAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
                         // 记录采集延迟和频率
                         _stopwatch.Stop();
-                        
+
                         if (_metricsCollector != null)
                         {
                             _metricsCollector.RecordCollectionLatency(config.PLCCode, dataAcquisitionChannel.Measurement, _stopwatch.ElapsedMilliseconds, dataAcquisitionChannel.ChannelCode);
@@ -158,7 +156,7 @@ public class ChannelCollector : IChannelCollector
                             }
                         }
                     }
-                    
+
                     // 无论是否触发事件，都需要延迟和更新 prevValue
                     // 这样可以避免CPU空转，同时保存当前值用于下次比较（检测边沿变化）
                     await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
@@ -213,7 +211,7 @@ public class ChannelCollector : IChannelCollector
         }
     }
 
-    
+
     /// <summary>
     /// 处理无条件事件：读取数据并发布消息。
     /// </summary>
@@ -228,7 +226,7 @@ public class ChannelCollector : IChannelCollector
         {
             string cycleId = Guid.NewGuid().ToString();
             var dataMessage = DataMessage.Create(cycleId, channel.Measurement,config.PLCCode,channel.ChannelCode, EventType.Data, timestamp, channel.BatchSize);
-            
+
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
@@ -254,7 +252,7 @@ public class ChannelCollector : IChannelCollector
             await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:采集异常: {ex.Message}", ex).ConfigureAwait(false);
         }
     }
-    
+
     /// <summary>
     /// 处理开始事件：生成采集周期，读取数据并发布消息。
     /// </summary>
@@ -272,7 +270,7 @@ public class ChannelCollector : IChannelCollector
                 channel.Measurement,
                 channel.ChannelCode);
             var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Start, timestamp, channel.BatchSize);
-            
+
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
@@ -434,6 +432,40 @@ public class ChannelCollector : IChannelCollector
             "string" => client.TransString(buffer, index, length, Encoding.GetEncoding(encoding)),
             "bool" => client.TransBool(buffer, index),
             _ => null
+        };
+    }
+
+    /// <summary>
+    /// 判断是否应该触发采集
+    /// </summary>
+    /// <param name="mode">触发模式：RisingEdge（上升沿）、FallingEdge（下降沿）、ValueIncrease（值增加）、ValueDecrease（值减少）</param>
+    /// <param name="previousValue">前一个读取的值，用于比较状态变化</param>
+    /// <param name="currentValue">当前读取的值，用于比较状态变化</param>
+    /// <returns>如果应该触发采集则返回true，否则返回false。如果previousValue或currentValue为null（首次读取），默认返回true</returns>
+    private static bool ShouldTrigger(AcquisitionTrigger? mode, object? previousValue, object? currentValue)
+    {
+        // 如果 mode 为 null，不触发
+        if (!mode.HasValue)
+        {
+            return false;
+        }
+
+        // 如果前一个值或当前值为null，默认触发（首次读取）
+        if (previousValue == null || currentValue == null)
+        {
+            return true;
+        }
+
+        var prev = Convert.ToDecimal(previousValue);
+        var curr = Convert.ToDecimal(currentValue);
+
+        return mode.Value switch
+        {
+            AcquisitionTrigger.ValueIncrease => prev < curr,
+            AcquisitionTrigger.ValueDecrease => prev > curr,
+            AcquisitionTrigger.RisingEdge => prev == 0 && curr == 1,
+            AcquisitionTrigger.FallingEdge => prev == 1 && curr == 0,
+            _ => false
         };
     }
 }

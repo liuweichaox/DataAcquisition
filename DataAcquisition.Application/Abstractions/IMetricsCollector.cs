@@ -27,7 +27,7 @@ public interface IMetricsCollector
     void RecordCollectionRate(string deviceCode, string measurement, double pointsPerSecond, string? channelCode = null);
 
     /// <summary>
-    /// 记录队列深度（当前待处理消息数）
+    /// 记录队列深度（Channel待读取 + 批量积累的待处理消息总数）
     /// </summary>
     void RecordQueueDepth(int depth);
 

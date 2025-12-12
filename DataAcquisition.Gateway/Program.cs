@@ -4,7 +4,6 @@ using System.Text.Json.Serialization;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Gateway.Hubs;
 using DataAcquisition.Infrastructure.Clients;
-using DataAcquisition.Infrastructure.DataProcessing;
 using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
@@ -36,16 +35,14 @@ builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
-builder.Services.AddSingleton<IPLCStateManager, PLCStateManager>();
-builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
+builder.Services.AddSingleton<PlcStateManager>();
+builder.Services.AddSingleton<IPlcClientLifecycleService, PlcClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
-builder.Services.AddSingleton<ITriggerEvaluationService, TriggerEvaluationService>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
 // 存储：Parquet 作为 WAL，后台重传到 Influx
 builder.Services.AddSingleton<ParquetFileStorageService>();
 builder.Services.AddSingleton<InfluxDbDataStorageService>();
-builder.Services.AddSingleton<IDataProcessingService, DataProcessingService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
