@@ -595,8 +595,7 @@ A: 实现 `IPlcClientService` 接口，并在 `PlcClientFactory` 中注册新的
 A: 不需要。系统使用 FileSystemWatcher 监控配置文件变化，支持热更新。
 
 ### Q: 监控指标在哪里查看？
-
-A: 访问 http://localhost:8000/metrics 查看可视化界面，或 http://localhost:8000/metrics/raw 获取 Prometheus 格式指标。
+A: 访问 http://localhost:8000/metrics 查看可视化界面或获取 Prometheus 原始格式指标，或 http://localhost:8000/api/metrics-data 获取 JSON 格式指标数据（推荐）。
 
 ### Q: 如何扩展存储后端？
 

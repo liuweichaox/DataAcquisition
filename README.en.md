@@ -574,8 +574,7 @@ A: Implement the `IPlcClientService` interface and register the new protocol sup
 A: No. The system uses FileSystemWatcher to monitor configuration file changes and supports hot reload.
 
 ### Q: Where can I view monitoring metrics?
-
-A: Visit http://localhost:8000/metrics for the visualization interface, or http://localhost:8000/metrics/raw for Prometheus format metrics.
+A: Visit http://localhost:8000/metrics for the visualization interface or Prometheus raw format metrics, or http://localhost:8000/api/metrics-data to get JSON format metrics data (recommended).
 
 ### Q: How to extend storage backends?
 
