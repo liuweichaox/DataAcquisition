@@ -109,12 +109,13 @@ public class ChannelCollector : IChannelCollector
         object? prevValue = null;
         while (!ct.IsCancellationRequested)
         {
-            if (!_heartbeatMonitor.TryGetConnectionHealth(config.PLCCode, out var isConnected) || !isConnected)
+            // 检查连接状态
+            if (!await WaitForConnectionAsync(config, ct).ConfigureAwait(false))
             {
-                await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
                 continue;
             }
 
+            // 获取锁并执行采集
             if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
             {
                 await _events.ErrorAsync($"{config.PLCCode}-未找到锁对象，跳过本次采集", null).ConfigureAwait(false);
@@ -123,88 +124,142 @@ public class ChannelCollector : IChannelCollector
             }
 
             await locker.WaitAsync(ct).ConfigureAwait(false);
-
             try
             {
                 var timestamp = DateTime.Now;
                 if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always)
                 {
-                    await HandleUnconditionalEventAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
-                    // 无条件采集时，根据配置的采集频率进行延迟
-                    // AcquisitionInterval = 0 表示最高频率采集（无延迟），> 0 表示延迟指定毫秒数
-                    if (dataAcquisitionChannel.AcquisitionInterval > 0)
-                    {
-                        await Task.Delay(dataAcquisitionChannel.AcquisitionInterval, ct).ConfigureAwait(false);
-                    }
+                    await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
                 }
                 else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
                 {
-                    // 检查 ConditionalAcquisition 是否为 null
-                    if (dataAcquisitionChannel.ConditionalAcquisition == null)
-                    {
-                        continue; // 跳过后续的条件采集逻辑
-                    }
-
-                    var startCfg = dataAcquisitionChannel.ConditionalAcquisition.StartTriggerMode;
-                    var endCfg = dataAcquisitionChannel.ConditionalAcquisition.EndTriggerMode;
-                    var register = dataAcquisitionChannel.ConditionalAcquisition.Register;
-                    var dataType = dataAcquisitionChannel.ConditionalAcquisition.DataType;
-
-                    // 验证必要字段
-                    if (string.IsNullOrWhiteSpace(register) || string.IsNullOrWhiteSpace(dataType))
-                    {
-                        await _events.ErrorAsync($"{config.PLCCode}-{dataAcquisitionChannel.Measurement}:条件采集配置不完整，Register或DataType为空", null).ConfigureAwait(false);
-                        await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
-                        continue;
-                    }
-
-                    object? curr = await ReadPlcValueAsync(client, register, dataType);
-
-                    // 评估触发条件
-                    var shouldStartTrigger = ShouldTrigger(startCfg, prevValue, curr);
-                    var shouldEndTrigger = ShouldTrigger(endCfg, prevValue, curr);
-
-                    // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
-                    if (shouldEndTrigger)
-                    {
-                        await HandleEndEventAsync(config, dataAcquisitionChannel, timestamp, ct).ConfigureAwait(false);
-                    }
-
-                    if (shouldStartTrigger)
-                    {
-                        _stopwatch.Restart();
-                        await HandleStartEventAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
-                        // 记录采集延迟和频率
-                        _stopwatch.Stop();
-
-                        if (_metricsCollector != null)
-                        {
-                            _metricsCollector.RecordCollectionLatency(config.PLCCode, dataAcquisitionChannel.Measurement, _stopwatch.ElapsedMilliseconds, dataAcquisitionChannel.ChannelCode);
-
-                            lock (_rateLock)
-                            {
-                                _collectionCount++;
-                                var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
-                                if (elapsed >= 1.0) // 每秒更新一次频率
-                                {
-                                    var rate = _collectionCount / elapsed;
-                                    _metricsCollector.RecordCollectionRate(config.PLCCode, dataAcquisitionChannel.Measurement, rate, dataAcquisitionChannel.ChannelCode);
-                                    _collectionCount = 0;
-                                    _lastCollectionTime = DateTime.Now;
-                                }
-                            }
-                        }
-                    }
-
-                    // 无论是否触发事件，都需要延迟和更新 prevValue
-                    // 这样可以避免CPU空转，同时保存当前值用于下次比较（检测边沿变化）
-                    await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
-                    prevValue = curr; // 保存当前值，用于下次循环时比较（判断上升沿/下降沿等）
+                    prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, prevValue, ct).ConfigureAwait(false);
                 }
             }
             finally
             {
                 locker.Release();
+            }
+        }
+    }
+
+    /// <summary>
+    /// 等待 PLC 连接就绪。
+    /// </summary>
+    /// <returns>如果连接就绪返回 true，否则返回 false 并已延迟等待</returns>
+    private async Task<bool> WaitForConnectionAsync(DeviceConfig config, CancellationToken ct)
+    {
+        if (_heartbeatMonitor.TryGetConnectionHealth(config.PLCCode, out var isConnected) && isConnected)
+        {
+            return true;
+        }
+
+        await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
+        return false;
+    }
+
+    /// <summary>
+    /// 处理无条件采集。
+    /// </summary>
+    private async Task HandleUnconditionalCollectionAsync(
+        DeviceConfig config,
+        DataAcquisitionChannel channel,
+        IPlcClientService client,
+        DateTime timestamp,
+        CancellationToken ct)
+    {
+        await HandleUnconditionalEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+        // AcquisitionInterval = 0 表示最高频率采集（无延迟），> 0 表示延迟指定毫秒数
+        if (channel.AcquisitionInterval > 0)
+        {
+            await Task.Delay(channel.AcquisitionInterval, ct).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>
+    /// 处理条件采集。
+    /// </summary>
+    /// <returns>更新后的 prevValue，用于下次循环比较</returns>
+    private async Task<object?> HandleConditionalCollectionAsync(
+        DeviceConfig config,
+        DataAcquisitionChannel channel,
+        IPlcClientService client,
+        DateTime timestamp,
+        object? prevValue,
+        CancellationToken ct)
+    {
+        if (channel.ConditionalAcquisition == null)
+        {
+            return prevValue;
+        }
+
+        var conditionalAcq = channel.ConditionalAcquisition;
+        if (string.IsNullOrWhiteSpace(conditionalAcq.Register) || string.IsNullOrWhiteSpace(conditionalAcq.DataType))
+        {
+            await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:条件采集配置不完整，Register或DataType为空", null).ConfigureAwait(false);
+            await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
+            return prevValue;
+        }
+
+        // 读取触发寄存器的值
+        object? curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType).ConfigureAwait(false);
+
+        // 评估触发条件
+        var shouldStartTrigger = ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
+        var shouldEndTrigger = ShouldTrigger(conditionalAcq.EndTriggerMode, prevValue, curr);
+
+        // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
+        if (shouldEndTrigger)
+        {
+            await HandleEndEventAsync(config, channel, timestamp, ct).ConfigureAwait(false);
+        }
+
+        if (shouldStartTrigger)
+        {
+            await HandleStartTriggerAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+        }
+
+        // 延迟并返回当前值用于下次比较
+        await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
+        return curr;
+    }
+
+    /// <summary>
+    /// 处理开始触发：记录指标并执行开始事件。
+    /// </summary>
+    private async Task HandleStartTriggerAsync(
+        DeviceConfig config,
+        DataAcquisitionChannel channel,
+        IPlcClientService client,
+        DateTime timestamp,
+        CancellationToken ct)
+    {
+        _stopwatch.Restart();
+        await HandleStartEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+        _stopwatch.Stop();
+
+        RecordCollectionMetrics(config, channel, _stopwatch.ElapsedMilliseconds);
+    }
+
+    /// <summary>
+    /// 记录采集指标（延迟和频率）。
+    /// </summary>
+    private void RecordCollectionMetrics(DeviceConfig config, DataAcquisitionChannel channel, long elapsedMilliseconds)
+    {
+        if (_metricsCollector == null) return;
+
+        _metricsCollector.RecordCollectionLatency(config.PLCCode, channel.Measurement, elapsedMilliseconds, channel.ChannelCode);
+
+        lock (_rateLock)
+        {
+            _collectionCount++;
+            var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
+            if (elapsed >= 1.0) // 每秒更新一次频率
+            {
+                var rate = _collectionCount / elapsed;
+                _metricsCollector.RecordCollectionRate(config.PLCCode, channel.Measurement, rate, channel.ChannelCode);
+                _collectionCount = 0;
+                _lastCollectionTime = DateTime.Now;
             }
         }
     }
@@ -337,20 +392,7 @@ public class ChannelCollector : IChannelCollector
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
-            // 使用 Task.Run 确保采集循环可以立即继续下一次采集，提高吞吐量
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
-                    await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-                    await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
-                }
-            }, ct);
+            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage, ct);
         }
         catch (Exception ex)
         {
@@ -410,20 +452,7 @@ public class ChannelCollector : IChannelCollector
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
-            // 使用 Task.Run 确保采集循环可以立即继续下一次采集，提高吞吐量
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
-                    await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-                    await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
-                }
-            }, ct);
+            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage, ct);
         }
         catch (Exception ex)
         {
@@ -498,17 +527,7 @@ public class ChannelCollector : IChannelCollector
 
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
             var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.End, timestamp, channel.BatchSize);
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
-                }
-            }, ct);
+            _ = PublishEndEventMessageAsync(config, channel, dataMessage, ct);
 
             return false; // 正常处理，不需要跳过
         }
@@ -591,6 +610,44 @@ public class ChannelCollector : IChannelCollector
                 dataMessage.AddDataValue(dataPoint.FieldName, value);
             }
         }
+    }
+
+    /// <summary>
+    /// 异步处理数据消息（表达式计算和发布），不阻塞采集循环。
+    /// </summary>
+    private Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    {
+        return Task.Run(async () =>
+        {
+            try
+            {
+                await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
+                await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:异步处理数据消息失败: {ex.Message}", ex).ConfigureAwait(false);
+            }
+        }, ct);
+    }
+
+    /// <summary>
+    /// 异步发布结束事件消息。
+    /// </summary>
+    private Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    {
+        return Task.Run(async () =>
+        {
+            try
+            {
+                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:发布结束事件消息失败: {ex.Message}", ex).ConfigureAwait(false);
+            }
+        }, ct);
     }
 
     /// <summary>

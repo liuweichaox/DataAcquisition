@@ -54,26 +54,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: true).ConfigureAwait(false);
             using var rowGroupWriter = parquetWriter.CreateRowGroup();
 
-            // 列数据
-            // 保持本地时间，不再转换为 UTC
-            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
-            var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
-            var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
-            var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
-            var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
-            var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
-            var eventTypes = dataMessages.Select(x => x.EventType).ToArray();
-            var dataJsons = dataMessages.Select(x =>
-                System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
-
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], plcCodes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], channelCodes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], cycleIds)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], eventTypes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[7], dataJsons)).ConfigureAwait(false);
+            // 准备列数据并写入
+            await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
 
             // 滚动判断
             await RollIfNeededAsync().ConfigureAwait(false);
@@ -82,6 +64,32 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         {
             _lock.Release();
         }
+    }
+
+    /// <summary>
+    /// 准备列数据并写入 Parquet 文件
+    /// </summary>
+    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
+    {
+        // 保持本地时间，不再转换为 UTC
+        var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
+        var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
+        var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
+        var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
+        var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
+        var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
+        var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
+        var dataJsons = dataMessages.Select(x =>
+            System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], plcCodes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], channelCodes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], cycleIds)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], eventTypes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[7], dataJsons)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -179,24 +187,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: true).ConfigureAwait(false);
             using var rowGroupWriter = parquetWriter.CreateRowGroup();
 
-            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
-            var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
-            var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
-            var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
-            var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
-            var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
-            var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
-            var dataJsons = dataMessages.Select(x =>
-                System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
-
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], plcCodes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], channelCodes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], cycleIds)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], eventTypes)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[7], dataJsons)).ConfigureAwait(false);
+            await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
 
             return _currentFilePath;
         }
