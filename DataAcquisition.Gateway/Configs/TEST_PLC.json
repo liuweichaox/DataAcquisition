@@ -39,8 +39,8 @@
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
+        "StartTriggerMode": "ValueIncrease",
+        "EndTriggerMode": "ValueDecrease"
       }
     }
   ]

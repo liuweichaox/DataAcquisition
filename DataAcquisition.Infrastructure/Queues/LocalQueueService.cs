@@ -379,7 +379,6 @@ public class LocalQueueService : IQueueService
             {
                 try
                 {
-                    _logger.LogInformation("WriteWalAndTryInfluxAsync 批量写入: {BatchKey}", batchKey);
                     await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
                 }
                 catch (Exception ex)

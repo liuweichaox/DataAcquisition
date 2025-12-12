@@ -69,7 +69,7 @@ class Program
         Console.WriteLine("    D6003 (索引6) - 电压 (3800-4200, 单位0.1V)");
         Console.WriteLine("    D6004 (索引8) - 光栅位置 (0-1000, 单位mm)");
         Console.WriteLine("    D6005 (索引10) - 伺服速度 (0-3000, 单位rpm)");
-        Console.WriteLine("    D6006 (索引12) - 生产序号 (持续10秒，然后0持续3秒，序号+1)");
+        Console.WriteLine("    D6006 (索引12) - 生产序号 (持续10秒，然后0持续5秒，序号+1)");
         Console.WriteLine();
         Console.WriteLine("命令:");
         Console.WriteLine("  set <地址> <值>  - 设置寄存器值（例如: set D6000 123）");

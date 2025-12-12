@@ -47,7 +47,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await EnsureCurrentFileAsync().ConfigureAwait(false);
+            await EnsureCurrentFileAsync(dataMessages).ConfigureAwait(false);
 
             var schema = GetSchema();
             using var stream = new FileStream(_currentFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
@@ -58,7 +58,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
 
             // 滚动判断
-            await RollIfNeededAsync().ConfigureAwait(false);
+            await RollIfNeededAsync(dataMessages).ConfigureAwait(false);
 
             return true;
         }
@@ -193,7 +193,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     /// </summary>
     public async Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
     {
-        var filePath = CreateNewFilePath();
+        var filePath = CreateNewFilePath(dataMessages);
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -215,11 +215,11 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
     }
 
-    private async Task EnsureCurrentFileAsync()
+    private async Task EnsureCurrentFileAsync(List<DataMessage> dataMessages)
     {
         if (string.IsNullOrEmpty(_currentFilePath) || !File.Exists(_currentFilePath))
         {
-            _currentFilePath = CreateNewFilePath();
+            _currentFilePath = CreateNewFilePath(dataMessages);
             _currentFileCreatedAt = DateTime.Now;
             using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
             var schema = GetSchema();
@@ -230,13 +230,13 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
     }
 
-    private async Task RollIfNeededAsync()
+    private async Task RollIfNeededAsync(List<DataMessage> dataMessages)
     {
         var info = new FileInfo(_currentFilePath);
         var age = DateTime.Now - _currentFileCreatedAt;
         if (info.Length >= _maxFileSizeBytes || age >= _maxFileAge)
         {
-            _currentFilePath = CreateNewFilePath();
+            _currentFilePath = CreateNewFilePath(dataMessages);
             _currentFileCreatedAt = DateTime.Now;
             using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
             var schema = GetSchema();
@@ -247,9 +247,9 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
     }
 
-    private string CreateNewFilePath()
+    private string CreateNewFilePath(List<DataMessage> dataMessages)
     {
-        var fileName = $"data_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
+        var fileName = $"{dataMessages.First().Measurement}_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
         return Path.Combine(_directory, fileName);
     }
 
