@@ -3,7 +3,7 @@ namespace DataAcquisition.Domain.Clients;
 /// <summary>
 /// PLC 写入结果。
 /// </summary>
-public class PlcWriteResult
+public class PLCWriteResult
 {
     /// <summary>
     /// 写入是否成功。

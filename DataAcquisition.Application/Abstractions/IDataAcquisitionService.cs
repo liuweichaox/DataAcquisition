@@ -38,5 +38,5 @@ public interface IDataAcquisitionService : IDisposable
     /// <param name="dataType">数据类型</param>
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType, CancellationToken ct = default);
+    Task<PLCWriteResult> WritePLCAsync(string plcCode, string address, object value, string dataType, CancellationToken ct = default);
 }

@@ -3,7 +3,7 @@ namespace DataAcquisition.Domain.Clients;
 /// <summary>
 /// PLC 读取结果。
 /// </summary>
-public class PlcReadResult
+public class PLCReadResult
 {
     /// <summary>
     /// 读取是否成功。

@@ -12,7 +12,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPlcClientService
+public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new BeckhoffAdsNet(config.Host, config.Port)
     {
@@ -33,100 +33,100 @@ public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPlcClientServic
     /// <summary>
     /// 写入无符号短整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteUShortAsync(string address, ushort value)
+    public async Task<PLCWriteResult> WriteUShortAsync(string address, ushort value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入无符号整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteUIntAsync(string address, uint value)
+    public async Task<PLCWriteResult> WriteUIntAsync(string address, uint value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入无符号长整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteULongAsync(string address, ulong value)
+    public async Task<PLCWriteResult> WriteULongAsync(string address, ulong value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入短整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteShortAsync(string address, short value)
+    public async Task<PLCWriteResult> WriteShortAsync(string address, short value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteIntAsync(string address, int value)
+    public async Task<PLCWriteResult> WriteIntAsync(string address, int value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入长整型值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteLongAsync(string address, long value)
+    public async Task<PLCWriteResult> WriteLongAsync(string address, long value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入单精度浮点值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteFloatAsync(string address, float value)
+    public async Task<PLCWriteResult> WriteFloatAsync(string address, float value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入双精度浮点值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteDoubleAsync(string address, double value)
+    public async Task<PLCWriteResult> WriteDoubleAsync(string address, double value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入字符串。
     /// </summary>
-    public async Task<PlcWriteResult> WriteStringAsync(string address, string value)
+    public async Task<PLCWriteResult> WriteStringAsync(string address, string value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 写入布尔值。
     /// </summary>
-    public async Task<PlcWriteResult> WriteBoolAsync(string address, bool value)
+    public async Task<PLCWriteResult> WriteBoolAsync(string address, bool value)
     {
         var res = await _device.WriteAsync(address, value);
-        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
     /// 批量读取原始字节数据。
     /// </summary>
-    public async Task<PlcReadResult> ReadAsync(string address, ushort length)
+    public async Task<PLCReadResult> ReadAsync(string address, ushort length)
     {
         var res = await _device.ReadAsync(address, length);
-        return new PlcReadResult
+        return new PLCReadResult
         {
             IsSuccess = res.IsSuccess,
             Content = res.Content ?? System.Array.Empty<byte>(),

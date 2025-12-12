@@ -15,7 +15,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// </summary>
 public class PLCClientLifecycleService : IPLCClientLifecycleService
 {
-    private readonly ConcurrentDictionary<string, IPlcClientService> _plcClients = new();
+    private readonly ConcurrentDictionary<string, IPLCClientService> _plcClients = new();
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _plcLocks = new();
     private readonly IPLCClientFactory _plcClientFactory;
     private readonly ILogger<PLCClientLifecycleService> _logger;
@@ -31,7 +31,7 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
     /// <summary>
     /// 获取或创建 PLC 客户端（线程安全）。
     /// </summary>
-    public IPlcClientService GetOrCreateClient(DeviceConfig config)
+    public IPLCClientService GetOrCreateClient(DeviceConfig config)
     {
         // 先尝试获取已存在的客户端（快速路径）
         if (_plcClients.TryGetValue(config.PLCCode, out var existingClient))
@@ -55,7 +55,7 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
     /// <summary>
     /// 尝试获取 PLC 客户端。
     /// </summary>
-    public bool TryGetClient(string plcCode, out IPlcClientService client)
+    public bool TryGetClient(string plcCode, out IPLCClientService client)
     {
         return _plcClients.TryGetValue(plcCode, out client!);
     }

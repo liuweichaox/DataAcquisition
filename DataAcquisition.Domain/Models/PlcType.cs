@@ -3,7 +3,7 @@ namespace DataAcquisition.Domain.Models;
 /// <summary>
 /// PLC 类型
 /// </summary>
-public enum PlcType
+public enum PLCType
 {
     /// <summary>
     /// 三菱
@@ -14,10 +14,9 @@ public enum PlcType
     /// 汇川
     /// </summary>
     Inovance,
-    
+
     /// <summary>
     /// 倍福
     /// </summary>
     BeckhoffAds
 }
-

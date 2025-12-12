@@ -183,12 +183,12 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataType">数据类型</param>
     /// <param name="ct"></param>
     /// <returns>写入结果</returns>
-    public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
+    public async Task<PLCWriteResult> WritePLCAsync(string plcCode, string address, object value,
         string dataType, CancellationToken ct = default)
     {
         if (!_plcLifecycle.TryGetClient(plcCode, out var client))
         {
-            return new PlcWriteResult
+            return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode}"
@@ -197,7 +197,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
         if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
         {
-            return new PlcWriteResult
+            return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode} 的锁对象"
@@ -219,7 +219,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)).ConfigureAwait(false),
                 "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty).ConfigureAwait(false),
                 "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
-                _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
+                _ => new PLCWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
             };
         }
         finally
@@ -338,8 +338,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// 释放资源
     /// </summary>
     public void Dispose()
-        {
-    // 使用 ConfigureAwait(false) 避免死锁
-    StopCollectionTasks().ConfigureAwait(false).GetAwaiter().GetResult();
-}
+    {
+        // 使用 ConfigureAwait(false) 避免死锁
+        StopCollectionTasks().ConfigureAwait(false).GetAwaiter().GetResult();
+    }
 }

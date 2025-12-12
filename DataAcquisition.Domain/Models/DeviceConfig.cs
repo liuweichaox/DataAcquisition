@@ -32,7 +32,7 @@ public class DeviceConfig
     /// PLC 类型
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public PlcType Type { get; set; }
+    public PLCType Type { get; set; }
 
     /// <summary>
     /// 心跳检测地址
@@ -134,7 +134,7 @@ public class DataAcquisitionChannel
     /// 通道编码
     /// </summary>
     public string ChannelCode { get; set; }
-    
+
     /// <summary>
     /// 是否启用批量读取
     /// </summary>
@@ -165,12 +165,12 @@ public class DataAcquisitionChannel
     /// 默认值：100（毫秒）
     /// </summary>
     public int AcquisitionInterval { get; set; } = 100;
-    
+
     /// <summary>
     /// 采集位置配置
     /// </summary>
     public List<DataPoint>? DataPoints { get; set; }
-    
+
     /// <summary>
     /// 采集模式：Always=无条件采集；Conditional=按触发条件采集
     /// </summary>

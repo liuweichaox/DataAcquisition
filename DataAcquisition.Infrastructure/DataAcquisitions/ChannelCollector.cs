@@ -104,7 +104,7 @@ public class ChannelCollector : IChannelCollector
     /// <param name="client">PLC 通讯客户端，用于读取寄存器数据</param>
     /// <param name="ct">取消标记，用于取消采集任务</param>
     /// <exception cref="OperationCanceledException">当 ct 被取消时，会中断采集循环</exception>
-    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPlcClientService client, CancellationToken ct = default)
+    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPLCClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
         object? prevValue = null;
@@ -149,7 +149,7 @@ public class ChannelCollector : IChannelCollector
     /// </summary>
     /// <returns>如果连接就绪返回 true，否则返回 false 并已延迟等待</returns>
     private async Task<bool> WaitForConnectionAsync(DeviceConfig config, CancellationToken ct)
-                    {
+    {
         if (_heartbeatMonitor.TryGetConnectionHealth(config.PLCCode, out var isConnected) && isConnected)
         {
             return true;
@@ -165,7 +165,7 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleUnconditionalCollectionAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
+        IPLCClientService client,
         DateTime timestamp,
         CancellationToken ct)
     {
@@ -184,7 +184,7 @@ public class ChannelCollector : IChannelCollector
     private async Task<object?> HandleConditionalCollectionAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
+        IPLCClientService client,
         DateTime timestamp,
         object? prevValue,
         CancellationToken ct)
@@ -196,11 +196,11 @@ public class ChannelCollector : IChannelCollector
 
         var conditionalAcq = channel.ConditionalAcquisition;
         if (string.IsNullOrWhiteSpace(conditionalAcq.Register) || string.IsNullOrWhiteSpace(conditionalAcq.DataType))
-                    {
+        {
             _logger.LogError("{PLCCode}-{Measurement}:条件采集配置不完整，Register或DataType为空", config.PLCCode, channel.Measurement);
-                        await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
+            await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
             return prevValue;
-                    }
+        }
 
         // 读取触发寄存器的值
         object? curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType).ConfigureAwait(false);
@@ -209,13 +209,13 @@ public class ChannelCollector : IChannelCollector
         var shouldStartTrigger = ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
         var shouldEndTrigger = ShouldTrigger(conditionalAcq.EndTriggerMode, prevValue, curr);
 
-                    // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
-                    if (shouldEndTrigger)
-                    {
+        // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
+        if (shouldEndTrigger)
+        {
             await HandleEndEventAsync(config, channel, timestamp, ct).ConfigureAwait(false);
-                    }
+        }
 
-                    if (shouldStartTrigger)
+        if (shouldStartTrigger)
         {
             await HandleStartTriggerAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
         }
@@ -231,13 +231,13 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleStartTriggerAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
+        IPLCClientService client,
         DateTime timestamp,
         CancellationToken ct)
-                    {
-                        _stopwatch.Restart();
+    {
+        _stopwatch.Restart();
         await HandleStartEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
-                        _stopwatch.Stop();
+        _stopwatch.Stop();
 
         RecordCollectionMetrics(config, channel, _stopwatch.ElapsedMilliseconds);
     }
@@ -251,16 +251,16 @@ public class ChannelCollector : IChannelCollector
 
         _metricsCollector.RecordCollectionLatency(config.PLCCode, channel.Measurement, elapsedMilliseconds, channel.ChannelCode);
 
-                            lock (_rateLock)
-                            {
-                                _collectionCount++;
-                                var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
-                                if (elapsed >= 1.0) // 每秒更新一次频率
-                                {
-                                    var rate = _collectionCount / elapsed;
+        lock (_rateLock)
+        {
+            _collectionCount++;
+            var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
+            if (elapsed >= 1.0) // 每秒更新一次频率
+            {
+                var rate = _collectionCount / elapsed;
                 _metricsCollector.RecordCollectionRate(config.PLCCode, channel.Measurement, rate, channel.ChannelCode);
-                                    _collectionCount = 0;
-                                    _lastCollectionTime = DateTime.Now;
+                _collectionCount = 0;
+                _lastCollectionTime = DateTime.Now;
             }
         }
     }
@@ -380,14 +380,14 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleUnconditionalEventAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
+        IPLCClientService client,
         DateTime timestamp,
         CancellationToken ct)
     {
         try
         {
             string cycleId = Guid.NewGuid().ToString();
-            var dataMessage = DataMessage.Create(cycleId, channel.Measurement,config.PLCCode,channel.ChannelCode, EventType.Data, timestamp, channel.BatchSize);
+            var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Data, timestamp, channel.BatchSize);
 
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
@@ -437,7 +437,7 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleStartEventAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
+        IPLCClientService client,
         DateTime timestamp,
         CancellationToken ct)
     {
@@ -581,7 +581,7 @@ public class ChannelCollector : IChannelCollector
     /// <exception cref="NotSupportedException">当数据类型不支持时抛出</exception>
     /// <exception cref="Exception">PLC 读取操作可能抛出各种异常（网络异常、地址错误等），由调用方处理</exception>
     private async Task ReadDataPointsAsync(
-        IPlcClientService client,
+        IPLCClientService client,
         DataAcquisitionChannel channel,
         DataMessage dataMessage)
     {
@@ -663,7 +663,7 @@ public class ChannelCollector : IChannelCollector
     /// 读取指定寄存器的值。
     /// </summary>
     private static async Task<object> ReadPlcValueAsync(
-        IPlcClientService client,
+        IPLCClientService client,
         string register,
         string dataType,
         int stringLength = 0,
@@ -688,7 +688,7 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 按数据类型转换缓冲区中的值。
     /// </summary>
-    private static dynamic? TransValue(IPlcClientService client, byte[] buffer, int index, int length, string dataType, string encoding)
+    private static dynamic? TransValue(IPLCClientService client, byte[] buffer, int index, int length, string dataType, string encoding)
     {
         return dataType.ToLower() switch
         {

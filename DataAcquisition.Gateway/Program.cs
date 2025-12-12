@@ -35,6 +35,8 @@ builder.Services.AddSingleton<ParquetFileStorageService>();
 builder.Services.AddSingleton<InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
+// 日志查看服务
+builder.Services.AddSingleton<DataAcquisition.Application.Abstractions.ILogViewService, DataAcquisition.Infrastructure.Logs.LogViewService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();

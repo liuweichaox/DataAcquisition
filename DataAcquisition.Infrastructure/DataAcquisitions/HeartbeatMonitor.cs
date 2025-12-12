@@ -142,11 +142,11 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     /// 向 PLC 写入心跳测试值。
     /// </summary>
-    private async Task<PlcWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct)
+    private async Task<PLCWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct)
     {
         if (!_plcLifecycle.TryGetClient(plcCode, out var client))
         {
-            return new PlcWriteResult
+            return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode}"
@@ -155,7 +155,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
 
         if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
         {
-            return new PlcWriteResult
+            return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode} 的锁对象"

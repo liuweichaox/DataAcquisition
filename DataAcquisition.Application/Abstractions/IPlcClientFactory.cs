@@ -10,5 +10,5 @@ public interface IPLCClientFactory
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <returns>通讯客户端</returns>
-    IPlcClientService Create(DeviceConfig config);
+    IPLCClientService Create(DeviceConfig config);
 }

@@ -12,13 +12,13 @@ public class PLCClientFactory : IPLCClientFactory
     /// <summary>
     /// 创建 PLC 客户端实例。
     /// </summary>
-    public IPlcClientService Create(DeviceConfig config)
+    public IPLCClientService Create(DeviceConfig config)
     {
         return config.Type switch
         {
-            PlcType.Mitsubishi => new MitsubishiPlcClientService(config),
-            PlcType.Inovance => new InovancePlcClientService(config),
-            PlcType.BeckhoffAds => new BeckhoffAdsPlcClientService(config),
+            PLCType.Mitsubishi => new MitsubishiPlcClientService(config),
+            PLCType.Inovance => new InovancePlcClientService(config),
+            PLCType.BeckhoffAds => new BeckhoffAdsPlcClientService(config),
             _ => throw new NotImplementedException("不支持的 PLC 类型")
         };
     }

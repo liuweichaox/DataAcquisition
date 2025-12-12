@@ -27,7 +27,7 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
     /// </summary>
     /// <param name="request">写入请求</param>
     [HttpPost]
-    public async Task<IActionResult> WriteRegister([FromBody] PlcWriteRequest? request)
+    public async Task<IActionResult> WriteRegister([FromBody] PLCWriteRequest? request)
     {
         // 输入验证
         if (request == null)
@@ -35,7 +35,7 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
             return BadRequest(new { error = "请求体不能为空" });
         }
 
-        if (string.IsNullOrWhiteSpace(request.PlcCode))
+        if (string.IsNullOrWhiteSpace(request.PLCCode))
         {
             return BadRequest(new { error = "PLC编码不能为空" });
         }
@@ -62,12 +62,12 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
             }
         }
 
-        var results = new List<PlcWriteResult>();
+        var results = new List<PLCWriteResult>();
         var allSuccess = true;
 
         foreach (var item in request.Items)
         {
-            var result = await dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value!, item.DataType);
+            var result = await dataAcquisitionService.WritePLCAsync(request.PLCCode, item.Address, item.Value!, item.DataType);
             results.Add(result);
             if (!result.IsSuccess)
             {

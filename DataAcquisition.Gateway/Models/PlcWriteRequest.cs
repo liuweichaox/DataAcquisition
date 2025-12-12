@@ -6,23 +6,23 @@ namespace DataAcquisition.Gateway.Models;
 /// <summary>
 /// PLC 批量写入请求
 /// </summary>
-public class PlcWriteRequest
+public class PLCWriteRequest
 {
     /// <summary>
     /// PLC 编号
     /// </summary>
-    public string PlcCode { get; set; } = string.Empty;
+    public string PLCCode { get; set; } = string.Empty;
 
     /// <summary>
     /// 写入项集合
     /// </summary>
-    public List<PlcWriteItem> Items { get; set; } = new();
+    public List<PLCWriteItem> Items { get; set; } = new();
 }
 
 /// <summary>
 /// PLC 写入项
 /// </summary>
-public class PlcWriteItem
+public class PLCWriteItem
 {
     /// <summary>
     /// 寄存器地址
