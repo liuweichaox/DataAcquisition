@@ -32,6 +32,9 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+# 排除代码中的 Logs 目录（视图和服务）
+!DataAcquisition.Gateway/Views/Logs/
+!DataAcquisition.Infrastructure/Logs/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
@@ -398,4 +401,5 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 /.idea
-/DataAcquisition.Gateway/Data/parquet/*
+
+*/Data/parquet/*

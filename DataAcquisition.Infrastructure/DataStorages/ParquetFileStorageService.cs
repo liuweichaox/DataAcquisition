@@ -14,7 +14,7 @@ using Parquet.Schema;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-/// 本地 Parquet 追加存储（降级存储），支持文件滚动。
+/// 本地 Parquet 文件存储服务（WAL 降级存储），支持文件滚动。
 /// </summary>
 public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
@@ -50,21 +50,109 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             await EnsureCurrentFileAsync(dataMessages).ConfigureAwait(false);
 
             var schema = GetSchema();
-            using var stream = new FileStream(_currentFilePath, FileMode.OpenOrCreate, FileAccess.Write, FileShare.Read);
-            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: true).ConfigureAwait(false);
-            using var rowGroupWriter = parquetWriter.CreateRowGroup();
+            var fileExists = File.Exists(_currentFilePath) && new FileInfo(_currentFilePath).Length > 0;
 
-            // 准备列数据并写入
-            await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
+            // Parquet.NET 的 append 模式需要从文件开头读取现有内容
+            using var stream = new FileStream(_currentFilePath,
+                fileExists ? FileMode.Open : FileMode.Create,
+                FileAccess.ReadWrite,
+                FileShare.Read);
 
-            // 滚动判断
+            // 确保流位置在文件开头
+            if (fileExists)
+            {
+                stream.Seek(0, SeekOrigin.Begin);
+            }
+
+            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: fileExists).ConfigureAwait(false);
+            parquetWriter.CompressionMethod = CompressionMethod.Snappy;
+
+            // 创建 row group 并写入数据
+            using (var rowGroupWriter = parquetWriter.CreateRowGroup())
+            {
+                await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
+                // rowGroupWriter Dispose 时会写入 row group 数据
+            }
+
+            // parquetWriter Dispose 时会写入文件尾部和元数据
+            // 确保数据被刷新到磁盘
+            await stream.FlushAsync().ConfigureAwait(false);
+
+            // 检查是否需要滚动文件
             await RollIfNeededAsync(dataMessages).ConfigureAwait(false);
 
             return true;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"Parquet 批量写入失败: {ex}");
             return false;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    /// <summary>
+    /// 将一批消息写入一个新的 Parquet 文件（用于 WAL），返回文件路径。
+    /// </summary>
+    public async Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
+    {
+        if (dataMessages == null || dataMessages.Count == 0)
+        {
+            throw new ArgumentException("数据消息列表不能为空", nameof(dataMessages));
+        }
+
+        var filePath = CreateNewFilePath(dataMessages);
+        await _lock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            _currentFilePath = filePath;
+            _currentFileCreatedAt = DateTime.Now;
+
+            var schema = GetSchema();
+            
+            // 写入文件
+            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+            {
+                using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
+                parquetWriter.CompressionMethod = CompressionMethod.Snappy;
+
+                // 创建 row group 并写入数据
+                using (var rowGroupWriter = parquetWriter.CreateRowGroup())
+                {
+                    await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
+                    // rowGroupWriter Dispose 时会写入 row group 数据
+                }
+                // 确保数据被刷新
+                await stream.FlushAsync().ConfigureAwait(false);
+            }
+
+            // 验证文件大小（简单验证，不读取文件内容以避免问题）
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists || fileInfo.Length < 100)
+            {
+                throw new IOException($"Parquet 文件写入后大小异常: {fileInfo.Length} 字节，可能数据未正确写入");
+            }
+
+            return filePath;
+        }
+        catch (Exception ex)
+        {
+            // 如果写入失败，删除可能已创建的不完整文件
+            if (File.Exists(filePath))
+            {
+                try
+                {
+                    File.Delete(filePath);
+                }
+                catch
+                {
+                    // 忽略删除失败
+                }
+            }
+            throw new IOException($"Parquet 文件写入失败: {ex.Message}", ex);
         }
         finally
         {
@@ -75,29 +163,42 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     /// <summary>
     /// 准备列数据并写入 Parquet 文件
     /// </summary>
-        private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
+    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
+    {
+        if (dataMessages == null || dataMessages.Count == 0)
         {
-            // 保持本地时间，不再转换为 UTC
-            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
-            // BatchSize 已从 DataMessage 移除，为了向后兼容，写入时使用 0（或可以改为读取时从配置获取）
-            // 注意：读取时会忽略此列，BatchSize 现在从配置文件动态获取
-            var batchSizes = dataMessages.Select(x => 0).ToArray();
-            var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
-            var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
-            var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
-            var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
-            var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
-            var dataJsons = dataMessages.Select(x =>
-                System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+            return;
+        }
 
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], plcCodes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], channelCodes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[5], cycleIds)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[6], eventTypes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[7], dataJsons)).ConfigureAwait(false);
+        var rowCount = dataMessages.Count;
+
+        // 准备列数据
+        var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
+        var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
+        var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
+        var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
+        var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
+        var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
+        var dataJsons = dataMessages.Select(x =>
+            System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+
+        // 验证所有数组长度一致
+        if (timestamps.Length != rowCount || measurements.Length != rowCount ||
+            plcCodes.Length != rowCount || channelCodes.Length != rowCount ||
+            cycleIds.Length != rowCount || eventTypes.Length != rowCount ||
+            dataJsons.Length != rowCount)
+        {
+            throw new InvalidOperationException($"数据列长度不一致: rowCount={rowCount}, timestamps={timestamps.Length}, measurements={measurements.Length}");
+        }
+
+        // 按顺序写入所有列
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[1], measurements)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[2], plcCodes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[3], channelCodes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[4], cycleIds)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[5], eventTypes)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[6], dataJsons)).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -125,60 +226,80 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     {
         var messages = new List<DataMessage>();
 
-        // 检查文件是否存在和大小（Parquet 文件至少需要一定的字节数才能有效）
-        var fileInfo = new FileInfo(filePath);
-        if (!fileInfo.Exists || fileInfo.Length < 100) // Parquet 文件最小有效大小约为 100 字节
+        try
         {
-            // 文件太小，可能是损坏的文件，返回空列表
-            return messages;
-        }
-
-        using var stream = File.OpenRead(filePath);
-        using var reader = await ParquetReader.CreateAsync(stream).ConfigureAwait(false);
-        var schema = reader.Schema;
-
-        for (int i = 0; i < reader.RowGroupCount; i++)
-        {
-            using var rowGroupReader = reader.OpenRowGroupReader(i);
-            var tsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[0]).ConfigureAwait(false);
-            var bsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[1]).ConfigureAwait(false);
-            var msColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[2]).ConfigureAwait(false);
-            var plcColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[3]).ConfigureAwait(false);
-            var channelColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[4]).ConfigureAwait(false);
-            var ciColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[5]).ConfigureAwait(false);
-            var etColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[6]).ConfigureAwait(false);
-            var jsonColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[7]).ConfigureAwait(false);
-
-            var timestamps = tsColumn.Data.Cast<DateTime>().ToArray();
-            var batchSizes = bsColumn.Data.Cast<int>().ToArray();
-            var measurements = msColumn.Data.Cast<string>().ToArray();
-            var plcCodes = plcColumn.Data.Cast<string>().ToArray();
-            var channelCodes = channelColumn.Data.Cast<string>().ToArray();
-            var cycleIds = ciColumn.Data.Cast<string>().ToArray();
-            var eventTypes = etColumn.Data.Cast<string>().ToArray();
-            var dataJsons = jsonColumn.Data.Cast<string>().ToArray();
-
-            for (int row = 0; row < timestamps.Length; row++)
+            // 检查文件是否存在和大小
+            var fileInfo = new FileInfo(filePath);
+            if (!fileInfo.Exists || fileInfo.Length < 100)
             {
-                // 注意：BatchSize 已从 DataMessage 中移除，不再使用
-                // 读取旧文件时可能会包含 batchSizes 列，但我们会忽略它
-                var msg = DataMessage.Create(cycleIds[row], measurements[row], plcCodes[row], channelCodes[row], Enum.Parse<EventType>(eventTypes[row].ToString()), timestamps[row]);
-                var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(dataJsons[row]);
-                if (dict != null)
-                {
-                    foreach (var kv in dict)
-                    {
-                        msg.AddDataValue(kv.Key, kv.Value);
-                    }
-                }
-
-                messages.Add(msg);
+                return messages;
             }
+
+            using var stream = File.OpenRead(filePath);
+            using var reader = await ParquetReader.CreateAsync(stream).ConfigureAwait(false);
+            var schema = reader.Schema;
+
+            // 检查是否有 row group
+            if (reader.RowGroupCount == 0)
+            {
+                return messages;
+            }
+
+            // 读取所有 row groups
+            for (int i = 0; i < reader.RowGroupCount; i++)
+            {
+                using var rowGroupReader = reader.OpenRowGroupReader(i);
+                var tsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[0]).ConfigureAwait(false);
+                var msColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[1]).ConfigureAwait(false);
+                var plcColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[2]).ConfigureAwait(false);
+                var channelColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[3]).ConfigureAwait(false);
+                var ciColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[4]).ConfigureAwait(false);
+                var etColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[5]).ConfigureAwait(false);
+                var jsonColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[6]).ConfigureAwait(false);
+
+                var timestamps = tsColumn.Data.Cast<DateTime>().ToArray();
+                var measurements = msColumn.Data.Cast<string>().ToArray();
+                var plcCodes = plcColumn.Data.Cast<string>().ToArray();
+                var channelCodes = channelColumn.Data.Cast<string>().ToArray();
+                var cycleIds = ciColumn.Data.Cast<string>().ToArray();
+                var eventTypes = etColumn.Data.Cast<string>().ToArray();
+                var dataJsons = jsonColumn.Data.Cast<string>().ToArray();
+
+                for (int row = 0; row < timestamps.Length; row++)
+                {
+                    var msg = DataMessage.Create(
+                        cycleIds[row],
+                        measurements[row],
+                        plcCodes[row],
+                        channelCodes[row],
+                        Enum.Parse<EventType>(eventTypes[row].ToString()),
+                        timestamps[row]);
+
+                    var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(dataJsons[row]);
+                    if (dict != null)
+                    {
+                        foreach (var kv in dict)
+                        {
+                            msg.AddDataValue(kv.Key, kv.Value);
+                        }
+                    }
+
+                    messages.Add(msg);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Parquet 文件读取失败 {filePath}: {ex}");
+            return messages;
         }
 
         return messages;
     }
 
+    /// <summary>
+    /// 删除指定的 Parquet 文件
+    /// </summary>
     public Task DeleteFileAsync(string filePath)
     {
         if (File.Exists(filePath))
@@ -189,75 +310,55 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 将一批消息写入一个新的 Parquet 文件，返回文件路径。
+    /// 确保当前文件存在，如果不存在则创建新文件
     /// </summary>
-    public async Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
-    {
-        var filePath = CreateNewFilePath(dataMessages);
-        await _lock.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            _currentFilePath = filePath;
-            _currentFileCreatedAt = DateTime.Now;
-
-            var schema = GetSchema();
-            using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
-            using var rowGroupWriter = parquetWriter.CreateRowGroup();
-
-            await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
-
-            return _currentFilePath;
-        }
-        finally
-        {
-            _lock.Release();
-        }
-    }
-
     private async Task EnsureCurrentFileAsync(List<DataMessage> dataMessages)
     {
         if (string.IsNullOrEmpty(_currentFilePath) || !File.Exists(_currentFilePath))
         {
             _currentFilePath = CreateNewFilePath(dataMessages);
             _currentFileCreatedAt = DateTime.Now;
-            using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-            var schema = GetSchema();
-            using var writer = await ParquetWriter.CreateAsync(schema, stream).ConfigureAwait(false);
-            writer.CompressionMethod = CompressionMethod.Snappy;
-            using var rowGroupWriter = writer.CreateRowGroup(); // 创建空文件
-            await Task.CompletedTask.ConfigureAwait(false);
+            // 不创建空文件，让 SaveBatchAsync 在第一次写入时创建文件
         }
     }
 
+    /// <summary>
+    /// 检查是否需要滚动文件（基于文件大小或时间）
+    /// </summary>
     private async Task RollIfNeededAsync(List<DataMessage> dataMessages)
     {
         var info = new FileInfo(_currentFilePath);
+        if (!info.Exists)
+        {
+            return;
+        }
+
         var age = DateTime.Now - _currentFileCreatedAt;
         if (info.Length >= _maxFileSizeBytes || age >= _maxFileAge)
         {
-            _currentFilePath = CreateNewFilePath(dataMessages);
+            // 文件需要滚动，重置当前文件路径
+            _currentFilePath = string.Empty;
             _currentFileCreatedAt = DateTime.Now;
-            using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-            var schema = GetSchema();
-            using var writer = await ParquetWriter.CreateAsync(schema, stream).ConfigureAwait(false);
-            writer.CompressionMethod = CompressionMethod.Snappy;
-            using var rowGroupWriter = writer.CreateRowGroup();
-            await Task.CompletedTask.ConfigureAwait(false);
         }
     }
 
+    /// <summary>
+    /// 创建新的文件路径
+    /// </summary>
     private string CreateNewFilePath(List<DataMessage> dataMessages)
     {
-        var fileName = $"{dataMessages.First().Measurement}_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
+        var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
+        var fileName = $"{measurement}_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
         return Path.Combine(_directory, fileName);
     }
 
+    /// <summary>
+    /// 获取 Parquet Schema 定义
+    /// </summary>
     private static ParquetSchema GetSchema()
     {
         return new ParquetSchema(
             new DateTimeDataField("timestamp", DateTimeFormat.DateAndTime, true),
-            new DataField<int>("batch_size"),
             new DataField<string>("measurement"),
             new DataField<string>("plc_code"),
             new DataField<string>("channel_code"),
@@ -267,14 +368,17 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         );
     }
 
+    /// <summary>
+    /// 解析文件大小字符串（支持 KB、MB、GB）
+    /// </summary>
     private static long TryParseSize(string? value, long defaultValue)
     {
         if (string.IsNullOrWhiteSpace(value))
             return defaultValue;
 
-        // 支持如 "50MB"、"10M"、"1GB"
         value = value.Trim().ToUpperInvariant();
         long multiplier = 1;
+
         if (value.EndsWith("KB"))
         {
             multiplier = 1024;
@@ -301,6 +405,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     public void Dispose()
     {
-        _lock.Dispose();
+        _lock?.Dispose();
     }
 }

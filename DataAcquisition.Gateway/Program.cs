@@ -15,10 +15,11 @@ using DataAcquisition.Gateway.Services;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
+using DataAcquisition.Infrastructure.Logs;
 
 var builder = WebApplication.CreateBuilder(args);
 // 从配置读取 URL，支持环境变量和配置文件
-var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:8000";
+var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:5000";
 builder.WebHost.UseUrls(urls);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
@@ -36,7 +37,7 @@ builder.Services.AddSingleton<InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 // 日志查看服务
-builder.Services.AddSingleton<DataAcquisition.Application.Abstractions.ILogViewService, DataAcquisition.Infrastructure.Logs.LogViewService>();
+builder.Services.AddSingleton<ILogViewService, LogViewService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
