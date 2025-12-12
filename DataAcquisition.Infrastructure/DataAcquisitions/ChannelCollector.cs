@@ -322,7 +322,7 @@ public class ChannelCollector : IChannelCollector
                 if (!IsNumberType(kv.Value)) continue;
 
                 var register = dataPoints.SingleOrDefault(x => x.FieldName == kv.Key);
-                if (register == null || string.IsNullOrWhiteSpace(register.EvalExpression) || kv.Value == null) continue;
+                if (register == null || kv.Value == null) continue;
 
                 var evalExpression = register.EvalExpression;
                 if (string.IsNullOrWhiteSpace(evalExpression)) continue;

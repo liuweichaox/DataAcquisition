@@ -114,6 +114,7 @@ DataAcquisition/
 > **Note**: The project supports multi-target frameworks (.NET 10.0, .NET 8.0). You can choose the appropriate version based on your deployment environment. Both versions are LTS (Long Term Support) versions, suitable for production use.
 >
 > **Version Selection Recommendations**:
+>
 > - **.NET 10.0**: Latest LTS version, supported until 2028, recommended for new deployments
 > - **.NET 8.0**: Stable LTS version, supported until 2026, recommended for production environments
 
@@ -235,19 +236,20 @@ The system maps configuration files to InfluxDB time-series database. Here's the
 
 #### Mapping Table
 
-| Configuration Field | InfluxDB Structure | Description | Example |
-|-------------------|-------------------|-------------|---------|
-| `Channels[].Measurement` | **Measurement** | Measurement name (table name) | `"sensor"` |
-| `PLCCode` | **Tag**: `plc_code` | PLC device code tag | `"M01C123"` |
-| `Channels[].ChannelCode` | **Tag**: `channel_code` | Channel code tag | `"M01C01"` |
-| `EventType` | **Tag**: `event_type` | Event type tag (Start/End/Data) | `"Start"`, `"End"`, `"Data"` |
-| `Channels[].DataPoints[].FieldName` | **Field** | Data field name | `"up_temp"`, `"down_temp"` |
-| `CycleId` | **Field**: `cycle_id` | Acquisition cycle unique identifier (GUID) | `"guid-xxx"` |
-| Acquisition time | **Timestamp** | Data point timestamp | `2025-01-15T10:30:00Z` |
+| Configuration Field                 | InfluxDB Structure      | Description                                | Example                      |
+| ----------------------------------- | ----------------------- | ------------------------------------------ | ---------------------------- |
+| `Channels[].Measurement`            | **Measurement**         | Measurement name (table name)              | `"sensor"`                   |
+| `PLCCode`                           | **Tag**: `plc_code`     | PLC device code tag                        | `"M01C123"`                  |
+| `Channels[].ChannelCode`            | **Tag**: `channel_code` | Channel code tag                           | `"M01C01"`                   |
+| `EventType`                         | **Tag**: `event_type`   | Event type tag (Start/End/Data)            | `"Start"`, `"End"`, `"Data"` |
+| `Channels[].DataPoints[].FieldName` | **Field**               | Data field name                            | `"up_temp"`, `"down_temp"`   |
+| `CycleId`                           | **Field**: `cycle_id`   | Acquisition cycle unique identifier (GUID) | `"guid-xxx"`                 |
+| Acquisition time                    | **Timestamp**           | Data point timestamp                       | `2025-01-15T10:30:00Z`       |
 
 #### Configuration Example and Line Protocol
 
 **Configuration File** (`M01C123.json`):
+
 ```json
 {
   "PLCCode": "M01C123",
@@ -256,9 +258,19 @@ The system maps configuration files to InfluxDB time-series database. Here's the
       "Measurement": "sensor",
       "ChannelCode": "M01C01",
       "DataPoints": [
-        { "FieldName": "up_temp", "Register": "D6002", "Index": 2, "DataType": "short" },
-        { "FieldName": "down_temp", "Register": "D6004", "Index": 4, "DataType": "short",
-          "EvalExpression": "value / 1000.0" }
+        {
+          "FieldName": "up_temp",
+          "Register": "D6002",
+          "Index": 2,
+          "DataType": "short"
+        },
+        {
+          "FieldName": "down_temp",
+          "Register": "D6004",
+          "Index": 4,
+          "DataType": "short",
+          "EvalExpression": "value / 1000.0"
+        }
       ],
       "ConditionalAcquisition": {
         "StartTriggerMode": "RisingEdge",
@@ -272,16 +284,19 @@ The system maps configuration files to InfluxDB time-series database. Here's the
 **Generated InfluxDB Line Protocol**:
 
 **Start Event** (conditional acquisition start):
+
 ```
 sensor,plc_code=M01C123,channel_code=M01C01,event_type=Start up_temp=250i,down_temp=0.18,cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312200000000000
 ```
 
 **Data Event** (normal data point):
+
 ```
 sensor,plc_code=M01C123,channel_code=M01C01,event_type=Data up_temp=255i,down_temp=0.19 1705312210000000000
 ```
 
 **End Event** (conditional acquisition end):
+
 ```
 sensor,plc_code=M01C123,channel_code=M01C01,event_type=End cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312300000000000
 ```
@@ -289,11 +304,13 @@ sensor,plc_code=M01C123,channel_code=M01C01,event_type=End cycle_id="550e8400-e2
 #### Line Protocol Format Explanation
 
 InfluxDB Line Protocol format:
+
 ```
 measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
 ```
 
 **Field Type Explanation**:
+
 - **Measurement**: From configuration `Measurement`, e.g., `"sensor"`
 - **Tags** (for filtering and grouping, indexed fields):
   - `plc_code`: PLC device code
@@ -308,6 +325,7 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
 #### Query Examples
 
 **Query data from a specific PLC channel within a specified time range (1h)**:
+
 ```flux
 from(bucket: "your-bucket")
   |> range(start: -1h)
@@ -317,6 +335,7 @@ from(bucket: "your-bucket")
 ```
 
 **Query a complete conditional acquisition cycle**:
+
 ```flux
 from(bucket: "your-bucket")
   |> range(start: -1h)
@@ -325,23 +344,6 @@ from(bucket: "your-bucket")
 ```
 
 ## 🔌 API Usage Examples
-
-### Real-time Data Subscription (SignalR)
-
-```javascript
-// Frontend JavaScript Example
-const connection = new signalR.HubConnectionBuilder()
-  .withUrl("/dataHub")
-  .build();
-
-connection.on("DataReceived", (data) => {
-  console.log("Data received:", data);
-});
-
-connection.start().then(() => {
-  console.log("Connection established");
-});
-```
 
 ### Metrics Data Query
 
@@ -390,19 +392,38 @@ var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
 ```csharp
 public class ChannelCollector : IChannelCollector
 {
-    public async Task StartCollectionAsync(CancellationToken cancellationToken)
+    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
+        IPlcClientService client, CancellationToken ct = default)
     {
-        // PLC connection health check
-        await CheckPlcConnectionAsync();
-
-        // Trigger condition evaluation
-        var shouldCollect = await EvaluateTriggerConditionsAsync();
-
-        if (shouldCollect)
+        while (!ct.IsCancellationRequested)
         {
-            // Execute data acquisition
-            var data = await CollectDataAsync();
-            await ProcessAndStoreDataAsync(data);
+            // Check PLC connection status
+            if (!await WaitForConnectionAsync(config, ct))
+                continue;
+
+            // Acquire device lock for thread-safe PLC access
+            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
+                continue;
+
+            await locker.WaitAsync(ct);
+            try
+            {
+                var timestamp = DateTime.Now;
+
+                // Handle different acquisition modes
+                if (channel.AcquisitionMode == AcquisitionMode.Always)
+                {
+                    await HandleUnconditionalCollectionAsync(config, channel, client, timestamp, ct);
+                }
+                else if (channel.AcquisitionMode == AcquisitionMode.Conditional)
+                {
+                    await HandleConditionalCollectionAsync(config, channel, client, timestamp, ct);
+                }
+            }
+            finally
+            {
+                locker.Release();
+            }
         }
     }
 }
@@ -415,19 +436,56 @@ public class InfluxDbDataStorageService : IDataStorageService
 {
     public async Task SaveAsync(DataMessage dataMessage)
     {
-        // Convert to InfluxDB data point
-        var point = ConvertToDataPoint(dataMessage);
-
-        // Write to InfluxDB
+        _writeStopwatch.Restart();
         try
         {
-            await _writeApi.WritePointAsync(point);
-            _metricsCollector.RecordWriteLatency(stopwatch.ElapsedMilliseconds);
+            // Convert data message to InfluxDB point
+            var point = ConvertToPoint(dataMessage);
+
+            // Write to InfluxDB using WriteApi
+            using var writeApi = _client.GetWriteApi();
+            writeApi.WritePoint(_bucket, _org, point);
+
+            // Record metrics for monitoring
+            _writeStopwatch.Stop();
+            _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            _metricsCollector.RecordError("influx_write");
-            throw;
+            // Record error metrics and log exception
+            _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown",
+                dataMessage.Measurement, dataMessage.ChannelCode);
+            _logger.LogError(ex, "[ERROR] InfluxDB write failed: {Message}", ex.Message);
+        }
+    }
+
+    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    {
+        if (dataMessages == null || dataMessages.Count == 0)
+            return;
+
+        _writeStopwatch.Restart();
+        try
+        {
+            // Convert batch of messages to points
+            var points = dataMessages.Select(ConvertToPoint).ToList();
+
+            // Batch write to InfluxDB
+            using var writeApi = _client.GetWriteApi();
+            writeApi.WritePoints(_bucket, _org, points);
+
+            // Record batch efficiency metrics
+            _writeStopwatch.Stop();
+            var batchSize = dataMessages.Count;
+            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            // Handle batch write errors
+            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
+            _metricsCollector?.RecordError(plcCode, measurement, null);
+            _logger.LogError(ex, "[ERROR] InfluxDB batch write failed: {Message}", ex.Message);
         }
     }
 }
@@ -438,18 +496,22 @@ public class InfluxDbDataStorageService : IDataStorageService
 The system includes the following core monitoring metrics:
 
 #### Acquisition Metrics
+
 - **`data_acquisition_collection_latency_ms`** - Collection latency (time from PLC read to database write, milliseconds)
 - **`data_acquisition_collection_rate`** - Collection rate (data points per second, points/s)
 
 #### Queue Metrics
+
 - **`data_acquisition_queue_depth`** - Queue depth (Channel pending + batch accumulated total pending messages)
 - **`data_acquisition_processing_latency_ms`** - Processing latency (queue processing delay, milliseconds)
 
 #### Storage Metrics
+
 - **`data_acquisition_write_latency_ms`** - Write latency (database write delay, milliseconds)
 - **`data_acquisition_batch_write_efficiency`** - Batch write efficiency (batch size / write time, points/ms)
 
 #### Error & Connection Metrics
+
 - **`data_acquisition_errors_total`** - Total errors (by device/channel)
 - **`data_acquisition_connection_status_changes_total`** - Connection status change count
 - **`data_acquisition_connection_duration_seconds`** - Connection duration (seconds)

@@ -56,6 +56,10 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
             {
                 return BadRequest(new { error = "数据类型不能为空" });
             }
+            if (item.Value == null)
+            {
+                return BadRequest(new { error = "写入值不能为空" });
+            }
         }
 
         var results = new List<PlcWriteResult>();
@@ -63,7 +67,7 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
 
         foreach (var item in request.Items)
         {
-            var result = await dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value, item.DataType);
+            var result = await dataAcquisitionService.WritePlcAsync(request.PlcCode, item.Address, item.Value!, item.DataType);
             results.Add(result);
             if (!result.IsSuccess)
             {

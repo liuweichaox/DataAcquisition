@@ -366,23 +366,6 @@ from(bucket: "your-bucket")
 
 ## 🔌 API 使用示例
 
-### 实时数据订阅 (SignalR)
-
-```javascript
-// 前端 JavaScript 示例
-const connection = new signalR.HubConnectionBuilder()
-  .withUrl("/dataHub")
-  .build();
-
-connection.on("DataReceived", (data) => {
-  console.log("收到数据:", data);
-});
-
-connection.start().then(() => {
-  console.log("连接成功");
-});
-```
-
 ### 指标数据查询
 
 ```bash
@@ -430,19 +413,38 @@ var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
 ```csharp
 public class ChannelCollector : IChannelCollector
 {
-    public async Task StartCollectionAsync(CancellationToken cancellationToken)
+    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
+        IPlcClientService client, CancellationToken ct = default)
     {
-        // PLC 连接健康检查
-        await CheckPlcConnectionAsync();
-
-        // 触发条件评估
-        var shouldCollect = await EvaluateTriggerConditionsAsync();
-
-        if (shouldCollect)
+        while (!ct.IsCancellationRequested)
         {
-            // 执行数据采集
-            var data = await CollectDataAsync();
-            await ProcessAndStoreDataAsync(data);
+            // 检查 PLC 连接状态
+            if (!await WaitForConnectionAsync(config, ct))
+                continue;
+
+            // 获取设备锁，确保线程安全的 PLC 访问
+            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
+                continue;
+
+            await locker.WaitAsync(ct);
+            try
+            {
+                var timestamp = DateTime.Now;
+
+                // 处理不同的采集模式
+                if (channel.AcquisitionMode == AcquisitionMode.Always)
+                {
+                    await HandleUnconditionalCollectionAsync(config, channel, client, timestamp, ct);
+                }
+                else if (channel.AcquisitionMode == AcquisitionMode.Conditional)
+                {
+                    await HandleConditionalCollectionAsync(config, channel, client, timestamp, ct);
+                }
+            }
+            finally
+            {
+                locker.Release();
+            }
         }
     }
 }
@@ -455,19 +457,56 @@ public class InfluxDbDataStorageService : IDataStorageService
 {
     public async Task SaveAsync(DataMessage dataMessage)
     {
-        // 转换为 InfluxDB 数据点
-        var point = ConvertToDataPoint(dataMessage);
-
-        // 写入 InfluxDB
+        _writeStopwatch.Restart();
         try
         {
-            await _writeApi.WritePointAsync(point);
-            _metricsCollector.RecordWriteLatency(stopwatch.ElapsedMilliseconds);
+            // 将数据消息转换为 InfluxDB 数据点
+            var point = ConvertToPoint(dataMessage);
+
+            // 使用 WriteApi 写入 InfluxDB
+            using var writeApi = _client.GetWriteApi();
+            writeApi.WritePoint(_bucket, _org, point);
+
+            // 记录监控指标
+            _writeStopwatch.Stop();
+            _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
         }
         catch (Exception ex)
         {
-            _metricsCollector.RecordError("influx_write");
-            throw;
+            // 记录错误指标并记录异常
+            _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown",
+                dataMessage.Measurement, dataMessage.ChannelCode);
+            _logger.LogError(ex, "[ERROR] InfluxDB 写入失败: {Message}", ex.Message);
+        }
+    }
+
+    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    {
+        if (dataMessages == null || dataMessages.Count == 0)
+            return;
+
+        _writeStopwatch.Restart();
+        try
+        {
+            // 批量转换消息为数据点
+            var points = dataMessages.Select(ConvertToPoint).ToList();
+
+            // 批量写入 InfluxDB
+            using var writeApi = _client.GetWriteApi();
+            writeApi.WritePoints(_bucket, _org, points);
+
+            // 记录批量效率指标
+            _writeStopwatch.Stop();
+            var batchSize = dataMessages.Count;
+            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            // 处理批量写入错误
+            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
+            _metricsCollector?.RecordError(plcCode, measurement, null);
+            _logger.LogError(ex, "[ERROR] InfluxDB 批量写入失败: {Message}", ex.Message);
         }
     }
 }
