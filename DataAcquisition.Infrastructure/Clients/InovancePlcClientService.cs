@@ -16,8 +16,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new InovanceTcpNet(config.Host, config.Port)
     {
-        ReceiveTimeOut = 2000,
-        ConnectTimeOut = 2000
+        ReceiveTimeOut = 5000, // 增加接收超时时间到 5 秒
+        ConnectTimeOut = 5000  // 增加连接超时时间到 5 秒
     };
 
     /// <summary>

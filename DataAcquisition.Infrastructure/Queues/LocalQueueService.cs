@@ -179,26 +179,31 @@ public class LocalQueueService : IQueueService
     /// </remarks>
     private async Task WriteWalAndTryInfluxAsync(string measurement, List<DataMessage> messages)
     {
+        string? walPath = null;
         try
         {
             // 写入独立 WAL 文件
-            var walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
+            walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
 
-            try
+            // 尝试写入 InfluxDB
+            var influxSuccess = await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);
+
+            // 只有在 InfluxDB 写入成功时才删除 Parquet 文件
+            if (influxSuccess && !string.IsNullOrEmpty(walPath))
             {
-                await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);
                 await _parquetStorage.DeleteFileAsync(walPath).ConfigureAwait(false);
             }
-            catch (Exception ex)
+            else
             {
-                // Influx 失败，保留 WAL 文件，记录日志
+                // InfluxDB 写入失败，保留 WAL 文件，记录日志
                 var firstMessage = messages.FirstOrDefault();
                 _metricsCollector?.RecordError(firstMessage?.PLCCode ?? "unknown", measurement, firstMessage?.ChannelCode);
-                _logger.LogWarning(ex, "写入 Influx 失败，保留 WAL 文件: {WalPath}, {Message}", walPath, ex.Message);
+                _logger.LogWarning("写入 Influx 失败，保留 WAL 文件: {WalPath}", walPath);
             }
         }
         catch (Exception ex)
         {
+            // WAL 写入失败
             _logger.LogError(ex, "写 WAL 失败 {Measurement}: {Message}", measurement, ex.Message);
         }
     }

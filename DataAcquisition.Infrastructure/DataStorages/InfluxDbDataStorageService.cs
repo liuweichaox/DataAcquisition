@@ -42,7 +42,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     /// <summary>
     /// 保存单条数据消息。
     /// </summary>
-    public async Task SaveAsync(DataMessage dataMessage)
+    public async Task<bool> SaveAsync(DataMessage dataMessage)
     {
         _writeStopwatch.Restart();
         try
@@ -54,21 +54,23 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 
             _writeStopwatch.Stop();
             _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
+            return true;
         }
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement, dataMessage.ChannelCode);
             _logger.LogError(ex, "[ERROR] 时序数据库插入失败: {Message}", ex.Message);
+            return false;
         }
     }
 
     /// <summary>
     /// 批量保存数据消息。
     /// </summary>
-    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
-            return;
+            return true;
 
         _writeStopwatch.Restart();
         try
@@ -85,6 +87,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             // 记录每个测量值的写入延迟
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
+            return true;
         }
         catch (Exception ex)
         {
@@ -93,6 +96,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
             _metricsCollector?.RecordError(plcCode, measurement, channelCode);
             _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
+            return false;
         }
     }
 
@@ -101,8 +105,13 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     /// </summary>
     private PointData ConvertToPoint(DataMessage dataMessage)
     {
+        // InfluxDB 要求时间戳必须是 UTC 时间
+        var utcTimestamp = dataMessage.Timestamp.Kind == DateTimeKind.Utc
+            ? dataMessage.Timestamp
+            : dataMessage.Timestamp.ToUniversalTime();
+
         var point = PointData.Measurement(dataMessage.Measurement)
-            .Timestamp(dataMessage.Timestamp, WritePrecision.Ns);
+            .Timestamp(utcTimestamp, WritePrecision.Ns);
 
         // 添加标签（tags）
         if (!string.IsNullOrEmpty(dataMessage.PLCCode))
@@ -128,9 +137,10 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 
         foreach (var kvp in dataMessage.DataValues)
         {
-            if (kvp.Value != null)
+            var value = kvp.Value;
+            if (value is not null)
             {
-                var fieldValue = ConvertToFieldValue(kvp.Value);
+                var fieldValue = ConvertToFieldValue(value);
                 point = fieldValue switch
                 {
                     string s => point.Field(kvp.Key, s),

@@ -319,16 +319,17 @@ public class ChannelCollector : IChannelCollector
 
             foreach (var kv in dataMessage.DataValues.ToList())
             {
-                if (!IsNumberType(kv.Value)) continue;
+                var originalValue = kv.Value;
+                if (!IsNumberType(originalValue)) continue;
 
                 var register = dataPoints.SingleOrDefault(x => x.FieldName == kv.Key);
-                if (register == null || kv.Value == null) continue;
+                if (register == null || originalValue is null) continue;
 
                 var evalExpression = register.EvalExpression;
                 if (string.IsNullOrWhiteSpace(evalExpression)) continue;
 
-                // kv.Value 已经在上面的 null 检查中验证，使用 ! 断言非空
-                var valueToEval = kv.Value;
+                // originalValue 已经在上面的 null 检查中验证，使用 ! 断言非空
+                var valueToEval = originalValue;
 
                 var expression = new AsyncExpression(evalExpression)
                 {
@@ -338,8 +339,8 @@ public class ChannelCollector : IChannelCollector
                     }
                 };
 
-                var value = await expression.EvaluateAsync().ConfigureAwait(false);
-                dataMessage.AddDataValue(kv.Key, value ?? 0);
+                var evaluatedValue = await expression.EvaluateAsync().ConfigureAwait(false);
+                dataMessage.AddDataValue(kv.Key, evaluatedValue ?? 0);
             }
         }
         catch (Exception ex)

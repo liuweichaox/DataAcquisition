@@ -8,6 +8,7 @@
         <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
         <PackageIcon>favicon.ico</PackageIcon>
         <RootNamespace>DataAcquisition.Gateway</RootNamespace>
+        <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     </PropertyGroup>
 
     <ItemGroup>
@@ -37,6 +38,7 @@
       <Compile Remove="Services\DataStorages\**" />
       <Compile Remove="Services\Queues\**" />
       <Compile Remove="Logging\**" />
+      <Compile Remove="DataAcquisition.Simulator\**" />
     </ItemGroup>
 
     <ItemGroup>

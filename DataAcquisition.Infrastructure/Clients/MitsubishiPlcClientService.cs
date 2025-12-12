@@ -1,3 +1,4 @@
+using System;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,8 +17,8 @@ public class MitsubishiPlcClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new MelsecA1ENet(config.Host, config.Port)
     {
-        ReceiveTimeOut = 2000,
-        ConnectTimeOut = 2000
+        ReceiveTimeOut = 5000, // 增加接收超时时间到 5 秒
+        ConnectTimeOut = 5000  // 增加连接超时时间到 5 秒
     };
 
     /// <summary>
@@ -35,8 +36,31 @@ public class MitsubishiPlcClientService(DeviceConfig config) : IPLCClientService
     /// </summary>
     public async Task<PLCWriteResult> WriteUShortAsync(string address, ushort value)
     {
-        var res = await _device.WriteAsync(address, value);
-        return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        try
+        {
+            // HslCommunication 的 WriteAsync 会自动建立连接，但为了确保连接，可以先尝试连接
+            // 如果连接已存在，Connect 会快速返回
+            var connectResult = await _device.ConnectServerAsync();
+            if (!connectResult.IsSuccess)
+            {
+                return new PLCWriteResult
+                {
+                    IsSuccess = false,
+                    Message = $"连接失败: {connectResult.Message}"
+                };
+            }
+
+            var res = await _device.WriteAsync(address, value);
+            return new PLCWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
+        }
+        catch (Exception ex)
+        {
+            return new PLCWriteResult
+            {
+                IsSuccess = false,
+                Message = $"写入异常: {ex.Message}"
+            };
+        }
     }
 
     /// <summary>

@@ -563,7 +563,7 @@
                 function toggleAutoRefresh() {
                     autoRefresh.value = !autoRefresh.value;
                     if (autoRefresh.value) {
-                        refreshTimer = setInterval(loadMetrics, 5000); // 每5秒刷新
+                        refreshTimer = setInterval(loadMetrics, 1000); // 每1秒刷新
                         ElMessage.success('已开启自动刷新');
                     } else {
                         if (refreshTimer) {
@@ -654,7 +654,7 @@
                     loadMetrics();
                     // 默认开启自动刷新
                     if (autoRefresh.value) {
-                        refreshTimer = setInterval(loadMetrics, 5000); // 每5秒刷新
+                        refreshTimer = setInterval(loadMetrics, 1000); // 每1秒刷新
                     }
                 });
 

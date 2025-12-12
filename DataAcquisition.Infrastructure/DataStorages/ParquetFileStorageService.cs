@@ -37,12 +37,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         Directory.CreateDirectory(_directory);
     }
 
-    public Task SaveAsync(DataMessage dataMessage) => SaveBatchAsync(new List<DataMessage> { dataMessage });
+    public Task<bool> SaveAsync(DataMessage dataMessage) => SaveBatchAsync(new List<DataMessage> { dataMessage });
 
-    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
-            return;
+            return true;
 
         await _lock.WaitAsync().ConfigureAwait(false);
         try
@@ -59,6 +59,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
             // 滚动判断
             await RollIfNeededAsync().ConfigureAwait(false);
+
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
         }
         finally
         {
@@ -116,6 +122,15 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     public async Task<List<DataMessage>> ReadFileAsync(string filePath)
     {
         var messages = new List<DataMessage>();
+
+        // 检查文件是否存在和大小（Parquet 文件至少需要一定的字节数才能有效）
+        var fileInfo = new FileInfo(filePath);
+        if (!fileInfo.Exists || fileInfo.Length < 100) // Parquet 文件最小有效大小约为 100 字节
+        {
+            // 文件太小，可能是损坏的文件，返回空列表
+            return messages;
+        }
+
         using var stream = File.OpenRead(filePath);
         using var reader = await ParquetReader.CreateAsync(stream).ConfigureAwait(false);
         var schema = reader.Schema;
@@ -184,7 +199,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
             var schema = GetSchema();
             using var stream = new FileStream(_currentFilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: true).ConfigureAwait(false);
+            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
             using var rowGroupWriter = parquetWriter.CreateRowGroup();
 
             await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);

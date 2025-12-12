@@ -40,7 +40,11 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     {
         await Task.Yield();
         var lastOk = false;
+        var isFirstCheck = true; // 标记是否为首次检测
         ushort writeData = 0;
+
+        _logger.LogInformation("{PLCCode}-开始心跳监控，目标地址: {Host}:{Port}，心跳寄存器: {Register}，检测间隔: {Interval}ms",
+            config.PLCCode, config.Host, config.Port, config.HeartbeatMonitorRegister, config.HeartbeatPollingInterval);
 
         while (!ct.IsCancellationRequested)
         {
@@ -49,59 +53,63 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 if (!_plcLifecycle.TryGetClient(config.PLCCode, out var client))
                 {
                     _plcConnectionHealth[config.PLCCode] = false;
-                    _logger.LogWarning("{PLCCode}-未找到PLC客户端", config.PLCCode);
+                    if (isFirstCheck || lastOk)
+                    {
+                        _logger.LogWarning("{PLCCode}-未找到PLC客户端", config.PLCCode);
+                    }
+                    lastOk = false;
+                    isFirstCheck = false;
                     await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
                     continue;
                 }
 
-                var ping = client.IpAddressPing();
-                var ok = ping == IPStatus.Success;
+                // 先尝试写入心跳寄存器（这是最直接的连接测试）
+                var connect = await WriteAsync(config.PLCCode, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
+                var ok = connect.IsSuccess;
 
-                if (!ok)
+                if (ok)
                 {
-                    if (lastOk)
+                    writeData ^= 1;
+                    _plcConnectionHealth[config.PLCCode] = true;
+
+                    // 首次检测成功或从失败状态恢复时记录日志
+                    if (isFirstCheck || !lastOk)
                     {
-                        _logger.LogWarning("{PLCCode}-网络检测失败：IP {Host}，Ping 未响应", config.PLCCode, config.Host);
-                        _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
-                        RecordConnectionEnd(config.PLCCode);
+                        _logger.LogInformation("{PLCCode}-✓ PLC连接成功，心跳检测正常 (地址: {Host}:{Port}, 寄存器: {Register})",
+                            config.PLCCode, config.Host, config.Port, config.HeartbeatMonitorRegister);
+                        _metricsCollector?.RecordConnectionStatus(config.PLCCode, true);
+                        RecordConnectionStart(config.PLCCode);
                     }
-                    _plcConnectionHealth[config.PLCCode] = false;
                 }
                 else
                 {
-                    var connect = await WriteAsync(config.PLCCode, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
-                    ok = connect.IsSuccess;
-                    if (ok)
-                    {
-                        writeData ^= 1;
-                        _plcConnectionHealth[config.PLCCode] = true;
+                    _plcConnectionHealth[config.PLCCode] = false;
 
-                        if (!lastOk)
-                        {
-                            _logger.LogInformation("{PLCCode}-心跳检测正常", config.PLCCode);
-                            _metricsCollector?.RecordConnectionStatus(config.PLCCode, true);
-                            RecordConnectionStart(config.PLCCode);
-                        }
-                    }
-                    else
+                    // 首次检测失败或从成功状态变为失败时记录日志
+                    if (isFirstCheck || lastOk)
                     {
-                        _plcConnectionHealth[config.PLCCode] = false;
+                        _logger.LogWarning("{PLCCode}-✗ PLC连接失败: {Message} (地址: {Host}:{Port}, 寄存器: {Register})",
+                            config.PLCCode, connect.Message, config.Host, config.Port, config.HeartbeatMonitorRegister);
+                        _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
                         if (lastOk)
                         {
-                            _logger.LogWarning("{PLCCode}-心跳检测失败: {Message}", config.PLCCode, connect.Message);
-                            _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
                             RecordConnectionEnd(config.PLCCode);
                         }
-                        // 连接恢复由下次心跳检测自动完成，无需额外重连逻辑
                     }
                 }
 
                 lastOk = ok;
+                isFirstCheck = false;
             }
             catch (Exception ex)
             {
                 _plcConnectionHealth[config.PLCCode] = false;
-                _logger.LogError(ex, "{PLCCode}-系统异常: {Message}", config.PLCCode, ex.Message);
+                if (isFirstCheck || lastOk)
+                {
+                    _logger.LogError(ex, "{PLCCode}-心跳检测异常: {Message}", config.PLCCode, ex.Message);
+                }
+                lastOk = false;
+                isFirstCheck = false;
             }
             finally
             {

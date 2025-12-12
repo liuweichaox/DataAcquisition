@@ -63,22 +63,39 @@ public class ParquetRetryWorker : BackgroundService
                 var messages = await _parquetStorage.ReadFileAsync(file).ConfigureAwait(false);
                 if (messages.Count == 0)
                 {
+                    // 文件为空或损坏，删除它
+                    _logger.LogWarning("Parquet 文件为空或损坏，删除: {File}", file);
                     await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
                     continue;
                 }
 
                 // 分批写入 InfluxDB
+                var allSuccess = true;
                 var offset = 0;
                 while (offset < messages.Count)
                 {
                     var currentBatchSize = messages[offset].BatchSize > 0 ? messages[offset].BatchSize : 500;
                     var batch = messages.Skip(offset).Take(currentBatchSize).ToList();
-                    await _influxStorage.SaveBatchAsync(batch).ConfigureAwait(false);
+                    var success = await _influxStorage.SaveBatchAsync(batch).ConfigureAwait(false);
+                    if (!success)
+                    {
+                        allSuccess = false;
+                        _logger.LogWarning("批次写入 InfluxDB 失败，文件: {File}, 偏移: {Offset}", file, offset);
+                        // 继续尝试写入剩余批次，但标记为失败
+                    }
                     offset += batch.Count;
                 }
 
-                await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
-                _logger.LogInformation("成功写回并删除文件: {File}", file);
+                // 只有在所有批次都成功写入时才删除 Parquet 文件
+                if (allSuccess)
+                {
+                    await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
+                    _logger.LogInformation("成功写回并删除文件: {File}", file);
+                }
+                else
+                {
+                    _logger.LogWarning("部分批次写入失败，保留文件以便下次重试: {File}", file);
+                }
             }
             catch (Exception ex)
             {

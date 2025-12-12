@@ -308,12 +308,6 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
                     result.IsValid = false;
                     result.Errors.Add($"通道 {i + 1} 的测量值名称不能为空");
                 }
-
-                if (channel.DataPoints == null || channel.DataPoints.Count == 0)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add($"通道 {i + 1} 至少需要配置一个数据点");
-                }
             }
         }
 

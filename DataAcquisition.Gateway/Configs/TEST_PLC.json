@@ -1,0 +1,47 @@
+{
+  "IsEnabled": true,
+  "PLCCode": "TEST_PLC",
+  "Host": "127.0.0.1",
+  "Port": 502,
+  "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D100",
+  "HeartbeatPollingInterval": 2000,
+  "Channels": [
+    {
+      "Measurement": "sensor",
+      "ChannelCode": "CH01",
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 14,
+      "BatchSize": 1,
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Always",
+      "DataPoints": [
+        { "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
+        { "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
+        { "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
+      ]
+    },
+    {
+      "Measurement": "production",
+      "ChannelCode": "CH01",
+      "EnableBatchRead": false,
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "BatchSize": 1,
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Conditional",
+      "DataPoints": null,
+      "ConditionalAcquisition": {
+        "Register": "D6006",
+        "DataType": "short",
+        "StartTriggerMode": "RisingEdge",
+        "EndTriggerMode": "FallingEdge"
+      }
+    }
+  ]
+}
