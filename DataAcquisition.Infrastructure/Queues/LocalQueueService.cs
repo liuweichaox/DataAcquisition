@@ -348,9 +348,6 @@ public class LocalQueueService : IQueueService
     /// </remarks>
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        var json = System.Text.Json.JsonSerializer.Serialize(dataMessage);
-        _logger.LogInformation("StoreDataPointAsync: {Json}", json);
-
         // 使用锁保护批量操作，确保线程安全
         // 使用 plccode + channelcode + measurement 作为 key，确保不同 PLC/Channel 的数据独立批量处理
         var batchKey = $"{dataMessage.PLCCode ?? "unknown"}:{dataMessage.ChannelCode ?? "unknown"}:{dataMessage.Measurement}";
