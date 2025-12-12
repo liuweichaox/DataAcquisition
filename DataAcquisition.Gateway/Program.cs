@@ -33,9 +33,17 @@ builder.Services.AddSignalR().AddJsonProtocol(o =>
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<DataAcquisition.Gateway.Services.MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+// 运行事件系统：使用观察者模式，职责分离
 builder.Services.AddSingleton<OpsEventChannel>();
 builder.Services.AddSingleton<IOpsEventBus>(sp => sp.GetRequiredService<OpsEventChannel>());
 builder.Services.AddSingleton<IOperationalEventsService, OperationalEventsService>();
+
+// 注册事件订阅者（可以灵活添加/移除）
+builder.Services.AddSingleton<IOpsEventSubscriber, LoggingEventSubscriber>();
+builder.Services.AddSingleton<IOpsEventSubscriber, SignalREventSubscriber>();
+
+// 事件分发器：从通道读取事件并分发给所有订阅者
+builder.Services.AddHostedService<OpsEventDispatcher>();
 builder.Services.AddSingleton<IPLCClientFactory, PLCClientFactory>();
 builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
@@ -49,7 +57,7 @@ builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>()
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
-builder.Services.AddHostedService<OpsEventBroadcastWorker>();
+// OpsEventBroadcastWorker 已被 OpsEventDispatcher 替代
 builder.Services.AddHostedService<ParquetRetryWorker>();
 builder.Services.AddControllersWithViews();
 

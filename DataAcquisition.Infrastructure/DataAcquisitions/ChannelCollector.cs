@@ -148,7 +148,7 @@ public class ChannelCollector : IChannelCollector
     /// </summary>
     /// <returns>如果连接就绪返回 true，否则返回 false 并已延迟等待</returns>
     private async Task<bool> WaitForConnectionAsync(DeviceConfig config, CancellationToken ct)
-    {
+                    {
         if (_heartbeatMonitor.TryGetConnectionHealth(config.PLCCode, out var isConnected) && isConnected)
         {
             return true;
@@ -195,11 +195,11 @@ public class ChannelCollector : IChannelCollector
 
         var conditionalAcq = channel.ConditionalAcquisition;
         if (string.IsNullOrWhiteSpace(conditionalAcq.Register) || string.IsNullOrWhiteSpace(conditionalAcq.DataType))
-        {
+                    {
             await _events.ErrorAsync($"{config.PLCCode}-{channel.Measurement}:条件采集配置不完整，Register或DataType为空", null).ConfigureAwait(false);
-            await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
+                        await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
             return prevValue;
-        }
+                    }
 
         // 读取触发寄存器的值
         object? curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType).ConfigureAwait(false);
@@ -208,13 +208,13 @@ public class ChannelCollector : IChannelCollector
         var shouldStartTrigger = ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
         var shouldEndTrigger = ShouldTrigger(conditionalAcq.EndTriggerMode, prevValue, curr);
 
-        // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
-        if (shouldEndTrigger)
-        {
+                    // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
+                    if (shouldEndTrigger)
+                    {
             await HandleEndEventAsync(config, channel, timestamp, ct).ConfigureAwait(false);
-        }
+                    }
 
-        if (shouldStartTrigger)
+                    if (shouldStartTrigger)
         {
             await HandleStartTriggerAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
         }
@@ -233,10 +233,10 @@ public class ChannelCollector : IChannelCollector
         IPlcClientService client,
         DateTime timestamp,
         CancellationToken ct)
-    {
-        _stopwatch.Restart();
+                    {
+                        _stopwatch.Restart();
         await HandleStartEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
-        _stopwatch.Stop();
+                        _stopwatch.Stop();
 
         RecordCollectionMetrics(config, channel, _stopwatch.ElapsedMilliseconds);
     }
@@ -250,16 +250,16 @@ public class ChannelCollector : IChannelCollector
 
         _metricsCollector.RecordCollectionLatency(config.PLCCode, channel.Measurement, elapsedMilliseconds, channel.ChannelCode);
 
-        lock (_rateLock)
-        {
-            _collectionCount++;
-            var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
-            if (elapsed >= 1.0) // 每秒更新一次频率
-            {
-                var rate = _collectionCount / elapsed;
+                            lock (_rateLock)
+                            {
+                                _collectionCount++;
+                                var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
+                                if (elapsed >= 1.0) // 每秒更新一次频率
+                                {
+                                    var rate = _collectionCount / elapsed;
                 _metricsCollector.RecordCollectionRate(config.PLCCode, channel.Measurement, rate, channel.ChannelCode);
-                _collectionCount = 0;
-                _lastCollectionTime = DateTime.Now;
+                                    _collectionCount = 0;
+                                    _lastCollectionTime = DateTime.Now;
             }
         }
     }
