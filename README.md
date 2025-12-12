@@ -370,10 +370,20 @@ from(bucket: "your-bucket")
 
 ```bash
 # 获取 Prometheus 格式指标
-curl http://localhost:8000/metrics/raw
+curl http://localhost:8000/metrics
 
 # 获取 JSON 格式指标
 curl http://localhost:8000/api/metrics-data
+
+# 获取指标信息
+curl http://localhost:8000/api/metrics-data/info
+```
+
+### PLC 连接状态查询
+
+```bash
+# 获取 PLC 连接状态
+curl http://localhost:8000/api/DataAcquisition/GetPlcConnectionStatus
 ```
 
 ### PLC 写入操作
@@ -394,7 +404,7 @@ var request = new PlcWriteRequest
     }
 };
 
-var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
+var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegister", request);
 ```
 
 ## 📊 核心模块说明

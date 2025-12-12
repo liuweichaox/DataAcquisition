@@ -349,10 +349,20 @@ from(bucket: "your-bucket")
 
 ```bash
 # Get Prometheus format metrics
-curl http://localhost:8000/metrics/raw
+curl http://localhost:8000/metrics
 
 # Get JSON format metrics
 curl http://localhost:8000/api/metrics-data
+
+# Get metrics information
+curl http://localhost:8000/api/metrics-data/info
+```
+
+### PLC Connection Status Query
+
+```bash
+# Get PLC connection status
+curl http://localhost:8000/api/DataAcquisition/GetPlcConnectionStatus
 ```
 
 ### PLC Write Operation
@@ -373,7 +383,7 @@ var request = new PlcWriteRequest
     }
 };
 
-var response = await httpClient.PostAsJsonAsync("/api/plc/write", request);
+var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegister", request);
 ```
 
 ## 📊 Core Module Documentation
