@@ -181,7 +181,7 @@ dotnet run
 
 #### Simulator Features
 
-- ✅ Simulates Mitsubishi PLC (MelsecMcServer)
+- ✅ Simulates Mitsubishi PLC (MelsecA1EServer)
 - ✅ Auto-updates heartbeat register (D100)
 - ✅ Simulates 7 sensor metrics (temperature, pressure, current, voltage, light barrier position, servo speed, production serial number)
 - ✅ Supports conditional acquisition testing (production serial trigger)
@@ -624,6 +624,7 @@ A: Implement the `IPlcClientService` interface and register the new protocol sup
 A: No. The system uses FileSystemWatcher to monitor configuration file changes and supports hot reload.
 
 ### Q: Where can I view monitoring metrics?
+
 A: Visit http://localhost:8000/metrics for the visualization interface or Prometheus raw format metrics, or http://localhost:8000/api/metrics-data to get JSON format metrics data (recommended).
 
 ### Q: How to extend storage backends?
