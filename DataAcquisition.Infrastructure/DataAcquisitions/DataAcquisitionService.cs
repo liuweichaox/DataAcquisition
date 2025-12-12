@@ -62,9 +62,16 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// </summary>
     private void StartCollectionTask(DeviceConfig config)
     {
-        if (_runtimes.ContainsKey(config.PLCCode))
+        // 使用 TryAdd 原子操作检查并添加，避免竞态条件
+        if (!_runtimes.TryAdd(config.PLCCode, null!))
         {
-            return;
+            // 任务已存在，移除刚添加的 null 值（这种情况不应该发生，但防御性编程）
+            if (_runtimes.TryGetValue(config.PLCCode, out var existingRuntime) && existingRuntime != null)
+            {
+                return;
+            }
+            // 如果值为 null（不应该发生），继续执行创建流程
+            _runtimes.TryRemove(config.PLCCode, out _);
         }
 
         // 防御性检查：确保配置有效
@@ -109,7 +116,9 @@ public class DataAcquisitionService : IDataAcquisitionService
             }
         }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
-        _runtimes.TryAdd(config.PLCCode, new PLCRuntime(cts, running));
+        // 更新运行时对象（之前已用 TryAdd 占位）
+        var runtime = new PLCRuntime(cts, running);
+        _runtimes.TryUpdate(config.PLCCode, runtime, null!);
     }
 
     /// <summary>
@@ -236,7 +245,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    /// 配置变更处理
+    /// 配置变更处理（异步事件处理器）。
+    /// 注意：使用 async void 是事件处理器的标准模式，但异常必须完全捕获。
     /// </summary>
     private async void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
     {
@@ -275,7 +285,16 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            await _events.ErrorAsync($"处理配置变更失败: {ex.Message}", ex).ConfigureAwait(false);
+            // async void 方法中的异常必须完全捕获，否则可能导致应用程序崩溃
+            try
+            {
+                await _events.ErrorAsync($"处理配置变更失败: {ex.Message}", ex).ConfigureAwait(false);
+            }
+            catch
+            {
+                // 如果日志记录也失败，静默处理（避免崩溃）
+                // 在实际生产环境中，可以考虑写入系统事件日志或使用其他故障安全机制
+            }
         }
     }
 

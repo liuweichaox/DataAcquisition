@@ -28,18 +28,25 @@ public class PLCClientLifecycleService : IPLCClientLifecycleService
     }
 
     /// <summary>
-    /// 获取或创建 PLC 客户端。
+    /// 获取或创建 PLC 客户端（线程安全）。
     /// </summary>
     public IPlcClientService GetOrCreateClient(DeviceConfig config)
     {
+        // 先尝试获取已存在的客户端（快速路径）
         if (_plcClients.TryGetValue(config.PLCCode, out var existingClient))
         {
             return existingClient;
         }
 
-        var client = _plcClientFactory.Create(config);
-        _plcClients.TryAdd(config.PLCCode, client);
-        _plcLocks.TryAdd(config.PLCCode, new SemaphoreSlim(1, 1));
+        // 使用 GetOrAdd 确保线程安全创建
+        // 如果多个线程同时调用，只有一个会执行工厂方法创建客户端
+        var client = _plcClients.GetOrAdd(config.PLCCode, _ =>
+        {
+            var newClient = _plcClientFactory.Create(config);
+            // 同时创建对应的锁对象
+            _plcLocks.TryAdd(config.PLCCode, new SemaphoreSlim(1, 1));
+            return newClient;
+        });
 
         return client;
     }
