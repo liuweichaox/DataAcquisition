@@ -182,8 +182,8 @@ dotnet build -f net8.0
 6. **访问监控界面**
 
 - 指标可视化: http://localhost:8000/metrics
-- Prometheus 指标: http://localhost:8000/metrics/raw
-- API 文档: http://localhost:8000/swagger (如启用)
+- Prometheus 指标: http://localhost:8000/metrics
+- API 文档: 未配置 Swagger（可通过代码启用）
 
 ## ⚙️ 配置说明
 

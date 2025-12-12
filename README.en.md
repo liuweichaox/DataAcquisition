@@ -161,8 +161,8 @@ dotnet build -f net8.0
 6. **Access Monitoring Interface**
 
 - Metrics Visualization: http://localhost:8000/metrics
-- Prometheus Metrics: http://localhost:8000/metrics/raw
-- API Documentation: http://localhost:8000/swagger (if enabled)
+- Prometheus Metrics: http://localhost:8000/metrics
+- API Documentation: Swagger not configured (can be enabled in code)
 
 ## ⚙️ Configuration Guide
 
