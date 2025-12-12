@@ -13,7 +13,7 @@
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 14,
-      "BatchSize": 1,
+      "BatchSize": 10,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
       "DataPoints": [

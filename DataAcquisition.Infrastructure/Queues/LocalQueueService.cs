@@ -22,8 +22,10 @@ public class LocalQueueService : IQueueService
     private readonly InfluxDbDataStorageService _influxStorage;
     private readonly ILogger<LocalQueueService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
+    private readonly IDeviceConfigService _deviceConfigService;
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
+    private readonly ConcurrentDictionary<string, int> _batchSizeCache = new(); // 缓存 BatchSize 配置
     private readonly ConcurrentQueue<FailedBatch> _failedBatches = new();
     private readonly object _batchLock = new object();
     private readonly System.Diagnostics.Stopwatch _processingStopwatch = new();
@@ -38,12 +40,14 @@ public class LocalQueueService : IQueueService
         InfluxDbDataStorageService influxStorage,
         ILogger<LocalQueueService> logger,
         IConfiguration configuration,
+        IDeviceConfigService deviceConfigService,
         IMetricsCollector? metricsCollector = null)
     {
         _parquetStorage = parquetStorage;
         _influxStorage = influxStorage;
         _logger = logger;
         _metricsCollector = metricsCollector;
+        _deviceConfigService = deviceConfigService;
 
         var options = new Domain.Models.QueueServiceOptions
         {
@@ -82,7 +86,10 @@ public class LocalQueueService : IQueueService
 
         foreach (var batch in batchesToFlush)
         {
-            await WriteWalAndTryInfluxAsync(batch.Key, batch.Value).ConfigureAwait(false);
+            // batch.Key 是 "plccode:channelcode:measurement" 格式
+            // 提取 measurement（最后一个冒号后的部分）
+            var measurement = batch.Key.Split(':').LastOrDefault() ?? batch.Key;
+            await WriteWalAndTryInfluxAsync(measurement, batch.Value).ConfigureAwait(false);
         }
     }
 
@@ -264,16 +271,58 @@ public class LocalQueueService : IQueueService
     }
 
     /// <summary>
+    /// 根据 plccode:channelcode:measurement 从配置中获取 BatchSize
+    /// 使用缓存机制避免频繁访问配置服务
+    /// </summary>
+    private int GetBatchSize(string? plcCode, string? channelCode, string measurement)
+    {
+        var cacheKey = $"{plcCode ?? "unknown"}:{channelCode ?? "unknown"}:{measurement}";
+
+        // 先从缓存获取
+        if (_batchSizeCache.TryGetValue(cacheKey, out var cachedSize))
+        {
+            return cachedSize;
+        }
+
+        // 缓存未命中，从配置加载
+        try
+        {
+            var configs = _deviceConfigService.GetConfigs().GetAwaiter().GetResult();
+            var config = configs.FirstOrDefault(c => c.PLCCode == plcCode);
+            if (config != null)
+            {
+                var channel = config.Channels?.FirstOrDefault(ch =>
+                    ch.ChannelCode == channelCode && ch.Measurement == measurement);
+                if (channel != null)
+                {
+                    var batchSize = channel.BatchSize > 0 ? channel.BatchSize : 1;
+                    _batchSizeCache.TryAdd(cacheKey, batchSize);
+                    return batchSize;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "获取 BatchSize 配置失败，使用默认值 1: {PLCCode}:{ChannelCode}:{Measurement}",
+                plcCode, channelCode, measurement);
+        }
+
+        // 使用默认值并缓存
+        _batchSizeCache.TryAdd(cacheKey, 1);
+        return 1;
+    }
+
+    /// <summary>
     /// 将数据消息存储至数据库，支持批量处理。
     ///
     /// 功能说明：
-    /// - 根据 BatchSize 配置决定是否进行批量聚合
+    /// - 根据 BatchSize 配置决定是否进行批量聚合（从配置文件读取）
     /// - BatchSize &lt;= 1：立即写入（单个数据点）
     /// - BatchSize &gt; 1：累积到批量大小后再写入（批量优化）
     ///
     /// 批量处理逻辑：
-    /// - 使用 _dataBatchMap 按 Measurement 分组累积消息
-    /// - 每个 Measurement 独立维护一个消息列表
+    /// - 使用 _dataBatchMap 按 "plccode:channelcode:measurement" 分组累积消息
+    /// - 每个 PLC/Channel/Measurement 组合独立维护一个消息列表
     /// - 当累积数量达到 BatchSize 时，取出 BatchSize 个消息进行写入
     /// - 使用锁（_batchLock）保护批量操作，确保线程安全
     ///
@@ -292,7 +341,7 @@ public class LocalQueueService : IQueueService
     /// - End 事件通过 event_type 标签区分，而不是更新 Start 事件
     /// - 这样可以保证数据的不可变性和可追溯性
     /// </summary>
-    /// <param name="dataMessage">数据消息，包含 Measurement、BatchSize 等信息</param>
+    /// <param name="dataMessage">数据消息</param>
     /// <remarks>
     /// 注意：批量写入可能会导致数据延迟（延迟时间 = 达到 BatchSize 的时间）。
     /// 如果需要更低的延迟，可以设置较小的 BatchSize 或使用定时刷新机制。
@@ -301,31 +350,46 @@ public class LocalQueueService : IQueueService
     {
         var json = System.Text.Json.JsonSerializer.Serialize(dataMessage);
         _logger.LogInformation("StoreDataPointAsync: {Json}", json);
-        // 时序数据库统一使用Insert操作，End事件通过event_type标签区分
-        if (dataMessage.BatchSize <= 1)
-        {
-            await WriteWalAndTryInfluxAsync(dataMessage.Measurement, new List<DataMessage> { dataMessage }).ConfigureAwait(false);
-            return;
-        }
 
         // 使用锁保护批量操作，确保线程安全
+        // 使用 plccode + channelcode + measurement 作为 key，确保不同 PLC/Channel 的数据独立批量处理
+        var batchKey = $"{dataMessage.PLCCode ?? "unknown"}:{dataMessage.ChannelCode ?? "unknown"}:{dataMessage.Measurement}";
+
+        // 从配置中获取 BatchSize
+        var batchSize = GetBatchSize(dataMessage.PLCCode, dataMessage.ChannelCode, dataMessage.Measurement);
+
         List<DataMessage>? batchToSave = null;
         lock (_batchLock)
         {
-            var batch = _dataBatchMap.GetOrAdd(dataMessage.Measurement, _ => new List<DataMessage>());
+            var batch = _dataBatchMap.GetOrAdd(batchKey, _ => new List<DataMessage>());
             batch.Add(dataMessage);
 
-            if (batch.Count >= dataMessage.BatchSize)
+            // 对于 BatchSize <= 1，立即触发写入；对于 BatchSize > 1，达到批量大小时触发
+            if (batchSize <= 1 || batch.Count >= batchSize)
             {
-                batchToSave = batch.Take(dataMessage.BatchSize).ToList();
-                batch.RemoveRange(0, dataMessage.BatchSize);
+                var takeCount = batchSize <= 1 ? 1 : batchSize;
+                batchToSave = batch.Take(takeCount).ToList();
+                batch.RemoveRange(0, batchToSave.Count);
             }
         }
 
-        // 在锁外执行 WAL + Influx
+        // 在锁外异步执行 WAL + Influx，不阻塞队列处理
         if (batchToSave != null)
         {
-            await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
+            // 使用 Task.Run 异步执行，不阻塞 SubscribeAsync 循环
+            // 这样可以立即处理下一个消息，提高采集频率
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    _logger.LogInformation("WriteWalAndTryInfluxAsync 批量写入: {BatchKey}", batchKey);
+                    await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "异步写入 WAL/Influx 失败: {BatchKey}", batchKey);
+                }
+            });
         }
     }
 
@@ -361,7 +425,10 @@ public class LocalQueueService : IQueueService
         {
             try
             {
-                await WriteWalAndTryInfluxAsync(batch.Key, batch.Value).ConfigureAwait(false);
+                // batch.Key 是 "plccode:channelcode:measurement" 格式
+                // 提取 measurement（最后一个冒号后的部分）
+                var measurement = batch.Key.Split(':').LastOrDefault() ?? batch.Key;
+                await WriteWalAndTryInfluxAsync(measurement, batch.Value).ConfigureAwait(false);
             }
             catch (Exception ex)
             {

@@ -75,21 +75,23 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     /// <summary>
     /// 准备列数据并写入 Parquet 文件
     /// </summary>
-    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
-    {
-        // 保持本地时间，不再转换为 UTC
-        var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
-        var batchSizes = dataMessages.Select(x => x.BatchSize).ToArray();
-        var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
-        var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
-        var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
-        var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
-        var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
-        var dataJsons = dataMessages.Select(x =>
-            System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+        private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
+        {
+            // 保持本地时间，不再转换为 UTC
+            var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
+            // BatchSize 已从 DataMessage 移除，为了向后兼容，写入时使用 0（或可以改为读取时从配置获取）
+            // 注意：读取时会忽略此列，BatchSize 现在从配置文件动态获取
+            var batchSizes = dataMessages.Select(x => 0).ToArray();
+            var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
+            var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
+            var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
+            var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
+            var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
+            var dataJsons = dataMessages.Select(x =>
+                System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
 
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
+            await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[1], batchSizes)).ConfigureAwait(false);
         await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[2], measurements)).ConfigureAwait(false);
         await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[3], plcCodes)).ConfigureAwait(false);
         await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField)schema.DataFields[4], channelCodes)).ConfigureAwait(false);
@@ -158,8 +160,9 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
             for (int row = 0; row < timestamps.Length; row++)
             {
-                var batchSize = (batchSizes != null && batchSizes.Length > row) ? batchSizes[row] : 1;
-                var msg = DataMessage.Create(cycleIds[row], measurements[row], plcCodes[row], channelCodes[row], Enum.Parse<EventType>(eventTypes[row].ToString()), timestamps[row], batchSize);
+                // 注意：BatchSize 已从 DataMessage 中移除，不再使用
+                // 读取旧文件时可能会包含 batchSizes 列，但我们会忽略它
+                var msg = DataMessage.Create(cycleIds[row], measurements[row], plcCodes[row], channelCodes[row], Enum.Parse<EventType>(eventTypes[row].ToString()), timestamps[row]);
                 var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(dataJsons[row]);
                 if (dict != null)
                 {

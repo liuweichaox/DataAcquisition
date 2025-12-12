@@ -388,7 +388,7 @@ public class ChannelCollector : IChannelCollector
         try
         {
             string cycleId = Guid.NewGuid().ToString();
-            var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Data, timestamp, channel.BatchSize);
+            var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Data, timestamp);
 
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
@@ -448,7 +448,7 @@ public class ChannelCollector : IChannelCollector
                 config.PLCCode,
                 channel.Measurement,
                 channel.ChannelCode);
-            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Start, timestamp, channel.BatchSize);
+            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Start, timestamp);
 
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
@@ -527,7 +527,7 @@ public class ChannelCollector : IChannelCollector
             }
 
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
-            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.End, timestamp, channel.BatchSize);
+            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.End, timestamp);
             _ = PublishEndEventMessageAsync(config, channel, dataMessage, ct);
 
             return false; // 正常处理，不需要跳过
