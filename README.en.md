@@ -307,12 +307,13 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
 
 #### Query Examples
 
-**Query all data from a specific PLC**:
+**Query data from a specific PLC channel within a specified time range (1h)**:
 ```flux
 from(bucket: "your-bucket")
   |> range(start: -1h)
   |> filter(fn: (r) => r["_measurement"] == "sensor")
   |> filter(fn: (r) => r["plc_code"] == "M01C123")
+  |> filter(fn: (r) => r["channel_code"] == "M01C01")
 ```
 
 **Query a complete conditional acquisition cycle**:
@@ -321,15 +322,6 @@ from(bucket: "your-bucket")
   |> range(start: -1h)
   |> filter(fn: (r) => r["_measurement"] == "sensor")
   |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
-```
-
-**Query specific field**:
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["_field"] == "up_temp")
-  |> aggregateWindow(every: 1m, fn: mean)
 ```
 
 ## 🔌 API Usage Examples

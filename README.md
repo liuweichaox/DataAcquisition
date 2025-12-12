@@ -345,13 +345,14 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
 
 #### 查询示例
 
-**查询特定 PLC 的所有数据**:
+**查询特定 PLC 的采集通道的指定时间（1h）范围的数据**:
 
 ```flux
 from(bucket: "your-bucket")
   |> range(start: -1h)
   |> filter(fn: (r) => r["_measurement"] == "sensor")
   |> filter(fn: (r) => r["plc_code"] == "M01C123")
+  |> filter(fn: (r) => r["channel_code"] == "M01C01")
 ```
 
 **查询条件采集的完整周期**:
@@ -361,16 +362,6 @@ from(bucket: "your-bucket")
   |> range(start: -1h)
   |> filter(fn: (r) => r["_measurement"] == "sensor")
   |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
-```
-
-**查询特定字段**:
-
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["_field"] == "up_temp")
-  |> aggregateWindow(every: 1m, fn: mean)
 ```
 
 ## 🔌 API 使用示例
