@@ -5,6 +5,7 @@
 
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -35,7 +36,7 @@
 
         .page-header {
             background: white;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             padding: 20px;
             margin-bottom: 20px;
             border-radius: 8px;
@@ -131,6 +132,7 @@
         }
     </style>
 </head>
+
 <body>
     <div id="app">
         <partial name="_NavigationMenu" />
@@ -138,7 +140,9 @@
             <div class="page-header">
                 <div>
                     <h2>
-                        <el-icon><Monitor></Monitor></el-icon>
+                        <el-icon>
+                            <Monitor></Monitor>
+                        </el-icon>
                         系统指标监控
                     </h2>
                     <div class="refresh-info" style="margin-top: 5px;">
@@ -148,7 +152,9 @@
                 </div>
                 <div style="display: flex; gap: 12px; align-items: center;">
                     <el-button type="primary" @@click="loadMetrics" :loading="loading">
-                        <el-icon><Refresh /></el-icon>
+                        <el-icon>
+                            <Refresh />
+                        </el-icon>
                         刷新
                     </el-button>
                 </div>
@@ -157,30 +163,19 @@
             <div class="filter-card">
                 <el-row :gutter="20">
                     <el-col :span="12">
-                        <el-select
-                            v-model="selectedMetrics"
-                            multiple
-                            clearable
-                            collapse-tags
-                            filterable
-                            placeholder="选择要展示的指标"
-                            style="width: 100%;">
-                            <el-option
-                                v-for="name in availableMetrics"
-                                :key="name"
-                                :label="getMetricTitle(name)"
+                        <el-select v-model="selectedMetrics" multiple clearable collapse-tags filterable
+                            placeholder="选择要展示的指标" style="width: 100%;">
+                            <el-option v-for="name in availableMetrics" :key="name" :label="getMetricTitle(name)"
                                 :value="name">
                             </el-option>
                         </el-select>
                     </el-col>
                     <el-col :span="6">
-                        <el-input
-                            v-model="searchKeyword"
-                            placeholder="搜索指标名称"
-                            clearable
-                            @@keyup.enter="searchMetrics">
+                        <el-input v-model="searchKeyword" placeholder="搜索指标名称" clearable @@keyup.enter="searchMetrics">
                             <template #prefix>
-                                <el-icon><Search /></el-icon>
+                                <el-icon>
+                                    <Search />
+                                </el-icon>
                             </template>
                         </el-input>
                     </el-col>
@@ -198,16 +193,13 @@
             </div>
 
             <div>
-                <el-alert
-                    v-if="error"
-                    :title="error"
-                    type="error"
-                    :closable="false"
-                    style="margin-bottom: 20px;"
-                > </el-alert>
+                <el-alert v-if="error" :title="error" type="error" :closable="false" style="margin-bottom: 20px;">
+                </el-alert>
 
                 <div v-if="loading && !metrics" style="text-align: center; padding: 40px;">
-                    <el-icon class="is-loading" style="font-size: 32px;"><Loading /></el-icon>
+                    <el-icon class="is-loading" style="font-size: 32px;">
+                        <Loading />
+                    </el-icon>
                     <p style="margin-top: 10px; color: #909399;">正在加载指标数据...</p>
                 </div>
 
@@ -224,36 +216,43 @@
                             </div>
                         </template>
                         <div class="stats-grid">
-                            <el-statistic title="采集延迟" :value="getMetricValue('data_acquisition_collection_latency_ms')" suffix="ms">
+                            <el-statistic title="采集延迟" :value="getMetricValue('data_acquisition_collection_latency_ms')"
+                                suffix="ms">
                                 <template #prefix>
-                                    <el-icon style="vertical-align: -0.125em;"><Timer /></el-icon>
+                                    <el-icon style="vertical-align: -0.125em;">
+                                        <Timer />
+                                    </el-icon>
                                 </template>
                             </el-statistic>
-                            <el-statistic title="采集频率" :value="getMetricValue('data_acquisition_collection_rate')" suffix="points/s">
+                            <el-statistic title="采集频率" :value="getMetricValue('data_acquisition_collection_rate')"
+                                suffix="points/s">
                                 <template #prefix>
-                                    <el-icon style="vertical-align: -0.125em;"><DataLine /></el-icon>
+                                    <el-icon style="vertical-align: -0.125em;">
+                                        <DataLine />
+                                    </el-icon>
                                 </template>
                             </el-statistic>
-                            <el-statistic title="队列深度" :value="getMetricValue('data_acquisition_queue_depth')" suffix="messages">
+                            <el-statistic title="队列深度" :value="getMetricValue('data_acquisition_queue_depth')"
+                                suffix="messages">
                                 <template #prefix>
-                                    <el-icon style="vertical-align: -0.125em;"><Box /></el-icon>
+                                    <el-icon style="vertical-align: -0.125em;">
+                                        <Box />
+                                    </el-icon>
                                 </template>
                             </el-statistic>
                             <el-statistic title="错误总数" :value="getMetricValue('data_acquisition_errors_total')">
                                 <template #prefix>
-                                    <el-icon style="vertical-align: -0.125em; color: #f56c6c;"><Warning /></el-icon>
+                                    <el-icon style="vertical-align: -0.125em; color: #f56c6c;">
+                                        <Warning />
+                                    </el-icon>
                                 </template>
                             </el-statistic>
                         </div>
                     </el-card>
 
                     <!-- 详细指标卡片 -->
-                    <el-card
-                        v-for="(metric, metricName) in filteredMetrics"
-                        :key="metricName"
-                        class="metric-card"
-                        shadow="hover"
-                    >
+                    <el-card v-for="(metric, metricName) in filteredMetrics" :key="metricName" class="metric-card"
+                        shadow="hover">
                         <template #header>
                             <div class="metric-header">
                                 <span class="metric-title">{{ getMetricTitle(metricName) }}</span>
@@ -264,7 +263,8 @@
                         <div v-if="metric.data && metric.data.length > 0">
                             <!-- 最新值 -->
                             <div class="metric-value">
-                                {{ formatMetricValue(metricName, getLatestValue(metric.data).value ?? getLatestValue(metric.data)) }}
+                                {{ formatMetricValue(metricName, getLatestValue(metric.data).value ??
+                                getLatestValue(metric.data)) }}
                             </div>
 
                             <!-- 描述 -->
@@ -274,12 +274,8 @@
 
                             <!-- 标签 -->
                             <div class="metric-tags" v-if="getLatestValue(metric.data).labels">
-                                <el-tag
-                                    v-for="(value, key) in getLatestValue(metric.data).labels"
-                                    :key="key"
-                                    size="small"
-                                    style="margin-right: 8px; margin-bottom: 8px;"
-                                >
+                                <el-tag v-for="(value, key) in getLatestValue(metric.data).labels" :key="key"
+                                    size="small" style="margin-right: 8px; margin-bottom: 8px;">
                                     <strong>{{ key }}:</strong> {{ value }}
                                 </el-tag>
                             </div>
@@ -291,13 +287,8 @@
                             </div>
 
                             <!-- 数据表格 -->
-                            <el-table
-                                v-if="metric.data.length > 0"
-                                :data="metric.data.slice(-10).reverse()"
-                                size="small"
-                                style="margin-top: 15px;"
-                                max-height="200"
-                            >
+                            <el-table v-if="metric.data.length > 0" :data="metric.data.slice(-10).reverse()"
+                                size="small" style="margin-top: 15px;" max-height="200">
                                 <el-table-column prop="value" label="值" width="120">
                                     <template #default="scope">
                                         {{ formatMetricValue(metricName, scope.row.value) }}
@@ -305,12 +296,8 @@
                                 </el-table-column>
                                 <el-table-column label="标签" min-width="200">
                                     <template #default="scope">
-                                        <el-tag
-                                            v-for="(value, key) in scope.row.labels"
-                                            :key="key"
-                                            size="small"
-                                            style="margin-right: 5px;"
-                                        >
+                                        <el-tag v-for="(value, key) in scope.row.labels" :key="key" size="small"
+                                            style="margin-right: 5px;">
                                             {{ key }}: {{ value }}
                                         </el-tag>
                                     </template>
@@ -374,8 +361,6 @@
                 const error = ref('');
                 const metrics = ref({});
                 const lastUpdate = ref('');
-                const autoRefresh = ref(true); // 默认开启自动刷新
-                let refreshTimer = null;
                 const chartInstances = {};
 
                 // 核心概要指标（不参与下拉选择，始终在概览卡片展示）
@@ -502,7 +487,7 @@
                         chart.setOption({
                             tooltip: {
                                 trigger: 'axis',
-                                formatter: function(params) {
+                                formatter: function (params) {
                                     const point = metric.data[params[0].dataIndex];
                                     let labelText = formatMetricValue(metricName, params[0].value);
                                     if (point.labels) {
@@ -639,10 +624,6 @@
 
                 onMounted(() => {
                     loadMetrics();
-                    // 默认开启自动刷新
-                    if (autoRefresh.value) {
-                        refreshTimer = setInterval(loadMetrics, 1000); // 每1秒刷新
-                    }
                 });
 
                 // 记住选择
@@ -651,9 +632,6 @@
                 }, { deep: true });
 
                 onUnmounted(() => {
-                    if (refreshTimer) {
-                        clearInterval(refreshTimer);
-                    }
                     Object.values(chartInstances).forEach(chart => {
                         if (chart) chart.dispose();
                     });
@@ -664,7 +642,6 @@
                     error,
                     metrics,
                     lastUpdate,
-                    autoRefresh,
                     Refresh,
                     Monitor,
                     Document,
@@ -700,4 +677,5 @@
         app.mount('#app');
     </script>
 </body>
+
 </html>
