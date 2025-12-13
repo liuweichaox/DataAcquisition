@@ -16,9 +16,9 @@ public class PLCClientFactory : IPLCClientFactory
     {
         return config.Type switch
         {
-            PLCType.Mitsubishi => new MitsubishiPlcClientService(config),
-            PLCType.Inovance => new InovancePlcClientService(config),
-            PLCType.BeckhoffAds => new BeckhoffAdsPlcClientService(config),
+            PLCType.Mitsubishi => new MitsubishiPLCClientService(config),
+            PLCType.Inovance => new InovancePLCClientService(config),
+            PLCType.BeckhoffAds => new BeckhoffAdsPLCClientService(config),
             _ => throw new NotImplementedException("不支持的 PLC 类型")
         };
     }

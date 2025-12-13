@@ -58,19 +58,11 @@ public class DeviceConfig
 public enum AcquisitionTrigger
 {
     /// <summary>
-    /// 数值增加时触发
-    /// </summary>
-    ValueIncrease,
-    /// <summary>
-    /// 数值减少时触发
-    /// </summary>
-    ValueDecrease,
-    /// <summary>
-    /// 上升沿触发（寄存器从 0 变为 1 时采集）
+    /// 当生产序号从 0 变为非 0 时触发开始事件
     /// </summary>
     RisingEdge,
     /// <summary>
-    /// 下降沿触发（寄存器从 1 变为 0 时采集）
+    /// 当生产序号从非 0 变为 0 时触发结束事件
     /// </summary>
     FallingEdge
 }
@@ -109,7 +101,7 @@ public class ConditionalAcquisition
 
     /// <summary>
     /// 开始事件配置
-    /// 定义何时触发开始采集，通常使用RisingEdge（从0变1）或ValueIncrease（值增加）
+    /// 定义何时触发开始采集，通常使用RisingEdge（生产序号从0变非0）
     /// 触发时会生成cycle_id并插入新记录
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -117,7 +109,7 @@ public class ConditionalAcquisition
 
     /// <summary>
     /// 结束事件配置
-    /// 定义何时触发结束采集，通常使用FallingEdge（从1变0）或ValueDecrease（值减少）
+    /// 定义何时触发结束采集，通常使用FallingEdge（生产序号从非0变0）
     /// 触发时会使用cycle_id更新对应的开始记录
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]

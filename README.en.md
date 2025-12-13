@@ -86,7 +86,7 @@ DataAcquisition is a high-performance, high-reliability industrial data acquisit
 DataAcquisition/
 ├── DataAcquisition.Application/     # Application Layer - Interface Definitions
 │   ├── Abstractions/               # Core Interface Abstractions
-│   └── PlcRuntime.cs              # PLC Runtime Enums
+│   └── PLCRuntime.cs              # PLC Runtime Enums
 ├── DataAcquisition.Domain/         # Domain Layer - Core Models
 │   ├── Models/                     # Data Models
 │   └── OperationalEvents/          # Operational Events
@@ -412,19 +412,19 @@ curl http://localhost:8000/api/metrics-data/info
 
 ```bash
 # Get PLC connection status
-curl http://localhost:8000/api/DataAcquisition/GetPlcConnectionStatus
+curl http://localhost:8000/api/DataAcquisition/GetPLCConnectionStatus
 ```
 
 ### PLC Write Operation
 
 ```csharp
 // C# Client Example
-var request = new PlcWriteRequest
+var request = new PLCWriteRequest
 {
-    PlcCode = "M01C123",
-    Items = new List<PlcWriteItem>
+    PLCCode = "M01C123",
+    Items = new List<PLCWriteItem>
     {
-        new PlcWriteItem
+        new PLCWriteItem
         {
             Address = "D300",
             DataType = "short",
@@ -442,10 +442,10 @@ var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegis
 
 | Protocol     | Implementation Class          | Description                         |
 | ------------ | ----------------------------- | ----------------------------------- |
-| Mitsubishi   | `MitsubishiPlcClientService`  | Mitsubishi PLC communication client |
-| Inovance     | `InovancePlcClientService`    | Inovance PLC communication client   |
-| Beckhoff ADS | `BeckhoffAdsPlcClientService` | Beckhoff ADS protocol client        |
-| Siemens      | `SiemensPlcClientService`     | Siemens PLC communication client    |
+| Mitsubishi   | `MitsubishiPLCClientService`  | Mitsubishi PLC communication client |
+| Inovance     | `InovancePLCClientService`    | Inovance PLC communication client   |
+| Beckhoff ADS | `BeckhoffAdsPLCClientService` | Beckhoff ADS protocol client        |
+| Siemens      | `SiemensPLCClientService`     | Siemens PLC communication client    |
 
 ### ChannelCollector - Channel Collector
 
@@ -453,7 +453,7 @@ var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegis
 public class ChannelCollector : IChannelCollector
 {
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
-        IPlcClientService client, CancellationToken ct = default)
+        IPLCClientService client, CancellationToken ct = default)
     {
         while (!ct.IsCancellationRequested)
         {
@@ -617,7 +617,7 @@ A: The system uses a WAL-first architecture where all data is first written to P
 
 ### Q: How to add new PLC protocols?
 
-A: Implement the `IPlcClientService` interface and register the new protocol support in `PlcClientFactory`.
+A: Implement the `IPLCClientService` interface and register the new protocol support in `PLCClientFactory`.
 
 ### Q: Do I need to restart after configuration changes?
 

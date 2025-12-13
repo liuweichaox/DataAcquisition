@@ -107,7 +107,7 @@ DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业�
 DataAcquisition/
 ├── DataAcquisition.Application/     # 应用层 - 接口定义
 │   ├── Abstractions/               # 核心接口抽象
-│   └── PlcRuntime.cs              # PLC 运行时枚举
+│   └── PLCRuntime.cs              # PLC 运行时枚举
 ├── DataAcquisition.Domain/         # 领域层 - 核心模型
 │   ├── Models/                     # 数据模型
 │   └── OperationalEvents/          # 操作事件
@@ -433,19 +433,19 @@ curl http://localhost:8000/api/metrics-data/info
 
 ```bash
 # 获取 PLC 连接状态
-curl http://localhost:8000/api/DataAcquisition/GetPlcConnectionStatus
+curl http://localhost:8000/api/DataAcquisition/GetPLCConnectionStatus
 ```
 
 ### PLC 写入操作
 
 ```csharp
 // C# 客户端示例
-var request = new PlcWriteRequest
+var request = new PLCWriteRequest
 {
-    PlcCode = "M01C123",
-    Items = new List<PlcWriteItem>
+    PLCCode = "M01C123",
+    Items = new List<PLCWriteItem>
     {
-        new PlcWriteItem
+        new PLCWriteItem
         {
             Address = "D300",
             DataType = "short",
@@ -463,10 +463,10 @@ var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegis
 
 | 协议         | 实现类                        | 描述                  |
 | ------------ | ----------------------------- | --------------------- |
-| Mitsubishi   | `MitsubishiPlcClientService`  | 三菱 PLC 通讯客户端   |
-| Inovance     | `InovancePlcClientService`    | 汇川 PLC 通讯客户端   |
-| Beckhoff ADS | `BeckhoffAdsPlcClientService` | 倍福 ADS 协议客户端   |
-| Siemens      | `SiemensPlcClientService`     | 西门子 PLC 通讯客户端 |
+| Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通讯客户端   |
+| Inovance     | `InovancePLCClientService`    | 汇川 PLC 通讯客户端   |
+| Beckhoff ADS | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
+| Siemens      | `SiemensPLClientService`     | 西门子 PLC 通讯客户端 |
 
 ### ChannelCollector - 通道采集器
 
@@ -474,7 +474,7 @@ var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegis
 public class ChannelCollector : IChannelCollector
 {
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
-        IPlcClientService client, CancellationToken ct = default)
+        IPLCClientService client, CancellationToken ct = default)
     {
         while (!ct.IsCancellationRequested)
         {
@@ -638,7 +638,7 @@ A: 系统采用 WAL-first 架构，所有数据先写入 Parquet 文件，再写
 
 ### Q: 如何添加新的 PLC 协议？
 
-A: 实现 `IPlcClientService` 接口，并在 `PlcClientFactory` 中注册新的协议支持。
+A: 实现 `IPLCClientService` 接口，并在 `PLCClientFactory` 中注册新的协议支持。
 
 ### Q: 配置修改后需要重启吗？
 

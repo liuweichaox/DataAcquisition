@@ -711,10 +711,8 @@ public class ChannelCollector : IChannelCollector
     /// 判断是否应该触发采集。
     ///
     /// 触发条件说明：
-    /// - <see cref="AcquisitionTrigger.RisingEdge"/>: 上升沿触发。当前值从 0 变为 1 时触发（prev == 0 && curr == 1）
-    /// - <see cref="AcquisitionTrigger.FallingEdge"/>: 下降沿触发。当前值从 1 变为 0 时触发（prev == 1 && curr == 0）
-    /// - <see cref="AcquisitionTrigger.ValueIncrease"/>: 值增加触发。当前值大于前一个值时触发（prev &lt; curr）
-    /// - <see cref="AcquisitionTrigger.ValueDecrease"/>: 值减少触发。当前值小于前一个值时触发（prev &gt; curr）
+    /// - <see cref="AcquisitionTrigger.RisingEdge"/>: 当生产序号从 0 变为非 0 时触发开始事件
+    /// - <see cref="AcquisitionTrigger.FallingEdge"/>: 当生产序号从非 0 变为 0 时触发结束事件
     ///
     /// 特殊处理：
     /// - 如果 mode 为 null，返回 false（不触发）
@@ -725,7 +723,7 @@ public class ChannelCollector : IChannelCollector
     /// - 用于条件采集模式（<see cref="AcquisitionMode.Conditional"/>），判断是否应该触发 Start 或 End 事件
     /// - Start 和 End 可以配置不同的触发条件，实现灵活的条件采集逻辑
     /// </summary>
-    /// <param name="mode">触发模式。可选值：RisingEdge（上升沿）、FallingEdge（下降沿）、ValueIncrease（值增加）、ValueDecrease（值减少）。null 表示不触发。</param>
+    /// <param name="mode">触发模式。可选值：RisingEdge（生产序号从0变非0触发开始）、FallingEdge（生产序号从非0变0触发结束）。null 表示不触发。</param>
     /// <param name="previousValue">前一个读取的值，用于比较状态变化。null 表示首次读取。</param>
     /// <param name="currentValue">当前读取的值，用于比较状态变化。null 表示读取失败或无效值。</param>
     /// <returns>
@@ -735,13 +733,17 @@ public class ChannelCollector : IChannelCollector
     /// </returns>
     /// <example>
     /// <code>
-    /// // 上升沿触发：当值从 0 变为 1 时触发
+    /// // 生产序号从 0 变为非 0 时触发开始事件
     /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 0, 1)  // 返回 true
-    /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 1, 1)  // 返回 false（不是上升沿）
+    /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 0, 5)  // 返回 true
+    /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 2, 3)  // 返回 true
+    /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 5, 1)  // 返回 false
     ///
-    /// // 值增加触发：当前值大于前一个值时触发
-    /// ShouldTrigger(AcquisitionTrigger.ValueIncrease, 10, 20)  // 返回 true
-    /// ShouldTrigger(AcquisitionTrigger.ValueIncrease, 20, 10)  // 返回 false
+    /// // 生产序号从非 0 变为 0 时触发结束事件
+    /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 1, 0)  // 返回 true
+    /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 5, 0)  // 返回 true
+    /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 3, 2)  // 返回 true
+    /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 1, 5)  // 返回 false
     /// </code>
     /// </example>
     private static bool ShouldTrigger(AcquisitionTrigger? mode, object? previousValue, object? currentValue)
@@ -763,10 +765,8 @@ public class ChannelCollector : IChannelCollector
 
         return mode.Value switch
         {
-            AcquisitionTrigger.ValueIncrease => prev < curr,
-            AcquisitionTrigger.ValueDecrease => prev > curr,
-            AcquisitionTrigger.RisingEdge => prev == 0 && curr == 1,
-            AcquisitionTrigger.FallingEdge => prev == 1 && curr == 0,
+            AcquisitionTrigger.RisingEdge => prev < curr,
+            AcquisitionTrigger.FallingEdge => prev > curr,
             _ => false
         };
     }

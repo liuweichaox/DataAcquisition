@@ -12,7 +12,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPLCClientService
+public class BeckhoffAdsPLCClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new BeckhoffAdsNet(config.Host, config.Port)
     {

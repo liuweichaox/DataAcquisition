@@ -13,7 +13,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class MitsubishiPlcClientService(DeviceConfig config) : IPLCClientService
+public class MitsubishiPLCClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new MelsecA1ENet(config.Host, config.Port)
     {

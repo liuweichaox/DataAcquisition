@@ -12,7 +12,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 /// <summary>
 /// 基于 HslCommunication 的 PLC 通讯客户端
 /// </summary>
-public class InovancePlcClientService(DeviceConfig config) : IPLCClientService
+public class InovancePLCClientService(DeviceConfig config) : IPLCClientService
 {
     private readonly DeviceTcpNet _device = new InovanceTcpNet(config.Host, config.Port)
     {

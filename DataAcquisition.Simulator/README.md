@@ -115,56 +115,17 @@ netstat -ano | findstr :502
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
       "BatchReadLength": 14,
-      "BatchSize": 1,
-      "AcquisitionInterval": 100,
+      "BatchSize": 10,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
       "DataPoints": [
-        {
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        },
-        {
-          "FieldName": "pressure",
-          "Register": "D6001",
-          "Index": 2,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        },
-        {
-          "FieldName": "current",
-          "Register": "D6002",
-          "Index": 4,
-          "DataType": "short",
-          "EvalExpression": "value / 10.0"
-        },
-        {
-          "FieldName": "voltage",
-          "Register": "D6003",
-          "Index": 6,
-          "DataType": "short",
-          "EvalExpression": "value / 10.0"
-        },
-        {
-          "FieldName": "lightBarrierPosition",
-          "Register": "D6004",
-          "Index": 8,
-          "DataType": "short"
-        },
-        {
-          "FieldName": "servoSpeed",
-          "Register": "D6005",
-          "Index": 10,
-          "DataType": "short"
-        },
-        {
-          "FieldName": "productionSerial",
-          "Register": "D6006",
-          "Index": 12,
-          "DataType": "short"
-        }
+        { "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
+        { "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
+        { "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
       ]
     },
     {
@@ -174,7 +135,7 @@ netstat -ano | findstr :502
       "BatchReadRegister": null,
       "BatchReadLength": 0,
       "BatchSize": 1,
-      "AcquisitionInterval": 100,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
       "DataPoints": null,
       "ConditionalAcquisition": {
@@ -262,8 +223,6 @@ netstat -ano | findstr :502
 ## 架构说明
 
 - **直接使用 HslCommunication**：使用 `MelsecMcServer`，无需自定义内存管理
-- **代码简洁**：约 160 行核心代码，职责清晰
-- **符合项目理念**：遵循"不过度设计"原则
 - **易于扩展**：可轻松添加更多传感器或修改模拟逻辑
 
 ## 注意事项
