@@ -14,25 +14,18 @@ using Parquet.Schema;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-/// 本地 Parquet 文件存储服务（WAL 降级存储），支持文件滚动。
+/// 本地 Parquet 文件存储服务（WAL 降级存储）
 /// </summary>
 public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
     private readonly string _directory;
-    private readonly long _maxFileSizeBytes;
-    private readonly TimeSpan _maxFileAge;
     private readonly SemaphoreSlim _lock = new(1, 1);
 
     private string _currentFilePath = string.Empty;
-    private DateTime _currentFileCreatedAt = DateTime.Now;
 
     public ParquetFileStorageService(IConfiguration configuration)
     {
         _directory = configuration["Parquet:Directory"] ?? "Data/parquet";
-        _maxFileSizeBytes = TryParseSize(configuration["Parquet:MaxFileSize"], 50 * 1024 * 1024); // 默认 50MB
-        _maxFileAge = TimeSpan.TryParse(configuration["Parquet:MaxFileAge"], out var age)
-            ? age
-            : TimeSpan.FromMinutes(5);
 
         Directory.CreateDirectory(_directory);
     }
@@ -78,9 +71,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             // 确保数据被刷新到磁盘
             await stream.FlushAsync().ConfigureAwait(false);
 
-            // 检查是否需要滚动文件
-            await RollIfNeededAsync(dataMessages).ConfigureAwait(false);
-
             return true;
         }
         catch (Exception ex)
@@ -109,7 +99,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         try
         {
             _currentFilePath = filePath;
-            _currentFileCreatedAt = DateTime.Now;
 
             var schema = GetSchema();
             
@@ -317,28 +306,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         if (string.IsNullOrEmpty(_currentFilePath) || !File.Exists(_currentFilePath))
         {
             _currentFilePath = CreateNewFilePath(dataMessages);
-            _currentFileCreatedAt = DateTime.Now;
             // 不创建空文件，让 SaveBatchAsync 在第一次写入时创建文件
-        }
-    }
-
-    /// <summary>
-    /// 检查是否需要滚动文件（基于文件大小或时间）
-    /// </summary>
-    private async Task RollIfNeededAsync(List<DataMessage> dataMessages)
-    {
-        var info = new FileInfo(_currentFilePath);
-        if (!info.Exists)
-        {
-            return;
-        }
-
-        var age = DateTime.Now - _currentFileCreatedAt;
-        if (info.Length >= _maxFileSizeBytes || age >= _maxFileAge)
-        {
-            // 文件需要滚动，重置当前文件路径
-            _currentFilePath = string.Empty;
-            _currentFileCreatedAt = DateTime.Now;
         }
     }
 
@@ -366,41 +334,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             new DataField<string>("event_type"),
             new DataField<string>("data_json")
         );
-    }
-
-    /// <summary>
-    /// 解析文件大小字符串（支持 KB、MB、GB）
-    /// </summary>
-    private static long TryParseSize(string? value, long defaultValue)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return defaultValue;
-
-        value = value.Trim().ToUpperInvariant();
-        long multiplier = 1;
-
-        if (value.EndsWith("KB"))
-        {
-            multiplier = 1024;
-            value = value[..^2];
-        }
-        else if (value.EndsWith("MB"))
-        {
-            multiplier = 1024 * 1024;
-            value = value[..^2];
-        }
-        else if (value.EndsWith("GB"))
-        {
-            multiplier = 1024L * 1024 * 1024;
-            value = value[..^2];
-        }
-        else if (value.EndsWith("M"))
-        {
-            multiplier = 1024 * 1024;
-            value = value[..^1];
-        }
-
-        return long.TryParse(value, out var number) ? number * multiplier : defaultValue;
     }
 
     public void Dispose()

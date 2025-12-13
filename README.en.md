@@ -3,6 +3,9 @@
 [![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
 
 中文: [README.md](README.md)
 
@@ -26,56 +29,39 @@ DataAcquisition is a high-performance, high-reliability industrial data acquisit
 ### Overall Architecture Diagram
 
 ```
-┌────────────────────────────┐        ┌────────────────────────────────┐
-│          PLC 设备           │──────▶│        心跳监控层                │
-│       PLC Device           │        │   Heartbeat Monitor            │
-└────────────────────────────┘        └────────────────────────────────┘
+┌────────────────────────────┐        ┌──────────────────────────┐
+│        PLC Device          │──────▶ │  Heartbeat Monitor Layer │
+└────────────────────────────┘        └──────────────────────────┘
                  │
                  ▼
 ┌────────────────────────────┐
-│        数据采集层           │
-│   Data Collection Layer     │
-│       (ChannelCollector)    │
+│   Data Acquisition Layer   │
 └────────────────────────────┘
                  │
                  ▼
 ┌────────────────────────────┐
-│        数据处理层           │
-│     Data Processing Layer   │
-│       (DataProcessing)      │
+│    Queue Service Layer     │
 └────────────────────────────┘
                  │
                  ▼
 ┌────────────────────────────┐
-│        队列服务层           │
-│      Queue Service Layer    │
-│         (LocalQueue)        │
+│          Storage Layer     │
 └────────────────────────────┘
                  │
                  ▼
-┌────────────────────────────┐
-│       存储层（双模式）       │
-│     Storage Layer (Dual)    │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐        ┌────────────────────────────────┐
-│        WAL 持久化           │──────▶│        时序数据库存储           │
-│   WAL Persistence (Parquet) │        │  Time-Series DB Storage        │
-│         (Parquet)           │        │          (InfluxDB)            │
-└────────────────────────────┘        └────────────────────────────────┘
+┌────────────────────────────┐        ┌──────────────────────────────┐
+│      WAL Persistence       │──────▶ │ Time-Series Database Storage │
+└────────────────────────────┘        └──────────────────────────────┘
                  │                                 │
-                 ▼                                 │ 写入失败 / Write Failed
+                 ▼                                 │  Write Failed
 ┌────────────────────────────┐                     │
-│         重试工作器          │◀────────────────────┘
-│      Retry Worker          │
-│      (RetryWorker)         │
+│      Retry Worker          │◀────────────────────┘
 └────────────────────────────┘
 ```
 
 ### Core Data Flow
 
-1. **Acquisition Phase**: PLC → ChannelCollector → DataProcessingService
+1. **Acquisition Phase**: PLC → ChannelCollector
 2. **Aggregation Phase**: LocalQueueService (aggregates by BatchSize)
 3. **Persistence Phase**: Parquet WAL (immediate write) → InfluxDB (immediate write)
 4. **Fault Tolerance Phase**: Delete WAL files on success, retry via RetryWorker on failure
@@ -257,6 +243,64 @@ For detailed information, please refer to: [DataAcquisition.Simulator/README.md]
 }
 ```
 
+### Detailed Device Configuration Properties
+
+#### Root Level Properties
+
+| Property Name | Type | Required | Description |
+|--------------|------|----------|-------------|
+| `IsEnabled` | `boolean` | Yes | Whether the device is enabled |
+| `PLCCode` | `string` | Yes | Unique identifier for the PLC device |
+| `Host` | `string` | Yes | IP address of the PLC device |
+| `Port` | `integer` | Yes | Communication port of the PLC device |
+| `Type` | `string` | Yes | PLC device type (e.g., Mitsubishi, Siemens, etc.) |
+| `HeartbeatMonitorRegister` | `string` | No | Register address for PLC heartbeat monitoring |
+| `HeartbeatPollingInterval` | `integer` | No | Polling interval for heartbeat monitoring (milliseconds) |
+| `Channels` | `array` | Yes | List of data acquisition channel configurations |
+
+#### Channels Array Properties
+
+| Property Name | Type | Required | Description |
+|--------------|------|----------|-------------|
+| `Measurement` | `string` | Yes | Measurement name in time-series database (table name) |
+| `ChannelCode` | `string` | Yes | Unique identifier for the acquisition channel |
+| `BatchSize` | `integer` | No | Number of data points to write to database in batch |
+| `AcquisitionInterval` | `integer` | Yes | Data acquisition interval (milliseconds) |
+| `AcquisitionMode` | `string` | Yes | Acquisition mode (Always: continuous acquisition, Conditional: conditional trigger acquisition) |
+| `EnableBatchRead` | `boolean` | No | Whether to enable batch read functionality |
+| `BatchReadRegister` | `string` | No | Start register address for batch read |
+| `BatchReadLength` | `integer` | No | Number of registers to read in batch |
+| `DataPoints` | `array` | Yes | List of data point configurations |
+| `ConditionalAcquisition` | `object` | No | Conditional acquisition configuration (required only when AcquisitionMode is Conditional) |
+
+#### DataPoints Array Properties
+
+| Property Name | Type | Required | Description |
+|--------------|------|----------|-------------|
+| `FieldName` | `string` | Yes | Field name in time-series database |
+| `Register` | `string` | Yes | PLC register address for the data point |
+| `Index` | `integer` | No | Index position in batch read results |
+| `DataType` | `string` | Yes | Data type (e.g., short, int, float, etc.) |
+| `EvalExpression` | `string` | No | Data conversion expression (use 'value' variable to represent original value) |
+
+#### ConditionalAcquisition Object Properties
+
+| Property Name | Type | Required | Description |
+|--------------|------|----------|-------------|
+| `Register` | `string` | Yes | Register address for conditional trigger monitoring |
+| `DataType` | `string` | Yes | Data type of the conditional trigger register |
+| `StartTriggerMode` | `string` | Yes | Start acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
+| `EndTriggerMode` | `string` | Yes | End acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
+
+### AcquisitionTrigger Mode Description
+
+| Trigger Mode | Description |
+|-------------|-------------|
+| `RisingEdge` | Trigger when value increases (prev < curr) |
+| `FallingEdge` | Trigger when value decreases (prev > curr) |
+
+> Note: The RisingEdge and FallingEdge here are different from traditional edge triggering (0→1 or 1→0). They are triggered based on value increases/decreases, not strict 0/1 transitions.
+
 ### Application Configuration (appsettings.json)
 
 ```json
@@ -268,9 +312,7 @@ For detailed information, please refer to: [DataAcquisition.Simulator/README.md]
     "Bucket": "your-bucket"
   },
   "Parquet": {
-    "Directory": "./Data/parquet",
-    "MaxFileSize": 104857600,
-    "MaxFileAge": 86400
+    "Directory": "./Data/parquet"
   },
   "Logging": {
     "LogLevel": {
@@ -428,7 +470,7 @@ var request = new PLCWriteRequest
         {
             Address = "D300",
             DataType = "short",
-            Value = 100
+    Value = 100
         }
     }
 };
@@ -581,8 +623,7 @@ The system includes the following core monitoring metrics:
 ### Normal Flow
 
 1. **Data Acquisition**: ChannelCollector reads data from PLC
-2. **Data Processing**: DataProcessingService performs data transformation and validation
-3. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
+2. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
 4. **WAL Write**: Immediate write to Parquet files as write-ahead log
 5. **Primary Storage Write**: Immediate write to InfluxDB
 6. **WAL Cleanup**: Delete corresponding Parquet files on successful write
@@ -606,7 +647,6 @@ The system includes the following core monitoring metrics:
 ### Storage Optimization
 
 - **Parquet Compression**: Use Snappy compression to reduce disk usage
-- **File Rotation**: Configure MaxFileSize and MaxFileAge to prevent oversized files
 - **Retry Interval**: RetryWorker defaults to 5 seconds, adjustable based on network conditions
 
 ## ❓ Frequently Asked Questions (FAQ)
