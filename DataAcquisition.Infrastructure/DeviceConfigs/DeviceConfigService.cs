@@ -22,6 +22,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private Dictionary<string, DeviceConfig> _cachedConfigs = new();
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IConfiguration _configuration;
+    private int _configChangeDetectionDelayMs = 500;
 
     /// <summary>
     /// 配置变更事件
@@ -37,6 +38,8 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             PropertyNameCaseInsensitive = true,
             ReadCommentHandling = JsonCommentHandling.Skip
         };
+        // 初始化配置变更检测延迟时间
+        _configChangeDetectionDelayMs = int.TryParse(_configuration["Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs"], out var delay) ? delay : 500;
         InitializeFileWatcher();
     }
 
@@ -68,8 +71,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private async void OnConfigFileChanged(object sender, FileSystemEventArgs e)
     {
         // 延迟处理，避免文件正在写入时读取
-        var delayMs = int.TryParse(_configuration["Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs"], out var delay) ? delay : 500;
-        await Task.Delay(delayMs).ConfigureAwait(false);
+        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
         await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
     }
 
@@ -109,8 +111,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             });
         }
 
-        var delayMs = int.TryParse(_configuration["Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs"], out var delay) ? delay : 500;
-        await Task.Delay(delayMs).ConfigureAwait(false);
+        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
         await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
     }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -19,7 +20,10 @@ namespace DataAcquisition.Infrastructure.DataStorages;
 public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
     private readonly string _directory;
-    private readonly SemaphoreSlim _lock = new(1, 1);
+    // 使用字典存储每个文件的锁，减少锁粒度
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _fileLocks = new();
+    // 用于创建新文件时的全局锁
+    private readonly SemaphoreSlim _globalLock = new(1, 1);
 
     private string _currentFilePath = string.Empty;
 
@@ -37,11 +41,14 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         if (dataMessages == null || dataMessages.Count == 0)
             return true;
 
-        await _lock.WaitAsync().ConfigureAwait(false);
+        // 确保当前文件存在
+        await EnsureCurrentFileAsync(dataMessages).ConfigureAwait(false);
+
+        // 获取当前文件的锁
+        var fileLock = _fileLocks.GetOrAdd(_currentFilePath, _ => new SemaphoreSlim(1, 1));
+        await fileLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await EnsureCurrentFileAsync(dataMessages).ConfigureAwait(false);
-
             var schema = GetSchema();
             var fileExists = File.Exists(_currentFilePath) && new FileInfo(_currentFilePath).Length > 0;
 
@@ -80,7 +87,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
         finally
         {
-            _lock.Release();
+            fileLock.Release();
         }
     }
 
@@ -94,12 +101,19 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             throw new ArgumentException("数据消息列表不能为空", nameof(dataMessages));
         }
 
+        // 获取全局锁以确保文件路径的唯一性
+        await _globalLock.WaitAsync().ConfigureAwait(false);
         var filePath = CreateNewFilePath(dataMessages);
-        await _lock.WaitAsync().ConfigureAwait(false);
+        _globalLock.Release();
+
+        // 更新当前文件路径
+        _currentFilePath = filePath;
+
+        // 获取当前文件的锁
+        var fileLock = _fileLocks.GetOrAdd(filePath, _ => new SemaphoreSlim(1, 1));
+        await fileLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            _currentFilePath = filePath;
-
             var schema = GetSchema();
             
             // 写入文件
@@ -145,7 +159,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
         finally
         {
-            _lock.Release();
+            fileLock.Release();
         }
     }
 
@@ -338,6 +352,10 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     public void Dispose()
     {
-        _lock?.Dispose();
+        _globalLock?.Dispose();
+        foreach (var semaphore in _fileLocks.Values)
+        {
+            semaphore?.Dispose();
+        }
     }
 }

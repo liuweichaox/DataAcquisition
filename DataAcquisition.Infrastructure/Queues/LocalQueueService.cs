@@ -24,10 +24,8 @@ public class LocalQueueService : IQueueService
     private readonly IMetricsCollector? _metricsCollector;
     private readonly IDeviceConfigService _deviceConfigService;
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
-    private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
-    private readonly ConcurrentDictionary<string, int> _batchSizeCache = new(); // 缓存 BatchSize 配置
+    private readonly ConcurrentDictionary<string, ConcurrentQueue<DataMessage>> _dataBatchMap = new();
     private readonly ConcurrentQueue<FailedBatch> _failedBatches = new();
-    private readonly object _batchLock = new object();
     private readonly System.Diagnostics.Stopwatch _processingStopwatch = new();
     private Timer? _flushTimer;
     private Timer? _retryTimer;
@@ -72,14 +70,25 @@ public class LocalQueueService : IQueueService
     {
         List<KeyValuePair<string, List<DataMessage>>> batchesToFlush = new();
 
-        lock (_batchLock)
+        // 不需要全局锁，直接遍历_dataBatchMap的键
+        var batchKeys = _dataBatchMap.Keys.ToList();
+        
+        foreach (var batchKey in batchKeys)
         {
-            foreach (var kvp in _dataBatchMap)
+            if (_dataBatchMap.TryGetValue(batchKey, out var batch))
             {
-                if (kvp.Value.Count > 0)
+                List<DataMessage> messagesToFlush = new();
+                
+                // ConcurrentQueue本身是线程安全的，不需要显式锁
+                // 取出队列中的所有消息
+                while (batch.TryDequeue(out var message))
                 {
-                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, new List<DataMessage>(kvp.Value)));
-                    kvp.Value.Clear();
+                    messagesToFlush.Add(message);
+                }
+                
+                if (messagesToFlush.Count > 0)
+                {
+                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(batchKey, messagesToFlush));
                 }
             }
         }
@@ -262,32 +271,54 @@ public class LocalQueueService : IQueueService
 
         // _dataBatchMap 中积累的消息总数
         int batchDepth = 0;
-        lock (_batchLock)
+        
+        // 不需要全局锁，直接遍历_dataBatchMap的键
+        foreach (var batchKey in _dataBatchMap.Keys)
         {
-            batchDepth = _dataBatchMap.Values.Sum(list => list.Count);
+            if (_dataBatchMap.TryGetValue(batchKey, out var batch))
+            {
+                // ConcurrentQueue的Count属性是线程安全的，不需要显式锁
+                batchDepth += batch.Count;
             }
+        }
 
         return channelDepth + batchDepth;
     }
 
     /// <summary>
-    /// 根据 plccode:channelcode:measurement 从配置中获取 BatchSize
-    /// 使用缓存机制避免频繁访问配置服务
+    /// 缓存项类，包含值和过期时间
     /// </summary>
-    private int GetBatchSize(string? plcCode, string? channelCode, string measurement)
+    private class CacheItem
+    {
+        public int Value { get; set; }
+        public DateTime ExpiryTime { get; set; }
+    }
+
+    /// <summary>
+    /// 带过期时间的 BatchSize 缓存
+    /// </summary>
+    private readonly ConcurrentDictionary<string, CacheItem> _batchSizeCache = new();
+
+    /// <summary>
+    /// 根据 plccode:channelcode:measurement 从配置中获取 BatchSize
+    /// 使用带过期时间的缓存机制避免频繁访问配置服务
+    /// </summary>
+    private async Task<int> GetBatchSizeAsync(string? plcCode, string? channelCode, string measurement)
     {
         var cacheKey = $"{plcCode ?? "unknown"}:{channelCode ?? "unknown"}:{measurement}";
+        var now = DateTime.Now;
+        var cacheExpiry = TimeSpan.FromMinutes(5); // 缓存5分钟过期
 
         // 先从缓存获取
-        if (_batchSizeCache.TryGetValue(cacheKey, out var cachedSize))
+        if (_batchSizeCache.TryGetValue(cacheKey, out var cachedItem) && cachedItem.ExpiryTime > now)
         {
-            return cachedSize;
+            return cachedItem.Value;
         }
 
-        // 缓存未命中，从配置加载
+        // 缓存未命中或已过期，从配置加载
         try
         {
-            var configs = _deviceConfigService.GetConfigs().GetAwaiter().GetResult();
+            var configs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
             var config = configs.FirstOrDefault(c => c.PLCCode == plcCode);
             if (config != null)
             {
@@ -296,7 +327,7 @@ public class LocalQueueService : IQueueService
                 if (channel != null)
                 {
                     var batchSize = channel.BatchSize > 0 ? channel.BatchSize : 1;
-                    _batchSizeCache.TryAdd(cacheKey, batchSize);
+                    _batchSizeCache[cacheKey] = new CacheItem { Value = batchSize, ExpiryTime = now.Add(cacheExpiry) };
                     return batchSize;
                 }
             }
@@ -308,8 +339,9 @@ public class LocalQueueService : IQueueService
         }
 
         // 使用默认值并缓存
-        _batchSizeCache.TryAdd(cacheKey, 1);
-        return 1;
+        var defaultValue = 1;
+        _batchSizeCache[cacheKey] = new CacheItem { Value = defaultValue, ExpiryTime = now.Add(cacheExpiry) };
+        return defaultValue;
     }
 
     /// <summary>
@@ -348,30 +380,42 @@ public class LocalQueueService : IQueueService
     /// </remarks>
     private async Task StoreDataPointAsync(DataMessage dataMessage)
     {
-        // 使用锁保护批量操作，确保线程安全
         // 使用 plccode + channelcode + measurement 作为 key，确保不同 PLC/Channel 的数据独立批量处理
         var batchKey = $"{dataMessage.PLCCode ?? "unknown"}:{dataMessage.ChannelCode ?? "unknown"}:{dataMessage.Measurement}";
 
         // 从配置中获取 BatchSize
-        var batchSize = GetBatchSize(dataMessage.PLCCode, dataMessage.ChannelCode, dataMessage.Measurement);
+        var batchSize = await GetBatchSizeAsync(dataMessage.PLCCode, dataMessage.ChannelCode, dataMessage.Measurement).ConfigureAwait(false);
 
         List<DataMessage>? batchToSave = null;
-        lock (_batchLock)
-        {
-            var batch = _dataBatchMap.GetOrAdd(batchKey, _ => new List<DataMessage>());
-            batch.Add(dataMessage);
+        
+        // 使用ConcurrentDictionary的原子操作获取或创建批次队列
+        var batch = _dataBatchMap.GetOrAdd(batchKey, _ => new ConcurrentQueue<DataMessage>());
+        
+        // ConcurrentQueue本身是线程安全的，不需要显式锁
+        batch.Enqueue(dataMessage);
 
-            // 对于 BatchSize <= 1，立即触发写入；对于 BatchSize > 1，达到批量大小时触发
-            if (batchSize <= 1 || batch.Count >= batchSize)
+        // 对于 BatchSize <= 1，立即触发写入；对于 BatchSize > 1，达到批量大小时触发
+        if (batchSize <= 1 || batch.Count >= batchSize)
+        {
+            var takeCount = batchSize <= 1 ? 1 : batchSize;
+            batchToSave = new List<DataMessage>(takeCount);
+            
+            // 从队列中取出指定数量的消息
+            for (int i = 0; i < takeCount; i++)
             {
-                var takeCount = batchSize <= 1 ? 1 : batchSize;
-                batchToSave = batch.Take(takeCount).ToList();
-                batch.RemoveRange(0, batchToSave.Count);
+                if (batch.TryDequeue(out var message))
+                {
+                    batchToSave.Add(message);
+                }
+                else
+                {
+                    break; // 队列空了，跳出循环
+                }
             }
         }
 
         // 在锁外异步执行 WAL + Influx，不阻塞队列处理
-        if (batchToSave != null)
+        if (batchToSave != null && batchToSave.Count > 0)
         {
             // 使用 Task.Run 异步执行，不阻塞 SubscribeAsync 循环
             // 这样可以立即处理下一个消息，提高采集频率
@@ -404,17 +448,32 @@ public class LocalQueueService : IQueueService
 
         // 刷新所有未完成的批次，避免数据丢失
         List<KeyValuePair<string, List<DataMessage>>> batchesToFlush = new();
-        lock (_batchLock)
+        
+        // 不需要全局锁，直接遍历_dataBatchMap的键
+        var batchKeys = _dataBatchMap.Keys.ToList();
+        
+        foreach (var batchKey in batchKeys)
         {
-            foreach (var kvp in _dataBatchMap)
+            if (_dataBatchMap.TryGetValue(batchKey, out var batch))
             {
-                if (kvp.Value.Count > 0)
+                List<DataMessage> messagesToFlush = new();
+                
+                // ConcurrentQueue本身是线程安全的，不需要显式锁
+                // 取出队列中的所有消息
+                while (batch.TryDequeue(out var message))
                 {
-                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, new List<DataMessage>(kvp.Value)));
+                    messagesToFlush.Add(message);
+                }
+                
+                if (messagesToFlush.Count > 0)
+                {
+                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(batchKey, messagesToFlush));
                 }
             }
-            _dataBatchMap.Clear();
         }
+        
+        // 清除_dataBatchMap
+        _dataBatchMap.Clear();
 
         // 同步刷新所有批次
         foreach (var batch in batchesToFlush)

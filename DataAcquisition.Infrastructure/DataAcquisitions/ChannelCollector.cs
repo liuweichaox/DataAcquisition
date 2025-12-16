@@ -35,6 +35,26 @@ public class ChannelCollector : IChannelCollector
     private readonly object _rateLock = new object();
     private readonly int _connectionCheckRetryDelayMs;
     private readonly int _triggerWaitDelayMs;
+    private readonly ConcurrentDictionary<string, CachedExpression> _expressionCache = new();
+    private readonly TimeSpan _cacheExpiryTime = TimeSpan.FromHours(24); // 默认缓存过期时间为24小时
+    private readonly object _cacheCleanupLock = new object();
+    private DateTime _lastCacheCleanup = DateTime.Now;
+    private const int _cacheCleanupIntervalMinutes = 60; // 每小时清理一次过期缓存
+    
+    /// <summary>
+    /// 带过期时间的表达式缓存项
+    /// </summary>
+    private class CachedExpression
+    {
+        public AsyncExpression Expression { get; set; }
+        public DateTime LastUsedTime { get; set; }
+        
+        public CachedExpression(AsyncExpression expression)
+        {
+            Expression = expression;
+            LastUsedTime = DateTime.Now;
+        }
+    }
 
     /// <summary>
     /// 初始化通道采集器。
@@ -106,7 +126,6 @@ public class ChannelCollector : IChannelCollector
     /// <exception cref="OperationCanceledException">当 ct 被取消时，会中断采集循环</exception>
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPLCClientService client, CancellationToken ct = default)
     {
-        await Task.Yield();
         object? prevValue = null;
         while (!ct.IsCancellationRequested)
         {
@@ -312,10 +331,12 @@ public class ChannelCollector : IChannelCollector
     /// </remarks>
     private async Task EvaluateAsync(DataMessage dataMessage, List<DataPoint>? dataPoints)
     {
-        await Task.Yield();
         try
         {
             if (dataPoints == null) return;
+
+            // 定期清理过期缓存
+            CleanupExpiredCache();
 
             foreach (var kv in dataMessage.DataValues.ToList())
             {
@@ -331,21 +352,83 @@ public class ChannelCollector : IChannelCollector
                 // originalValue 已经在上面的 null 检查中验证，使用 ! 断言非空
                 var valueToEval = originalValue;
 
-                var expression = new AsyncExpression(evalExpression)
+                // 从缓存获取或创建表达式，并更新最后使用时间
+                CachedExpression cachedExpr;
+                if (!_expressionCache.TryGetValue(evalExpression, out cachedExpr) || 
+                    DateTime.Now - cachedExpr.LastUsedTime > _cacheExpiryTime)
                 {
-                    Parameters =
-                    {
-                        ["value"] = valueToEval
-                    }
-                };
-
-                var evaluatedValue = await expression.EvaluateAsync().ConfigureAwait(false);
+                    // 缓存不存在或已过期，创建新的表达式
+                    var newExpr = new AsyncExpression(evalExpression) { Parameters = { ["value"] = null } };
+                    cachedExpr = new CachedExpression(newExpr);
+                    _expressionCache[evalExpression] = cachedExpr;
+                }
+                else
+                {
+                    // 更新缓存项的最后使用时间
+                    cachedExpr.LastUsedTime = DateTime.Now;
+                }
+                
+                // 更新参数
+                cachedExpr.Expression.Parameters["value"] = valueToEval;
+                
+                var evaluatedValue = await cachedExpr.Expression.EvaluateAsync().ConfigureAwait(false);
                 dataMessage.AddDataValue(kv.Key, evaluatedValue ?? 0);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling data point: {Message}", ex.Message);
+        }
+    }
+    
+    /// <summary>
+    /// 清理过期的表达式缓存
+    /// </summary>
+    private void CleanupExpiredCache()
+    {
+        // 检查是否需要清理缓存（每小时清理一次）
+        if (DateTime.Now - _lastCacheCleanup < TimeSpan.FromMinutes(_cacheCleanupIntervalMinutes))
+            return;
+        
+        // 加锁确保同一时间只有一个线程执行清理
+        if (!Monitor.TryEnter(_cacheCleanupLock))
+            return;
+        
+        try
+        {
+            // 再次检查时间，防止并发调用时重复清理
+            if (DateTime.Now - _lastCacheCleanup < TimeSpan.FromMinutes(_cacheCleanupIntervalMinutes))
+                return;
+            
+            var now = DateTime.Now;
+            var expiredKeys = new List<string>();
+            
+            // 找出所有过期的缓存项
+            foreach (var kvp in _expressionCache)
+            {
+                if (now - kvp.Value.LastUsedTime > _cacheExpiryTime)
+                {
+                    expiredKeys.Add(kvp.Key);
+                }
+            }
+            
+            // 移除过期的缓存项
+            foreach (var key in expiredKeys)
+            {
+                _expressionCache.TryRemove(key, out _);
+            }
+            
+            // 更新最后清理时间
+            _lastCacheCleanup = now;
+            
+            if (expiredKeys.Count > 0 && _logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDebug("清理了 {Count} 个过期的表达式缓存项", expiredKeys.Count);
+            }
+        }
+        finally
+        {
+            Monitor.Exit(_cacheCleanupLock);
         }
     }
 
@@ -616,39 +699,33 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 异步处理数据消息（表达式计算和发布），不阻塞采集循环。
     /// </summary>
-    private Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
     {
-        return Task.Run(async () =>
+        try
         {
-            try
-            {
-                await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
-                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-                _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
-            }
-        }, ct);
+            await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+            await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+        }
     }
 
     /// <summary>
     /// 异步发布结束事件消息。
     /// </summary>
-    private Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
     {
-        return Task.Run(async () =>
+        try
         {
-            try
-            {
-                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
-            }
-        }, ct);
+            await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+        }
     }
 
     /// <summary>
@@ -760,14 +837,34 @@ public class ChannelCollector : IChannelCollector
             return true;
         }
 
-        var prev = Convert.ToDecimal(previousValue);
-        var curr = Convert.ToDecimal(currentValue);
-
-        return mode.Value switch
+        // 直接检查是否为decimal类型，避免不必要的类型转换
+        if (previousValue is decimal prev && currentValue is decimal curr)
         {
-            AcquisitionTrigger.RisingEdge => prev < curr,
-            AcquisitionTrigger.FallingEdge => prev > curr,
-            _ => false
-        };
+            return mode.Value switch
+            {
+                AcquisitionTrigger.RisingEdge => prev < curr,
+                AcquisitionTrigger.FallingEdge => prev > curr,
+                _ => false
+            };
+        }
+        
+        // 如果不是decimal类型，尝试转换（保持与原逻辑一致）
+        try
+        {
+            var prevDecimal = Convert.ToDecimal(previousValue);
+            var currDecimal = Convert.ToDecimal(currentValue);
+
+            return mode.Value switch
+            {
+                AcquisitionTrigger.RisingEdge => prevDecimal < currDecimal,
+                AcquisitionTrigger.FallingEdge => prevDecimal > currDecimal,
+                _ => false
+            };
+        }
+        catch (FormatException)
+        {
+            // 如果转换失败，默认触发
+            return true;
+        }
     }
 }
