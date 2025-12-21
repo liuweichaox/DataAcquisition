@@ -1,5 +1,3 @@
-using System;
-
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
@@ -10,25 +8,20 @@ public class AcquisitionCycle
     /// <summary>
     ///     采集周期唯一标识符（GUID）
     /// </summary>
-    public string CycleId { get; set; }
-
-    /// <summary>
-    ///     开始时间
-    /// </summary>
-    public DateTime StartTime { get; set; }
+    public required string CycleId { get; init; }
 
     /// <summary>
     ///     测量值名称（Measurement），时序数据库中的表名/测量值标识
     /// </summary>
-    public string Measurement { get; set; }
+    public required string Measurement { get; set; }
 
     /// <summary>
     ///     PLC 编码
     /// </summary>
-    public string PLCCode { get; set; }
+    public required string PLCCode { get; set; }
 
     /// <summary>
     ///     通道编码
     /// </summary>
-    public string ChannelCode { get; set; }
+    public required string ChannelCode { get; set; }
 }

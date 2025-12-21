@@ -54,7 +54,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     public void Dispose()
     {
-        _lock?.Dispose();
+        _lock.Dispose();
         _writingFiles.Clear();
     }
 
@@ -150,10 +150,10 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         // 准备列数据
         var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
         var measurements = dataMessages.Select(x => x.Measurement).ToArray();
-        var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
-        var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
-        var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
-        var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
+        var plcCodes = dataMessages.Select(x => x.PLCCode).ToArray();
+        var channelCodes = dataMessages.Select(x => x.ChannelCode).ToArray();
+        var cycleIds = dataMessages.Select(x => x.CycleId).ToArray();
+        var eventTypes = dataMessages.Select(x => x.EventType).ToArray();
         var dataJsons = dataMessages.Select(x =>
             JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
 
@@ -210,7 +210,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             var fileInfo = new FileInfo(filePath);
             if (!fileInfo.Exists || fileInfo.Length < 100) return messages;
 
-            using var stream = File.OpenRead(filePath);
+            await using var stream = File.OpenRead(filePath);
             using var reader = await ParquetReader.CreateAsync(stream).ConfigureAwait(false);
             var schema = reader.Schema;
 

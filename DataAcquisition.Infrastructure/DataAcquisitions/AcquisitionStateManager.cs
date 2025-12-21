@@ -50,7 +50,6 @@ public class AcquisitionStateManager : IAcquisitionStateManager
         var cycle = new AcquisitionCycle
         {
             CycleId = Guid.NewGuid().ToString(),
-            StartTime = DateTime.Now,
             Measurement = measurement,
             PLCCode = plcCode,
             ChannelCode = channelCode

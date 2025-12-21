@@ -106,7 +106,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         if (!string.IsNullOrEmpty(dataMessage.ChannelCode)) point = point.Tag("channel_code", dataMessage.ChannelCode);
 
         // 添加event_type标签
-        var eventType = dataMessage.EventType ?? EventType.Data;
+        var eventType = dataMessage.EventType;
         point = point.Tag("event_type", eventType.ToString());
 
         // 添加所有数据值作为字段（fields）
