@@ -61,16 +61,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
         return await SaveBatchInternalAsync(dataMessages, validateFileSize: true).ConfigureAwait(false);
     }
-
-    /// <summary>
-    /// 将一批消息写入一个新的 Parquet 文件（用于 WAL），返回文件路径。
-    /// </summary>
-    [Obsolete("使用 SaveBatchAsync(dataMessages, returnFilePath: true) 替代")]
-    public Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
-    {
-        return SaveBatchAsync(dataMessages, returnFilePath: true);
-    }
-
+    
     /// <summary>
     /// 内部方法：将一批消息写入一个新的 Parquet 文件，返回文件路径。
     /// </summary>
