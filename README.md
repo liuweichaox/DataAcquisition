@@ -554,58 +554,76 @@ public class ChannelCollector : IChannelCollector
 ```csharp
 public class InfluxDbDataStorageService : IDataStorageService
 {
-    public async Task SaveAsync(DataMessage dataMessage)
-    {
-        _writeStopwatch.Restart();
-        try
-        {
-            // 将数据消息转换为 InfluxDB 数据点
-            var point = ConvertToPoint(dataMessage);
-
-            // 使用 WriteApi 写入 InfluxDB
-            using var writeApi = _client.GetWriteApi();
-            writeApi.WritePoint(_bucket, _org, point);
-
-            // 记录监控指标
-            _writeStopwatch.Stop();
-            _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            // 记录错误指标并记录异常
-            _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown",
-                dataMessage.Measurement, dataMessage.ChannelCode);
-            _logger.LogError(ex, "[ERROR] InfluxDB 写入失败: {Message}", ex.Message);
-        }
-    }
-
-    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
-            return;
+            return true;
 
         _writeStopwatch.Restart();
+        var writeSuccess = false;
+        Exception? writeException = null;
+        var resetEvent = new System.Threading.ManualResetEventSlim(false);
+
         try
         {
             // 批量转换消息为数据点
             var points = dataMessages.Select(ConvertToPoint).ToList();
-
-            // 批量写入 InfluxDB
             using var writeApi = _client.GetWriteApi();
-            writeApi.WritePoints(_bucket, _org, points);
 
-            // 记录批量效率指标
+            // 设置错误处理回调，捕获写入失败
+            writeApi.EventHandler += (sender, args) =>
+            {
+                writeException = new Exception($"InfluxDB 写入失败: {args.GetType().Name} - {args}");
+                writeSuccess = false;
+                resetEvent.Set();
+                _logger.LogError(writeException, "[ERROR] InfluxDB 写入错误事件触发: {EventType} - {Message}",
+                    args.GetType().Name, writeException.Message);
+            };
+
+            writeApi.WritePoints(_bucket, _org, points);
+            writeApi.Flush();
+
+            // 等待足够长的时间来检测错误（InfluxDB 异步写入，错误可能延迟）
+            _logger.LogDebug("等待 InfluxDB 批量写入响应，最多等待 5 秒...");
+            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
+
+            if (errorOccurred)
+            {
+                _logger.LogWarning("InfluxDB 批量写入错误事件已触发");
+            }
+            else
+            {
+                writeSuccess = true;
+                _logger.LogDebug("InfluxDB 批量写入在 5 秒内未检测到错误，假设写入成功");
+            }
+
             _writeStopwatch.Stop();
+
+            if (!writeSuccess)
+            {
+                throw writeException ?? new Exception("InfluxDB 写入失败");
+            }
+
+            // 记录批量效率指标和写入延迟
             var batchSize = dataMessages.Count;
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
+            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
+            return true;
         }
         catch (Exception ex)
         {
             // 处理批量写入错误
             var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordError(plcCode, measurement, null);
-            _logger.LogError(ex, "[ERROR] InfluxDB 批量写入失败: {Message}", ex.Message);
+            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
+            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
+            _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
+            return false;
+        }
+        finally
+        {
+            resetEvent.Dispose();
         }
     }
 }

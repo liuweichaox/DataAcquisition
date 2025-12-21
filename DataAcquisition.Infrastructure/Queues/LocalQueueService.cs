@@ -138,7 +138,7 @@ public class LocalQueueService : IQueueService
     ///
     /// 执行流程：
     /// 1. 首先写入 WAL（Parquet 文件）：
-    ///    - 调用 SaveBatchAsNewFileAsync 将消息批量写入新的 Parquet 文件
+    ///    - 调用 SaveBatchAsync 将消息批量写入新的 Parquet 文件
     ///    - WAL 文件作为数据的安全保障，即使后续步骤失败，数据也不会丢失
     ///    - 返回 WAL 文件路径，用于后续删除或重试
     ///
@@ -189,7 +189,7 @@ public class LocalQueueService : IQueueService
         try
         {
             // 写入独立 WAL 文件
-            var walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
+            var walPath = await _parquetStorage.SaveBatchAsync(messages, returnFilePath: true).ConfigureAwait(false);
 
             // 尝试写入 InfluxDB
             var influxSuccess = await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);

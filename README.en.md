@@ -536,58 +536,76 @@ public class ChannelCollector : IChannelCollector
 ```csharp
 public class InfluxDbDataStorageService : IDataStorageService
 {
-    public async Task SaveAsync(DataMessage dataMessage)
-    {
-        _writeStopwatch.Restart();
-        try
-        {
-            // Convert data message to InfluxDB point
-            var point = ConvertToPoint(dataMessage);
-
-            // Write to InfluxDB using WriteApi
-            using var writeApi = _client.GetWriteApi();
-            writeApi.WritePoint(_bucket, _org, point);
-
-            // Record metrics for monitoring
-            _writeStopwatch.Stop();
-            _metricsCollector?.RecordWriteLatency(dataMessage.Measurement, _writeStopwatch.ElapsedMilliseconds);
-        }
-        catch (Exception ex)
-        {
-            // Record error metrics and log exception
-            _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown",
-                dataMessage.Measurement, dataMessage.ChannelCode);
-            _logger.LogError(ex, "[ERROR] InfluxDB write failed: {Message}", ex.Message);
-        }
-    }
-
-    public async Task SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
-            return;
+            return true;
 
         _writeStopwatch.Restart();
+        var writeSuccess = false;
+        Exception? writeException = null;
+        var resetEvent = new System.Threading.ManualResetEventSlim(false);
+
         try
         {
             // Convert batch of messages to points
             var points = dataMessages.Select(ConvertToPoint).ToList();
-
-            // Batch write to InfluxDB
             using var writeApi = _client.GetWriteApi();
-            writeApi.WritePoints(_bucket, _org, points);
 
-            // Record batch efficiency metrics
+            // Set up error handler callback to catch write failures
+            writeApi.EventHandler += (sender, args) =>
+            {
+                writeException = new Exception($"InfluxDB write failed: {args.GetType().Name} - {args}");
+                writeSuccess = false;
+                resetEvent.Set();
+                _logger.LogError(writeException, "[ERROR] InfluxDB write error event triggered: {EventType} - {Message}",
+                    args.GetType().Name, writeException.Message);
+            };
+
+            writeApi.WritePoints(_bucket, _org, points);
+            writeApi.Flush();
+
+            // Wait long enough to detect errors (InfluxDB writes asynchronously, errors may be delayed)
+            _logger.LogDebug("Waiting for InfluxDB batch write response, max wait 5 seconds...");
+            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
+
+            if (errorOccurred)
+            {
+                _logger.LogWarning("InfluxDB batch write error event triggered");
+            }
+            else
+            {
+                writeSuccess = true;
+                _logger.LogDebug("No error detected within 5 seconds, assuming write success");
+            }
+
             _writeStopwatch.Stop();
+
+            if (!writeSuccess)
+            {
+                throw writeException ?? new Exception("InfluxDB write failed");
+            }
+
+            // Record batch efficiency metrics and write latency
             var batchSize = dataMessages.Count;
+            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
+            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
+            return true;
         }
         catch (Exception ex)
         {
             // Handle batch write errors
             var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordError(plcCode, measurement, null);
-            _logger.LogError(ex, "[ERROR] InfluxDB batch write failed: {Message}", ex.Message);
+            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
+            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
+            _logger.LogError(ex, "[ERROR] Time-series database batch insert failed: {Message}", ex.Message);
+            return false;
+        }
+        finally
+        {
+            resetEvent.Dispose();
         }
     }
 }

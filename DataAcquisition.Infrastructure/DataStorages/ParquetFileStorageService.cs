@@ -31,41 +31,14 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         Directory.CreateDirectory(_directory);
     }
 
-    public Task<bool> SaveAsync(DataMessage dataMessage) => SaveBatchAsync(new List<DataMessage> { dataMessage });
-
     public async Task<bool> SaveBatchAsync(List<DataMessage>? dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
             return true;
 
-        // 直接创建新文件路径，每次都是新文件
-        var filePath = CreateNewFilePath(dataMessages);
-
-        // 标记文件正在写入
-        _writingFiles.Add(filePath);
-
-        await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            var schema = GetSchema();
-
-            // 总是创建新文件，不使用 append 模式
-            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
-            {
-                using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
-                parquetWriter.CompressionMethod = CompressionMethod.Snappy;
-
-                // 创建 row group 并写入数据
-                using (var rowGroupWriter = parquetWriter.CreateRowGroup())
-                {
-                    await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
-                    // rowGroupWriter Dispose 时会写入 row group 数据
-                }
-
-                // 确保数据被刷新到磁盘
-                await stream.FlushAsync().ConfigureAwait(false);
-            }
-
+            await SaveBatchInternalAsync(dataMessages, validateFileSize: false).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
@@ -73,24 +46,36 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             System.Diagnostics.Debug.WriteLine($"Parquet 批量写入失败: {ex}");
             return false;
         }
-        finally
-        {
-            _lock.Release();
-            // 写入完成，移除标记
-            _writingFiles.TryRemove(filePath);
-        }
     }
 
     /// <summary>
-    /// 将一批消息写入一个新的 Parquet 文件（用于 WAL），返回文件路径。
+    /// 批量保存数据消息并返回文件路径（用于需要文件路径的场景，如 WAL）。
+    /// 这是 SaveBatchAsync 的重载方法，返回文件路径而不是 bool。
     /// </summary>
-    public async Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
+    public async Task<string> SaveBatchAsync(List<DataMessage> dataMessages, bool returnFilePath)
     {
         if (dataMessages == null || dataMessages.Count == 0)
         {
             throw new ArgumentException("数据消息列表不能为空", nameof(dataMessages));
         }
 
+        return await SaveBatchInternalAsync(dataMessages, validateFileSize: true).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// 将一批消息写入一个新的 Parquet 文件（用于 WAL），返回文件路径。
+    /// </summary>
+    [Obsolete("使用 SaveBatchAsync(dataMessages, returnFilePath: true) 替代")]
+    public Task<string> SaveBatchAsNewFileAsync(List<DataMessage> dataMessages)
+    {
+        return SaveBatchAsync(dataMessages, returnFilePath: true);
+    }
+
+    /// <summary>
+    /// 内部方法：将一批消息写入一个新的 Parquet 文件，返回文件路径。
+    /// </summary>
+    private async Task<string> SaveBatchInternalAsync(List<DataMessage> dataMessages, bool validateFileSize)
+    {
         var filePath = CreateNewFilePath(dataMessages);
         
         // 标记文件正在写入
@@ -117,11 +102,14 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                 await stream.FlushAsync().ConfigureAwait(false);
             }
 
-            // 验证文件大小（简单验证，不读取文件内容以避免问题）
-            var fileInfo = new FileInfo(filePath);
-            if (!fileInfo.Exists || fileInfo.Length < 100)
+            // 验证文件大小（仅在需要时验证）
+            if (validateFileSize)
             {
-                throw new IOException($"Parquet 文件写入后大小异常: {fileInfo.Length} 字节，可能数据未正确写入");
+                var fileInfo = new FileInfo(filePath);
+                if (!fileInfo.Exists || fileInfo.Length < 100)
+                {
+                    throw new IOException($"Parquet 文件写入后大小异常: {fileInfo.Length} 字节，可能数据未正确写入");
+                }
             }
 
             return filePath;
@@ -140,7 +128,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                     // 忽略删除失败
                 }
             }
-            throw new IOException($"Parquet 文件写入失败: {ex.Message}", ex);
+            
+            if (validateFileSize)
+            {
+                throw new IOException($"Parquet 文件写入失败: {ex.Message}", ex);
+            }
+            throw;
         }
         finally
         {
