@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,8 +21,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
     private readonly string _directory;
     private readonly SemaphoreSlim _lock = new(1, 1);
-
-    private string _currentFilePath = string.Empty;
+    // 跟踪正在写入的文件，避免 GetPendingFilesAsync 返回不完整的文件
+    private readonly ConcurrentHashSet<string> _writingFiles = new();
 
     public ParquetFileStorageService(IConfiguration configuration)
     {
@@ -37,39 +38,33 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         if (dataMessages == null || dataMessages.Count == 0)
             return true;
 
+        // 直接创建新文件路径，每次都是新文件
+        var filePath = CreateNewFilePath(dataMessages);
+
+        // 标记文件正在写入
+        _writingFiles.Add(filePath);
+
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await EnsureCurrentFileAsync(dataMessages).ConfigureAwait(false);
-
             var schema = GetSchema();
-            var fileExists = File.Exists(_currentFilePath) && new FileInfo(_currentFilePath).Length > 0;
 
-            // Parquet.NET 的 append 模式需要从文件开头读取现有内容
-            using var stream = new FileStream(_currentFilePath,
-                fileExists ? FileMode.Open : FileMode.Create,
-                FileAccess.ReadWrite,
-                FileShare.Read);
-
-            // 确保流位置在文件开头
-            if (fileExists)
+            // 总是创建新文件，不使用 append 模式
+            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
-                stream.Seek(0, SeekOrigin.Begin);
+                using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
+                parquetWriter.CompressionMethod = CompressionMethod.Snappy;
+
+                // 创建 row group 并写入数据
+                using (var rowGroupWriter = parquetWriter.CreateRowGroup())
+                {
+                    await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
+                    // rowGroupWriter Dispose 时会写入 row group 数据
+                }
+
+                // 确保数据被刷新到磁盘
+                await stream.FlushAsync().ConfigureAwait(false);
             }
-
-            using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: fileExists).ConfigureAwait(false);
-            parquetWriter.CompressionMethod = CompressionMethod.Snappy;
-
-            // 创建 row group 并写入数据
-            using (var rowGroupWriter = parquetWriter.CreateRowGroup())
-            {
-                await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
-                // rowGroupWriter Dispose 时会写入 row group 数据
-            }
-
-            // parquetWriter Dispose 时会写入文件尾部和元数据
-            // 确保数据被刷新到磁盘
-            await stream.FlushAsync().ConfigureAwait(false);
 
             return true;
         }
@@ -81,6 +76,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         finally
         {
             _lock.Release();
+            // 写入完成，移除标记
+            _writingFiles.TryRemove(filePath);
         }
     }
 
@@ -95,11 +92,13 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
 
         var filePath = CreateNewFilePath(dataMessages);
+        
+        // 标记文件正在写入
+        _writingFiles.Add(filePath);
+
         await _lock.WaitAsync().ConfigureAwait(false);
         try
         {
-            _currentFilePath = filePath;
-
             var schema = GetSchema();
             
             // 写入文件
@@ -146,6 +145,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         finally
         {
             _lock.Release();
+            // 写入完成，移除标记
+            _writingFiles.TryRemove(filePath);
         }
     }
 
@@ -191,7 +192,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 获取所有待上传的 Parquet 文件（排除当前正在写入的文件）
+    /// 获取所有待上传的 Parquet 文件（排除正在写入的文件）
     /// </summary>
     public Task<List<string>> GetPendingFilesAsync()
     {
@@ -199,10 +200,10 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             ? Directory.GetFiles(_directory, "*.parquet", SearchOption.TopDirectoryOnly).ToList()
             : new List<string>();
 
-        // 排除当前文件
-        if (!string.IsNullOrEmpty(_currentFilePath))
+        // 排除正在写入的文件，避免读取不完整的文件
+        if (_writingFiles.Count > 0)
         {
-            files.RemoveAll(f => string.Equals(f, _currentFilePath, StringComparison.OrdinalIgnoreCase));
+            files.RemoveAll(f => _writingFiles.Contains(f));
         }
 
         return Task.FromResult(files);
@@ -299,18 +300,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 确保当前文件存在，如果不存在则创建新文件
-    /// </summary>
-    private async Task EnsureCurrentFileAsync(List<DataMessage> dataMessages)
-    {
-        if (string.IsNullOrEmpty(_currentFilePath) || !File.Exists(_currentFilePath))
-        {
-            _currentFilePath = CreateNewFilePath(dataMessages);
-            // 不创建空文件，让 SaveBatchAsync 在第一次写入时创建文件
-        }
-    }
-
-    /// <summary>
     /// 创建新的文件路径
     /// </summary>
     private string CreateNewFilePath(List<DataMessage> dataMessages)
@@ -339,5 +328,20 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     public void Dispose()
     {
         _lock?.Dispose();
+        _writingFiles.Clear();
+    }
+
+    /// <summary>
+    /// 线程安全的 HashSet 实现
+    /// </summary>
+    private class ConcurrentHashSet<T> where T : notnull
+    {
+        private readonly ConcurrentDictionary<T, byte> _dictionary = new();
+
+        public bool Add(T item) => _dictionary.TryAdd(item, 0);
+        public bool TryRemove(T item) => _dictionary.TryRemove(item, out _);
+        public bool Contains(T item) => _dictionary.ContainsKey(item);
+        public int Count => _dictionary.Count;
+        public void Clear() => _dictionary.Clear();
     }
 }

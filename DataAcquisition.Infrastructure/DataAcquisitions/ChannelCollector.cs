@@ -616,39 +616,33 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 异步处理数据消息（表达式计算和发布），不阻塞采集循环。
     /// </summary>
-    private Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
     {
-        return Task.Run(async () =>
+        try
         {
-            try
-            {
-                await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
-                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-                _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
-            }
-        }, ct);
+            await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+            await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+        }
     }
 
     /// <summary>
     /// 异步发布结束事件消息。
     /// </summary>
-    private Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
     {
-        return Task.Run(async () =>
+        try
         {
-            try
-            {
-                await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
-            }
-        }, ct);
+            await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+        }
     }
 
     /// <summary>
