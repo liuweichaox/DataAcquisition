@@ -6,32 +6,24 @@ using System.Text.Json.Serialization;
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-/// 数据采集通道 JSON 转换器
-/// 仅支持 ConditionalAcquisition 命名，统一命名风格
+///     数据采集通道 JSON 转换器
+///     仅支持 ConditionalAcquisition 命名，统一命名风格
 /// </summary>
 public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisitionChannel>
 {
-    public override DataAcquisitionChannel Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override DataAcquisitionChannel Read(ref Utf8JsonReader reader, Type typeToConvert,
+        JsonSerializerOptions options)
     {
-        if (reader.TokenType != JsonTokenType.StartObject)
-        {
-            throw new JsonException();
-        }
+        if (reader.TokenType != JsonTokenType.StartObject) throw new JsonException();
 
         var channel = new DataAcquisitionChannel();
         ConditionalAcquisition? conditionalAcquisition = null;
 
         while (reader.Read())
         {
-            if (reader.TokenType == JsonTokenType.EndObject)
-            {
-                break;
-            }
+            if (reader.TokenType == JsonTokenType.EndObject) break;
 
-            if (reader.TokenType != JsonTokenType.PropertyName)
-            {
-                continue;
-            }
+            if (reader.TokenType != JsonTokenType.PropertyName) continue;
 
             var propertyName = reader.GetString();
 
@@ -48,10 +40,8 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                     break;
                 case "AcquisitionMode":
                     var modeStr = reader.GetString();
-                    if (!string.IsNullOrWhiteSpace(modeStr) && Enum.TryParse<AcquisitionMode>(modeStr, true, out var mode))
-                    {
-                        channel.AcquisitionMode = mode;
-                    }
+                    if (!string.IsNullOrWhiteSpace(modeStr) &&
+                        Enum.TryParse<AcquisitionMode>(modeStr, true, out var mode)) channel.AcquisitionMode = mode;
                     break;
                 case "EnableBatchRead":
                     channel.EnableBatchRead = reader.GetBoolean();

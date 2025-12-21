@@ -5,20 +5,20 @@ using DataAcquisition.Application.Abstractions;
 namespace DataAcquisition.Infrastructure.Metrics;
 
 /// <summary>
-/// 基于 System.Diagnostics.Metrics 的指标收集器实现
+///     基于 System.Diagnostics.Metrics 的指标收集器实现
 /// </summary>
 public class MetricsCollector : IMetricsCollector
 {
-    private readonly Meter _meter;
+    private readonly Histogram<double> _batchWriteEfficiencyHistogram;
     private readonly Histogram<double> _collectionLatencyHistogram;
     private readonly Histogram<double> _collectionRateHistogram;
-    private readonly Histogram<int> _queueDepthHistogram;
-    private readonly Histogram<double> _processingLatencyHistogram;
-    private readonly Histogram<double> _writeLatencyHistogram;
-    private readonly Histogram<double> _batchWriteEfficiencyHistogram;
-    private readonly Counter<long> _errorCounter;
-    private readonly Counter<long> _connectionStatusCounter;
     private readonly Histogram<double> _connectionDurationHistogram;
+    private readonly Counter<long> _connectionStatusCounter;
+    private readonly Counter<long> _errorCounter;
+    private readonly Meter _meter;
+    private readonly Histogram<double> _processingLatencyHistogram;
+    private readonly Histogram<int> _queueDepthHistogram;
+    private readonly Histogram<double> _writeLatencyHistogram;
 
     public MetricsCollector()
     {
@@ -79,7 +79,8 @@ public class MetricsCollector : IMetricsCollector
             "连接持续时间（秒）");
     }
 
-    public void RecordCollectionLatency(string plcCode, string measurement, double latencyMs, string? channelCode = null)
+    public void RecordCollectionLatency(string plcCode, string measurement, double latencyMs,
+        string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
@@ -87,13 +88,12 @@ public class MetricsCollector : IMetricsCollector
             new("measurement", measurement)
         };
         if (!string.IsNullOrEmpty(channelCode))
-        {
-            tagList.Add(new("channel_code", channelCode));
-        }
+            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
         _collectionLatencyHistogram.Record(latencyMs, tagList.ToArray());
     }
 
-    public void RecordCollectionRate(string plcCode, string measurement, double pointsPerSecond, string? channelCode = null)
+    public void RecordCollectionRate(string plcCode, string measurement, double pointsPerSecond,
+        string? channelCode = null)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
@@ -101,9 +101,7 @@ public class MetricsCollector : IMetricsCollector
             new("measurement", measurement)
         };
         if (!string.IsNullOrEmpty(channelCode))
-        {
-            tagList.Add(new("channel_code", channelCode));
-        }
+            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
         _collectionRateHistogram.Record(pointsPerSecond, tagList.ToArray());
     }
 
@@ -142,13 +140,9 @@ public class MetricsCollector : IMetricsCollector
             new("plc_code", plcCode)
         };
         if (!string.IsNullOrEmpty(measurement))
-        {
-            tagList.Add(new("measurement", measurement));
-        }
+            tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
         if (!string.IsNullOrEmpty(channelCode))
-        {
-            tagList.Add(new("channel_code", channelCode));
-        }
+            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
         _errorCounter.Add(1, tagList.ToArray());
     }
 

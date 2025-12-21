@@ -1,17 +1,18 @@
 // 应用程序入口，配置 WebHost 与服务。
 
 using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Infrastructure.Clients;
-using DataAcquisition.Infrastructure.DataStorages;
-using DataAcquisition.Infrastructure.Queues;
-using DataAcquisition.Infrastructure.DataAcquisitions;
 using DataAcquisition.Gateway.BackgroundServices;
+using DataAcquisition.Gateway.Services;
+using DataAcquisition.Infrastructure.Clients;
+using DataAcquisition.Infrastructure.DataAcquisitions;
+using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.DeviceConfigs;
+using DataAcquisition.Infrastructure.Logs;
 using DataAcquisition.Infrastructure.Metrics;
+using DataAcquisition.Infrastructure.Queues;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
-using DataAcquisition.Infrastructure.Logs;
 
 var builder = WebApplication.CreateBuilder(args);
 // 从配置读取 URL，支持环境变量和配置文件
@@ -20,7 +21,7 @@ builder.WebHost.UseUrls(urls);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
-builder.Services.AddSingleton<DataAcquisition.Gateway.Services.MetricsBridge>();
+builder.Services.AddSingleton<MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
 builder.Services.AddSingleton<IPLCClientFactory, PLCClientFactory>();
 builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
@@ -46,23 +47,22 @@ Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("System", LogEventLevel.Warning)
     .Enrich.FromLogContext()
     .WriteTo.Console(
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate:
+        "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
     .WriteTo.File(
-        path: "Logs/log-.txt",
+        "Logs/log-.txt",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14,
         shared: true,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+        outputTemplate:
+        "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
     .CreateLogger();
 builder.Host.UseSerilog();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Home/Error");
-}
+if (!app.Environment.IsDevelopment()) app.UseExceptionHandler("/Home/Error");
 
 app.UseStaticFiles();
 
@@ -72,16 +72,16 @@ app.UseRouting();
 app.UseHttpMetrics();
 
 // 初始化 System.Diagnostics.Metrics 到 Prometheus 的桥接
-app.Services.GetRequiredService<DataAcquisition.Gateway.Services.MetricsBridge>();
+app.Services.GetRequiredService<MetricsBridge>();
 
 app.UseAuthorization();
 
 // 暴露 Prometheus 指标端点
-app.MapMetrics("/metrics");
+app.MapMetrics();
 
 app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    "default",
+    "{controller=Home}/{action=Index}/{id?}");
 
 
 Log.Logger.Information("Application starting...");

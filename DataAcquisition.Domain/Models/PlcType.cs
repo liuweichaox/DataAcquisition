@@ -1,22 +1,22 @@
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-/// PLC 类型
+///     PLC 类型
 /// </summary>
 public enum PLCType
 {
     /// <summary>
-    /// 三菱
+    ///     三菱
     /// </summary>
     Mitsubishi,
 
     /// <summary>
-    /// 汇川
+    ///     汇川
     /// </summary>
     Inovance,
 
     /// <summary>
-    /// 倍福
+    ///     倍福
     /// </summary>
     BeckhoffAds
 }

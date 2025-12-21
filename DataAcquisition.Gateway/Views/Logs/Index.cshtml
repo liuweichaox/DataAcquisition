@@ -7,14 +7,14 @@
 <html lang="zh-CN">
 
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@ViewData["Title"]</title>
 
     <!-- Element Plus CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
     <!-- Element Plus Icons -->
-    <link rel="stylesheet" href="https://unpkg.com/@@element-plus/icons-vue/dist/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@@element-plus/icons-vue/dist/index.css"/>
 
     <style>
         body {
@@ -249,372 +249,372 @@
 </head>
 
 <body>
-    <div id="app">
-        <partial name="_NavigationMenu" />
-        <div class="logs-container">
-            <div class="page-header">
-                <div>
-                    <h2>
-                        <el-icon>
-                            <Document></Document>
-                        </el-icon>
-                        日志查看
-                    </h2>
-                    <div class="refresh-info" style="margin-top: 5px;">
-                        <span v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
-                        <span v-else>正在加载...</span>
-                        <span v-if="totalCount > 0" style="margin-left: 12px;">共 {{ totalCount }} 条日志</span>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 12px; align-items: center;">
-                    <el-button v-if="autoRefresh" type="info" @@click="toggleAutoRefresh">
-                        自动刷新: 开启
-                    </el-button>
-                    <el-button v-else @@click="toggleAutoRefresh">
-                        自动刷新: 关闭
-                    </el-button>
-                    <el-button type="primary" @@click="loadLogs" :loading="loading">
-                        <el-icon>
-                            <Refresh />
-                        </el-icon>
-                        刷新
-                    </el-button>
-                </div>
-            </div>
-
-            <!-- 统计摘要 -->
-            <div class="stats-summary" v-if="stats.total > 0">
-                <div class="stat-item">
-                    <div class="stat-label">总日志数</div>
-                    <div class="stat-value">{{ stats.total }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Information</div>
-                    <div class="stat-value" style="color: #409eff;">{{ stats.information }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Warning</div>
-                    <div class="stat-value" style="color: #e6a23c;">{{ stats.warning }}</div>
-                </div>
-                <div class="stat-item">
-                    <div class="stat-label">Error</div>
-                    <div class="stat-value" style="color: #f56c6c;">{{ stats.error }}</div>
-                </div>
-            </div>
-
-            <!-- 过滤卡片 -->
-            <div class="filter-card">
-                <el-row :gutter="20">
-                    <el-col :span="6">
-                        <el-select v-model="selectedLevel" clearable filterable placeholder="选择日志级别"
-                            style="width: 100%;" @@change="handleFilterChange">
-                            <el-option v-for="level in availableLevels" :key="level" :label="level" :value="level">
-                            </el-option>
-                        </el-select>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-input v-model="searchKeyword" placeholder="搜索日志内容（消息、源、异常）" clearable
-                            @@keyup.enter="handleFilterChange" @@clear="handleFilterChange">
-                            <template #prefix>
-                                <el-icon>
-                                    <Search />
-                                </el-icon>
-                            </template>
-                        </el-input>
-                    </el-col>
-                    <el-col :span="6">
-                        <div style="display: flex; gap: 10px;">
-                            <el-button type="primary" @@click="handleFilterChange" :loading="loading" icon="Search">
-                                搜索
-                            </el-button>
-                            <el-button @@click="clearFilters" icon="Refresh">
-                                清空
-                            </el-button>
-                        </div>
-                    </el-col>
-                </el-row>
-            </div>
-
-            <!-- 日志列表 -->
+<div id="app">
+    <partial name="_NavigationMenu"/>
+    <div class="logs-container">
+        <div class="page-header">
             <div>
-                <el-alert v-if="error" :title="error" type="error" :closable="false" style="margin-bottom: 20px;">
-                </el-alert>
-
-                <div v-if="loading && logs.length === 0" style="text-align: center; padding: 40px;">
-                    <el-icon class="is-loading" style="font-size: 32px;">
-                        <Loading />
+                <h2>
+                    <el-icon>
+                        <Document></Document>
                     </el-icon>
-                    <p style="margin-top: 10px; color: #909399;">正在加载日志数据...</p>
+                    日志查看
+                </h2>
+                <div class="refresh-info" style="margin-top: 5px;">
+                    <span v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
+                    <span v-else>正在加载...</span>
+                    <span v-if="totalCount > 0" style="margin-left: 12px;">共 {{ totalCount }} 条日志</span>
                 </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <el-button v-if="autoRefresh" type="info" @@click="toggleAutoRefresh">
+                    自动刷新: 开启
+                </el-button>
+                <el-button v-else @@click="toggleAutoRefresh">
+                    自动刷新: 关闭
+                </el-button>
+                <el-button type="primary" @@click="loadLogs" :loading="loading">
+                    <el-icon>
+                        <Refresh/>
+                    </el-icon>
+                    刷新
+                </el-button>
+            </div>
+        </div>
 
-                <div v-else-if="logs.length === 0" class="empty-state">
-                    <el-empty description="暂无日志数据"></el-empty>
-                </div>
+        <!-- 统计摘要 -->
+        <div class="stats-summary" v-if="stats.total > 0">
+            <div class="stat-item">
+                <div class="stat-label">总日志数</div>
+                <div class="stat-value">{{ stats.total }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Information</div>
+                <div class="stat-value" style="color: #409eff;">{{ stats.information }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Warning</div>
+                <div class="stat-value" style="color: #e6a23c;">{{ stats.warning }}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Error</div>
+                <div class="stat-value" style="color: #f56c6c;">{{ stats.error }}</div>
+            </div>
+        </div>
 
-                <div v-else>
-                    <div v-for="(log, index) in logs" :key="index"
-                        :class="['log-entry', 'level-' + log.level.toLowerCase()]">
-                        <div class="log-header">
-                            <span class="log-timestamp">{{ formatTimestamp(log.timestamp) }}</span>
-                            <span :class="['log-level', log.level.toLowerCase()]">{{ log.level }}</span>
-                            <span v-if="log.source" class="log-source">{{ log.source }}</span>
+        <!-- 过滤卡片 -->
+        <div class="filter-card">
+            <el-row :gutter="20">
+                <el-col :span="6">
+                    <el-select v-model="selectedLevel" clearable filterable placeholder="选择日志级别"
+                               style="width: 100%;" @@change="handleFilterChange">
+                        <el-option v-for="level in availableLevels" :key="level" :label="level" :value="level">
+                        </el-option>
+                    </el-select>
+                </el-col>
+                <el-col :span="12">
+                    <el-input v-model="searchKeyword" placeholder="搜索日志内容（消息、源、异常）" clearable
+                              @@keyup.enter="handleFilterChange" @@clear="handleFilterChange">
+                        <template #prefix>
+                            <el-icon>
+                                <Search/>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                </el-col>
+                <el-col :span="6">
+                    <div style="display: flex; gap: 10px;">
+                        <el-button type="primary" @@click="handleFilterChange" :loading="loading" icon="Search">
+                            搜索
+                        </el-button>
+                        <el-button @@click="clearFilters" icon="Refresh">
+                            清空
+                        </el-button>
+                    </div>
+                </el-col>
+            </el-row>
+        </div>
+
+        <!-- 日志列表 -->
+        <div>
+            <el-alert v-if="error" :title="error" type="error" :closable="false" style="margin-bottom: 20px;">
+            </el-alert>
+
+            <div v-if="loading && logs.length === 0" style="text-align: center; padding: 40px;">
+                <el-icon class="is-loading" style="font-size: 32px;">
+                    <Loading/>
+                </el-icon>
+                <p style="margin-top: 10px; color: #909399;">正在加载日志数据...</p>
+            </div>
+
+            <div v-else-if="logs.length === 0" class="empty-state">
+                <el-empty description="暂无日志数据"></el-empty>
+            </div>
+
+            <div v-else>
+                <div v-for="(log, index) in logs" :key="index"
+                     :class="['log-entry', 'level-' + log.level.toLowerCase()]">
+                    <div class="log-header">
+                        <span class="log-timestamp">{{ formatTimestamp(log.timestamp) }}</span>
+                        <span :class="['log-level', log.level.toLowerCase()]">{{ log.level }}</span>
+                        <span v-if="log.source" class="log-source">{{ log.source }}</span>
+                    </div>
+                    <div class="log-message">{{ log.message }}</div>
+                    <div v-if="log.exception">
+                        <div v-if="!expandedExceptions[index]" class="log-exception-toggle"
+                             @@click="toggleException(index)">
+                            显示异常详情
                         </div>
-                        <div class="log-message">{{ log.message }}</div>
-                        <div v-if="log.exception">
-                            <div v-if="!expandedExceptions[index]" class="log-exception-toggle"
-                                @@click="toggleException(index)">
-                                显示异常详情
-                            </div>
-                            <div v-else>
-                                <div class="log-exception">{{ log.exception }}</div>
-                                <div class="log-exception-toggle" @@click="toggleException(index)">
-                                    隐藏异常详情
-                                </div>
+                        <div v-else>
+                            <div class="log-exception">{{ log.exception }}</div>
+                            <div class="log-exception-toggle" @@click="toggleException(index)">
+                                隐藏异常详情
                             </div>
                         </div>
                     </div>
-
-                    <!-- 分页 -->
-                    <el-pagination v-if="totalCount > 0" v-model:current-page="currentPage" v-model:page-size="pageSize"
-                        :page-sizes="[50, 100, 200, 500]" :total="totalCount"
-                        layout="total, sizes, prev, pager, next, jumper"
-                        style="margin-top: 20px; justify-content: center;" @@size-change="handlePageChange"
-                        @@current-change="handlePageChange">
-                    </el-pagination>
                 </div>
+
+                <!-- 分页 -->
+                <el-pagination v-if="totalCount > 0" v-model:current-page="currentPage" v-model:page-size="pageSize"
+                               :page-sizes="[50, 100, 200, 500]" :total="totalCount"
+                               layout="total, sizes, prev, pager, next, jumper"
+                               style="margin-top: 20px; justify-content: center;" @@size-change="handlePageChange"
+                               @@current-change="handlePageChange">
+                </el-pagination>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Vue 3 (production build) -->
-    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-    <!-- Element Plus -->
-    <script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
-    <!-- Element Plus Icons -->
-    <script src="https://unpkg.com/@@element-plus/icons-vue/dist/index.iife.js"></script>
+<!-- Vue 3 (production build) -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<!-- Element Plus -->
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<!-- Element Plus Icons -->
+<script src="https://unpkg.com/@@element-plus/icons-vue/dist/index.iife.js"></script>
 
-    <script>
-        const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
-        const { ElMessage } = ElementPlus;
+<script>
+    const {createApp, ref, computed, onMounted, onUnmounted, watch} = Vue;
+    const {ElMessage} = ElementPlus;
 
-        // 配置中文语言包
-        const zhCn = {
-            el: {
-                pagination: {
-                    goto: '前往',
-                    pagesize: '条/页',
-                    total: '共 {total} 条',
-                    pageClassifier: '页',
-                    page: '页',
-                    prev: '上一页',
-                    next: '下一页',
-                    currentPage: '当前页',
-                    prevPages: '向前 {pagerCount} 页',
-                    nextPages: '向后 {pagerCount} 页'
-                }
+    // 配置中文语言包
+    const zhCn = {
+        el: {
+            pagination: {
+                goto: '前往',
+                pagesize: '条/页',
+                total: '共 {total} 条',
+                pageClassifier: '页',
+                page: '页',
+                prev: '上一页',
+                next: '下一页',
+                currentPage: '当前页',
+                prevPages: '向前 {pagerCount} 页',
+                nextPages: '向后 {pagerCount} 页'
             }
-        };
+        }
+    };
 
-        const app = createApp({
-            setup() {
-                const Refresh = ElementPlusIconsVue.Refresh;
-                const Document = ElementPlusIconsVue.Document;
-                const Monitor = ElementPlusIconsVue.Monitor;
-                const Search = ElementPlusIconsVue.Search;
+    const app = createApp({
+        setup() {
+            const Refresh = ElementPlusIconsVue.Refresh;
+            const Document = ElementPlusIconsVue.Document;
+            const Monitor = ElementPlusIconsVue.Monitor;
+            const Search = ElementPlusIconsVue.Search;
 
-                // 导航菜单
-                const activeMenu = ref('/Logs/Index');
-                const handleMenuSelect = (key) => {
-                    window.location.href = key;
+            // 导航菜单
+            const activeMenu = ref('/Logs/Index');
+            const handleMenuSelect = (key) => {
+                window.location.href = key;
+            };
+
+            const loading = ref(false);
+            const error = ref('');
+            const logs = ref([]);
+            const totalCount = ref(0);
+            const currentPage = ref(1);
+            const pageSize = ref(100);
+            const lastUpdate = ref('');
+            const autoRefresh = ref(false);
+            let refreshTimer = null;
+
+            const selectedLevel = ref('');
+            const searchKeyword = ref('');
+            const availableLevels = ref([]);
+            const expandedExceptions = ref({});
+
+            // 统计信息
+            const stats = computed(() => {
+                const result = {
+                    total: totalCount.value,
+                    information: 0,
+                    warning: 0,
+                    error: 0
                 };
 
-                const loading = ref(false);
-                const error = ref('');
-                const logs = ref([]);
-                const totalCount = ref(0);
-                const currentPage = ref(1);
-                const pageSize = ref(100);
-                const lastUpdate = ref('');
-                const autoRefresh = ref(false);
-                let refreshTimer = null;
+                logs.value.forEach(log => {
+                    const level = log.level?.toLowerCase();
+                    if (level === 'information') result.information++;
+                    else if (level === 'warning') result.warning++;
+                    else if (level === 'error' || level === 'fatal') result.error++;
+                });
 
-                const selectedLevel = ref('');
-                const searchKeyword = ref('');
-                const availableLevels = ref([]);
-                const expandedExceptions = ref({});
+                return result;
+            });
 
-                // 统计信息
-                const stats = computed(() => {
-                    const result = {
-                        total: totalCount.value,
-                        information: 0,
-                        warning: 0,
-                        error: 0
-                    };
+            async function loadLogs() {
+                loading.value = true;
+                error.value = '';
 
-                    logs.value.forEach(log => {
-                        const level = log.level?.toLowerCase();
-                        if (level === 'information') result.information++;
-                        else if (level === 'warning') result.warning++;
-                        else if (level === 'error' || level === 'fatal') result.error++;
+                try {
+                    const params = new URLSearchParams({
+                        page: currentPage.value.toString(),
+                        pageSize: pageSize.value.toString()
                     });
 
-                    return result;
-                });
-
-                async function loadLogs() {
-                    loading.value = true;
-                    error.value = '';
-
-                    try {
-                        const params = new URLSearchParams({
-                            page: currentPage.value.toString(),
-                            pageSize: pageSize.value.toString()
-                        });
-
-                        if (selectedLevel.value) {
-                            params.append('level', selectedLevel.value);
-                        }
-
-                        if (searchKeyword.value) {
-                            params.append('keyword', searchKeyword.value);
-                        }
-
-                        const response = await fetch(`/api/logs?${params.toString()}`);
-                        if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                        }
-
-                        const data = await response.json();
-                        logs.value = data.data || [];
-                        totalCount.value = data.total || 0;
-                        lastUpdate.value = new Date().toLocaleString('zh-CN');
-
-                        // 重置展开状态
-                        expandedExceptions.value = {};
-                    } catch (err) {
-                        error.value = err.message;
-                        ElMessage.error('加载日志数据失败: ' + err.message);
-                    } finally {
-                        loading.value = false;
+                    if (selectedLevel.value) {
+                        params.append('level', selectedLevel.value);
                     }
-                }
 
-                async function loadAvailableLevels() {
-                    try {
-                        const response = await fetch('/api/logs/levels');
-                        if (response.ok) {
-                            const levels = await response.json();
-                            availableLevels.value = levels || [];
-                        }
-                    } catch (err) {
-                        console.error('加载日志级别失败:', err);
+                    if (searchKeyword.value) {
+                        params.append('keyword', searchKeyword.value);
                     }
-                }
 
-                function handleFilterChange() {
-                    currentPage.value = 1; // 重置到第一页
-                    loadLogs();
-                }
-
-                function clearFilters() {
-                    selectedLevel.value = '';
-                    searchKeyword.value = '';
-                    currentPage.value = 1;
-                    loadLogs();
-                }
-
-                function handlePageChange() {
-                    loadLogs();
-                    // 滚动到顶部
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                }
-
-                function toggleException(index) {
-                    expandedExceptions.value[index] = !expandedExceptions.value[index];
-                }
-
-                function formatTimestamp(timestamp) {
-                    if (!timestamp) return '';
-                    const date = new Date(timestamp);
-                    const year = date.getFullYear();
-                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                    const day = String(date.getDate()).padStart(2, '0');
-                    const hour = String(date.getHours()).padStart(2, '0');
-                    const minute = String(date.getMinutes()).padStart(2, '0');
-                    const second = String(date.getSeconds()).padStart(2, '0');
-                    const millisecond = String(date.getMilliseconds()).padStart(3, '0');
-                    return `${year}-${month}-${day} ${hour}:${minute}:${second}.${millisecond}`;
-                }
-
-                function toggleAutoRefresh() {
-                    autoRefresh.value = !autoRefresh.value;
-                    if (autoRefresh.value) {
-                        refreshTimer = setInterval(loadLogs, 1000); // 每1秒刷新
-                        ElMessage.success('已开启自动刷新');
-                    } else {
-                        if (refreshTimer) {
-                            clearInterval(refreshTimer);
-                            refreshTimer = null;
-                        }
-                        ElMessage.info('已关闭自动刷新');
+                    const response = await fetch(`/api/logs?${params.toString()}`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
+
+                    const data = await response.json();
+                    logs.value = data.data || [];
+                    totalCount.value = data.total || 0;
+                    lastUpdate.value = new Date().toLocaleString('zh-CN');
+
+                    // 重置展开状态
+                    expandedExceptions.value = {};
+                } catch (err) {
+                    error.value = err.message;
+                    ElMessage.error('加载日志数据失败: ' + err.message);
+                } finally {
+                    loading.value = false;
                 }
+            }
 
-                onMounted(() => {
-                    loadAvailableLevels();
-                    loadLogs();
-                });
+            async function loadAvailableLevels() {
+                try {
+                    const response = await fetch('/api/logs/levels');
+                    if (response.ok) {
+                        const levels = await response.json();
+                        availableLevels.value = levels || [];
+                    }
+                } catch (err) {
+                    console.error('加载日志级别失败:', err);
+                }
+            }
 
-                onUnmounted(() => {
+            function handleFilterChange() {
+                currentPage.value = 1; // 重置到第一页
+                loadLogs();
+            }
+
+            function clearFilters() {
+                selectedLevel.value = '';
+                searchKeyword.value = '';
+                currentPage.value = 1;
+                loadLogs();
+            }
+
+            function handlePageChange() {
+                loadLogs();
+                // 滚动到顶部
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            }
+
+            function toggleException(index) {
+                expandedExceptions.value[index] = !expandedExceptions.value[index];
+            }
+
+            function formatTimestamp(timestamp) {
+                if (!timestamp) return '';
+                const date = new Date(timestamp);
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hour = String(date.getHours()).padStart(2, '0');
+                const minute = String(date.getMinutes()).padStart(2, '0');
+                const second = String(date.getSeconds()).padStart(2, '0');
+                const millisecond = String(date.getMilliseconds()).padStart(3, '0');
+                return `${year}-${month}-${day} ${hour}:${minute}:${second}.${millisecond}`;
+            }
+
+            function toggleAutoRefresh() {
+                autoRefresh.value = !autoRefresh.value;
+                if (autoRefresh.value) {
+                    refreshTimer = setInterval(loadLogs, 1000); // 每1秒刷新
+                    ElMessage.success('已开启自动刷新');
+                } else {
                     if (refreshTimer) {
                         clearInterval(refreshTimer);
+                        refreshTimer = null;
                     }
-                });
-
-                return {
-                    loading,
-                    error,
-                    logs,
-                    totalCount,
-                    currentPage,
-                    pageSize,
-                    lastUpdate,
-                    autoRefresh,
-                    selectedLevel,
-                    searchKeyword,
-                    availableLevels,
-                    expandedExceptions,
-                    stats,
-                    Refresh,
-                    Document,
-                    Monitor,
-                    Search,
-                    activeMenu,
-                    handleMenuSelect,
-                    loadLogs,
-                    loadAvailableLevels,
-                    handleFilterChange,
-                    clearFilters,
-                    handlePageChange,
-                    toggleException,
-                    formatTimestamp,
-                    toggleAutoRefresh
-                };
+                    ElMessage.info('已关闭自动刷新');
+                }
             }
-        })
 
-        // 全局注册 Element Plus 图标
-        Object.entries(ElementPlusIconsVue).forEach(([name, component]) => {
-            app.component(name, component);
-        });
+            onMounted(() => {
+                loadAvailableLevels();
+                loadLogs();
+            });
 
-        // 配置中文语言
-        app.use(ElementPlus, {
-            locale: zhCn
-        });
-        app.mount('#app');
-    </script>
+            onUnmounted(() => {
+                if (refreshTimer) {
+                    clearInterval(refreshTimer);
+                }
+            });
+
+            return {
+                loading,
+                error,
+                logs,
+                totalCount,
+                currentPage,
+                pageSize,
+                lastUpdate,
+                autoRefresh,
+                selectedLevel,
+                searchKeyword,
+                availableLevels,
+                expandedExceptions,
+                stats,
+                Refresh,
+                Document,
+                Monitor,
+                Search,
+                activeMenu,
+                handleMenuSelect,
+                loadLogs,
+                loadAvailableLevels,
+                handleFilterChange,
+                clearFilters,
+                handlePageChange,
+                toggleException,
+                formatTimestamp,
+                toggleAutoRefresh
+            };
+        }
+    })
+
+    // 全局注册 Element Plus 图标
+    Object.entries(ElementPlusIconsVue).forEach(([name, component]) => {
+        app.component(name, component);
+    });
+
+    // 配置中文语言
+    app.use(ElementPlus, {
+        locale: zhCn
+    });
+    app.mount('#app');
+</script>
 </body>
 
 </html>

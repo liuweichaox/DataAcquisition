@@ -3,32 +3,32 @@ using System;
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-/// 采集周期状态，用于管理条件采集的开始和结束状态
+///     采集周期状态，用于管理条件采集的开始和结束状态
 /// </summary>
 public class AcquisitionCycle
 {
     /// <summary>
-    /// 采集周期唯一标识符（GUID）
+    ///     采集周期唯一标识符（GUID）
     /// </summary>
     public string CycleId { get; set; }
 
     /// <summary>
-    /// 开始时间
+    ///     开始时间
     /// </summary>
     public DateTime StartTime { get; set; }
 
     /// <summary>
-    /// 测量值名称（Measurement），时序数据库中的表名/测量值标识
+    ///     测量值名称（Measurement），时序数据库中的表名/测量值标识
     /// </summary>
     public string Measurement { get; set; }
 
     /// <summary>
-    /// PLC 编码
+    ///     PLC 编码
     /// </summary>
     public string PLCCode { get; set; }
-    
+
     /// <summary>
-    /// 通道编码
+    ///     通道编码
     /// </summary>
     public string ChannelCode { get; set; }
 }

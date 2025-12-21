@@ -11,21 +11,22 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
-/// 心跳监控器，周期性检测 PLC 连通性。
-/// 连接恢复由下次心跳检测自动完成，无需额外重连逻辑。
+///     心跳监控器，周期性检测 PLC 连通性。
+///     连接恢复由下次心跳检测自动完成，无需额外重连逻辑。
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
-    private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
-    private readonly IPLCClientLifecycleService _plcLifecycle;
+    private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
     private readonly ILogger<HeartbeatMonitor> _logger;
     private readonly IMetricsCollector? _metricsCollector;
-    private readonly Dictionary<string, DateTime> _connectionStartTimes = new();
+    private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
+    private readonly IPLCClientLifecycleService _plcLifecycle;
 
     /// <summary>
-    /// 初始化心跳监控器。
+    ///     初始化心跳监控器。
     /// </summary>
-    public HeartbeatMonitor(IPLCClientLifecycleService plcLifecycle, ILogger<HeartbeatMonitor> logger, IMetricsCollector? metricsCollector = null)
+    public HeartbeatMonitor(IPLCClientLifecycleService plcLifecycle, ILogger<HeartbeatMonitor> logger,
+        IMetricsCollector? metricsCollector = null)
     {
         _plcLifecycle = plcLifecycle;
         _logger = logger;
@@ -33,7 +34,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     }
 
     /// <summary>
-    /// 监控指定设备的心跳状态。
+    ///     监控指定设备的心跳状态。
     /// </summary>
     public async Task MonitorAsync(DeviceConfig config, CancellationToken ct = default)
     {
@@ -46,16 +47,12 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             config.PLCCode, config.Host, config.Port, config.HeartbeatMonitorRegister, config.HeartbeatPollingInterval);
 
         while (!ct.IsCancellationRequested)
-        {
             try
             {
                 if (!_plcLifecycle.TryGetClient(config.PLCCode, out _))
                 {
                     _plcConnectionHealth[config.PLCCode] = false;
-                    if (isFirstCheck || lastOk)
-                    {
-                        _logger.LogWarning("{PLCCode}-未找到PLC客户端", config.PLCCode);
-                    }
+                    if (isFirstCheck || lastOk) _logger.LogWarning("{PLCCode}-未找到PLC客户端", config.PLCCode);
                     lastOk = false;
                     isFirstCheck = false;
                     await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
@@ -63,7 +60,8 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 }
 
                 // 先尝试写入心跳寄存器（这是最直接的连接测试）
-                var connect = await WriteAsync(config.PLCCode, config.HeartbeatMonitorRegister, writeData, ct).ConfigureAwait(false);
+                var connect = await WriteAsync(config.PLCCode, config.HeartbeatMonitorRegister, writeData, ct)
+                    .ConfigureAwait(false);
                 var ok = connect.IsSuccess;
 
                 if (ok)
@@ -90,10 +88,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                         _logger.LogWarning("{PLCCode}-✗ PLC连接失败: {Message} (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PLCCode, connect.Message, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PLCCode, false);
-                        if (lastOk)
-                        {
-                            RecordConnectionEnd(config.PLCCode);
-                        }
+                        if (lastOk) RecordConnectionEnd(config.PLCCode);
                     }
                 }
 
@@ -104,9 +99,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             {
                 _plcConnectionHealth[config.PLCCode] = false;
                 if (isFirstCheck || lastOk)
-                {
                     _logger.LogError(ex, "{PLCCode}-心跳检测异常: {Message}", config.PLCCode, ex.Message);
-                }
                 lastOk = false;
                 isFirstCheck = false;
             }
@@ -114,11 +107,18 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             {
                 await Task.Delay(config.HeartbeatPollingInterval, ct).ConfigureAwait(false);
             }
-        }
     }
 
     /// <summary>
-    /// 记录连接开始时间
+    ///     获取 PLC 连接状态。
+    /// </summary>
+    public bool TryGetConnectionHealth(string plcCode, out bool isConnected)
+    {
+        return _plcConnectionHealth.TryGetValue(plcCode, out isConnected);
+    }
+
+    /// <summary>
+    ///     记录连接开始时间
     /// </summary>
     private void RecordConnectionStart(string plcCode)
     {
@@ -126,7 +126,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     }
 
     /// <summary>
-    /// 记录连接结束并计算持续时间
+    ///     记录连接结束并计算持续时间
     /// </summary>
     private void RecordConnectionEnd(string plcCode)
     {
@@ -139,35 +139,23 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     }
 
     /// <summary>
-    /// 获取 PLC 连接状态。
-    /// </summary>
-    public bool TryGetConnectionHealth(string plcCode, out bool isConnected)
-    {
-        return _plcConnectionHealth.TryGetValue(plcCode, out isConnected);
-    }
-
-    /// <summary>
-    /// 向 PLC 写入心跳测试值。
+    ///     向 PLC 写入心跳测试值。
     /// </summary>
     private async Task<PLCWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct)
     {
         if (!_plcLifecycle.TryGetClient(plcCode, out var client))
-        {
             return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode}"
             };
-        }
 
         if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
-        {
             return new PLCWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode} 的锁对象"
             };
-        }
 
         await locker.WaitAsync(ct).ConfigureAwait(false);
         try

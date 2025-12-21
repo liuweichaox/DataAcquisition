@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
@@ -13,25 +14,28 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-/// 使用 InfluxDB 实现的时序数据库存储服务。
+///     使用 InfluxDB 实现的时序数据库存储服务。
 /// </summary>
 public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 {
-    private readonly InfluxDBClient _client;
     private readonly string _bucket;
-    private readonly string _org;
+    private readonly InfluxDBClient _client;
     private readonly ILogger<InfluxDbDataStorageService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
-    private readonly System.Diagnostics.Stopwatch _writeStopwatch = new();
+    private readonly string _org;
+    private readonly Stopwatch _writeStopwatch = new();
 
     /// <summary>
-    /// 构造函数，初始化时序数据库客户端。
+    ///     构造函数，初始化时序数据库客户端。
     /// </summary>
-    public InfluxDbDataStorageService(IConfiguration configuration, ILogger<InfluxDbDataStorageService> logger, IMetricsCollector? metricsCollector = null)
+    public InfluxDbDataStorageService(IConfiguration configuration, ILogger<InfluxDbDataStorageService> logger,
+        IMetricsCollector? metricsCollector = null)
     {
         var url = configuration["InfluxDB:Url"] ?? throw new ArgumentNullException("InfluxDB:Url is not configured.");
-        var token = configuration["InfluxDB:Token"] ?? throw new ArgumentNullException("InfluxDB:Token is not configured.");
-        _bucket = configuration["InfluxDB:Bucket"] ?? throw new ArgumentNullException("InfluxDB:Bucket is not configured.");
+        var token = configuration["InfluxDB:Token"] ??
+                    throw new ArgumentNullException("InfluxDB:Token is not configured.");
+        _bucket = configuration["InfluxDB:Bucket"] ??
+                  throw new ArgumentNullException("InfluxDB:Bucket is not configured.");
         _org = configuration["InfluxDB:Org"] ?? throw new ArgumentNullException("InfluxDB:Org is not configured.");
         _logger = logger;
         _metricsCollector = metricsCollector;
@@ -40,7 +44,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 批量保存数据消息。
+    ///     批量保存数据消息。
     /// </summary>
     public async Task<bool> SaveBatchAsync(List<DataMessage>? dataMessages)
     {
@@ -55,7 +59,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             var writeApi = _client.GetWriteApiAsync();
             await writeApi.WritePointsAsync(_bucket, _org, points);
             _writeStopwatch.Stop();
-            
+
             var batchSize = dataMessages.Count;
             _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
 
@@ -76,7 +80,15 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 将DataMessage转换为时序数据库数据点。
+    ///     释放资源。
+    /// </summary>
+    public void Dispose()
+    {
+        _client.Dispose();
+    }
+
+    /// <summary>
+    ///     将DataMessage转换为时序数据库数据点。
     /// </summary>
     private PointData ConvertToPoint(DataMessage dataMessage)
     {
@@ -89,15 +101,9 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             .Timestamp(utcTimestamp, WritePrecision.Ns);
 
         // 添加标签（tags）
-        if (!string.IsNullOrEmpty(dataMessage.PLCCode))
-        {
-            point = point.Tag("plc_code", dataMessage.PLCCode);
-        }
+        if (!string.IsNullOrEmpty(dataMessage.PLCCode)) point = point.Tag("plc_code", dataMessage.PLCCode);
 
-        if (!string.IsNullOrEmpty(dataMessage.ChannelCode))
-        {
-            point = point.Tag("channel_code", dataMessage.ChannelCode);
-        }
+        if (!string.IsNullOrEmpty(dataMessage.ChannelCode)) point = point.Tag("channel_code", dataMessage.ChannelCode);
 
         // 添加event_type标签
         var eventType = dataMessage.EventType ?? EventType.Data;
@@ -105,10 +111,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 
         // 添加所有数据值作为字段（fields）
         // 注意：cycle_id 作为 field 而不是 tag，因为它是高基数的唯一标识符（GUID）
-        if (!string.IsNullOrEmpty(dataMessage.CycleId))
-        {
-            point = point.Field("cycle_id", dataMessage.CycleId);
-        }
+        if (!string.IsNullOrEmpty(dataMessage.CycleId)) point = point.Field("cycle_id", dataMessage.CycleId);
 
         foreach (var kvp in dataMessage.DataValues)
         {
@@ -131,7 +134,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 将对象值转换为时序数据库字段值。
+    ///     将对象值转换为时序数据库字段值。
     /// </summary>
     private object ConvertToFieldValue(object? value)
     {
@@ -156,13 +159,5 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             DateTime dt => dt.ToString("O"), // ISO 8601格式
             _ => value.ToString() ?? string.Empty
         };
-    }
-
-    /// <summary>
-    /// 释放资源。
-    /// </summary>
-    public void Dispose()
-    {
-        _client.Dispose();
     }
 }

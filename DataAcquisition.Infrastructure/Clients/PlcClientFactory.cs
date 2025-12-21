@@ -5,12 +5,12 @@ using DataAcquisition.Domain.Models;
 namespace DataAcquisition.Infrastructure.Clients;
 
 /// <summary>
-/// PLC 客户端工厂。
+///     PLC 客户端工厂。
 /// </summary>
 public class PLCClientFactory : IPLCClientFactory
 {
     /// <summary>
-    /// 创建 PLC 客户端实例。
+    ///     创建 PLC 客户端实例。
     /// </summary>
     public IPLCClientService Create(DeviceConfig config)
     {

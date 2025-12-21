@@ -1,16 +1,18 @@
+using System.Diagnostics;
+using DataAcquisition.Gateway.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Gateway.Controllers;
 
 /// <summary>
-/// 首页控制器。
+///     首页控制器。
 /// </summary>
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
 
     /// <summary>
-    /// 构造函数。
+    ///     构造函数。
     /// </summary>
     public HomeController(ILogger<HomeController> logger)
     {
@@ -18,7 +20,7 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// 首页视图。
+    ///     首页视图。
     /// </summary>
     public IActionResult Index()
     {
@@ -26,14 +28,14 @@ public class HomeController : Controller
     }
 
     /// <summary>
-    /// 错误页面视图。
+    ///     错误页面视图。
     /// </summary>
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {
-        return View(new Models.ErrorViewModel
+        return View(new ErrorViewModel
         {
-            RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier
+            RequestId = Activity.Current?.Id ?? HttpContext.TraceIdentifier
         });
     }
 }

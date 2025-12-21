@@ -3,15 +3,16 @@ using DataAcquisition.Infrastructure.DataStorages;
 namespace DataAcquisition.Gateway.BackgroundServices;
 
 /// <summary>
-/// 后台服务：扫描 Parquet 降级文件，批量写回 InfluxDB，成功后删除。
+///     后台服务：扫描 Parquet 降级文件，批量写回 InfluxDB，成功后删除。
 /// </summary>
 public class ParquetRetryWorker : BackgroundService
 {
-    private readonly ParquetFileStorageService _parquetStorage;
     private readonly InfluxDbDataStorageService _influxStorage;
-    private readonly ILogger<ParquetRetryWorker> _logger;
+
     // 缩短扫描间隔，加快 WAL → Influx 写入延迟
     private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
+    private readonly ILogger<ParquetRetryWorker> _logger;
+    private readonly ParquetFileStorageService _parquetStorage;
 
     public ParquetRetryWorker(
         ParquetFileStorageService parquetStorage,
@@ -50,7 +51,6 @@ public class ParquetRetryWorker : BackgroundService
         _logger.LogInformation("发现 {Count} 个待上传的 Parquet 文件", files.Count);
 
         foreach (var file in files)
-        {
             try
             {
                 var messages = await _parquetStorage.ReadFileAsync(file).ConfigureAwait(false);
@@ -81,6 +81,5 @@ public class ParquetRetryWorker : BackgroundService
             {
                 _logger.LogWarning(ex, "处理 Parquet 文件失败，保留文件以便下次重试: {File}, 原因: {Message}", file, ex.Message);
             }
-        }
     }
 }

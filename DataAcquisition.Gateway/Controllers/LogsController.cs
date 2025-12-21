@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace DataAcquisition.Gateway.Controllers;
 
 /// <summary>
-/// 日志查看控制器
+///     日志查看控制器
 /// </summary>
 public class LogsController : Controller
 {
@@ -16,7 +16,7 @@ public class LogsController : Controller
     }
 
     /// <summary>
-    /// 日志查看页面
+    ///     日志查看页面
     /// </summary>
     [HttpGet]
     public IActionResult Index()
@@ -25,7 +25,7 @@ public class LogsController : Controller
     }
 
     /// <summary>
-    /// 获取日志数据 API
+    ///     获取日志数据 API
     /// </summary>
     [HttpGet]
     [Route("api/logs")]
@@ -58,7 +58,7 @@ public class LogsController : Controller
     }
 
     /// <summary>
-    /// 获取可用的日志级别
+    ///     获取可用的日志级别
     /// </summary>
     [HttpGet]
     [Route("api/logs/levels")]

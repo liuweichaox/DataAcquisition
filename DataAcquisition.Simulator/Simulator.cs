@@ -1,20 +1,19 @@
 using HslCommunication.Profinet.Melsec;
 using Microsoft.Extensions.Logging;
-using System.Threading;
 
 namespace DataAcquisition.Simulator;
 
 /// <summary>
-/// Mitsubishi A1E 模拟器，直接使用 HslCommunication 服务器
+///     Mitsubishi A1E 模拟器，直接使用 HslCommunication 服务器
 /// </summary>
 public class Simulator : IDisposable
 {
-    private readonly MelsecA1EServer _server;
     private readonly Timer? _dataUpdateTimer;
     private readonly ILogger<Simulator>? _logger;
-    private bool _isRunning;
+    private readonly MelsecA1EServer _server;
+    private readonly DateTime _simulatorStartTime = DateTime.Now;
     private int _heartbeatCounter;
-    private DateTime _simulatorStartTime = DateTime.Now;
+    private bool _isRunning;
 
     public Simulator(int port, ILogger<Simulator>? logger = null)
     {
@@ -31,8 +30,15 @@ public class Simulator : IDisposable
         _dataUpdateTimer = new Timer(UpdateSimulatedData, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
     }
 
+    public void Dispose()
+    {
+        Stop();
+        _dataUpdateTimer?.Dispose();
+        _server?.Dispose();
+    }
+
     /// <summary>
-    /// 启动模拟器
+    ///     启动模拟器
     /// </summary>
     public void Start()
     {
@@ -60,17 +66,11 @@ public class Simulator : IDisposable
                 waited += 100;
             }
 
-            if (!_server.IsStarted)
-            {
-                throw new InvalidOperationException($"服务器启动失败：在 {maxWaitTime}ms 内未能成功启动");
-            }
+            if (!_server.IsStarted) throw new InvalidOperationException($"服务器启动失败：在 {maxWaitTime}ms 内未能成功启动");
 
             // 初始化心跳寄存器
             var writeResult = _server.Write("D100", (ushort)0);
-            if (!writeResult.IsSuccess)
-            {
-                _logger?.LogWarning("初始化心跳寄存器失败: {Message}", writeResult.Message);
-            }
+            if (!writeResult.IsSuccess) _logger?.LogWarning("初始化心跳寄存器失败: {Message}", writeResult.Message);
 
             _isRunning = true;
             _logger?.LogInformation("✓ PLC 模拟器已成功启动，监听端口: {Port}，服务器状态: {IsStarted}",
@@ -85,7 +85,7 @@ public class Simulator : IDisposable
     }
 
     /// <summary>
-    /// 停止模拟器
+    ///     停止模拟器
     /// </summary>
     public void Stop()
     {
@@ -95,17 +95,14 @@ public class Simulator : IDisposable
     }
 
     /// <summary>
-    /// 设置寄存器值（直接使用服务器的 Write 方法）
+    ///     设置寄存器值（直接使用服务器的 Write 方法）
     /// </summary>
     public bool SetRegister(string address, ushort value)
     {
         try
         {
             var result = _server.Write(address, value);
-            if (result.IsSuccess)
-            {
-                _logger?.LogDebug("设置寄存器 {Address} = {Value}", address, value);
-            }
+            if (result.IsSuccess) _logger?.LogDebug("设置寄存器 {Address} = {Value}", address, value);
             return result.IsSuccess;
         }
         catch (Exception ex)
@@ -116,7 +113,7 @@ public class Simulator : IDisposable
     }
 
     /// <summary>
-    /// 读取寄存器值
+    ///     读取寄存器值
     /// </summary>
     public ushort? GetRegister(string address)
     {
@@ -132,7 +129,7 @@ public class Simulator : IDisposable
     }
 
     /// <summary>
-    /// 更新模拟数据（定期执行）
+    ///     更新模拟数据（定期执行）
     /// </summary>
     private void UpdateSimulatedData(object? state)
     {
@@ -188,12 +185,5 @@ public class Simulator : IDisposable
         {
             _logger?.LogError(ex, "更新模拟数据失败");
         }
-    }
-
-    public void Dispose()
-    {
-        Stop();
-        _dataUpdateTimer?.Dispose();
-        _server?.Dispose();
     }
 }

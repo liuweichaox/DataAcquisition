@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Gateway.Controllers;
 
 /// <summary>
-/// 指标查看控制器
+///     指标查看控制器
 /// </summary>
 [ApiController]
 [Route("api/metrics-data")]
@@ -18,7 +18,7 @@ public class MetricsController : ControllerBase
     }
 
     /// <summary>
-    /// 获取格式化的指标数据（JSON 格式）
+    ///     获取格式化的指标数据（JSON 格式）
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetMetricsJson()
@@ -36,8 +36,7 @@ public class MetricsController : ControllerBase
             return Ok(new
             {
                 // 使用本地时间，避免 UTC 显示
-                timestamp = DateTime.Now,
-                metrics = metrics
+                timestamp = DateTime.Now, metrics
             });
         }
         catch (Exception ex)
@@ -47,7 +46,7 @@ public class MetricsController : ControllerBase
     }
 
     /// <summary>
-    /// 获取指标信息（说明如何查看指标）
+    ///     获取指标信息（说明如何查看指标）
     /// </summary>
     [HttpGet("info")]
     public IActionResult GetMetricsInfo()
@@ -94,10 +93,7 @@ public class MetricsController : ControllerBase
                 if (trimmed.StartsWith("# HELP"))
                 {
                     var match = Regex.Match(trimmed, @"# HELP\s+(\S+)\s+(.+)");
-                    if (match.Success)
-                    {
-                        currentHelp = match.Groups[2].Value;
-                    }
+                    if (match.Success) currentHelp = match.Groups[2].Value;
                 }
                 else if (trimmed.StartsWith("# TYPE"))
                 {
@@ -105,20 +101,19 @@ public class MetricsController : ControllerBase
                     if (match.Success)
                     {
                         if (currentMetric != null && metricData.Count > 0)
-                        {
                             result[currentMetric] = new
                             {
                                 type = currentType,
                                 help = currentHelp,
                                 data = metricData
                             };
-                        }
                         currentMetric = match.Groups[1].Value;
                         currentType = match.Groups[2].Value;
                         currentHelp = null;
                         metricData = new List<Dictionary<string, object>>();
                     }
                 }
+
                 continue;
             }
 
@@ -141,11 +136,9 @@ public class MetricsController : ControllerBase
                     foreach (var label in labelsStr.Split(','))
                     {
                         var labelParts = label.Split('=');
-                        if (labelParts.Length == 2)
-                        {
-                            labels[labelParts[0].Trim()] = labelParts[1].Trim().Trim('"');
-                        }
+                        if (labelParts.Length == 2) labels[labelParts[0].Trim()] = labelParts[1].Trim().Trim('"');
                     }
+
                     dataPoint["labels"] = labels;
                 }
 
@@ -155,14 +148,12 @@ public class MetricsController : ControllerBase
 
         // 添加最后一个指标
         if (currentMetric != null && metricData.Count > 0)
-        {
             result[currentMetric] = new
             {
                 type = currentType,
                 help = currentHelp,
                 data = metricData
             };
-        }
 
         return result;
     }

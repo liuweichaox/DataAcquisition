@@ -1,24 +1,25 @@
+using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace DataAcquisition.Simulator;
 
-class Program
+internal class Program
 {
-    static async Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.OutputEncoding = Encoding.UTF8;
 
         PrintHeader();
 
         // 加载配置
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: true)
+            .AddJsonFile("appsettings.json", true)
             .AddCommandLine(args)
             .Build();
 
-        var port = configuration.GetValue<int>("Port", 502);
+        var port = configuration.GetValue("Port", 502);
 
         // 创建日志
         using var loggerFactory = LoggerFactory.Create(builder =>
@@ -45,7 +46,7 @@ class Program
         }
     }
 
-    static void PrintHeader()
+    private static void PrintHeader()
     {
         Console.WriteLine("=".PadRight(60, '='));
         Console.WriteLine("PLC 模拟器 - DataAcquisition Simulator");
@@ -53,7 +54,7 @@ class Program
         Console.WriteLine();
     }
 
-    static void PrintInfo(int port)
+    private static void PrintInfo(int port)
     {
         Console.WriteLine($"PLC 模拟器运行在 0.0.0.0:{port}");
         Console.WriteLine($"提示: 使用 'telnet 127.0.0.1 {port}' 测试连接");
@@ -81,32 +82,33 @@ class Program
         Console.ReadLine();
     }
 
-    static async Task HandleCommandsAsync(Simulator simulator, ILogger logger)
+    private static async Task HandleCommandsAsync(Simulator simulator, ILogger logger)
     {
         var running = true;
 
-            // 后台显示实时数据（每秒更新一次）
-            var displayTask = Task.Run(async () =>
+        // 后台显示实时数据（每秒更新一次）
+        var displayTask = Task.Run(async () =>
+        {
+            while (running)
             {
-                while (running)
+                await Task.Delay(1000);
+                if (running)
                 {
-                    await Task.Delay(1000);
-                    if (running)
-                    {
-                        var heartbeat = simulator.GetRegister("D100") ?? 0;
-                        var temp = simulator.GetRegister("D6000") ?? 0;
-                        var pressure = simulator.GetRegister("D6001") ?? 0;
-                        var current = simulator.GetRegister("D6002") ?? 0;
-                        var voltage = simulator.GetRegister("D6003") ?? 0;
-                        var lightBarrierPos = simulator.GetRegister("D6004") ?? 0;
-                        var servoSpeed = simulator.GetRegister("D6005") ?? 0;
-                        var productionSerial = simulator.GetRegister("D6006") ?? 0;
-                        var timestamp = DateTime.Now.ToString("HH:mm:ss");
+                    var heartbeat = simulator.GetRegister("D100") ?? 0;
+                    var temp = simulator.GetRegister("D6000") ?? 0;
+                    var pressure = simulator.GetRegister("D6001") ?? 0;
+                    var current = simulator.GetRegister("D6002") ?? 0;
+                    var voltage = simulator.GetRegister("D6003") ?? 0;
+                    var lightBarrierPos = simulator.GetRegister("D6004") ?? 0;
+                    var servoSpeed = simulator.GetRegister("D6005") ?? 0;
+                    var productionSerial = simulator.GetRegister("D6006") ?? 0;
+                    var timestamp = DateTime.Now.ToString("HH:mm:ss");
 
-                        Console.WriteLine($"[{timestamp}] 心跳={heartbeat,5} | 温度={temp,4} | 压力={pressure,4} | 电流={current,3} | 电压={voltage,4} | 光栅={lightBarrierPos,4} | 伺服={servoSpeed,4} | 生产序号={productionSerial}");
-                    }
+                    Console.WriteLine(
+                        $"[{timestamp}] 心跳={heartbeat,5} | 温度={temp,4} | 压力={pressure,4} | 电流={current,3} | 电压={voltage,4} | 光栅={lightBarrierPos,4} | 伺服={servoSpeed,4} | 生产序号={productionSerial}");
                 }
-            });
+            }
+        });
 
         while (running)
         {
@@ -128,24 +130,25 @@ class Program
                         if (ushort.TryParse(parts[2], out var value))
                         {
                             var success = simulator.SetRegister(address, value);
-                            Console.WriteLine(success ? $"✓ 已设置 {address} = {value}" : $"✗ 设置失败");
+                            Console.WriteLine(success ? $"✓ 已设置 {address} = {value}" : "✗ 设置失败");
                         }
                         else
                         {
                             Console.WriteLine("✗ 无效的数值");
                         }
+
                         break;
 
                     case "get" when parts.Length >= 2:
                         var addr = parts[1];
                         var val = simulator.GetRegister(addr);
-                        Console.WriteLine(val.HasValue ? $"{addr} = {val.Value}" : $"✗ 读取失败");
+                        Console.WriteLine(val.HasValue ? $"{addr} = {val.Value}" : "✗ 读取失败");
                         break;
 
                     case "info":
                         Console.WriteLine("\n当前测试寄存器状态:");
                         Console.WriteLine($"  心跳寄存器:   D100 = {simulator.GetRegister("D100") ?? 0}");
-                        Console.WriteLine($"  传感器数据:");
+                        Console.WriteLine("  传感器数据:");
                         Console.WriteLine($"    温度:       D6000 = {simulator.GetRegister("D6000") ?? 0}");
                         Console.WriteLine($"    压力:       D6001 = {simulator.GetRegister("D6001") ?? 0}");
                         Console.WriteLine($"    电流:       D6002 = {simulator.GetRegister("D6002") ?? 0}");

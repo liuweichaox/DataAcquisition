@@ -1,19 +1,17 @@
-using System;
-using System.Collections.Generic;
 using System.Diagnostics.Metrics;
 using Prometheus;
 
 namespace DataAcquisition.Gateway.Services;
 
 /// <summary>
-/// 将 System.Diagnostics.Metrics 的指标桥接到 Prometheus
+///     将 System.Diagnostics.Metrics 的指标桥接到 Prometheus
 /// </summary>
 public class MetricsBridge : IDisposable
 {
-    private readonly MeterListener _listener;
-    private readonly Dictionary<string, ICollector<Histogram.Child>> _histograms = new();
     private readonly Dictionary<string, ICollector<Counter.Child>> _counters = new();
-    private readonly object _lock = new object();
+    private readonly Dictionary<string, ICollector<Histogram.Child>> _histograms = new();
+    private readonly MeterListener _listener;
+    private readonly object _lock = new();
 
     public MetricsBridge()
     {
@@ -21,21 +19,24 @@ public class MetricsBridge : IDisposable
         {
             InstrumentPublished = (instrument, listener) =>
             {
-                if (instrument.Meter.Name == "DataAcquisition")
-                {
-                    listener.EnableMeasurementEvents(instrument);
-                }
+                if (instrument.Meter.Name == "DataAcquisition") listener.EnableMeasurementEvents(instrument);
             }
         };
 
-        _listener.SetMeasurementEventCallback<double>(OnMeasurementRecorded<double>);
-        _listener.SetMeasurementEventCallback<int>(OnMeasurementRecorded<int>);
-        _listener.SetMeasurementEventCallback<long>(OnMeasurementRecorded<long>);
+        _listener.SetMeasurementEventCallback<double>(OnMeasurementRecorded);
+        _listener.SetMeasurementEventCallback<int>(OnMeasurementRecorded);
+        _listener.SetMeasurementEventCallback<long>(OnMeasurementRecorded);
 
         _listener.Start();
     }
 
-    private void OnMeasurementRecorded<T>(Instrument instrument, T measurement, ReadOnlySpan<KeyValuePair<string, object?>> tags, object? state)
+    public void Dispose()
+    {
+        _listener?.Dispose();
+    }
+
+    private void OnMeasurementRecorded<T>(Instrument instrument, T measurement,
+        ReadOnlySpan<KeyValuePair<string, object?>> tags, object? state)
         where T : struct
     {
         lock (_lock)
@@ -79,6 +80,7 @@ public class MetricsBridge : IDisposable
             _histograms[key] = histogram;
             return histogram;
         }
+
         return (Histogram)collector;
     }
 
@@ -94,6 +96,7 @@ public class MetricsBridge : IDisposable
             _counters[key] = counter;
             return counter;
         }
+
         return (Counter)collector;
     }
 
@@ -106,25 +109,14 @@ public class MetricsBridge : IDisposable
     private string[] ExtractLabelNames(ReadOnlySpan<KeyValuePair<string, object?>> tags)
     {
         var names = new List<string>();
-        foreach (var tag in tags)
-        {
-            names.Add(SanitizeMetricName(tag.Key));
-        }
+        foreach (var tag in tags) names.Add(SanitizeMetricName(tag.Key));
         return names.ToArray();
     }
 
     private string[] ExtractLabelValues(ReadOnlySpan<KeyValuePair<string, object?>> tags)
     {
         var values = new List<string>();
-        foreach (var tag in tags)
-        {
-            values.Add(tag.Value?.ToString() ?? "");
-        }
+        foreach (var tag in tags) values.Add(tag.Value?.ToString() ?? "");
         return values.ToArray();
-    }
-
-    public void Dispose()
-    {
-        _listener?.Dispose();
     }
 }

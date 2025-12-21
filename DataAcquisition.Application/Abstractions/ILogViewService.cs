@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
-/// 日志查看服务接口
+///     日志查看服务接口
 /// </summary>
 public interface ILogViewService
 {
     /// <summary>
-    /// 获取日志条目列表
+    ///     获取日志条目列表
     /// </summary>
     /// <param name="level">日志级别过滤（可选）</param>
     /// <param name="keyword">关键词搜索（可选）</param>
@@ -27,14 +27,14 @@ public interface ILogViewService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// 获取可用的日志级别列表
+    ///     获取可用的日志级别列表
     /// </summary>
     /// <returns>日志级别列表</returns>
     List<string> GetAvailableLevels();
 }
 
 /// <summary>
-/// 日志条目
+///     日志条目
 /// </summary>
 public class LogEntry
 {

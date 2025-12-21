@@ -1,22 +1,24 @@
+using System;
+
 namespace DataAcquisition.Domain.Clients;
 
 /// <summary>
-/// PLC 读取结果。
+///     PLC 读取结果。
 /// </summary>
 public class PLCReadResult
 {
     /// <summary>
-    /// 读取是否成功。
+    ///     读取是否成功。
     /// </summary>
     public bool IsSuccess { get; set; }
 
     /// <summary>
-    /// 读取的原始内容。
+    ///     读取的原始内容。
     /// </summary>
-    public byte[] Content { get; init; } = System.Array.Empty<byte>();
+    public byte[] Content { get; init; } = Array.Empty<byte>();
 
     /// <summary>
-    /// 结果描述信息。
+    ///     结果描述信息。
     /// </summary>
     public string Message { get; set; } = string.Empty;
 }

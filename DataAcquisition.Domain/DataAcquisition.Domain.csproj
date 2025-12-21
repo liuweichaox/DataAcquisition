@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-    <DefaultTargetFramework>net10.0</DefaultTargetFramework>
-    <Nullable>enable</Nullable>
-    <LangVersion>latest</LangVersion>
-    <RootNamespace>DataAcquisition.Domain</RootNamespace>
-  </PropertyGroup>
+    <PropertyGroup>
+        <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
+        <DefaultTargetFramework>net10.0</DefaultTargetFramework>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+        <RootNamespace>DataAcquisition.Domain</RootNamespace>
+    </PropertyGroup>
 </Project>

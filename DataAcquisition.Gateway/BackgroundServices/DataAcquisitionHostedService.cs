@@ -3,12 +3,12 @@
 namespace DataAcquisition.Gateway.BackgroundServices;
 
 /// <summary>
-/// 后台服务，用于管理数据采集任务的生命周期。
+///     后台服务，用于管理数据采集任务的生命周期。
 /// </summary>
 public class DataAcquisitionHostedService(IDataAcquisitionService dataAcquisitionService) : BackgroundService
 {
     /// <summary>
-    /// 执行数据采集后台任务。
+    ///     执行数据采集后台任务。
     /// </summary>
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

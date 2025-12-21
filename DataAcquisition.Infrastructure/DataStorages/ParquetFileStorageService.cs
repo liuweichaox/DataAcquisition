@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
@@ -15,12 +17,14 @@ using Parquet.Schema;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-/// 本地 Parquet 文件存储服务（WAL 降级存储）
+///     本地 Parquet 文件存储服务（WAL 降级存储）
 /// </summary>
 public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
     private readonly string _directory;
+
     private readonly SemaphoreSlim _lock = new(1, 1);
+
     // 跟踪正在写入的文件，避免 GetPendingFilesAsync 返回不完整的文件
     private readonly ConcurrentHashSet<string> _writingFiles = new();
 
@@ -38,37 +42,41 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
         try
         {
-            await SaveBatchInternalAsync(dataMessages, validateFileSize: false).ConfigureAwait(false);
+            await SaveBatchInternalAsync(dataMessages, false).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Parquet 批量写入失败: {ex}");
+            Debug.WriteLine($"Parquet 批量写入失败: {ex}");
             return false;
         }
     }
 
+    public void Dispose()
+    {
+        _lock?.Dispose();
+        _writingFiles.Clear();
+    }
+
     /// <summary>
-    /// 批量保存数据消息并返回文件路径（用于需要文件路径的场景，如 WAL）。
-    /// 这是 SaveBatchAsync 的重载方法，返回文件路径而不是 bool。
+    ///     批量保存数据消息并返回文件路径（用于需要文件路径的场景，如 WAL）。
+    ///     这是 SaveBatchAsync 的重载方法，返回文件路径而不是 bool。
     /// </summary>
     public async Task<string> SaveBatchAsync(List<DataMessage> dataMessages, bool returnFilePath)
     {
         if (dataMessages == null || dataMessages.Count == 0)
-        {
             throw new ArgumentException("数据消息列表不能为空", nameof(dataMessages));
-        }
 
-        return await SaveBatchInternalAsync(dataMessages, validateFileSize: true).ConfigureAwait(false);
+        return await SaveBatchInternalAsync(dataMessages, true).ConfigureAwait(false);
     }
-    
+
     /// <summary>
-    /// 内部方法：将一批消息写入一个新的 Parquet 文件，返回文件路径。
+    ///     内部方法：将一批消息写入一个新的 Parquet 文件，返回文件路径。
     /// </summary>
     private async Task<string> SaveBatchInternalAsync(List<DataMessage> dataMessages, bool validateFileSize)
     {
         var filePath = CreateNewFilePath(dataMessages);
-        
+
         // 标记文件正在写入
         _writingFiles.Add(filePath);
 
@@ -76,11 +84,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         try
         {
             var schema = GetSchema();
-            
+
             // 写入文件
             await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
-                await using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
+                await using var parquetWriter =
+                    await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
                 parquetWriter.CompressionMethod = CompressionMethod.Snappy;
 
                 // 创建 row group 并写入数据
@@ -89,6 +98,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                     await WriteColumnsAsync(rowGroupWriter, schema, dataMessages).ConfigureAwait(false);
                     // rowGroupWriter Dispose 时会写入 row group 数据
                 }
+
                 // 确保数据被刷新
                 await stream.FlushAsync().ConfigureAwait(false);
             }
@@ -98,9 +108,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             {
                 var fileInfo = new FileInfo(filePath);
                 if (!fileInfo.Exists || fileInfo.Length < 100)
-                {
                     throw new IOException($"Parquet 文件写入后大小异常: {fileInfo.Length} 字节，可能数据未正确写入");
-                }
             }
 
             return filePath;
@@ -109,7 +117,6 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         {
             // 如果写入失败，删除可能已创建的不完整文件
             if (File.Exists(filePath))
-            {
                 try
                 {
                     File.Delete(filePath);
@@ -118,12 +125,8 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                 {
                     // 忽略删除失败
                 }
-            }
-            
-            if (validateFileSize)
-            {
-                throw new IOException($"Parquet 文件写入失败: {ex.Message}", ex);
-            }
+
+            if (validateFileSize) throw new IOException($"Parquet 文件写入失败: {ex.Message}", ex);
             throw;
         }
         finally
@@ -135,14 +138,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 准备列数据并写入 Parquet 文件
+    ///     准备列数据并写入 Parquet 文件
     /// </summary>
-    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage>? dataMessages)
+    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema,
+        List<DataMessage>? dataMessages)
     {
-        if (dataMessages == null || dataMessages.Count == 0)
-        {
-            return;
-        }
+        if (dataMessages == null || dataMessages.Count == 0) return;
 
         var rowCount = dataMessages.Count;
 
@@ -154,29 +155,35 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();
         var eventTypes = dataMessages.Select(x => x.EventType?.ToString() ?? string.Empty).ToArray();
         var dataJsons = dataMessages.Select(x =>
-            System.Text.Json.JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
+            JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
 
         // 验证所有数组长度一致
         if (timestamps.Length != rowCount || measurements.Length != rowCount ||
             plcCodes.Length != rowCount || channelCodes.Length != rowCount ||
             cycleIds.Length != rowCount || eventTypes.Length != rowCount ||
             dataJsons.Length != rowCount)
-        {
-            throw new InvalidOperationException($"数据列长度不一致: rowCount={rowCount}, timestamps={timestamps.Length}, measurements={measurements.Length}");
-        }
+            throw new InvalidOperationException(
+                $"数据列长度不一致: rowCount={rowCount}, timestamps={timestamps.Length}, measurements={measurements.Length}");
 
         // 按顺序写入所有列
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[1], measurements)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[2], plcCodes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[3], channelCodes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[4], cycleIds)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[5], eventTypes)).ConfigureAwait(false);
-        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[6], dataJsons)).ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DateTimeDataField)schema.DataFields[0], timestamps))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[1], measurements))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[2], plcCodes))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[3], channelCodes))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[4], cycleIds))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[5], eventTypes))
+            .ConfigureAwait(false);
+        await rowGroupWriter.WriteColumnAsync(new DataColumn((DataField<string>)schema.DataFields[6], dataJsons))
+            .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// 获取所有待上传的 Parquet 文件（排除正在写入的文件）
+    ///     获取所有待上传的 Parquet 文件（排除正在写入的文件）
     /// </summary>
     public Task<List<string>> GetPendingFilesAsync()
     {
@@ -185,16 +192,13 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             : new List<string>();
 
         // 排除正在写入的文件，避免读取不完整的文件
-        if (_writingFiles.Count > 0)
-        {
-            files.RemoveAll(f => _writingFiles.Contains(f));
-        }
+        if (_writingFiles.Count > 0) files.RemoveAll(f => _writingFiles.Contains(f));
 
         return Task.FromResult(files);
     }
 
     /// <summary>
-    /// 读取 Parquet 文件并转换为 DataMessage 列表
+    ///     读取 Parquet 文件并转换为 DataMessage 列表
     /// </summary>
     public async Task<List<DataMessage>> ReadFileAsync(string filePath)
     {
@@ -204,23 +208,17 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         {
             // 检查文件是否存在和大小
             var fileInfo = new FileInfo(filePath);
-            if (!fileInfo.Exists || fileInfo.Length < 100)
-            {
-                return messages;
-            }
+            if (!fileInfo.Exists || fileInfo.Length < 100) return messages;
 
             using var stream = File.OpenRead(filePath);
             using var reader = await ParquetReader.CreateAsync(stream).ConfigureAwait(false);
             var schema = reader.Schema;
 
             // 检查是否有 row group
-            if (reader.RowGroupCount == 0)
-            {
-                return messages;
-            }
+            if (reader.RowGroupCount == 0) return messages;
 
             // 读取所有 row groups
-            for (int i = 0; i < reader.RowGroupCount; i++)
+            for (var i = 0; i < reader.RowGroupCount; i++)
             {
                 using var rowGroupReader = reader.OpenRowGroupReader(i);
                 var tsColumn = await rowGroupReader.ReadColumnAsync(schema.DataFields[0]).ConfigureAwait(false);
@@ -239,24 +237,20 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
                 var eventTypes = etColumn.Data.Cast<string>().ToArray();
                 var dataJsons = jsonColumn.Data.Cast<string>().ToArray();
 
-                for (int row = 0; row < timestamps.Length; row++)
+                for (var row = 0; row < timestamps.Length; row++)
                 {
                     var msg = DataMessage.Create(
                         cycleIds[row],
                         measurements[row],
                         plcCodes[row],
                         channelCodes[row],
-                        Enum.Parse<EventType>(eventTypes[row].ToString()),
+                        Enum.Parse<EventType>(eventTypes[row]),
                         timestamps[row]);
 
-                    var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object?>>(dataJsons[row]);
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, object?>>(dataJsons[row]);
                     if (dict != null)
-                    {
                         foreach (var kv in dict)
-                        {
                             msg.AddDataValue(kv.Key, kv.Value);
-                        }
-                    }
 
                     messages.Add(msg);
                 }
@@ -264,7 +258,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Parquet 文件读取失败 {filePath}: {ex}");
+            Debug.WriteLine($"Parquet 文件读取失败 {filePath}: {ex}");
             return messages;
         }
 
@@ -272,19 +266,16 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 删除指定的 Parquet 文件
+    ///     删除指定的 Parquet 文件
     /// </summary>
     public Task DeleteFileAsync(string filePath)
     {
-        if (File.Exists(filePath))
-        {
-            File.Delete(filePath);
-        }
+        if (File.Exists(filePath)) File.Delete(filePath);
         return Task.CompletedTask;
     }
 
     /// <summary>
-    /// 创建新的文件路径
+    ///     创建新的文件路径
     /// </summary>
     private string CreateNewFilePath(List<DataMessage> dataMessages)
     {
@@ -294,12 +285,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    /// 获取 Parquet Schema 定义
+    ///     获取 Parquet Schema 定义
     /// </summary>
     private static ParquetSchema GetSchema()
     {
         return new ParquetSchema(
-            new DateTimeDataField("timestamp", DateTimeFormat.DateAndTime, true),
+            new DateTimeDataField("timestamp", DateTimeFormat.DateAndTime),
             new DataField<string>("measurement"),
             new DataField<string>("plc_code"),
             new DataField<string>("channel_code"),
@@ -309,23 +300,33 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         );
     }
 
-    public void Dispose()
-    {
-        _lock?.Dispose();
-        _writingFiles.Clear();
-    }
-
     /// <summary>
-    /// 线程安全的 HashSet 实现
+    ///     线程安全的 HashSet 实现
     /// </summary>
     private class ConcurrentHashSet<T> where T : notnull
     {
         private readonly ConcurrentDictionary<T, byte> _dictionary = new();
 
-        public bool Add(T item) => _dictionary.TryAdd(item, 0);
-        public bool TryRemove(T item) => _dictionary.TryRemove(item, out _);
-        public bool Contains(T item) => _dictionary.ContainsKey(item);
         public int Count => _dictionary.Count;
-        public void Clear() => _dictionary.Clear();
+
+        public bool Add(T item)
+        {
+            return _dictionary.TryAdd(item, 0);
+        }
+
+        public bool TryRemove(T item)
+        {
+            return _dictionary.TryRemove(item, out _);
+        }
+
+        public bool Contains(T item)
+        {
+            return _dictionary.ContainsKey(item);
+        }
+
+        public void Clear()
+        {
+            _dictionary.Clear();
+        }
     }
 }
