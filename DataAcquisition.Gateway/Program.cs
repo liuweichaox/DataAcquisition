@@ -1,6 +1,7 @@
 // 应用程序入口，配置 WebHost 与服务。
 
 using DataAcquisition.Application.Abstractions;
+using DataAcquisition.Domain.Models;
 using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Gateway.Services;
 using DataAcquisition.Infrastructure.Clients;
@@ -10,6 +11,7 @@ using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Logs;
 using DataAcquisition.Infrastructure.Metrics;
 using DataAcquisition.Infrastructure.Queues;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
@@ -20,6 +22,13 @@ var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_UR
 builder.WebHost.UseUrls(urls);
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient();
+
+// 配置 AcquisitionOptions
+builder.Services.Configure<AcquisitionOptions>(builder.Configuration.GetSection("Acquisition"));
+
+// 配置日志选项
+builder.Services.Configure<LogOptions>(builder.Configuration.GetSection("Logging"));
+
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
@@ -33,13 +42,22 @@ builder.Services.AddSingleton<ParquetFileStorageService>();
 builder.Services.AddSingleton<InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IQueueService, LocalQueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
-// 日志查看服务
-builder.Services.AddSingleton<ILogViewService, LogViewService>();
+// 日志查看服务（使用 SQLite）
+builder.Services.AddSingleton<ILogViewService, SqliteLogViewService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddHostedService<ParquetRetryWorker>();
 builder.Services.AddControllersWithViews();
+
+// 配置 SQLite 日志数据库路径（从配置读取，支持相对路径和绝对路径）
+var logDbPath = builder.Configuration["Logging:DatabasePath"] ?? "Data/logs.db";
+// 如果是相对路径，转换为绝对路径
+if (!Path.IsPathRooted(logDbPath))
+{
+    logDbPath = Path.Combine(AppContext.BaseDirectory, logDbPath);
+}
+Directory.CreateDirectory(Path.GetDirectoryName(logDbPath)!);
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
@@ -49,13 +67,7 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(
         outputTemplate:
         "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File(
-        "Logs/log-.txt",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 14,
-        shared: true,
-        outputTemplate:
-        "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
+    .WriteTo.Sink(new MicrosoftSqliteSink(logDbPath, batchSize: 100, flushInterval: TimeSpan.FromSeconds(2)))
     .CreateLogger();
 builder.Host.UseSerilog();
 

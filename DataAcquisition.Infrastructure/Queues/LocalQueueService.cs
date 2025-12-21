@@ -9,8 +9,8 @@ using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using DataAcquisition.Infrastructure.DataStorages;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace DataAcquisition.Infrastructure.Queues;
 
@@ -40,7 +40,7 @@ public class LocalQueueService : IQueueService
         ParquetFileStorageService parquetStorage,
         InfluxDbDataStorageService influxStorage,
         ILogger<LocalQueueService> logger,
-        IConfiguration configuration,
+        IOptions<AcquisitionOptions> acquisitionOptions,
         IDeviceConfigService deviceConfigService,
         IMetricsCollector? metricsCollector = null)
     {
@@ -50,20 +50,7 @@ public class LocalQueueService : IQueueService
         _metricsCollector = metricsCollector;
         _deviceConfigService = deviceConfigService;
 
-        var options = new QueueServiceOptions
-        {
-            FlushIntervalSeconds =
-                int.TryParse(configuration["Acquisition:QueueService:FlushIntervalSeconds"], out var flushInterval)
-                    ? flushInterval
-                    : 5,
-            RetryIntervalSeconds =
-                int.TryParse(configuration["Acquisition:QueueService:RetryIntervalSeconds"], out var retryInterval)
-                    ? retryInterval
-                    : 10,
-            MaxRetryCount = int.TryParse(configuration["Acquisition:QueueService:MaxRetryCount"], out var maxRetry)
-                ? maxRetry
-                : 3
-        };
+        var options = acquisitionOptions.Value.QueueService;
         _flushInterval = TimeSpan.FromSeconds(options.FlushIntervalSeconds);
         _retryInterval = TimeSpan.FromSeconds(options.RetryIntervalSeconds);
         _maxRetryCount = options.MaxRetryCount;

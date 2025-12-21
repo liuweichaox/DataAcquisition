@@ -7,8 +7,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NCalc;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
@@ -45,7 +45,7 @@ public class ChannelCollector : IChannelCollector
         ILogger<ChannelCollector> logger,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
-        IConfiguration configuration,
+        IOptions<AcquisitionOptions> acquisitionOptions,
         IMetricsCollector? metricsCollector = null)
     {
         _heartbeatMonitor = heartbeatMonitor;
@@ -55,18 +55,7 @@ public class ChannelCollector : IChannelCollector
         _stateManager = stateManager;
         _metricsCollector = metricsCollector;
 
-        var options = new ChannelCollectorOptions
-        {
-            ConnectionCheckRetryDelayMs =
-                int.TryParse(configuration["Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs"],
-                    out var retryDelay)
-                    ? retryDelay
-                    : 100,
-            TriggerWaitDelayMs =
-                int.TryParse(configuration["Acquisition:ChannelCollector:TriggerWaitDelayMs"], out var waitDelay)
-                    ? waitDelay
-                    : 100
-        };
+        var options = acquisitionOptions.Value.ChannelCollector;
         _connectionCheckRetryDelayMs = options.ConnectionCheckRetryDelayMs;
         _triggerWaitDelayMs = options.TriggerWaitDelayMs;
     }

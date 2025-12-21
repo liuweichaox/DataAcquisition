@@ -8,10 +8,10 @@ public class PLCWriteResult
     /// <summary>
     ///     写入是否成功。
     /// </summary>
-    public bool IsSuccess { get; set; }
+    public bool IsSuccess { get; init; }
 
     /// <summary>
     ///     结果描述信息。
     /// </summary>
-    public string Message { get; set; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
 }

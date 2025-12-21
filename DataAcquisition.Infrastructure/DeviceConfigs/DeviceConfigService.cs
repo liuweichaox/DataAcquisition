@@ -8,7 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace DataAcquisition.Infrastructure.DeviceConfigs;
 
@@ -19,14 +19,14 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
 {
     private readonly Dictionary<string, DeviceConfig> _cachedConfigs = new();
     private readonly string _configDirectory;
-    private readonly IConfiguration _configuration;
+    private readonly int _configChangeDetectionDelayMs;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private FileSystemWatcher? _fileWatcher;
 
-    public DeviceConfigService(IConfiguration configuration)
+    public DeviceConfigService(IOptions<AcquisitionOptions> acquisitionOptions)
     {
-        _configuration = configuration;
+        _configChangeDetectionDelayMs = acquisitionOptions.Value.DeviceConfigService.ConfigChangeDetectionDelayMs;
         _configDirectory = Path.Combine(AppContext.BaseDirectory, "Configs");
         _jsonOptions = new JsonSerializerOptions
         {
@@ -143,11 +143,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private async void OnConfigFileChanged(object sender, FileSystemEventArgs e)
     {
         // 延迟处理，避免文件正在写入时读取
-        var delayMs = int.TryParse(_configuration["Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs"],
-            out var delay)
-            ? delay
-            : 500;
-        await Task.Delay(delayMs).ConfigureAwait(false);
+        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
         await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
     }
 
@@ -181,11 +177,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
                 OldConfig = oldConfig
             });
 
-        var delayMs = int.TryParse(_configuration["Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs"],
-            out var delay)
-            ? delay
-            : 500;
-        await Task.Delay(delayMs).ConfigureAwait(false);
+        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
         await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
     }
 
