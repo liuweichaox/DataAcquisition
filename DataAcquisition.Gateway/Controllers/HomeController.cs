@@ -24,4 +24,16 @@ public class HomeController : Controller
     {
         return View();
     }
+
+    /// <summary>
+    /// 错误页面视图。
+    /// </summary>
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult Error()
+    {
+        return View(new Models.ErrorViewModel
+        {
+            RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier
+        });
+    }
 }

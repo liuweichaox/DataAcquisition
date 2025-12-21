@@ -109,7 +109,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     public AcquisitionCycle? GetActiveCycle(string plcCode, string measurement)
     {
         var key = GetKey(plcCode, measurement);
-        return _activeCycles.TryGetValue(key, out var cycle) ? cycle : null;
+        return _activeCycles.GetValueOrDefault(key);
     }
 
     /// <summary>
@@ -144,6 +144,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// 生成复合键
     /// </summary>
     /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="measurement"></param>
     private static string GetKey(string plcCode, string measurement)
     {
         return $"{plcCode}:{measurement}";

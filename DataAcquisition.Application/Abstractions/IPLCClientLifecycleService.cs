@@ -1,6 +1,4 @@
 using System.Threading.Tasks;
-using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
 

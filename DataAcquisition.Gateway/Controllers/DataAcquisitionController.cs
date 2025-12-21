@@ -40,7 +40,7 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
             return BadRequest(new { error = "PLC编码不能为空" });
         }
 
-        if (request.Items == null || request.Items.Count == 0)
+        if (request.Items.Count == 0)
         {
             return BadRequest(new { error = "写入项列表不能为空" });
         }

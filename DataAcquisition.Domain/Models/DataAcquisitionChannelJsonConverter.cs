@@ -91,7 +91,7 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
     {
         writer.WriteStartObject();
 
-        writer.WriteString("ChannelCode", value.ChannelCode ?? string.Empty);
+        writer.WriteString("ChannelCode", value.ChannelCode);
 
         // 序列化时使用 ConditionalAcquisition
         if (value.ConditionalAcquisition != null)

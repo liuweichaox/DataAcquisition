@@ -30,13 +30,13 @@ public class ChannelCollectorOptions
     /// 连接检查失败时的重试延迟（毫秒）
     /// 默认：100ms
     /// </summary>
-    public int ConnectionCheckRetryDelayMs { get; set; } = 100;
+    public int ConnectionCheckRetryDelayMs { get; init; } = 100;
 
     /// <summary>
     /// 触发条件未满足时的等待延迟（毫秒）
     /// 默认：100ms
     /// </summary>
-    public int TriggerWaitDelayMs { get; set; } = 100;
+    public int TriggerWaitDelayMs { get; init; } = 100;
 }
 
 /// <summary>
@@ -48,19 +48,19 @@ public class QueueServiceOptions
     /// 定时刷新批次间隔（秒）
     /// 默认：5秒
     /// </summary>
-    public int FlushIntervalSeconds { get; set; } = 5;
+    public int FlushIntervalSeconds { get; init; } = 5;
 
     /// <summary>
     /// 失败批次重试间隔（秒）
     /// 默认：10秒
     /// </summary>
-    public int RetryIntervalSeconds { get; set; } = 10;
+    public int RetryIntervalSeconds { get; init; } = 10;
 
     /// <summary>
     /// 最大重试次数
     /// 默认：3次
     /// </summary>
-    public int MaxRetryCount { get; set; } = 3;
+    public int MaxRetryCount { get; init; } = 3;
 }
 
 /// <summary>

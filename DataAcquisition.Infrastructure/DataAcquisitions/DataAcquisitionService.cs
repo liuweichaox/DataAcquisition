@@ -75,20 +75,13 @@ public class DataAcquisitionService : IDataAcquisitionService
             _runtimes.TryRemove(config.PLCCode, out _);
         }
 
-        // 防御性检查：确保配置有效
-        if (config == null)
-        {
-            _logger.LogError("启动采集任务失败：配置为 null");
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(config.PLCCode))
         {
             _logger.LogError("启动采集任务失败：设备编码为空");
             return;
         }
 
-        if (config.Channels == null || config.Channels.Count == 0)
+        if (config.Channels.Count == 0)
         {
             _logger.LogError("启动采集任务失败：设备 {PLCCode} 没有配置采集通道", config.PLCCode);
             return;
@@ -108,13 +101,15 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
 
         var running = Task.WhenAll(tasks);
-        _ = running.ContinueWith(async t =>
+        _ = running.ContinueWith(t =>
         {
             if (t.Exception != null)
             {
                 var innerException = t.Exception.Flatten().InnerException;
                 _logger.LogError(innerException, "{PLCCode}-采集任务异常: {Message}", config.PLCCode, innerException?.Message);
             }
+
+            return Task.CompletedTask;
         }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
         // 更新运行时对象（之前已用 TryAdd 占位）

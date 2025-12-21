@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Net.NetworkInformation;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
@@ -50,7 +49,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         {
             try
             {
-                if (!_plcLifecycle.TryGetClient(config.PLCCode, out var client))
+                if (!_plcLifecycle.TryGetClient(config.PLCCode, out _))
                 {
                     _plcConnectionHealth[config.PLCCode] = false;
                     if (isFirstCheck || lastOk)

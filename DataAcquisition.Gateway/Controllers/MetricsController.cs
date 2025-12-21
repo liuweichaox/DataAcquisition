@@ -1,9 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Diagnostics.Metrics;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Threading.Tasks;
 using System.Text.RegularExpressions;
 
 namespace DataAcquisition.Gateway.Controllers;

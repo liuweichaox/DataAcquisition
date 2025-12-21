@@ -33,7 +33,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     public Task<bool> SaveAsync(DataMessage dataMessage) => SaveBatchAsync(new List<DataMessage> { dataMessage });
 
-    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage>? dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
             return true;
@@ -153,7 +153,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     /// <summary>
     /// 准备列数据并写入 Parquet 文件
     /// </summary>
-    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage> dataMessages)
+    private static async Task WriteColumnsAsync(dynamic rowGroupWriter, ParquetSchema schema, List<DataMessage>? dataMessages)
     {
         if (dataMessages == null || dataMessages.Count == 0)
         {
@@ -164,7 +164,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
         // 准备列数据
         var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
-        var measurements = dataMessages.Select(x => x.Measurement ?? string.Empty).ToArray();
+        var measurements = dataMessages.Select(x => x.Measurement).ToArray();
         var plcCodes = dataMessages.Select(x => x.PLCCode ?? string.Empty).ToArray();
         var channelCodes = dataMessages.Select(x => x.ChannelCode ?? string.Empty).ToArray();
         var cycleIds = dataMessages.Select(x => x.CycleId ?? string.Empty).ToArray();

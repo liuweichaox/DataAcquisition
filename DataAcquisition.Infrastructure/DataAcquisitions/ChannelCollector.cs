@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NCalc;
 
@@ -31,7 +29,7 @@ public class ChannelCollector : IChannelCollector
     private readonly IMetricsCollector? _metricsCollector;
     private readonly System.Diagnostics.Stopwatch _stopwatch = new();
     private DateTime _lastCollectionTime = DateTime.Now;
-    private int _collectionCount = 0;
+    private int _collectionCount;
     private readonly object _rateLock = new object();
     private readonly int _connectionCheckRetryDelayMs;
     private readonly int _triggerWaitDelayMs;
@@ -55,10 +53,17 @@ public class ChannelCollector : IChannelCollector
         _stateManager = stateManager;
         _metricsCollector = metricsCollector;
 
-        var options = new Domain.Models.ChannelCollectorOptions
+        var options = new ChannelCollectorOptions
         {
-            ConnectionCheckRetryDelayMs = int.TryParse(configuration["Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs"], out var retryDelay) ? retryDelay : 100,
-            TriggerWaitDelayMs = int.TryParse(configuration["Acquisition:ChannelCollector:TriggerWaitDelayMs"], out var waitDelay) ? waitDelay : 100
+            ConnectionCheckRetryDelayMs =
+                int.TryParse(configuration["Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs"],
+                    out var retryDelay)
+                    ? retryDelay
+                    : 100,
+            TriggerWaitDelayMs =
+                int.TryParse(configuration["Acquisition:ChannelCollector:TriggerWaitDelayMs"], out var waitDelay)
+                    ? waitDelay
+                    : 100
         };
         _connectionCheckRetryDelayMs = options.ConnectionCheckRetryDelayMs;
         _triggerWaitDelayMs = options.TriggerWaitDelayMs;
@@ -104,7 +109,8 @@ public class ChannelCollector : IChannelCollector
     /// <param name="client">PLC 通讯客户端，用于读取寄存器数据</param>
     /// <param name="ct">取消标记，用于取消采集任务</param>
     /// <exception cref="OperationCanceledException">当 ct 被取消时，会中断采集循环</exception>
-    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPLCClientService client, CancellationToken ct = default)
+    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel,
+        IPLCClientService client, CancellationToken ct = default)
     {
         await Task.Yield();
         object? prevValue = null;
@@ -130,11 +136,13 @@ public class ChannelCollector : IChannelCollector
                 var timestamp = DateTime.Now;
                 if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always)
                 {
-                    await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct).ConfigureAwait(false);
+                    await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct)
+                        .ConfigureAwait(false);
                 }
                 else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
                 {
-                    prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, prevValue, ct).ConfigureAwait(false);
+                    prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client,
+                        timestamp, prevValue, ct).ConfigureAwait(false);
                 }
             }
             finally
@@ -169,7 +177,7 @@ public class ChannelCollector : IChannelCollector
         DateTime timestamp,
         CancellationToken ct)
     {
-        await HandleUnconditionalEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+        await HandleUnconditionalEventAsync(config, channel, client, timestamp).ConfigureAwait(false);
         // AcquisitionInterval = 0 表示最高频率采集（无延迟），> 0 表示延迟指定毫秒数
         if (channel.AcquisitionInterval > 0)
         {
@@ -197,13 +205,15 @@ public class ChannelCollector : IChannelCollector
         var conditionalAcq = channel.ConditionalAcquisition;
         if (string.IsNullOrWhiteSpace(conditionalAcq.Register) || string.IsNullOrWhiteSpace(conditionalAcq.DataType))
         {
-            _logger.LogError("{PLCCode}-{Measurement}:条件采集配置不完整，Register或DataType为空", config.PLCCode, channel.Measurement);
+            _logger.LogError("{PLCCode}-{Measurement}:条件采集配置不完整，Register或DataType为空", config.PLCCode,
+                channel.Measurement);
             await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
             return prevValue;
         }
 
         // 读取触发寄存器的值
-        object? curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType).ConfigureAwait(false);
+        var curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType)
+            .ConfigureAwait(false);
 
         // 评估触发条件
         var shouldStartTrigger = ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
@@ -212,12 +222,12 @@ public class ChannelCollector : IChannelCollector
         // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
         if (shouldEndTrigger)
         {
-            await HandleEndEventAsync(config, channel, timestamp, ct).ConfigureAwait(false);
+            await HandleEndEventAsync(config, channel, timestamp).ConfigureAwait(false);
         }
 
         if (shouldStartTrigger)
         {
-            await HandleStartTriggerAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+            await HandleStartTriggerAsync(config, channel, client, timestamp).ConfigureAwait(false);
         }
 
         // 延迟并返回当前值用于下次比较
@@ -232,11 +242,10 @@ public class ChannelCollector : IChannelCollector
         DeviceConfig config,
         DataAcquisitionChannel channel,
         IPLCClientService client,
-        DateTime timestamp,
-        CancellationToken ct)
+        DateTime timestamp)
     {
         _stopwatch.Restart();
-        await HandleStartEventAsync(config, channel, client, timestamp, ct).ConfigureAwait(false);
+        await HandleStartEventAsync(config, channel, client, timestamp).ConfigureAwait(false);
         _stopwatch.Stop();
 
         RecordCollectionMetrics(config, channel, _stopwatch.ElapsedMilliseconds);
@@ -249,7 +258,8 @@ public class ChannelCollector : IChannelCollector
     {
         if (_metricsCollector == null) return;
 
-        _metricsCollector.RecordCollectionLatency(config.PLCCode, channel.Measurement, elapsedMilliseconds, channel.ChannelCode);
+        _metricsCollector.RecordCollectionLatency(config.PLCCode, channel.Measurement, elapsedMilliseconds,
+            channel.ChannelCode);
 
         lock (_rateLock)
         {
@@ -352,23 +362,23 @@ public class ChannelCollector : IChannelCollector
 
     /// <summary>
     /// 处理无条件采集事件：读取数据并发布消息。
-    ///
+    /// 
     /// 功能说明：
     /// - 无条件采集模式（<see cref="AcquisitionMode.Always"/>）使用此方法处理每次采集
     /// - 每次调用都会生成新的 CycleId（GUID），每个数据点都是独立的事件
     /// - 读取所有配置的数据点值，执行表达式计算（如果配置了），然后发布到队列
-    ///
+    /// 
     /// 处理流程：
     /// 1. 生成新的 CycleId（每次都是新的，表示独立的数据点）
     /// 2. 创建 DataMessage，事件类型为 Data
     /// 3. 从 PLC 读取所有数据点的值（ReadDataPointsAsync）
     /// 4. 异步执行表达式计算和消息发布（不阻塞采集循环）
-    ///
+    /// 
     /// 异步处理：
     /// - 表达式计算和消息发布使用 Task.Run 在后台线程执行
     /// - 这样可以立即返回，让采集循环继续下一次采集，提高吞吐量
     /// - 如果异步处理失败，会记录错误但不影响采集循环
-    ///
+    /// 
     /// 异常处理：
     /// - 读取异常：记录错误，不发布消息，采集循环继续
     /// - 表达式计算异常：在异步任务中记录错误，不影响采集循环
@@ -377,55 +387,55 @@ public class ChannelCollector : IChannelCollector
     /// <param name="channel">采集通道配置</param>
     /// <param name="client">PLC 通讯客户端</param>
     /// <param name="timestamp">采集时间戳</param>
-    /// <param name="ct">取消标记</param>
     private async Task HandleUnconditionalEventAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
         IPLCClientService client,
-        DateTime timestamp,
-        CancellationToken ct)
+        DateTime timestamp)
     {
         try
         {
             string cycleId = Guid.NewGuid().ToString();
-            var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Data, timestamp);
+            var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode,
+                EventType.Data, timestamp);
 
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
-            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage, ct);
+            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage);
         }
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
-            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement,
+                ex.Message);
         }
     }
 
     /// <summary>
     /// 处理条件采集的开始事件：生成采集周期，读取数据并发布消息。
-    ///
+    /// 
     /// 功能说明：
     /// - 条件采集模式（<see cref="AcquisitionMode.Conditional"/>）在触发 Start 条件时调用此方法
     /// - 创建一个新的采集周期（CycleId），后续的数据点都会关联到这个周期
     /// - Start 事件会标记一个采集周期的开始，直到对应的 End 事件结束
-    ///
+    /// 
     /// 处理流程：
     /// 1. 调用 StateManager.StartCycle 创建新的采集周期，生成唯一的 CycleId
     /// 2. 创建 DataMessage，事件类型为 Start，包含 CycleId
     /// 3. 从 PLC 读取所有数据点的值（ReadDataPointsAsync）
     /// 4. 异步执行表达式计算和消息发布（不阻塞采集循环）
-    ///
+    /// 
     /// 采集周期管理：
     /// - 使用复合键（plcCode:measurement）存储周期状态
     /// - 如果已存在活跃周期，会先移除旧的周期（处理异常情况）
     /// - 同一设备的多个测量值可以同时进行条件采集（独立周期）
-    ///
+    /// 
     /// 异步处理：
     /// - 表达式计算和消息发布使用 Task.Run 在后台线程执行
     /// - 这样可以立即返回，让采集循环继续监控触发条件
-    ///
+    /// 
     /// 异常处理：
     /// - 读取异常：记录错误，不发布消息，周期状态可能不一致
     /// - 表达式计算异常：在异步任务中记录错误
@@ -434,13 +444,11 @@ public class ChannelCollector : IChannelCollector
     /// <param name="channel">采集通道配置</param>
     /// <param name="client">PLC 通讯客户端</param>
     /// <param name="timestamp">采集时间戳</param>
-    /// <param name="ct">取消标记</param>
     private async Task HandleStartEventAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
         IPLCClientService client,
-        DateTime timestamp,
-        CancellationToken ct)
+        DateTime timestamp)
     {
         try
         {
@@ -448,18 +456,20 @@ public class ChannelCollector : IChannelCollector
                 config.PLCCode,
                 channel.Measurement,
                 channel.ChannelCode);
-            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.Start, timestamp);
+            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode,
+                channel.ChannelCode, EventType.Start, timestamp);
 
             // 读取数据点
             await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
-            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage, ct);
+            _ = ProcessAndPublishMessageAsync(config, channel, dataMessage);
         }
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(config.PLCCode, channel.Measurement);
-            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement,
+                ex.Message);
         }
     }
 
@@ -469,33 +479,33 @@ public class ChannelCollector : IChannelCollector
     /// <returns>如果应该跳过后续处理则返回true，否则返回false</returns>
     /// <summary>
     /// 处理条件采集的结束事件：结束采集周期并发布 End 消息。
-    ///
+    /// 
     /// 功能说明：
     /// - 条件采集模式（<see cref="AcquisitionMode.Conditional"/>）在触发 End 条件时调用此方法
     /// - 结束当前活跃的采集周期，获取 CycleId 用于关联 Start 和 End 事件
     /// - 创建 End 事件消息并发布到队列，标记采集周期的结束
-    ///
+    /// 
     /// 处理流程：
     /// 1. 调用 StateManager.EndCycle 结束采集周期，获取 CycleId
     /// 2. 如果找不到对应的周期（异常情况），记录错误并返回 true（跳过后续处理）
     /// 3. 创建 DataMessage，事件类型为 End，包含 CycleId
     /// 4. 异步发布消息到队列（不阻塞采集循环）
-    ///
+    /// 
     /// 异常情况处理：
     /// - 找不到对应的采集周期（cycle == null）：
     ///   - 可能原因：Start 事件未正确触发、系统重启导致状态丢失、配置错误
     ///   - 处理方式：记录错误日志，返回 true 表示需要跳过后续处理
     ///   - 不创建 End 消息，避免数据不一致
-    ///
+    /// 
     /// 数据一致性：
     /// - End 事件必须与对应的 Start 事件关联（相同的 CycleId）
     /// - 时序数据库不支持 Update 操作，因此 End 事件也是作为新的数据点写入
     /// - 通过 EventType 标签区分 Start、End、Data 三种事件类型
-    ///
+    /// 
     /// 异步处理：
     /// - 消息发布使用 Task.Run 在后台线程执行
     /// - 这样可以立即返回，让采集循环继续监控触发条件
-    ///
+    /// 
     /// 返回值：
     /// - true：表示需要跳过后续处理（通常是异常情况）
     /// - false：表示正常处理完成（实际上方法返回 Task&lt;bool&gt;，异步执行）
@@ -503,15 +513,12 @@ public class ChannelCollector : IChannelCollector
     /// <param name="config">设备配置</param>
     /// <param name="channel">采集通道配置</param>
     /// <param name="timestamp">事件时间戳</param>
-    /// <param name="ct">取消标记</param>
     /// <returns>
     /// Task&lt;bool&gt;，true 表示需要跳过后续处理（异常情况），false 表示正常处理
     /// </returns>
-    private async Task<bool> HandleEndEventAsync(
-        DeviceConfig config,
+    private async Task HandleEndEventAsync(DeviceConfig config,
         DataAcquisitionChannel channel,
-        DateTime timestamp,
-        CancellationToken ct)
+        DateTime timestamp)
     {
         try
         {
@@ -523,19 +530,18 @@ public class ChannelCollector : IChannelCollector
                 _logger.LogError(
                     "{PLCCode}-{Measurement} End事件触发但找不到对应的采集周期，可能Start事件未正确触发或系统重启导致状态丢失",
                     config.PLCCode, channel.Measurement);
-                return true; // 需要跳过后续处理
+                return;
             }
 
             // 创建End事件数据点（时序数据库不支持Update，改为写入新数据点）
-            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode, channel.ChannelCode, EventType.End, timestamp);
-            _ = PublishEndEventMessageAsync(config, channel, dataMessage, ct);
-
-            return false; // 正常处理，不需要跳过
+            var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode,
+                channel.ChannelCode, EventType.End, timestamp);
+            await PublishEndEventMessageAsync(config, channel, dataMessage);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement, ex.Message);
-            return false;
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:采集异常: {Message}", config.PLCCode, channel.Measurement,
+                ex.Message);
         }
     }
 
@@ -590,11 +596,13 @@ public class ChannelCollector : IChannelCollector
 
         if (channel.EnableBatchRead)
         {
-            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength).ConfigureAwait(false);
+            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength)
+                .ConfigureAwait(false);
             var buffer = batchData.Content;
             foreach (var dataPoint in channel.DataPoints)
             {
-                var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType, dataPoint.Encoding);
+                var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType,
+                    dataPoint.Encoding);
                 dataMessage.AddDataValue(dataPoint.FieldName, value);
             }
         }
@@ -616,7 +624,8 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 异步处理数据消息（表达式计算和发布），不阻塞采集循环。
     /// </summary>
-    private async Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task ProcessAndPublishMessageAsync(DeviceConfig config, DataAcquisitionChannel channel,
+        DataMessage dataMessage)
     {
         try
         {
@@ -626,14 +635,16 @@ public class ChannelCollector : IChannelCollector
         catch (Exception ex)
         {
             _metricsCollector?.RecordError(config.PLCCode, channel.Measurement, channel.ChannelCode);
-            _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:异步处理数据消息失败: {Message}", config.PLCCode, channel.Measurement,
+                ex.Message);
         }
     }
 
     /// <summary>
     /// 异步发布结束事件消息。
     /// </summary>
-    private async Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel, DataMessage dataMessage, CancellationToken ct)
+    private async Task PublishEndEventMessageAsync(DeviceConfig config, DataAcquisitionChannel channel,
+        DataMessage dataMessage)
     {
         try
         {
@@ -641,7 +652,8 @@ public class ChannelCollector : IChannelCollector
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement, ex.Message);
+            _logger.LogError(ex, "{PLCCode}-{Measurement}:发布结束事件消息失败: {Message}", config.PLCCode, channel.Measurement,
+                ex.Message);
         }
     }
 
@@ -674,7 +686,9 @@ public class ChannelCollector : IChannelCollector
             "long" => await client.ReadLongAsync(register).ConfigureAwait(false),
             "float" => await client.ReadFloatAsync(register).ConfigureAwait(false),
             "double" => await client.ReadDoubleAsync(register).ConfigureAwait(false),
-            "string" => await client.ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8")).ConfigureAwait(false),
+            "string" => await client
+                .ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8"))
+                .ConfigureAwait(false),
             "bool" => await client.ReadBoolAsync(register).ConfigureAwait(false),
             _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
         };
@@ -683,7 +697,8 @@ public class ChannelCollector : IChannelCollector
     /// <summary>
     /// 按数据类型转换缓冲区中的值。
     /// </summary>
-    private static dynamic? TransValue(IPLCClientService client, byte[] buffer, int index, int length, string dataType, string encoding)
+    private static dynamic? TransValue(IPLCClientService client, byte[] buffer, int index, int length, string dataType,
+        string encoding)
     {
         return dataType.ToLower() switch
         {

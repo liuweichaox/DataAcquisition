@@ -1,6 +1,3 @@
-using System;
-using System.Diagnostics.Metrics;
-
 namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
@@ -58,11 +55,13 @@ public interface IMetricsCollector
     /// 记录PLC连接状态变化
     /// </summary>
     /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="isConnected"></param>
     void RecordConnectionStatus(string plcCode, bool isConnected);
 
     /// <summary>
     /// 记录连接持续时间（秒）
     /// </summary>
     /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="durationSeconds"></param>
     void RecordConnectionDuration(string plcCode, double durationSeconds);
 }

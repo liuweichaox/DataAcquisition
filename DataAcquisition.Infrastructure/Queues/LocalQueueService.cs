@@ -29,8 +29,8 @@ public class LocalQueueService : IQueueService
     private readonly ConcurrentQueue<FailedBatch> _failedBatches = new();
     private readonly object _batchLock = new object();
     private readonly System.Diagnostics.Stopwatch _processingStopwatch = new();
-    private Timer? _flushTimer;
-    private Timer? _retryTimer;
+    private readonly Timer? _flushTimer;
+    private readonly Timer? _retryTimer;
     private readonly TimeSpan _flushInterval;
     private readonly TimeSpan _retryInterval;
     private readonly int _maxRetryCount;
@@ -186,11 +186,10 @@ public class LocalQueueService : IQueueService
     /// </remarks>
     private async Task WriteWalAndTryInfluxAsync(string measurement, List<DataMessage> messages)
     {
-        string? walPath = null;
         try
         {
             // 写入独立 WAL 文件
-            walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
+            var walPath = await _parquetStorage.SaveBatchAsNewFileAsync(messages).ConfigureAwait(false);
 
             // 尝试写入 InfluxDB
             var influxSuccess = await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);
@@ -373,19 +372,14 @@ public class LocalQueueService : IQueueService
         // 在锁外异步执行 WAL + Influx，不阻塞队列处理
         if (batchToSave != null)
         {
-            // 使用 Task.Run 异步执行，不阻塞 SubscribeAsync 循环
-            // 这样可以立即处理下一个消息，提高采集频率
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "异步写入 WAL/Influx 失败: {BatchKey}", batchKey);
-                }
-            });
+                await WriteWalAndTryInfluxAsync(dataMessage.Measurement, batchToSave).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "异步写入 WAL/Influx 失败: {BatchKey}", batchKey);
+            }
         }
     }
 

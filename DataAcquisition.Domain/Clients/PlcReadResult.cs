@@ -13,7 +13,7 @@ public class PLCReadResult
     /// <summary>
     /// 读取的原始内容。
     /// </summary>
-    public byte[] Content { get; set; } = System.Array.Empty<byte>();
+    public byte[] Content { get; init; } = System.Array.Empty<byte>();
 
     /// <summary>
     /// 结果描述信息。
