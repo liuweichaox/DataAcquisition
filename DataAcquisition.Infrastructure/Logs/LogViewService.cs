@@ -17,7 +17,7 @@ namespace DataAcquisition.Infrastructure.Logs;
 public class LogViewService : ILogViewService
 {
     private readonly string _logsDirectory;
-    private static readonly HashSet<string> _knownLevels = new(StringComparer.OrdinalIgnoreCase)
+    private static readonly HashSet<string> KnownLevels = new(StringComparer.OrdinalIgnoreCase)
     {
         "Verbose", "Debug", "Information", "Warning", "Error", "Fatal"
     };
@@ -108,7 +108,7 @@ public class LogViewService : ILogViewService
                 foreach (var line in lines)
                 {
                     var match = LogLineRegex.Match(line);
-                    if (match.Success && match.Groups.Count >= 3)
+                    if (match is { Success: true, Groups.Count: >= 3 })
                     {
                         var levelStr = match.Groups[2].Value.Trim();
                         if (!string.IsNullOrEmpty(levelStr))
@@ -127,7 +127,7 @@ public class LogViewService : ILogViewService
         // 如果没有找到任何级别，返回已知的级别列表
         if (levels.Count == 0)
         {
-            return _knownLevels.ToList();
+            return KnownLevels.ToList();
         }
 
         // 按标准顺序排序

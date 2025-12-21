@@ -251,7 +251,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             switch (e.ChangeType)
             {
                 case ConfigChangeType.Added:
-                    if (e.NewConfig != null && e.NewConfig.IsEnabled)
+                    if (e.NewConfig is { IsEnabled: true })
                     {
                         _logger.LogInformation("检测到新设备配置: {PLCCode}，启动采集任务", e.PLCCode);
                         StartCollectionTask(e.NewConfig);
@@ -263,7 +263,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                     {
                         await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
                     }
-                    if (e.NewConfig != null && e.NewConfig.IsEnabled)
+                    if (e.NewConfig is { IsEnabled: true })
                     {
                         _logger.LogInformation("设备配置已更新: {PLCCode}，重启采集任务", e.PLCCode);
                         StartCollectionTask(e.NewConfig);

@@ -49,7 +49,7 @@ public class LocalQueueService : IQueueService
         _metricsCollector = metricsCollector;
         _deviceConfigService = deviceConfigService;
 
-        var options = new Domain.Models.QueueServiceOptions
+        var options = new QueueServiceOptions
         {
             FlushIntervalSeconds = int.TryParse(configuration["Acquisition:QueueService:FlushIntervalSeconds"], out var flushInterval) ? flushInterval : 5,
             RetryIntervalSeconds = int.TryParse(configuration["Acquisition:QueueService:RetryIntervalSeconds"], out var retryInterval) ? retryInterval : 10,
@@ -78,7 +78,7 @@ public class LocalQueueService : IQueueService
             {
                 if (kvp.Value.Count > 0)
                 {
-                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, new List<DataMessage>(kvp.Value)));
+                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, [..kvp.Value]));
                     kvp.Value.Clear();
                 }
             }
@@ -260,11 +260,11 @@ public class LocalQueueService : IQueueService
         var channelDepth = _channel.Reader.Count;
 
         // _dataBatchMap 中积累的消息总数
-        int batchDepth = 0;
+        int batchDepth;
         lock (_batchLock)
         {
             batchDepth = _dataBatchMap.Values.Sum(list => list.Count);
-            }
+        }
 
         return channelDepth + batchDepth;
     }
@@ -404,7 +404,7 @@ public class LocalQueueService : IQueueService
             {
                 if (kvp.Value.Count > 0)
                 {
-                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, new List<DataMessage>(kvp.Value)));
+                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, [..kvp.Value]));
                 }
             }
             _dataBatchMap.Clear();

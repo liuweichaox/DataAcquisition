@@ -19,7 +19,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private readonly string _configDirectory;
     private FileSystemWatcher? _fileWatcher;
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
-    private Dictionary<string, DeviceConfig> _cachedConfigs = new();
+    private readonly Dictionary<string, DeviceConfig> _cachedConfigs = new();
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly IConfiguration _configuration;
 
@@ -76,12 +76,11 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// <summary>
     /// 配置文件删除处理
     /// </summary>
-    private async void OnConfigFileDeleted(object sender, FileSystemEventArgs e)
+    private void OnConfigFileDeleted(object sender, FileSystemEventArgs e)
     {
         var fileName = Path.GetFileNameWithoutExtension(e.FullPath);
-        if (_cachedConfigs.TryGetValue(fileName, out var oldConfig))
+        if (_cachedConfigs.Remove(fileName, out var oldConfig))
         {
-            _cachedConfigs.Remove(fileName);
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
@@ -98,9 +97,8 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     {
         // 处理为删除旧文件，创建新文件
         var oldFileName = Path.GetFileNameWithoutExtension(e.OldFullPath);
-        if (_cachedConfigs.TryGetValue(oldFileName, out var oldConfig))
+        if (_cachedConfigs.Remove(oldFileName, out var oldConfig))
         {
-            _cachedConfigs.Remove(oldFileName);
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
@@ -127,7 +125,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         try
         {
             var fileName = Path.GetFileNameWithoutExtension(filePath);
-            var oldConfig = _cachedConfigs.TryGetValue(fileName, out var config) ? config : null;
+            var oldConfig = _cachedConfigs.GetValueOrDefault(fileName);
 
             if (!File.Exists(filePath))
             {
@@ -200,43 +198,13 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
                 }
 
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
-                if (fileName != null)
-                {
-                    _cachedConfigs[fileName] = config;
-                }
+                _cachedConfigs[fileName] = config;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"加载配置文件失败 {filePath}: {ex.Message}");
             }
         }
-    }
-
-    /// <summary>
-    /// 获取配置文件路径
-    /// </summary>
-    private string GetConfigFilePath(string plcCode)
-    {
-        // 验证 plcCode 不包含路径遍历字符，防止路径遍历攻击
-        if (string.IsNullOrWhiteSpace(plcCode))
-        {
-            throw new ArgumentException("设备编码不能为空", nameof(plcCode));
-        }
-
-        if (plcCode.Contains("..") || plcCode.Contains("/") || plcCode.Contains("\\"))
-        {
-            throw new ArgumentException($"无效的设备编码: {plcCode}，不能包含路径遍历字符", nameof(plcCode));
-        }
-
-        // 验证文件名合法（不能包含系统保留字符）
-        var fileName = $"{plcCode}.json";
-        var invalidChars = Path.GetInvalidFileNameChars();
-        if (fileName.IndexOfAny(invalidChars) >= 0)
-        {
-            throw new ArgumentException($"无效的设备编码: {plcCode}，包含非法字符", nameof(plcCode));
-        }
-
-        return Path.Combine(_configDirectory, fileName);
     }
 
     /// <summary>
@@ -321,40 +289,5 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     {
         _fileWatcher?.Dispose();
         _reloadLock?.Dispose();
-    }
-
-    /// <summary>
-    /// 遍历指定文件夹下的所有 JSON 文件，并加载每个文件的内容
-    /// </summary>
-    /// <typeparam name="T">要反序列化的目标类型</typeparam>
-    /// <param name="directoryPath">目录路径</param>
-    /// <returns>包含所有 JSON 文件内容的列表</returns>
-    private async Task<List<T>> LoadAllJsonFilesAsync<T>(string directoryPath)
-    {
-        var results = new List<T>();
-
-        if (!Directory.Exists(directoryPath))
-        {
-            return results;
-        }
-
-        // 获取所有 JSON 文件。
-        var jsonFiles = Directory.GetFiles(directoryPath, "*.json");
-
-        foreach (var filePath in jsonFiles)
-        {
-            try
-            {
-                // 加载并反序列化每个 JSON 文件。
-                var config = await LoadConfigAsync<T>(filePath).ConfigureAwait(false);
-                results.Add(config);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"加载文件 {filePath} 时出错: {ex.Message}");
-            }
-        }
-
-        return results;
     }
 }

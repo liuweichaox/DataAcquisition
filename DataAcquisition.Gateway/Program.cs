@@ -1,17 +1,13 @@
 // 应用程序入口，配置 WebHost 与服务。
-using System.Text.Json;
-using System.Text.Json.Serialization;
+
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Infrastructure.Clients;
 using DataAcquisition.Infrastructure.DataStorages;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Infrastructure.DataAcquisitions;
-using DataAcquisition.Application;
 using DataAcquisition.Gateway.BackgroundServices;
 using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Metrics;
-using DataAcquisition.Infrastructure;
-using DataAcquisition.Gateway.Services;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
@@ -76,7 +72,7 @@ app.UseRouting();
 app.UseHttpMetrics();
 
 // 初始化 System.Diagnostics.Metrics 到 Prometheus 的桥接
-var metricsBridge = app.Services.GetRequiredService<DataAcquisition.Gateway.Services.MetricsBridge>();
+app.Services.GetRequiredService<DataAcquisition.Gateway.Services.MetricsBridge>();
 
 app.UseAuthorization();
 

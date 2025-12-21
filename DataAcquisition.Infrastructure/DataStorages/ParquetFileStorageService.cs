@@ -78,9 +78,9 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
             var schema = GetSchema();
             
             // 写入文件
-            using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+            await using (var stream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
             {
-                using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
+                await using var parquetWriter = await ParquetWriter.CreateAsync(schema, stream, append: false).ConfigureAwait(false);
                 parquetWriter.CompressionMethod = CompressionMethod.Snappy;
 
                 // 创建 row group 并写入数据

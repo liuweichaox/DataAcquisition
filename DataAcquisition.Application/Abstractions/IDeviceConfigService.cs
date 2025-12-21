@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
 

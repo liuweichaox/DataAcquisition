@@ -153,7 +153,7 @@ public class MitsubishiPLCClientService(DeviceConfig config) : IPLCClientService
         return new PLCReadResult
         {
             IsSuccess = res.IsSuccess,
-            Content = res.Content ?? System.Array.Empty<byte>(),
+            Content = res.Content ?? Array.Empty<byte>(),
             Message = res.Message
         };
     }
