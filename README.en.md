@@ -247,56 +247,56 @@ For detailed information, please refer to: [DataAcquisition.Simulator/README.md]
 
 #### Root Level Properties
 
-| Property Name | Type | Required | Description |
-|--------------|------|----------|-------------|
-| `IsEnabled` | `boolean` | Yes | Whether the device is enabled |
-| `PLCCode` | `string` | Yes | Unique identifier for the PLC device |
-| `Host` | `string` | Yes | IP address of the PLC device |
-| `Port` | `integer` | Yes | Communication port of the PLC device |
-| `Type` | `string` | Yes | PLC device type (e.g., Mitsubishi, Siemens, etc.) |
-| `HeartbeatMonitorRegister` | `string` | No | Register address for PLC heartbeat monitoring |
-| `HeartbeatPollingInterval` | `integer` | No | Polling interval for heartbeat monitoring (milliseconds) |
-| `Channels` | `array` | Yes | List of data acquisition channel configurations |
+| Property Name              | Type      | Required | Description                                              |
+| -------------------------- | --------- | -------- | -------------------------------------------------------- |
+| `IsEnabled`                | `boolean` | Yes      | Whether the device is enabled                            |
+| `PLCCode`                  | `string`  | Yes      | Unique identifier for the PLC device                     |
+| `Host`                     | `string`  | Yes      | IP address of the PLC device                             |
+| `Port`                     | `integer` | Yes      | Communication port of the PLC device                     |
+| `Type`                     | `string`  | Yes      | PLC device type (e.g., Mitsubishi, Siemens, etc.)        |
+| `HeartbeatMonitorRegister` | `string`  | No       | Register address for PLC heartbeat monitoring            |
+| `HeartbeatPollingInterval` | `integer` | No       | Polling interval for heartbeat monitoring (milliseconds) |
+| `Channels`                 | `array`   | Yes      | List of data acquisition channel configurations          |
 
 #### Channels Array Properties
 
-| Property Name | Type | Required | Description |
-|--------------|------|----------|-------------|
-| `Measurement` | `string` | Yes | Measurement name in time-series database (table name) |
-| `ChannelCode` | `string` | Yes | Unique identifier for the acquisition channel |
-| `BatchSize` | `integer` | No | Number of data points to write to database in batch |
-| `AcquisitionInterval` | `integer` | Yes | Data acquisition interval (milliseconds) |
-| `AcquisitionMode` | `string` | Yes | Acquisition mode (Always: continuous acquisition, Conditional: conditional trigger acquisition) |
-| `EnableBatchRead` | `boolean` | No | Whether to enable batch read functionality |
-| `BatchReadRegister` | `string` | No | Start register address for batch read |
-| `BatchReadLength` | `integer` | No | Number of registers to read in batch |
-| `DataPoints` | `array` | Yes | List of data point configurations |
-| `ConditionalAcquisition` | `object` | No | Conditional acquisition configuration (required only when AcquisitionMode is Conditional) |
+| Property Name            | Type      | Required | Description                                                                                     |
+| ------------------------ | --------- | -------- | ----------------------------------------------------------------------------------------------- |
+| `Measurement`            | `string`  | Yes      | Measurement name in time-series database (table name)                                           |
+| `ChannelCode`            | `string`  | Yes      | Unique identifier for the acquisition channel                                                   |
+| `BatchSize`              | `integer` | No       | Number of data points to write to database in batch                                             |
+| `AcquisitionInterval`    | `integer` | Yes      | Data acquisition interval (milliseconds)                                                        |
+| `AcquisitionMode`        | `string`  | Yes      | Acquisition mode (Always: continuous acquisition, Conditional: conditional trigger acquisition) |
+| `EnableBatchRead`        | `boolean` | No       | Whether to enable batch read functionality                                                      |
+| `BatchReadRegister`      | `string`  | No       | Start register address for batch read                                                           |
+| `BatchReadLength`        | `integer` | No       | Number of registers to read in batch                                                            |
+| `DataPoints`             | `array`   | Yes      | List of data point configurations                                                               |
+| `ConditionalAcquisition` | `object`  | No       | Conditional acquisition configuration (required only when AcquisitionMode is Conditional)       |
 
 #### DataPoints Array Properties
 
-| Property Name | Type | Required | Description |
-|--------------|------|----------|-------------|
-| `FieldName` | `string` | Yes | Field name in time-series database |
-| `Register` | `string` | Yes | PLC register address for the data point |
-| `Index` | `integer` | No | Index position in batch read results |
-| `DataType` | `string` | Yes | Data type (e.g., short, int, float, etc.) |
-| `EvalExpression` | `string` | No | Data conversion expression (use 'value' variable to represent original value) |
+| Property Name    | Type      | Required | Description                                                                   |
+| ---------------- | --------- | -------- | ----------------------------------------------------------------------------- |
+| `FieldName`      | `string`  | Yes      | Field name in time-series database                                            |
+| `Register`       | `string`  | Yes      | PLC register address for the data point                                       |
+| `Index`          | `integer` | No       | Index position in batch read results                                          |
+| `DataType`       | `string`  | Yes      | Data type (e.g., short, int, float, etc.)                                     |
+| `EvalExpression` | `string`  | No       | Data conversion expression (use 'value' variable to represent original value) |
 
 #### ConditionalAcquisition Object Properties
 
-| Property Name | Type | Required | Description |
-|--------------|------|----------|-------------|
-| `Register` | `string` | Yes | Register address for conditional trigger monitoring |
-| `DataType` | `string` | Yes | Data type of the conditional trigger register |
-| `StartTriggerMode` | `string` | Yes | Start acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
-| `EndTriggerMode` | `string` | Yes | End acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
+| Property Name      | Type     | Required | Description                                                                                                    |
+| ------------------ | -------- | -------- | -------------------------------------------------------------------------------------------------------------- |
+| `Register`         | `string` | Yes      | Register address for conditional trigger monitoring                                                            |
+| `DataType`         | `string` | Yes      | Data type of the conditional trigger register                                                                  |
+| `StartTriggerMode` | `string` | Yes      | Start acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
+| `EndTriggerMode`   | `string` | Yes      | End acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease)   |
 
 ### AcquisitionTrigger Mode Description
 
-| Trigger Mode | Description |
-|-------------|-------------|
-| `RisingEdge` | Trigger when value increases (prev < curr) |
+| Trigger Mode  | Description                                |
+| ------------- | ------------------------------------------ |
+| `RisingEdge`  | Trigger when value increases (prev < curr) |
 | `FallingEdge` | Trigger when value decreases (prev > curr) |
 
 > Note: The RisingEdge and FallingEdge here are different from traditional edge triggering (0→1 or 1→0). They are triggered based on value increases/decreases, not strict 0/1 transitions.
@@ -642,9 +642,9 @@ The system includes the following core monitoring metrics:
 
 1. **Data Acquisition**: ChannelCollector reads data from PLC
 2. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
-4. **WAL Write**: Immediate write to Parquet files as write-ahead log
-5. **Primary Storage Write**: Immediate write to InfluxDB
-6. **WAL Cleanup**: Delete corresponding Parquet files on successful write
+3. **WAL Write**: Immediate write to Parquet files as write-ahead log
+4. **Primary Storage Write**: Immediate write to InfluxDB
+5. **WAL Cleanup**: Delete corresponding Parquet files on successful write
 
 ### Exception Handling Flow
 
@@ -752,4 +752,4 @@ Thanks to the following open-source projects:
 
 ---
 
-**If you have questions or suggestions, please submit an [Issue](https://github.com/your-username/G-DataAcquisition/issues) or contribute code via Pull Request!**
+**If you have questions or suggestions, please submit an [Issue](https://github.com/your-username/DataAcquisition/issues) or contribute code via Pull Request!**

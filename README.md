@@ -265,59 +265,59 @@ dotnet run --project DataAcquisition.Gateway
 
 #### 根级别属性
 
-| 属性名称 | 类型 | 必填 | 说明 |
-|---------|------|------|---------|
-| `IsEnabled` | `boolean` | 是 | 设备是否启用 |
-| `PLCCode` | `string` | 是 | PLC设备的唯一标识符 |
-| `Host` | `string` | 是 | PLC设备的IP地址 |
-| `Port` | `integer` | 是 | PLC设备的通信端口 |
-| `Type` | `string` | 是 | PLC设备类型（如Mitsubishi, Siemens等） |
-| `HeartbeatMonitorRegister` | `string` | 否 | 用于监控PLC心跳的寄存器地址 |
-| `HeartbeatPollingInterval` | `integer` | 否 | 心跳监控的轮询间隔（毫秒） |
-| `Channels` | `array` | 是 | 数据采集通道配置列表 |
+| 属性名称                   | 类型      | 必填 | 说明                                      |
+| -------------------------- | --------- | ---- | ----------------------------------------- |
+| `IsEnabled`                | `boolean` | 是   | 设备是否启用                              |
+| `PLCCode`                  | `string`  | 是   | PLC 设备的唯一标识符                      |
+| `Host`                     | `string`  | 是   | PLC 设备的 IP 地址                        |
+| `Port`                     | `integer` | 是   | PLC 设备的通信端口                        |
+| `Type`                     | `string`  | 是   | PLC 设备类型（如 Mitsubishi, Siemens 等） |
+| `HeartbeatMonitorRegister` | `string`  | 否   | 用于监控 PLC 心跳的寄存器地址             |
+| `HeartbeatPollingInterval` | `integer` | 否   | 心跳监控的轮询间隔（毫秒）                |
+| `Channels`                 | `array`   | 是   | 数据采集通道配置列表                      |
 
-#### Channels数组属性
+#### Channels 数组属性
 
-| 属性名称 | 类型 | 必填 | 说明 |
-|---------|------|------|---------|
-| `Measurement` | `string` | 是 | 时序数据库中的测量名称（表名） |
-| `ChannelCode` | `string` | 是 | 采集通道的唯一标识符 |
-| `BatchSize` | `integer` | 否 | 批量写入数据库的数据点数量 |
-| `AcquisitionInterval` | `integer` | 是 | 数据采集的时间间隔（毫秒） |
-| `AcquisitionMode` | `string` | 是 | 采集模式（Always: 持续采集, Conditional: 条件触发采集） |
-| `EnableBatchRead` | `boolean` | 否 | 是否启用批量读取功能 |
-| `BatchReadRegister` | `string` | 否 | 批量读取的起始寄存器地址 |
-| `BatchReadLength` | `integer` | 否 | 批量读取的寄存器数量 |
-| `DataPoints` | `array` | 是 | 数据点配置列表 |
-| `ConditionalAcquisition` | `object` | 否 | 条件采集配置（仅在AcquisitionMode为Conditional时需要） |
+| 属性名称                 | 类型      | 必填 | 说明                                                       |
+| ------------------------ | --------- | ---- | ---------------------------------------------------------- |
+| `Measurement`            | `string`  | 是   | 时序数据库中的测量名称（表名）                             |
+| `ChannelCode`            | `string`  | 是   | 采集通道的唯一标识符                                       |
+| `BatchSize`              | `integer` | 否   | 批量写入数据库的数据点数量                                 |
+| `AcquisitionInterval`    | `integer` | 是   | 数据采集的时间间隔（毫秒）                                 |
+| `AcquisitionMode`        | `string`  | 是   | 采集模式（Always: 持续采集, Conditional: 条件触发采集）    |
+| `EnableBatchRead`        | `boolean` | 否   | 是否启用批量读取功能                                       |
+| `BatchReadRegister`      | `string`  | 否   | 批量读取的起始寄存器地址                                   |
+| `BatchReadLength`        | `integer` | 否   | 批量读取的寄存器数量                                       |
+| `DataPoints`             | `array`   | 是   | 数据点配置列表                                             |
+| `ConditionalAcquisition` | `object`  | 否   | 条件采集配置（仅在 AcquisitionMode 为 Conditional 时需要） |
 
-#### DataPoints数组属性
+#### DataPoints 数组属性
 
-| 属性名称 | 类型 | 必填 | 说明 |
-|---------|------|------|---------|
-| `FieldName` | `string` | 是 | 时序数据库中的字段名称 |
-| `Register` | `string` | 是 | 数据点对应的PLC寄存器地址 |
-| `Index` | `integer` | 否 | 批量读取时在结果中的索引位置 |
-| `DataType` | `string` | 是 | 数据类型（如short, int, float等） |
-| `EvalExpression` | `string` | 否 | 数据转换表达式（使用value变量表示原始值） |
+| 属性名称         | 类型      | 必填 | 说明                                        |
+| ---------------- | --------- | ---- | ------------------------------------------- |
+| `FieldName`      | `string`  | 是   | 时序数据库中的字段名称                      |
+| `Register`       | `string`  | 是   | 数据点对应的 PLC 寄存器地址                 |
+| `Index`          | `integer` | 否   | 批量读取时在结果中的索引位置                |
+| `DataType`       | `string`  | 是   | 数据类型（如 short, int, float 等）         |
+| `EvalExpression` | `string`  | 否   | 数据转换表达式（使用 value 变量表示原始值） |
 
-#### ConditionalAcquisition对象属性
+#### ConditionalAcquisition 对象属性
 
-| 属性名称 | 类型 | 必填 | 说明 |
-|---------|------|------|---------|
-| `Register` | `string` | 是 | 条件触发监控的寄存器地址 |
-| `DataType` | `string` | 是 | 条件触发寄存器的数据类型 |
-| `StartTriggerMode` | `string` | 是 | 开始采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
-| `EndTriggerMode` | `string` | 是 | 结束采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
+| 属性名称           | 类型     | 必填 | 说明                                                                      |
+| ------------------ | -------- | ---- | ------------------------------------------------------------------------- |
+| `Register`         | `string` | 是   | 条件触发监控的寄存器地址                                                  |
+| `DataType`         | `string` | 是   | 条件触发寄存器的数据类型                                                  |
+| `StartTriggerMode` | `string` | 是   | 开始采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
+| `EndTriggerMode`   | `string` | 是   | 结束采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
 
-### AcquisitionTrigger触发模式说明
+### AcquisitionTrigger 触发模式说明
 
-| 触发模式 | 说明 |
-|---------|---------|
-| `RisingEdge` | 当数值从较小值变为较大值时触发（prev < curr） |
+| 触发模式      | 说明                                          |
+| ------------- | --------------------------------------------- |
+| `RisingEdge`  | 当数值从较小值变为较大值时触发（prev < curr） |
 | `FallingEdge` | 当数值从较大值变为较小值时触发（prev > curr） |
 
-> 注意：此处的RisingEdge和FallingEdge与传统的边沿触发（0→1或1→0）不同，它们基于数值的增减变化来触发，而非严格的0/1跳变。
+> 注意：此处的 RisingEdge 和 FallingEdge 与传统的边沿触发（0→1 或 1→0）不同，它们基于数值的增减变化来触发，而非严格的 0/1 跳变。
 
 ### 应用配置 (appsettings.json)
 
@@ -505,7 +505,7 @@ var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegis
 | Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通讯客户端   |
 | Inovance     | `InovancePLCClientService`    | 汇川 PLC 通讯客户端   |
 | Beckhoff ADS | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
-| Siemens      | `SiemensPLClientService`     | 西门子 PLC 通讯客户端 |
+| Siemens      | `SiemensPLClientService`      | 西门子 PLC 通讯客户端 |
 
 ### ChannelCollector - 通道采集器
 
@@ -660,9 +660,9 @@ public class InfluxDbDataStorageService : IDataStorageService
 
 1. **数据采集**: ChannelCollector 从 PLC 读取数据
 2. **队列聚合**: LocalQueueService 按 BatchSize 聚合数据
-4. **WAL 写入**: 立即写入 Parquet 文件作为预写日志
-5. **主存储写入**: 立即写入 InfluxDB
-6. **WAL 清理**: 写入成功则删除对应的 Parquet 文件
+3. **WAL 写入**: 立即写入 Parquet 文件作为预写日志
+4. **主存储写入**: 立即写入 InfluxDB
+5. **WAL 清理**: 写入成功则删除对应的 Parquet 文件
 
 ### 异常处理流程
 
@@ -770,4 +770,4 @@ dotnet build
 
 ---
 
-**如有问题或建议，请提交 [Issue](https://github.com/your-username/G-DataAcquisition/issues) 或通过 Pull Request 贡献代码！**
+**如有问题或建议，请提交 [Issue](https://github.com/your-username/DataAcquisition/issues) 或通过 Pull Request 贡献代码！**
