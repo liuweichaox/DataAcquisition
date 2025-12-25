@@ -2,7 +2,7 @@ using DataAcquisition.Central.Api.Services;
 using DataAcquisition.Contracts.Edge;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Central.Api.Controllers.Api;
+namespace DataAcquisition.Central.Api.Controllers;
 
 [ApiController]
 [Route("api/edges")]
