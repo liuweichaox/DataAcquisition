@@ -121,6 +121,25 @@ DataAcquisition/
 - InfluxDB 2.x (可选，用于时序数据存储)
 - 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
 
+#### 安装 .NET SDK（Linux）
+
+如果你执行 `dotnet` 提示 `command not found`，说明机器上还没安装 .NET SDK（仓库不会自带）。
+
+以 **Ubuntu/Debian** 为例（安装 .NET 8 SDK）：
+
+```bash
+# 添加 Microsoft 包源（仅首次需要）
+wget https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt-get update
+
+# 安装 SDK
+sudo apt-get install -y dotnet-sdk-8.0
+
+# 验证
+dotnet --info
+```
+
 > **注意**: 项目支持多目标框架（.NET 10.0、.NET 8.0），可根据部署环境选择合适的版本。两个版本均为 LTS（长期支持）版本，适合生产环境使用。
 >
 > **版本选择建议**:
@@ -233,6 +252,27 @@ dotnet run --project src/DataAcquisition.Central.Web
 详细说明请参考：[DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
 
 ## ⚙️ 配置说明
+
+### EdgeId / edge_id（中心识别边缘节点的唯一标识）
+
+当前仓库里：
+
+- **Central Web** 已提供边缘节点注册/心跳/数据接入的 API，并在 SQLite（`Central:DatabasePath`，默认 `Data/central.db`）里用 `edge_id` 作为主键保存。
+- **Edge Agent** 目前专注“采集 + WAL + Influx/Parquet + 本地诊断 API”，**暂未内置“自动向中心注册/上报”的实现**，因此你不会在 Edge Agent 的 `appsettings.json` 里看到 `EdgeId` 配置项。
+
+如果你需要让 Central 识别某个 Edge 节点（在 `Central Web -> /edges` 页面可见），你可以自行决定一个稳定的 `EdgeId`（例如：设备序列号/主机名/一个落盘保存的 GUID），然后调用中心 API：
+
+```bash
+# 1) 注册（或更新）边缘节点信息
+curl -X POST http://localhost:8000/api/edges/register \
+  -H "Content-Type: application/json" \
+  -d '{"edgeId":"edge-001","hostname":"workshop-a-01","version":"1.0.0"}'
+
+# 2) 心跳（更新在线时间/积压/错误摘要）
+curl -X POST http://localhost:8000/api/edges/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{"edgeId":"edge-001","bufferBacklog":0,"lastError":null}'
+```
 
 ### 设备配置文件示例
 

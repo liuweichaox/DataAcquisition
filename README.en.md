@@ -103,6 +103,25 @@ DataAcquisition/
 - InfluxDB 2.x (optional, for time-series data storage)
 - Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
 
+#### Install .NET SDK (Linux)
+
+If running `dotnet` prints `command not found`, .NET SDK is not installed (this repo does not bundle it).
+
+Example for **Ubuntu/Debian** (install .NET 8 SDK):
+
+```bash
+# Add Microsoft package feed (first time only)
+wget https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/packages-microsoft-prod.deb -O packages-microsoft-prod.deb
+sudo dpkg -i packages-microsoft-prod.deb
+sudo apt-get update
+
+# Install SDK
+sudo apt-get install -y dotnet-sdk-8.0
+
+# Verify
+dotnet --info
+```
+
 > **Note**: The project supports multi-target frameworks (.NET 10.0, .NET 8.0). You can choose the appropriate version based on your deployment environment. Both versions are LTS (Long Term Support) versions, suitable for production use.
 >
 > **Version Selection Recommendations**:
@@ -215,6 +234,27 @@ dotnet run --project src/DataAcquisition.Central.Web
 For detailed information, please refer to: [DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
 
 ## ⚙️ Configuration Guide
+
+### EdgeId / edge_id (Central’s unique identifier for an Edge node)
+
+In this repo:
+
+- **Central Web** already exposes Edge registration/heartbeat/ingest APIs and persists Edge states in SQLite (`Central:DatabasePath`, default `Data/central.db`) keyed by `edge_id`.
+- **Edge Agent** currently focuses on “acquisition + WAL + Influx/Parquet + local diagnostic APIs” and **does not yet implement automatic registration/reporting to Central**, so you won’t find an `EdgeId` setting in `DataAcquisition.Edge.Agent/appsettings.json`.
+
+If you want Central to “see” a specific Edge node (shown on the Central UI), choose a stable `EdgeId` (e.g. serial number/hostname/a persisted GUID) and call Central APIs:
+
+```bash
+# 1) Register (or update) edge node
+curl -X POST http://localhost:8000/api/edges/register \
+  -H "Content-Type: application/json" \
+  -d '{"edgeId":"edge-001","hostname":"workshop-a-01","version":"1.0.0"}'
+
+# 2) Heartbeat (update last_seen/backlog/error)
+curl -X POST http://localhost:8000/api/edges/heartbeat \
+  -H "Content-Type: application/json" \
+  -d '{"edgeId":"edge-001","bufferBacklog":0,"lastError":null}'
+```
 
 ### Device Configuration Example
 
