@@ -1,4 +1,4 @@
-// Central Web（中心侧）：托管前端静态文件，并提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
+// Central Web（中心侧）：提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
 
 using Serilog;
 using Prometheus;
@@ -42,8 +42,5 @@ app.MapControllers();
 app.MapControllerRoute(
     "default",
     "{controller=Home}/{action=Index}/{id?}");
-
-// Vue history 模式：任意非 /api 路径回退到 dist/index.html
-app.MapFallbackToFile("dist/index.html");
 
 app.Run();

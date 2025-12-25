@@ -24,10 +24,10 @@ public class HomeController : Controller
     /// </summary>
     public IActionResult Index()
     {
-        // Vue CLI 构建产物（wwwroot/dist）优先作为首页返回；
-        // 若尚未构建（开发阶段），则回退到原 MVC View。
-        var distIndex = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "dist", "index.html");
-        if (System.IO.File.Exists(distIndex)) return PhysicalFile(distIndex, "text/html; charset=utf-8");
+        // 前端已独立部署：中心只提供 API/metrics。
+        // 如配置了 Frontend:BaseUrl，则将首页重定向到前端地址。
+        var frontendBaseUrl = HttpContext.RequestServices.GetRequiredService<IConfiguration>()["Frontend:BaseUrl"];
+        if (!string.IsNullOrWhiteSpace(frontendBaseUrl)) return Redirect(frontendBaseUrl.TrimEnd('/'));
 
         return View();
     }
