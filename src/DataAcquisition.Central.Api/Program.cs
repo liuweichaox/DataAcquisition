@@ -1,7 +1,11 @@
 // Central API（中心侧）：提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
 
+using System.Text.Json;
+using DataAcquisition.Central.Api.HealthChecks;
 using Serilog;
 using Prometheus;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,6 +16,10 @@ builder.WebHost.UseUrls(urls);
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
 builder.Services.AddSingleton<DataAcquisition.Central.Api.Services.EdgeRegistry>();
+
+builder.Services
+    .AddHealthChecks()
+    .AddCheck<SqliteHealthCheck>("sqlite");
 
 // CORS：给纯前端（Vue CLI / 静态站点）调用 API 用
 builder.Services.AddCors(options =>
@@ -55,6 +63,29 @@ app.UseCors("frontend");
 // Prometheus 指标（中心自身进程）
 app.UseHttpMetrics();
 app.MapMetrics();
+
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = async (context, report) =>
+    {
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        var payload = new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.ToDictionary(
+                e => e.Key,
+                e => new
+                {
+                    status = e.Value.Status.ToString(),
+                    description = e.Value.Description,
+                    error = e.Value.Exception?.Message
+                })
+        };
+
+        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+    }
+});
 
 // Attribute routing（/api/..）
 app.MapControllers();
