@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace DataAcquisition.Domain.Models;
@@ -16,12 +16,12 @@ public class DeviceConfig
     /// <summary>
     ///     PLC 编码
     /// </summary>
-    public string PLCCode { get; set; }
+    public string PLCCode { get; set; } = string.Empty;
 
     /// <summary>
     ///     IP 地址
     /// </summary>
-    public string Host { get; set; }
+    public string Host { get; set; } = string.Empty;
 
     /// <summary>
     ///     端口
@@ -37,7 +37,7 @@ public class DeviceConfig
     /// <summary>
     ///     心跳检测地址
     /// </summary>
-    public string HeartbeatMonitorRegister { get; set; }
+    public string HeartbeatMonitorRegister { get; set; } = string.Empty;
 
     /// <summary>
     ///     心跳检测间隔时间（ms）
@@ -47,7 +47,7 @@ public class DeviceConfig
     /// <summary>
     ///     采集通道
     /// </summary>
-    public List<DataAcquisitionChannel> Channels { get; set; }
+    public List<DataAcquisitionChannel> Channels { get; set; } = new();
 }
 
 /// <summary>
@@ -123,7 +123,7 @@ public class DataAcquisitionChannel
     /// <summary>
     ///     通道编码
     /// </summary>
-    public string ChannelCode { get; set; }
+    public string ChannelCode { get; set; } = string.Empty;
 
     /// <summary>
     ///     是否启用批量读取
@@ -133,7 +133,7 @@ public class DataAcquisitionChannel
     /// <summary>
     ///     批量读取地址
     /// </summary>
-    public string BatchReadRegister { get; set; }
+    public string BatchReadRegister { get; set; } = string.Empty;
 
     /// <summary>
     ///     批量读取长度
@@ -143,7 +143,7 @@ public class DataAcquisitionChannel
     /// <summary>
     ///     测量值名称（Measurement），时序数据库中的表名/测量值标识
     /// </summary>
-    public string Measurement { get; set; }
+    public string Measurement { get; set; } = string.Empty;
 
     /// <summary>
     ///     批量保存大小
@@ -200,17 +200,17 @@ public class DataPoint
     /// <summary>
     ///     字段名称（Field Name），时序数据库中存储数值的字段名
     /// </summary>
-    public string FieldName { get; set; }
+    public string FieldName { get; set; } = string.Empty;
 
     /// <summary>
     ///     寄存器地址
     /// </summary>
-    public string Register { get; set; }
+    public string Register { get; set; } = string.Empty;
 
     /// <summary>
     ///     数据类型
     /// </summary>
-    public string DataType { get; set; }
+    public string DataType { get; set; } = string.Empty;
 
     /// <summary>
     ///     索引位置
@@ -225,10 +225,10 @@ public class DataPoint
     /// <summary>
     ///     字符串编码，仅在数据类型为字符串时使用
     /// </summary>
-    public string Encoding { get; set; }
+    public string Encoding { get; set; } = string.Empty;
 
     /// <summary>
     ///     数值转换表达式
     /// </summary>
-    public string EvalExpression { get; set; }
+    public string EvalExpression { get; set; } = string.Empty;
 }

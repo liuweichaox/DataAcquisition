@@ -1,23 +1,27 @@
 <Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net8.0;net10.0</TargetFrameworks>
-        <DefaultTargetFramework>net10.0</DefaultTargetFramework>
+        <!-- 兼容仅安装 .NET 8 SDK 的环境：默认只编译 net8.0；
+             当 SDK >= 10 时自动启用 net10.0 多目标。 -->
+        <TargetFrameworks>net8.0</TargetFrameworks>
+        <TargetFrameworks Condition="'$(NETCoreSdkVersion)' &gt;= '10.0.0'">net8.0;net10.0</TargetFrameworks>
+        <DefaultTargetFramework>net8.0</DefaultTargetFramework>
+        <DefaultTargetFramework Condition="'$(NETCoreSdkVersion)' &gt;= '10.0.0'">net10.0</DefaultTargetFramework>
         <Nullable>enable</Nullable>
         <LangVersion>latest</LangVersion>
         <RootNamespace>DataAcquisition.Infrastructure</RootNamespace>
     </PropertyGroup>
     <ItemGroup>
-        <PackageReference Include="HslCommunication" Version="12.2.0"/>
-        <PackageReference Include="InfluxDB.Client" Version="2.0.0"/>
-        <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0"/>
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.1"/>
-        <PackageReference Include="NCalcAsync" Version="5.4.0"/>
-        <PackageReference Include="Newtonsoft.Json" Version="13.0.3"/>
-        <PackageReference Include="Parquet.Net" Version="5.4.0"/>
-        <PackageReference Include="Serilog" Version="4.1.0"/>
+        <PackageReference Include="HslCommunication" Version="12.2.0" />
+        <PackageReference Include="InfluxDB.Client" Version="4.18.0" />
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.1" />
+        <PackageReference Include="NCalcAsync" Version="5.4.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        <PackageReference Include="Parquet.Net" Version="5.4.0" />
+        <PackageReference Include="Serilog" Version="4.1.0" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\DataAcquisition.Application\DataAcquisition.Application.csproj"/>
+        <ProjectReference Include="..\DataAcquisition.Application\DataAcquisition.Application.csproj" />
     </ItemGroup>
 </Project>

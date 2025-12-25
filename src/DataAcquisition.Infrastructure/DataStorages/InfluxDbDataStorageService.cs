@@ -40,7 +40,8 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         _logger = logger;
         _metricsCollector = metricsCollector;
 
-        _client = InfluxDBClientFactory.Create(url, token.ToCharArray());
+        // InfluxDB.Client 4.x 推荐直接使用客户端初始化方式
+        _client = new InfluxDBClient(url, token);
     }
 
     /// <summary>
@@ -57,7 +58,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         {
             var points = dataMessages.Select(ConvertToPoint).ToList();
             var writeApi = _client.GetWriteApiAsync();
-            await writeApi.WritePointsAsync(_bucket, _org, points);
+            await writeApi.WritePointsAsync(points, _bucket, _org);
             _writeStopwatch.Stop();
 
             var batchSize = dataMessages.Count;
