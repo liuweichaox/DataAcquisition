@@ -233,7 +233,8 @@ dotnet run --project src/DataAcquisition.Central.Api
 
 4. **观察数据采集**：
    - 访问 http://localhost:8000/metrics 查看系统指标
-   - 访问 http://localhost:8000/logs 查看采集日志
+   - 采集侧日志（Edge Agent API）：http://localhost:8001/api/logs
+     - 或通过前端开发页查看：`http://localhost:3000/logs`（依赖 devServer 代理 `/edge/*`）
    - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
 
 详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)

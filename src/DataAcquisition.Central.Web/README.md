@@ -18,5 +18,7 @@ npm run serve
 
 说明：
 - dev server 端口：`http://localhost:3000`
-- 已在 `vue.config.js` 配置代理：`/api`、`/metrics` → `http://localhost:8000`
+- 已在 `vue.config.js` 配置代理：
+  - ` /api`、`/metrics` → `http://localhost:8000`（Central API）
+  - ` /edge/*` → `http://localhost:8001/*`（Edge Agent，用于日志/采集侧指标）
 

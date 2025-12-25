@@ -233,7 +233,8 @@ dotnet run --project src/DataAcquisition.Central.Api
 
 4. **Observe Data Acquisition**:
    - Visit http://localhost:8000/metrics to view system metrics
-   - Visit http://localhost:8000/logs to view acquisition logs
+   - Acquisition logs (Edge Agent API): http://localhost:8001/api/logs
+     - Or via the frontend dev page: `http://localhost:3000/logs` (requires devServer proxy `/edge/*`)
    - Check the `sensor` and `production` measurements in InfluxDB
 
 For detailed information, please refer to: [src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)

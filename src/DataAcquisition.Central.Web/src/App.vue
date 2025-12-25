@@ -2,7 +2,9 @@
   <div>
     <nav class="nav">
       <router-link to="/edges">Edges</router-link>
-      <a href="/metrics" target="_blank" rel="noreferrer">Central metrics</a>
+      <router-link to="/metrics">Metrics</router-link>
+      <router-link to="/logs">Logs</router-link>
+      <a href="/metrics" target="_blank" rel="noreferrer">Central /metrics (raw)</a>
     </nav>
     <main class="main">
       <router-view />
@@ -16,6 +18,7 @@
   gap: 12px;
   padding: 12px 16px;
   border-bottom: 1px solid #eee;
+  align-items: center;
 }
 .main {
   padding: 0;

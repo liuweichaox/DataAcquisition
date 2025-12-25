@@ -6,7 +6,7 @@
     </header>
 
     <p class="hint">
-      后端：<code>DataAcquisition.Central.Web</code>（默认 <code>http://localhost:8000</code>）；
+      后端：<code>DataAcquisition.Central.Api</code>（默认 <code>http://localhost:8000</code>）；
       前端 devServer 通过代理访问 <code>/api</code>。
     </p>
 

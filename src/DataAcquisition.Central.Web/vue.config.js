@@ -13,6 +13,12 @@ module.exports = defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      // Edge Agent（8001）：用于查看采集侧日志/指标（仅本地开发代理）
+      "^/edge": {
+        target: "http://localhost:8001",
+        changeOrigin: true,
+        pathRewrite: { "^/edge": "" },
+      },
     },
   },
 });
