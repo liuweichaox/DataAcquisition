@@ -5,7 +5,6 @@ namespace DataAcquisition.Contracts.Edge;
 /// </summary>
 public sealed record EdgeHeartbeatRequest
 {
-    public required string WorkshopId { get; init; }
     public required string EdgeId { get; init; }
 
     /// <summary>

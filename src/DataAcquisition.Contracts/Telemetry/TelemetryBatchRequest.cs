@@ -5,7 +5,6 @@ namespace DataAcquisition.Contracts.Telemetry;
 /// </summary>
 public sealed record TelemetryBatchRequest
 {
-    public required string WorkshopId { get; init; }
     public required string EdgeId { get; init; }
 
     /// <summary>

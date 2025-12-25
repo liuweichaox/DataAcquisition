@@ -1,11 +1,10 @@
 namespace DataAcquisition.Contracts.Edge;
 
 /// <summary>
-/// 边缘节点注册（或更新）请求：用于让中心“认识”这个车间采集节点。
+/// 边缘节点注册（或更新）请求：用于让中心“认识”这个采集节点。
 /// </summary>
 public sealed record EdgeRegistrationRequest
 {
-    public required string WorkshopId { get; init; }
     public required string EdgeId { get; init; }
 
     /// <summary>

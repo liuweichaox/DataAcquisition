@@ -16,7 +16,6 @@ public class TelemetryController : ControllerBase
 
         return Ok(new
         {
-            request.WorkshopId,
             request.EdgeId,
             request.BatchId,
             received = request.Points.Count
