@@ -17,9 +17,10 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
-        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
-        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
+        <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.1" />
+        <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
         <PackageReference Include="prometheus-net" Version="8.2.1" />
         <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
     </ItemGroup>
@@ -33,44 +34,44 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Include="wwwroot\favicon.ico"/>
-        <None Remove="Services\DataAcquisitionConfigs\**"/>
-        <None Remove="Services\DataStorages\**"/>
-        <None Remove="Services\Queues\**"/>
-        <None Remove="Logging\**"/>
+        <None Include="wwwroot\favicon.ico" />
+        <None Remove="Services\DataAcquisitionConfigs\**" />
+        <None Remove="Services\DataStorages\**" />
+        <None Remove="Services\Queues\**" />
+        <None Remove="Logging\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="Services\DataAcquisitionConfigs\**"/>
-        <Compile Remove="Services\DataStorages\**"/>
-        <Compile Remove="Services\Queues\**"/>
-        <Compile Remove="Logging\**"/>
-        <Compile Remove="DataAcquisition.Simulator\**"/>
+        <Compile Remove="Services\DataAcquisitionConfigs\**" />
+        <Compile Remove="Services\DataStorages\**" />
+        <Compile Remove="Services\Queues\**" />
+        <Compile Remove="Logging\**" />
+        <Compile Remove="DataAcquisition.Simulator\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <EmbeddedResource Remove="Services\DataAcquisitionConfigs\**"/>
-        <EmbeddedResource Remove="Services\DataStorages\**"/>
-        <EmbeddedResource Remove="Services\Queues\**"/>
-        <EmbeddedResource Remove="Logging\**"/>
+        <EmbeddedResource Remove="Services\DataAcquisitionConfigs\**" />
+        <EmbeddedResource Remove="Services\DataStorages\**" />
+        <EmbeddedResource Remove="Services\Queues\**" />
+        <EmbeddedResource Remove="Logging\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <Content Remove="Services\DataAcquisitionConfigs\**"/>
-        <Content Remove="Services\DataStorages\**"/>
-        <Content Remove="Services\Queues\**"/>
-        <Content Remove="Logging\**"/>
+        <Content Remove="Services\DataAcquisitionConfigs\**" />
+        <Content Remove="Services\DataStorages\**" />
+        <Content Remove="Services\Queues\**" />
+        <Content Remove="Logging\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <_ContentIncludedByDefault Remove="BackConfig\M01C123.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M01C456.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M04C123.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M04C456.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M05C123.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M05C456.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M06C123.json"/>
-        <_ContentIncludedByDefault Remove="BackConfig\M06C456.json"/>
+        <_ContentIncludedByDefault Remove="BackConfig\M01C123.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M01C456.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M04C123.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M04C456.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M05C123.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M05C456.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M06C123.json" />
+        <_ContentIncludedByDefault Remove="BackConfig\M06C456.json" />
     </ItemGroup>
 
 </Project>
