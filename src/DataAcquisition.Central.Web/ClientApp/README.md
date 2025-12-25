@@ -11,7 +11,7 @@ dotnet run --project src/DataAcquisition.Central.Web
 2) 启动前端（dev server）
 
 ```bash
-cd frontend
+cd src/DataAcquisition.Central.Web/ClientApp
 npm install
 npm run serve
 ```
