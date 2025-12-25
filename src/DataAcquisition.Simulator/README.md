@@ -15,7 +15,7 @@
 ### 运行模拟器
 
 ```bash
-cd DataAcquisition.Simulator
+cd src/DataAcquisition.Simulator
 dotnet run
 ```
 
@@ -189,7 +189,7 @@ netstat -ano | findstr :502
 1. **启动模拟器**：
 
    ```bash
-   cd DataAcquisition.Simulator
+   cd src/DataAcquisition.Simulator
    dotnet run
    ```
 
@@ -198,8 +198,8 @@ netstat -ano | findstr :502
 2. **启动采集系统**：
 
    ```bash
-   dotnet run --project ./src/DataAcquisition.Worker/DataAcquisition.Worker.csproj --framework net10.0
-   dotnet run --project ./src/DataAcquisition.Web/DataAcquisition.Web.csproj --framework net10.0
+   dotnet run --project ./src/DataAcquisition.Worker/DataAcquisition.Worker.csproj
+   dotnet run --project ./src/DataAcquisition.Web/DataAcquisition.Web.csproj
    ```
 
    系统会自动连接到模拟器（127.0.0.1:502）并开始采集。
