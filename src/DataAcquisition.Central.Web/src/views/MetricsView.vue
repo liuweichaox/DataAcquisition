@@ -1,285 +1,316 @@
 <template>
-  <div class="page">
-    <header class="header">
-      <div>
-        <h1>Metrics（按 edge 下钻）</h1>
-        <p class="sub">
-          通过 <code>/api/edges/&lt;edgeId&gt;/metrics/json</code> 代理读取 Edge.Agent 的 <code>/metrics</code>。
-        </p>
+  <div class="metrics-view">
+    <el-card shadow="never" class="page-header">
+      <template #header>
+        <div class="card-header">
+          <span>
+            <el-icon><DataAnalysis /></el-icon>
+            <span style="margin-left: 8px">指标监控</span>
+          </span>
+          <el-button type="primary" :icon="Refresh" @click="loadMetrics" :loading="loading" :disabled="!edgeId">
+            刷新
+          </el-button>
       </div>
-      <div class="actions">
-        <button @click="reload" :disabled="loading || !edgeId">{{ loading ? "刷新中..." : "刷新" }}</button>
-      </div>
-    </header>
+      </template>
 
-    <section class="card">
-      <div class="row">
-        <label class="label">选择 edge</label>
-        <select v-model="edgeId" @change="onEdgeChange" :disabled="edgesLoading || edges.length === 0">
-          <option value="" disabled>请选择…</option>
-          <option v-for="e in edges" :key="e.edgeId" :value="e.edgeId">
-            {{ e.edgeId }}{{ e.hostname ? ` (${e.hostname})` : "" }}
-          </option>
-        </select>
-      </div>
-      <div class="meta">
-        <span v-if="lastUpdate">最后更新：{{ lastUpdate }}</span>
-        <span v-else-if="loading">正在加载…</span>
-      </div>
-    </section>
+      <el-alert
+        type="info"
+        :closable="false"
+        style="margin-bottom: 16px"
+      >
+        <template #default>
+          通过 <code>/api/edges/&lt;edgeId&gt;/metrics/json</code> 代理读取 Edge.Agent 的 <code>/metrics</code>
+        </template>
+      </el-alert>
 
-    <p v-if="error" class="error">{{ error }}</p>
+      <el-card shadow="never" style="margin-bottom: 16px">
+        <el-form :inline="true">
+          <el-form-item label="选择节点">
+            <el-select
+              v-model="edgeId"
+              placeholder="请选择边缘节点"
+              @change="onEdgeChange"
+              :loading="edgesLoading"
+              style="width: 300px"
+            >
+              <el-option
+                v-for="e in edges"
+                :key="e.edgeId"
+                :label="e.edgeId + (e.hostname ? ' (' + e.hostname + ')' : '')"
+                :value="e.edgeId"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-text type="info" v-if="lastUpdate">最后更新：{{ lastUpdate }}</el-text>
+          </el-form-item>
+        </el-form>
+      </el-card>
 
-    <section v-if="edgeId && metrics" class="grid">
-      <div class="kpi">
-        <div class="kpiLabel">采集延迟</div>
-        <div class="kpiValue">{{ fmtNum(getOne("data_acquisition_collection_latency_ms")) }} ms</div>
-      </div>
-      <div class="kpi">
-        <div class="kpiLabel">采集频率</div>
-        <div class="kpiValue">{{ fmtNum(getOne("data_acquisition_collection_rate")) }} points/s</div>
-      </div>
-      <div class="kpi">
-        <div class="kpiLabel">队列深度</div>
-        <div class="kpiValue">{{ fmtNum(getOne("data_acquisition_queue_depth")) }}</div>
-      </div>
-      <div class="kpi">
-        <div class="kpiLabel">错误总数</div>
-        <div class="kpiValue">{{ fmtNum(getOne("data_acquisition_errors_total")) }}</div>
-      </div>
-    </section>
+      <el-alert
+        v-if="error"
+        :title="error"
+        type="error"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      />
 
-    <section v-if="edgeId && metrics" class="card">
-      <div class="row">
-        <label class="label">搜索指标</label>
-        <input v-model="keyword" placeholder="按指标名过滤…" />
+      <div v-if="edgeId && metrics" class="kpi-grid">
+        <el-card shadow="hover" class="kpi-card">
+          <div class="kpi-label">
+            <el-icon><Timer /></el-icon>
+            <span>采集延迟</span>
+      </div>
+          <div class="kpi-value">{{ fmtNum(getOne("data_acquisition_collection_latency_ms")) }} ms</div>
+        </el-card>
+        <el-card shadow="hover" class="kpi-card">
+          <div class="kpi-label">
+            <el-icon><TrendCharts /></el-icon>
+            <span>采集频率</span>
+      </div>
+          <div class="kpi-value">{{ fmtNum(getOne("data_acquisition_collection_rate")) }} points/s</div>
+        </el-card>
+        <el-card shadow="hover" class="kpi-card">
+          <div class="kpi-label">
+            <el-icon><Box /></el-icon>
+            <span>队列深度</span>
+      </div>
+          <div class="kpi-value">{{ fmtNum(getOne("data_acquisition_queue_depth")) }}</div>
+        </el-card>
+        <el-card shadow="hover" class="kpi-card">
+          <div class="kpi-label">
+            <el-icon><Warning /></el-icon>
+            <span>错误总数</span>
+      </div>
+          <div class="kpi-value error-value">{{ fmtNum(getOne("data_acquisition_errors_total")) }}</div>
+        </el-card>
       </div>
 
-      <table class="table" v-if="filteredMetricNames.length">
-        <thead>
-          <tr>
-            <th>metric</th>
-            <th>type</th>
-            <th>latest</th>
-            <th>labels</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="name in filteredMetricNames" :key="name">
-            <td><code>{{ name }}</code></td>
-            <td>{{ metrics[name]?.type || "-" }}</td>
-            <td>{{ fmtLatest(metrics[name]?.data) }}</td>
-            <td class="labels">
-              <span v-if="latestLabels(metrics[name]?.data)">
-                <code>{{ JSON.stringify(latestLabels(metrics[name]?.data)) }}</code>
-              </span>
-              <span v-else>-</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <el-card v-if="edgeId && metrics" shadow="never" style="margin-top: 16px">
+        <template #header>
+          <div class="card-header">
+            <span>指标详情</span>
+            <el-input
+              v-model="keyword"
+              placeholder="搜索指标名称..."
+              style="width: 300px"
+              clearable
+              :prefix-icon="Search"
+            />
+          </div>
+        </template>
 
-      <p v-else class="empty">暂无指标数据（或该 edge 不可达）。</p>
-    </section>
+        <el-table
+          :data="filteredMetricNames.map(name => ({ name, ...metrics[name] }))"
+          stripe
+          style="width: 100%"
+          max-height="600"
+        >
+          <el-table-column prop="name" label="指标名称" min-width="300">
+            <template #default="{ row }">
+              <el-tag type="info" effect="plain">{{ row.name }}</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="type" label="类型" width="120">
+            <template #default="{ row }">
+              <el-tag v-if="row.type" type="success" size="small">{{ row.type }}</el-tag>
+              <span v-else style="color: #909399">-</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="最新值" width="150">
+            <template #default="{ row }">
+              <el-text type="primary" style="font-weight: 600">{{ fmtLatest(row.data) }}</el-text>
+            </template>
+          </el-table-column>
+          <el-table-column label="标签" min-width="300">
+            <template #default="{ row }">
+              <el-popover
+                v-if="latestLabels(row.data)"
+                placement="top"
+                :width="400"
+                trigger="hover"
+              >
+                <template #reference>
+                  <el-tag type="warning" effect="plain" size="small">
+                    {{ Object.keys(latestLabels(row.data) || {}).length }} 个标签
+                  </el-tag>
+                </template>
+                <pre style="white-space: pre-wrap; word-break: break-word; margin: 0">{{ JSON.stringify(latestLabels(row.data), null, 2) }}</pre>
+              </el-popover>
+              <span v-else style="color: #909399">-</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <el-empty v-if="filteredMetricNames.length === 0" description="暂无匹配的指标" />
+      </el-card>
+
+      <el-empty v-else-if="!loading && !error && edgeId" description="暂无指标数据（或该节点不可达）" />
+    </el-card>
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import {
+  DataAnalysis,
+  Refresh,
+  Timer,
+  TrendCharts,
+  Box,
+  Warning,
+  Search,
+} from "@element-plus/icons-vue";
 import { getJson } from "../api/http";
+import { ElMessage } from "element-plus";
 
-export default {
-  name: "MetricsView",
-  data() {
-    return {
-      edgesLoading: false,
-      edges: [],
-      edgeId: "",
-      loading: false,
-      error: "",
-      lastUpdate: "",
-      metrics: null,
-      keyword: "",
-    };
-  },
-  computed: {
-    filteredMetricNames() {
-      const keys = this.metrics ? Object.keys(this.metrics) : [];
-      const kw = (this.keyword || "").trim().toLowerCase();
+const route = useRoute();
+const router = useRouter();
+
+const edgesLoading = ref(false);
+const edges = ref([]);
+const edgeId = ref("");
+const loading = ref(false);
+const error = ref("");
+const lastUpdate = ref("");
+const metrics = ref(null);
+const keyword = ref("");
+
+const filteredMetricNames = computed(() => {
+  const keys = metrics.value ? Object.keys(metrics.value) : [];
+  const kw = (keyword.value || "").trim().toLowerCase();
       const filtered = kw ? keys.filter((k) => k.toLowerCase().includes(kw)) : keys;
       return filtered.sort();
-    },
-  },
-  async mounted() {
-    await this.loadEdges();
-    const fromQuery = this.$route?.query?.edgeId;
-    if (typeof fromQuery === "string" && fromQuery) {
-      this.edgeId = fromQuery;
-    } else if (this.edges.length) {
-      this.edgeId = this.edges[0].edgeId;
-    }
-    if (this.edgeId) await this.loadMetrics();
-  },
-  methods: {
-    async loadEdges() {
-      this.edgesLoading = true;
+});
+
+const loadEdges = async () => {
+  edgesLoading.value = true;
       try {
-        this.edges = await getJson("/api/edges");
+    edges.value = await getJson("/api/edges");
       } catch (e) {
-        this.error = e?.message || String(e);
+    ElMessage.error("加载边缘节点列表失败");
       } finally {
-        this.edgesLoading = false;
+    edgesLoading.value = false;
       }
-    },
-    async loadMetrics() {
-      if (!this.edgeId) return;
-      this.loading = true;
-      this.error = "";
+};
+
+const loadMetrics = async () => {
+  if (!edgeId.value) return;
+  loading.value = true;
+  error.value = "";
       try {
-        const data = await getJson(`/api/edges/${encodeURIComponent(this.edgeId)}/metrics/json`);
-        this.metrics = data.metrics || {};
-        this.lastUpdate = new Date(data.timestamp || Date.now()).toLocaleString("zh-CN");
+    const data = await getJson(`/api/edges/${encodeURIComponent(edgeId.value)}/metrics/json`);
+    metrics.value = data.metrics || {};
+    lastUpdate.value = new Date(data.timestamp || Date.now()).toLocaleString("zh-CN");
       } catch (e) {
-        this.metrics = null;
-        this.error = e?.message || String(e);
+    metrics.value = null;
+    error.value = e?.message || String(e);
+    ElMessage.error("加载指标数据失败");
       } finally {
-        this.loading = false;
+    loading.value = false;
       }
-    },
-    async onEdgeChange() {
-      this.$router.replace({ path: "/metrics", query: { edgeId: this.edgeId } }).catch(() => {});
-      await this.loadMetrics();
-    },
-    async reload() {
-      await this.loadMetrics();
-    },
-    latestPoint(data) {
+};
+
+const onEdgeChange = async () => {
+  router.replace({ path: "/metrics", query: { edgeId: edgeId.value } }).catch(() => {});
+  await loadMetrics();
+};
+
+const latestPoint = (data) => {
       if (!Array.isArray(data) || data.length === 0) return null;
       return data[data.length - 1];
-    },
-    latestLabels(data) {
-      const p = this.latestPoint(data);
+};
+
+const latestLabels = (data) => {
+  const p = latestPoint(data);
       return p && p.labels ? p.labels : null;
-    },
-    fmtLatest(data) {
-      const p = this.latestPoint(data);
+};
+
+const fmtLatest = (data) => {
+  const p = latestPoint(data);
       if (!p) return "-";
       const v = typeof p.value === "number" ? p.value : Number(p.value);
-      return Number.isFinite(v) ? this.fmtNum(v) : String(p.value);
-    },
-    fmtNum(v) {
+  return Number.isFinite(v) ? fmtNum(v) : String(p.value);
+};
+
+const fmtNum = (v) => {
       const n = typeof v === "number" ? v : Number(v);
       if (!Number.isFinite(n)) return "-";
       return n.toFixed(2);
-    },
-    getOne(metricName) {
-      const m = this.metrics ? this.metrics[metricName] : null;
-      const p = m ? this.latestPoint(m.data) : null;
-      return p ? p.value : null;
-    },
-  },
 };
+
+const getOne = (metricName) => {
+  const m = metrics.value ? metrics.value[metricName] : null;
+  const p = m ? latestPoint(m.data) : null;
+      return p ? p.value : null;
+};
+
+onMounted(async () => {
+  await loadEdges();
+  const fromQuery = route?.query?.edgeId;
+  if (typeof fromQuery === "string" && fromQuery) {
+    edgeId.value = fromQuery;
+  } else if (edges.value.length) {
+    edgeId.value = edges.value[0].edgeId;
+  }
+  if (edgeId.value) await loadMetrics();
+});
 </script>
 
 <style scoped>
-.page {
-  max-width: 1200px;
-  margin: 24px auto;
-  padding: 0 16px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans",
-    sans-serif;
+.metrics-view {
+  width: 100%;
 }
-.header {
+
+.page-header {
+  border-radius: 8px;
+}
+
+.card-header {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: 16px;
   margin-bottom: 16px;
 }
-.sub {
-  margin: 6px 0 0;
-  color: #555;
-  font-size: 13px;
-}
-.actions {
-  display: flex;
-  gap: 10px;
-}
-.card {
-  border: 1px solid #eee;
+
+.kpi-card {
+  text-align: center;
   border-radius: 8px;
-  padding: 14px;
-  background: #fff;
-  margin-bottom: 16px;
 }
-.row {
+
+.kpi-label {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 8px;
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 12px;
 }
-.label {
-  font-size: 13px;
-  color: #555;
-  min-width: 80px;
-}
-.meta {
-  margin-top: 10px;
-  color: #666;
-  font-size: 12px;
-}
-.error {
-  color: #b00020;
-  white-space: pre-wrap;
-  margin: 10px 0 16px;
-}
-.grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.kpi {
-  border: 1px solid #eee;
-  border-radius: 8px;
-  padding: 14px;
-  background: #fff;
-}
-.kpiLabel {
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 8px;
-}
-.kpiValue {
-  font-size: 22px;
+
+.kpi-value {
+  font-size: 28px;
   font-weight: 700;
-  color: #0b57d0;
+  color: #409eff;
 }
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+
+.kpi-value.error-value {
+  color: #f56c6c;
 }
-.table th,
-.table td {
-  border: 1px solid #eee;
-  padding: 8px 10px;
-  text-align: left;
-  vertical-align: top;
-}
-.table thead th {
-  background: #fafafa;
-}
-.labels {
-  max-width: 520px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.empty {
-  color: #666;
-}
-@media (max-width: 900px) {
-  .grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>
-

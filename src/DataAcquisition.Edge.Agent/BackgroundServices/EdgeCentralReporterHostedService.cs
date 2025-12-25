@@ -1,9 +1,9 @@
 using System.Net.Http.Json;
-using System.Reflection;
 using System.Text.Json;
 using DataAcquisition.Contracts.Edge;
 using DataAcquisition.Edge.Agent.Services;
 using DataAcquisition.Infrastructure.DataStorages;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -22,19 +22,23 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
     private readonly ILogger<EdgeCentralReporterHostedService> _logger;
     private readonly EdgeReportingOptions _options;
     private readonly ParquetFileStorageService _parquetStorage;
+    private readonly IConfiguration _configuration;
 
     private string? _lastError;
+    private string? _agentBaseUrl;
 
     public EdgeCentralReporterHostedService(
         IHttpClientFactory httpClientFactory,
         IOptions<EdgeReportingOptions> options,
         EdgeIdentityService identity,
         ParquetFileStorageService parquetStorage,
+        IConfiguration configuration,
         ILogger<EdgeCentralReporterHostedService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _identity = identity;
         _parquetStorage = parquetStorage;
+        _configuration = configuration;
         _logger = logger;
         _options = options.Value;
     }
@@ -64,16 +68,24 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
             return;
         }
         var hostname = Environment.MachineName;
-        var version = GetVersion();
+
+        // 获取 Edge Agent 的 URL（用于中心代理访问）
+        var urls = _configuration["Urls"] ?? _configuration["ASPNETCORE_URLS"] ?? "http://localhost:8001";
+        var firstUrl = urls.Split(';', ',').FirstOrDefault()?.Trim();
+        if (!string.IsNullOrWhiteSpace(firstUrl))
+        {
+            _agentBaseUrl = firstUrl.TrimEnd('/');
+        }
 
         var baseUri = new Uri(_options.CentralApiBaseUrl.TrimEnd('/') + "/");
         var http = _httpClientFactory.CreateClient(nameof(EdgeCentralReporterHostedService));
         http.BaseAddress = baseUri;
 
-        _logger.LogInformation("中心上报启用：EdgeId={EdgeId}, Central={Central}", edgeId, baseUri);
+        _logger.LogInformation("中心上报启用：EdgeId={EdgeId}, Central={Central}, AgentBaseUrl={AgentBaseUrl}",
+            edgeId, baseUri, _agentBaseUrl);
 
         // 启动即注册：如果中心暂不可用，则持续重试直到成功（或进程退出）
-        await RegisterWithRetryAsync(http, edgeId, hostname, version, stoppingToken).ConfigureAwait(false);
+        await RegisterWithRetryAsync(http, edgeId, hostname, stoppingToken).ConfigureAwait(false);
 
         var heartbeatSeconds = _options.HeartbeatIntervalSeconds <= 0 ? 10 : _options.HeartbeatIntervalSeconds;
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(heartbeatSeconds));
@@ -85,7 +97,7 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
         }
     }
 
-    private async Task RegisterWithRetryAsync(HttpClient http, string edgeId, string hostname, string? version,
+    private async Task RegisterWithRetryAsync(HttpClient http, string edgeId, string hostname,
         CancellationToken ct)
     {
         var delay = TimeSpan.FromSeconds(1);
@@ -98,8 +110,8 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
                 var req = new EdgeRegistrationRequest
                 {
                     EdgeId = edgeId,
-                    Hostname = hostname,
-                    Version = version
+                    AgentBaseUrl = _agentBaseUrl,
+                    Hostname = hostname
                 };
 
                 using var resp = await http.PostAsJsonAsync("api/edges/register", req, JsonOptions, ct)
@@ -139,6 +151,7 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
             var req = new EdgeHeartbeatRequest
             {
                 EdgeId = edgeId,
+                AgentBaseUrl = _agentBaseUrl,
                 BufferBacklog = backlog,
                 LastError = _lastError,
                 Timestamp = DateTimeOffset.UtcNow
@@ -155,20 +168,4 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
             _logger.LogWarning(ex, "中心心跳失败：{Message}", ex.Message);
         }
     }
-
-    private static string? GetVersion()
-    {
-        try
-        {
-            var asm = Assembly.GetEntryAssembly() ?? typeof(EdgeCentralReporterHostedService).Assembly;
-            var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-            if (!string.IsNullOrWhiteSpace(info)) return info;
-            return asm.GetName().Version?.ToString();
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }
-

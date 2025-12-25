@@ -98,6 +98,39 @@ app.MapMetrics();
 app.MapControllers();
 app.MapHealthChecks("/health");
 
-Log.Logger.Information("Edge agent starting...");
-app.Run();
+// 方便验证服务是否启动（不提供页面）
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "DataAcquisition.Edge.Agent",
+    endpoints = new
+    {
+        health = "/health",
+        metrics = "/metrics",
+        logs = "/api/logs",
+        logLevels = "/api/logs/levels",
+        plcStatus = "/api/DataAcquisition/GetPlcConnectionStatus",
+        writeRegister = "/api/DataAcquisition/WriteRegister"
+    }
+}));
 
+// 解析并显示所有监听地址
+var addresses = urls.Split(';', ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+var baseAddress = addresses.FirstOrDefault()?.Trim() ?? "http://localhost:8001";
+
+Log.Logger.Information("╔═══════════════════════════════════════════════════════════╗");
+Log.Logger.Information("║        Edge Agent 服务已启动                              ║");
+Log.Logger.Information("╠═══════════════════════════════════════════════════════════╣");
+Log.Logger.Information("║  服务地址:                                                 ║");
+foreach (var addr in addresses)
+{
+    Log.Logger.Information("║    • {0,-55} ║", addr.Trim());
+}
+Log.Logger.Information("╠═══════════════════════════════════════════════════════════╣");
+Log.Logger.Information("║  主要端点:                                                 ║");
+Log.Logger.Information("║    • 健康检查:  {0}/health                                ║", baseAddress);
+Log.Logger.Information("║    • 指标数据:  {0}/metrics                               ║", baseAddress);
+Log.Logger.Information("║    • 日志查询:  {0}/api/logs                              ║", baseAddress);
+Log.Logger.Information("║    • 日志级别:  {0}/api/logs/levels                       ║", baseAddress);
+Log.Logger.Information("╚═══════════════════════════════════════════════════════════╝");
+
+app.Run();

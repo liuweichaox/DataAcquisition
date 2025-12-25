@@ -18,8 +18,8 @@ public class EdgesController(EdgeRegistry registry) : ControllerBase
     public IActionResult Register([FromBody] EdgeRegistrationRequest request)
     {
         var now = DateTimeOffset.UtcNow;
-        var state = registry.Upsert(request.EdgeId, request.AgentBaseUrl, request.Hostname, request.Version, now);
-        return Ok(new { state.EdgeId, state.AgentBaseUrl, state.Hostname, state.Version, state.LastSeenUtc });
+        var state = registry.Upsert(request.EdgeId, request.AgentBaseUrl, request.Hostname, null, now);
+        return Ok(new { state.EdgeId, state.AgentBaseUrl, state.Hostname, state.LastSeenUtc });
     }
 
     [HttpPost("heartbeat")]
@@ -30,4 +30,3 @@ public class EdgesController(EdgeRegistry registry) : ControllerBase
         return Ok(new { state.EdgeId, state.AgentBaseUrl, state.LastSeenUtc, state.BufferBacklog, state.LastError });
     }
 }
-

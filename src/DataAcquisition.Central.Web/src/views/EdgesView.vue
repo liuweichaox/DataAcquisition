@@ -1,137 +1,161 @@
 <template>
-  <div class="page">
-    <header class="header">
-      <h1>边缘节点（edge_id）</h1>
-      <button @click="load" :disabled="loading">{{ loading ? "刷新中..." : "刷新" }}</button>
-    </header>
+  <div class="edges-view">
+    <el-card shadow="never" class="page-header">
+      <template #header>
+        <div class="card-header">
+          <span>
+            <el-icon><Connection /></el-icon>
+            <span style="margin-left: 8px">边缘节点管理</span>
+          </span>
+          <el-button type="primary" :icon="Refresh" @click="load" :loading="loading">刷新</el-button>
+        </div>
+      </template>
 
-    <p class="hint">
-      后端：<code>DataAcquisition.Central.Web</code>（默认 <code>http://localhost:8000</code>）；
-      前端 devServer 通过代理访问 <code>/api</code>。
-    </p>
+      <el-alert
+        v-if="error"
+        :title="error"
+        type="error"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      />
 
-    <p v-if="error" class="error">{{ error }}</p>
+      <el-empty v-if="!loading && !error && edges.length === 0" description="暂无边缘节点" />
 
-    <table v-if="edges.length" class="table">
-      <thead>
-        <tr>
-          <th>edge_id</th>
-          <th>agent_base_url</th>
-          <th>hostname</th>
-          <th>version</th>
-          <th>last_seen_utc</th>
-          <th>buffer_backlog</th>
-          <th>last_error</th>
-          <th>actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="e in edges" :key="e.edgeId">
-          <td><code>{{ e.edgeId }}</code></td>
-          <td class="urlcell">
-            <code v-if="e.agentBaseUrl">{{ e.agentBaseUrl }}</code>
-            <span v-else>-</span>
-          </td>
-          <td>{{ e.hostname || "-" }}</td>
-          <td>{{ e.version || "-" }}</td>
-          <td>{{ e.lastSeenUtc }}</td>
-          <td>{{ e.bufferBacklog ?? "-" }}</td>
-          <td class="errcell">{{ e.lastError || "-" }}</td>
-          <td class="actioncell">
-            <router-link :to="{ path: '/metrics', query: { edgeId: e.edgeId } }">Metrics</router-link>
-            <span class="sep">|</span>
-            <router-link :to="{ path: '/logs', query: { edgeId: e.edgeId } }">Logs</router-link>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <p v-else-if="!loading && !error" class="empty">暂无边缘节点（先调用 /api/edges/register 或 /api/edges/heartbeat）。</p>
+      <el-table
+        v-if="edges.length"
+        :data="edges"
+        stripe
+        style="width: 100%"
+        v-loading="loading"
+        element-loading-text="加载中..."
+      >
+        <el-table-column prop="edgeId" label="节点ID" width="180">
+          <template #default="{ row }">
+            <el-tag type="primary" effect="plain">{{ row.edgeId }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="agentBaseUrl" label="Agent地址" min-width="200">
+          <template #default="{ row }">
+            <el-link v-if="row.agentBaseUrl" :href="row.agentBaseUrl" target="_blank" type="primary">
+              {{ row.agentBaseUrl }}
+            </el-link>
+            <span v-else style="color: #909399">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="hostname" label="主机名" width="150">
+          <template #default="{ row }">
+            {{ row.hostname || "-" }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="lastSeenUtc" label="最后在线" width="180">
+          <template #default="{ row }">
+            {{ formatTime(row.lastSeenUtc) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="bufferBacklog" label="积压量" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.bufferBacklog !== null && row.bufferBacklog !== undefined" :type="row.bufferBacklog > 0 ? 'warning' : 'success'" size="small">
+              {{ row.bufferBacklog ?? "-" }}
+            </el-tag>
+            <span v-else style="color: #909399">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="lastError" label="最后错误" min-width="250">
+          <template #default="{ row }">
+            <el-popover v-if="row.lastError" placement="top" :width="400" trigger="hover">
+              <template #reference>
+                <el-text type="danger" truncated style="max-width: 200px">
+                  {{ row.lastError }}
+                </el-text>
+              </template>
+              <pre style="white-space: pre-wrap; word-break: break-word; margin: 0">{{ row.lastError }}</pre>
+            </el-popover>
+            <span v-else style="color: #67c23a">
+              <el-icon><CircleCheck /></el-icon>
+              <span style="margin-left: 4px">正常</span>
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" fixed="right">
+          <template #default="{ row }">
+            <el-button-group>
+              <el-button
+                type="primary"
+                size="small"
+                :icon="DataAnalysis"
+                @click="$router.push({ path: '/metrics', query: { edgeId: row.edgeId } })"
+              >
+                指标
+              </el-button>
+              <el-button
+                type="success"
+                size="small"
+                :icon="Document"
+                @click="$router.push({ path: '/logs', query: { edgeId: row.edgeId } })"
+              >
+                日志
+              </el-button>
+            </el-button-group>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from "vue";
+import { Connection, Refresh, DataAnalysis, Document, CircleCheck } from "@element-plus/icons-vue";
 import { getJson } from "../api/http";
+import { ElMessage } from "element-plus";
 
-export default {
-  name: "EdgesView",
-  data() {
-    return { edges: [], loading: false, error: "" };
-  },
-  mounted() {
-    this.load();
-  },
-  methods: {
-    async load() {
-      this.loading = true;
-      this.error = "";
-      try {
-        this.edges = await getJson("/api/edges");
-      } catch (e) {
-        this.error = e?.message || String(e);
-      } finally {
-        this.loading = false;
-      }
-    },
-  },
+const edges = ref([]);
+const loading = ref(false);
+const error = ref("");
+
+const formatTime = (timeStr) => {
+  if (!timeStr) return "-";
+  try {
+    const date = new Date(timeStr);
+    return date.toLocaleString("zh-CN");
+  } catch {
+    return timeStr;
+  }
 };
+
+const load = async () => {
+  loading.value = true;
+  error.value = "";
+  try {
+    edges.value = await getJson("/api/edges");
+  } catch (e) {
+    error.value = e?.message || String(e);
+    ElMessage.error("加载边缘节点列表失败");
+  } finally {
+    loading.value = false;
+  }
+};
+
+onMounted(() => {
+  load();
+});
 </script>
 
 <style scoped>
-.page {
-  max-width: 1100px;
-  margin: 24px auto;
-  padding: 0 16px;
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Liberation Sans",
-    sans-serif;
-}
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.hint {
-  color: #555;
-}
-.error {
-  color: #b00020;
-  white-space: pre-wrap;
-}
-.empty {
-  color: #666;
-}
-.table {
+.edges-view {
   width: 100%;
-  border-collapse: collapse;
-  font-size: 14px;
 }
-.table th,
-.table td {
-  border: 1px solid #eee;
-  padding: 8px 10px;
-  text-align: left;
-  vertical-align: top;
+
+.page-header {
+  border-radius: 8px;
 }
-.table thead th {
-  background: #fafafa;
-}
-.errcell {
-  max-width: 380px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.urlcell {
-  max-width: 280px;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.actioncell {
-  white-space: nowrap;
-}
-.sep {
-  color: #aaa;
-  margin: 0 6px;
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
 }
 </style>
-
