@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "serve": "vue-cli-service serve --port 3000",
-    "build": "vue-cli-service build",
-    "lint": "vue-cli-service lint"
+    "serve": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js serve --port 3000",
+    "build": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js build",
+    "lint": "node ./node_modules/@vue/cli-service/bin/vue-cli-service.js lint"
   },
   "dependencies": {
     "vue": "^3.5.13",
