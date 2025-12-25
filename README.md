@@ -103,9 +103,8 @@ DataAcquisition/
 ├── src/DataAcquisition.Edge.Agent/ # Edge Agent - 车间侧采集后台 + 指标 + 本地 API
 │   ├── Configs/                    # 设备配置文件
 │   └── Controllers/                # 管理 API 控制器
-├── src/DataAcquisition.Central.Web/ # Central Web - UI + 中心 API（接入多车间边缘）
-│   ├── Controllers/                # Web 控制器
-│   └── Views/                      # 视图页面
+├── src/DataAcquisition.Central.Api/ # Central API - 中心侧 API（边缘注册/心跳/数据接入、查询与管理）
+├── src/DataAcquisition.Central.Web/ # Central Web - 纯前端（Vue CLI / Vue3），通过 /api 访问 Central API
 ├── src/DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
 │   ├── Simulator.cs               # 模拟器核心逻辑
 │   ├── Program.cs                 # 程序入口
@@ -118,6 +117,7 @@ DataAcquisition/
 ### 环境要求
 
 - .NET 10.0 或 .NET 8.0 SDK（推荐使用最新 LTS 版本）
+- Node.js（建议 18+）+ npm（用于运行 Central Web 前端）
 - InfluxDB 2.x (可选，用于时序数据存储)
 - 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
 
@@ -149,23 +149,29 @@ dotnet restore
 4. **运行系统**
 
 ```bash
+# 启动中心侧 API（Central API，默认 http://localhost:8000）
+dotnet run --project src/DataAcquisition.Central.Api
+
 # 启动车间侧采集（Edge Agent）
 dotnet run --project src/DataAcquisition.Edge.Agent
 
-# 启动中心门户/中心 API（Central Web）
-dotnet run --project src/DataAcquisition.Central.Web
+# 启动中心前端（Central Web，Vue CLI dev server，默认 http://localhost:3000）
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 
 # 可选：显式指定框架运行
 dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 ```
 
 > 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
 >
 > 默认端口：
-> - Central Web：`http://localhost:8000`
+> - Central API：`http://localhost:8000`
+> - Central Web（Vue dev server）：`http://localhost:3000`（已在 `vue.config.js` 里将 `/api`、`/metrics` 代理到 `http://localhost:8000`）
 > - Edge Agent：`http://localhost:8001`
 
 5. **构建特定框架**
@@ -181,8 +187,9 @@ dotnet build -f net8.0
 
 6. **访问监控界面**
 
-- 指标可视化: http://localhost:8000/metrics
-- Prometheus 指标: http://localhost:8000/metrics
+- Central Web（前端 UI）: http://localhost:3000
+- 指标可视化（HTML 页面）: http://localhost:8000/metrics
+- Prometheus 指标（raw）: http://localhost:8000/metrics/raw
 - API 文档: 未配置 Swagger（可通过代码启用）
 
 ### 🧪 使用 PLC 模拟器进行测试
@@ -222,12 +229,16 @@ dotnet run
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
-dotnet run --project src/DataAcquisition.Central.Web
+dotnet run --project src/DataAcquisition.Central.Api
+
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 ```
 
 4. **观察数据采集**：
-   - 访问 http://localhost:8000/metrics 查看系统指标
-   - 访问 http://localhost:8000/logs 查看采集日志
+   - 访问 http://localhost:3000 查看中心 UI（Edges/Metrics/Logs）
+   - 访问 http://localhost:8000/metrics 查看中心 API 自身指标页面
    - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
 
 详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
@@ -780,7 +791,6 @@ dotnet build
 - [InfluxDB](https://www.influxdata.com/) - 高性能时序数据库
 - [Prometheus](https://prometheus.io/) - 监控系统
 - [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
-- [Element Plus](https://element-plus.org/) - Vue 3 组件库
 
 ---
 

@@ -199,14 +199,18 @@ netstat -ano | findstr :502
 
    ```bash
    dotnet run --project ./src/DataAcquisition.Edge.Agent/DataAcquisition.Edge.Agent.csproj
-   dotnet run --project ./src/DataAcquisition.Central.Web/DataAcquisition.Central.Web.csproj
+   dotnet run --project ./src/DataAcquisition.Central.Api/DataAcquisition.Central.Api.csproj
+
+   cd ./src/DataAcquisition.Central.Web
+   npm install
+   npm run serve
    ```
 
    系统会自动连接到模拟器（127.0.0.1:502）并开始采集。
 
 3. **观察数据**：
-    - 访问 `http://localhost:8000` 查看系统指标
-    - 访问 `http://localhost:8000/logs` 查看采集日志
+    - 访问 `http://localhost:3000` 查看中心 UI（Edges/Metrics/Logs）
+    - 访问 `http://localhost:8000/metrics` 查看中心 API 指标页面（raw 指标为 `/metrics/raw`）
     - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
 
 ## 数据映射表
