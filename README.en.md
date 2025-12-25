@@ -50,26 +50,26 @@ The system adopts an **Edge-Central** distributed architecture, supporting centr
 
 ```
                     ┌─────────────────────────────────────────┐
-                    │         Central Web (Vue3)              │
-                    │    Visualization / Monitoring Panel     │
-                    └───────────────┬─────────────────────────┘
-                                    │ HTTP/API
-                    ┌───────────────▼─────────────────────────┐
+                    │           Central Web (Vue3)            │
+                    │     Visualization / Monitoring Panel    │
+                    └───────────────────┬─────────────────────┘
+                                        │ HTTP/API
+                    ┌───────────────────▼─────────────────────┐
                     │         Central API                     │
                     │  • Edge Node Registration/Heartbeat     │
                     │  • Telemetry Data Ingestion             │
                     │  • Query & Management APIs              │
                     │  • Prometheus Metrics Aggregation       │
-                    └───────┬──────────────────┬──────────────┘
-                            │                  │
-              ┌─────────────┘                  └─────────────┐
+                    └───────┬─────────────────────┬───────────┘
+                            │                     │
+              ┌─────────────┘                     └───────────┐
               │                                               │
-    ┌─────────▼─────────┐                         ┌─────────▼─────────┐
-    │   Edge Agent #1   │                         │   Edge Agent #N   │
-    │   (Workshop Node 1)│                         │   (Workshop Node N)│
-    └─────────┬─────────┘                         └─────────┬─────────┘
-              │                                               │
-              └───────────────────────────────────────────────┘
+    ┌─────────▼─────────┐                          ┌──────────▼────────┐
+    │   Edge Agent #1   │                          │   Edge Agent #N   │
+    │    ( Node 1)      │                          │     ( Node N)     │
+    └─────────┬─────────┘                          └─────────┬─────────┘
+              │                                              │
+              └──────────────────────────────────────────────┘
 ```
 
 ### Edge Agent Internal Architecture
@@ -77,40 +77,34 @@ The system adopts an **Edge-Central** distributed architecture, supporting centr
 Each Edge Agent internally adopts a layered architecture to ensure zero data loss:
 
 ```
-┌─────────────────────┐
-│    PLC Devices      │ (Modbus/ADS/Inovance/Mitsubishi/Siemens)
-└──────────┬──────────┘
-           │
-           ▼
-┌─────────────────────────────────────────┐
-│   Heartbeat Monitor Layer               │  ← Connection Status Monitoring
-└──────────────────┬──────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────┐
-│   Data Acquisition Layer                │
-│   • ChannelCollector                    │  ← Conditional Trigger Acquisition
-│   • Batch Reading Optimization          │
-└──────────────────┬──────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────┐
-│   Queue Service Layer                   │
-│   • LocalQueueService                   │  ← Batch Aggregation (BatchSize)
-└──────────────────┬──────────────────────┘
-                   │
-         ┌─────────┴─────────┐
-         ▼                   ▼
-┌─────────────────┐   ┌──────────────────────────────┐
-│  Parquet WAL    │   │  InfluxDB Storage            │
-│  (Local Persist)│   │  (Time-Series Database)      │
-└────────┬────────┘   └──────────────────────────────┘
-         │
-         │ Write Failed
-         ▼
-┌─────────────────────────────────────────┐
-│   Retry Worker                          │  ← Automatic Retry Mechanism
-└─────────────────────────────────────────┘
+┌────────────────────────────┐        ┌──────────────────────────┐
+│        PLC Device          │──────▶ │  Heartbeat Monitor Layer │
+└────────────────────────────┘        └──────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────┐
+│   Data Acquisition Layer   │
+└────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────┐
+│    Queue Service Layer     │
+└────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────┐
+│          Storage Layer     │
+└────────────────────────────┘
+                 │
+                 ▼
+┌────────────────────────────┐        ┌──────────────────────────────┐
+│      WAL Persistence       │──────▶ │ Time-Series Database Storage │
+└────────────────────────────┘        └──────────────────────────────┘
+                 │                                 │
+                 ▼                                 │  Write Failed
+┌────────────────────────────┐                     │
+│      Retry Worker          │◀────────────────────┘
+└────────────────────────────┘
 ```
 
 ### Core Data Flow
