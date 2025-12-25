@@ -22,10 +22,15 @@ var builder = WebApplication.CreateBuilder(args);
 var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_URLS"] ?? "http://localhost:8001";
 builder.WebHost.UseUrls(urls);
 
+builder.Services.AddHttpClient();
 builder.Services.AddMemoryCache();
 
 // 配置 AcquisitionOptions
 builder.Services.Configure<AcquisitionOptions>(builder.Configuration.GetSection("Acquisition"));
+
+// 配置 Edge 上报（注册/心跳）
+builder.Services.Configure<EdgeReportingOptions>(builder.Configuration.GetSection("Edge"));
+builder.Services.AddSingleton<EdgeIdentityService>();
 
 // CQRS/MediatR
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DataAcquisition.Application.AssemblyMarker).Assembly));
@@ -51,6 +56,7 @@ builder.Services.AddSingleton<ILogViewService, SqliteLogViewService>();
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddHostedService<ParquetRetryWorker>();
+builder.Services.AddHostedService<EdgeCentralReporterHostedService>();
 
 builder.Services.AddControllers();
 
