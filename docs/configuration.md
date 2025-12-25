@@ -233,11 +233,23 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 
 ```json
 {
+  "IsEnabled": true,
   "PLCCode": "M01C123",
+  "Host": "192.168.1.100",
+  "Port": 502,
+  "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D100",
+  "HeartbeatPollingInterval": 5000,
   "Channels": [
     {
       "Measurement": "sensor",
       "ChannelCode": "M01C01",
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 10,
+      "BatchSize": 10,
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Conditional",
       "DataPoints": [
         {
           "FieldName": "up_temp",
@@ -254,6 +266,8 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
         }
       ],
       "ConditionalAcquisition": {
+        "Register": "D6006",
+        "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
       }
@@ -326,8 +340,6 @@ from(bucket: "your-bucket")
 
 ## 下一步
 
-配置完成后，你可以：
+配置完成后，建议继续学习：
 
 - 阅读 [API 使用示例](api-usage.md) 了解如何通过 API 查询数据和管理系统
-- 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
-- 阅读 [常见问题](faq.md) 获取更多帮助

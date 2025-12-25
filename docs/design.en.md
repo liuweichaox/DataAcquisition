@@ -115,8 +115,7 @@ The system adopts the following security measures:
 
 ## Next Steps
 
-After understanding the design philosophy, you can:
+After understanding the design philosophy, we recommend:
 
-- Read [Core Module Documentation](modules.en.md) to understand system core modules in depth
-- Read [FAQ](faq.en.md) for more help
-- Read [Data Processing Flow](data-flow.en.md) to understand data flow process
+- Read [FAQ](faq.en.md) for more help and reference
+- Return to [README](../README.en.md) to view project overview

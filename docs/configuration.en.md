@@ -233,11 +233,23 @@ The system maps configuration files to InfluxDB time-series database. The follow
 
 ```json
 {
+  "IsEnabled": true,
   "PLCCode": "M01C123",
+  "Host": "192.168.1.100",
+  "Port": 502,
+  "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D100",
+  "HeartbeatPollingInterval": 5000,
   "Channels": [
     {
       "Measurement": "sensor",
       "ChannelCode": "M01C01",
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 10,
+      "BatchSize": 10,
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Conditional",
       "DataPoints": [
         {
           "FieldName": "up_temp",
@@ -254,6 +266,8 @@ The system maps configuration files to InfluxDB time-series database. The follow
         }
       ],
       "ConditionalAcquisition": {
+        "Register": "D6006",
+        "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
       }
@@ -326,8 +340,6 @@ from(bucket: "your-bucket")
 
 ## Next Steps
 
-After configuration, you can:
+After configuration, we recommend continuing to learn:
 
 - Read [API Usage Examples](api-usage.en.md) to learn how to query data and manage the system via API
-- Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
-- Read [FAQ](faq.en.md) for more help

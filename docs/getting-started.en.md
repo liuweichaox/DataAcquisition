@@ -248,12 +248,9 @@ Use the `TEST_PLC.json` configuration file provided in the project (already exis
 
 ## Next Steps
 
-Now that you have successfully started the system, you can:
+After completing the getting started guide, we recommend continuing in the following order:
 
-- Read [Configuration Guide](configuration.en.md) to learn about detailed configuration options and usage scenarios
-- Read [API Usage Documentation](api-usage.en.md) to learn how to query data and manage the system via API
-- Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
-- Read [FAQ](faq.en.md) for more help
+1. Read [Configuration Guide](configuration.en.md) to learn about detailed configuration options and usage scenarios
 
 ## Troubleshooting
 

@@ -282,8 +282,7 @@ dotnet run
 
 ## 下一步
 
-- 阅读 [配置说明](configuration.md) 了解详细的配置选项
-- 阅读 [API 使用文档](api-usage.md) 了解如何通过 API 查询数据
-- 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
-- 阅读 [常见问题](faq.md) 获取更多帮助
+完成快速开始后，建议按以下顺序继续学习：
+
+1. 阅读 [配置说明](configuration.md) 了解详细的配置选项和使用场景
 

@@ -296,13 +296,27 @@ npm run serve
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
+  "HeartbeatMonitorRegister": "D100",
+  "HeartbeatPollingInterval": 5000,
   "Channels": [
     {
       "Measurement": "sensor",
       "ChannelCode": "PLC01C01",
+      "EnableBatchRead": true,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 10,
+      "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
-      "DataPoints": [...]
+      "DataPoints": [
+        {
+          "FieldName": "temperature",
+          "Register": "D6000",
+          "Index": 0,
+          "DataType": "short",
+          "EvalExpression": "value / 100.0"
+        }
+      ]
     }
   ]
 }

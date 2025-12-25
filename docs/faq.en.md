@@ -86,8 +86,19 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 {
   "Channels": [
     {
-      "AcquisitionInterval": 100,  // Acquire every 100ms
-      // ...
+      "Measurement": "sensor",
+      "ChannelCode": "CH01",
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Always",
+      "BatchSize": 10,
+      "DataPoints": [
+        {
+          "FieldName": "temperature",
+          "Register": "D6000",
+          "Index": 0,
+          "DataType": "short"
+        }
+      ]
     }
   ]
 }
@@ -101,7 +112,15 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 {
   "Channels": [
     {
+      "Measurement": "production",
+      "ChannelCode": "CH01",
+      "EnableBatchRead": false,
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "BatchSize": 1,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
+      "DataPoints": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",

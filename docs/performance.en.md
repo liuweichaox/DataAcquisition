@@ -92,8 +92,6 @@ Adjust configuration parameters based on monitoring data to optimize system perf
 
 ## Next Steps
 
-After performance optimization, you can:
+After performance optimization, we recommend continuing with in-depth learning:
 
 - Read [Core Module Documentation](modules.en.md) to understand system core modules in depth
-- Read [FAQ](faq.en.md) for more help
-- Read [Design Philosophy](design.en.md) to understand system design philosophy

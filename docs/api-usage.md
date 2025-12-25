@@ -163,9 +163,7 @@ curl http://localhost:8001/api/logs/levels
 
 ## 下一步
 
-了解 API 使用后，你可以：
+了解 API 使用后，建议继续学习：
 
 - 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
-- 阅读 [常见问题](faq.md) 获取更多帮助和故障排查指南
-- 阅读 [核心模块文档](modules.md) 深入了解系统核心模块
 

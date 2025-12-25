@@ -43,7 +43,15 @@
 {
   "AcquisitionMode": "Always",
   "AcquisitionInterval": 100,
-  "DataPoints": [...]
+  "DataPoints": [
+    {
+      "FieldName": "temperature",
+      "Register": "D6000",
+      "Index": 0,
+      "DataType": "short",
+      "EvalExpression": "value / 100.0"
+    }
+  ]
 }
 ```
 
@@ -60,6 +68,7 @@
 ```json
 {
   "AcquisitionMode": "Conditional",
+  "DataPoints": null,
   "ConditionalAcquisition": {
     "Register": "D6006",
     "DataType": "short",
@@ -146,8 +155,6 @@
 
 ## 下一步
 
-了解核心模块后，你可以：
+了解核心模块后，建议继续学习：
 
-- 阅读 [设计理念](design.md) 了解系统设计思想
-- 阅读 [常见问题](faq.md) 获取更多帮助
 - 阅读 [数据处理流程](data-flow.md) 理解数据流转过程

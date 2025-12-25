@@ -86,8 +86,19 @@ curl http://localhost:8000/api/metrics-data
 {
   "Channels": [
     {
-      "AcquisitionInterval": 100,  // 100ms 采集一次
-      // ...
+      "Measurement": "sensor",
+      "ChannelCode": "CH01",
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Always",
+      "BatchSize": 10,
+      "DataPoints": [
+        {
+          "FieldName": "temperature",
+          "Register": "D6000",
+          "Index": 0,
+          "DataType": "short"
+        }
+      ]
     }
   ]
 }
@@ -101,7 +112,15 @@ curl http://localhost:8000/api/metrics-data
 {
   "Channels": [
     {
+      "Measurement": "production",
+      "ChannelCode": "CH01",
+      "EnableBatchRead": false,
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "BatchSize": 1,
+      "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
+      "DataPoints": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",

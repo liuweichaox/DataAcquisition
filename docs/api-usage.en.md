@@ -163,9 +163,7 @@ curl http://localhost:8001/api/logs/levels
 
 ## Next Steps
 
-After learning about API usage, you can:
+After learning about API usage, we recommend continuing to learn:
 
 - Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
-- Read [FAQ](faq.en.md) for more help and troubleshooting guides
-- Read [Core Module Documentation](modules.en.md) to understand system core modules in depth
 

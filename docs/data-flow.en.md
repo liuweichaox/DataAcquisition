@@ -65,8 +65,6 @@ LocalQueueService (Queue Aggregation)
 
 ## Next Steps
 
-After understanding the data processing flow, you can:
+After understanding the data processing flow, we recommend continuing to learn:
 
-- Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
 - Read [Design Philosophy](design.en.md) to understand system design philosophy
-- Read [Core Module Documentation](modules.en.md) to understand system core modules in depth

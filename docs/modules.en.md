@@ -43,7 +43,15 @@ Continuously acquires data at the configured `AcquisitionInterval` interval.
 {
   "AcquisitionMode": "Always",
   "AcquisitionInterval": 100,
-  "DataPoints": [...]
+  "DataPoints": [
+    {
+      "FieldName": "temperature",
+      "Register": "D6000",
+      "Index": 0,
+      "DataType": "short",
+      "EvalExpression": "value / 100.0"
+    }
+  ]
 }
 ```
 
@@ -60,6 +68,7 @@ Triggers acquisition based on value changes of a specified register.
 ```json
 {
   "AcquisitionMode": "Conditional",
+  "DataPoints": null,
   "ConditionalAcquisition": {
     "Register": "D6006",
     "DataType": "short",
@@ -146,8 +155,6 @@ For detailed extension methods, please refer to the relevant instructions in [FA
 
 ## Next Steps
 
-After understanding core modules, you can:
+After understanding core modules, we recommend continuing to learn:
 
-- Read [Design Philosophy](design.en.md) to understand system design philosophy
-- Read [FAQ](faq.en.md) for more help
 - Read [Data Processing Flow](data-flow.en.md) to understand data flow process
