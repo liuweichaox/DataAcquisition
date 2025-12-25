@@ -7,7 +7,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/DataAcquisition.Gateway/DataAcquisition.Gateway.csproj",
+                "${workspaceFolder}/src/DataAcquisition.Web/DataAcquisition.Web.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -19,7 +19,7 @@
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/DataAcquisition.Gateway/DataAcquisition.Gateway.csproj",
+                "${workspaceFolder}/src/DataAcquisition.Web/DataAcquisition.Web.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
@@ -33,7 +33,7 @@
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/DataAcquisition.Gateway/DataAcquisition.Gateway.csproj"
+                "${workspaceFolder}/src/DataAcquisition.Web/DataAcquisition.Web.csproj"
             ],
             "problemMatcher": "$msCompile"
         }

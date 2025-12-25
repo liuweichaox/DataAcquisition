@@ -1,14 +1,18 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Domain", "DataAcquisition.Domain\DataAcquisition.Domain.csproj", "{7E96DBFF-2901-425C-A6C0-AEA06603BDAC}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Domain", "src\DataAcquisition.Domain\DataAcquisition.Domain.csproj", "{7E96DBFF-2901-425C-A6C0-AEA06603BDAC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Application", "DataAcquisition.Application\DataAcquisition.Application.csproj", "{DB95C0C3-A429-403E-A3EE-A82730119924}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Application", "src\DataAcquisition.Application\DataAcquisition.Application.csproj", "{DB95C0C3-A429-403E-A3EE-A82730119924}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Infrastructure", "DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj", "{5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Contracts", "src\DataAcquisition.Contracts\DataAcquisition.Contracts.csproj", "{FBC4F6D3-0B70-4D48-A00F-3BFFF8565B85}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Gateway", "DataAcquisition.Gateway\DataAcquisition.Gateway.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Infrastructure", "src\DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj", "{5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Simulator", "DataAcquisition.Simulator\DataAcquisition.Simulator.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Web", "src\DataAcquisition.Web\DataAcquisition.Web.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Worker", "src\DataAcquisition.Worker\DataAcquisition.Worker.csproj", "{7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Simulator", "src\DataAcquisition.Simulator\DataAcquisition.Simulator.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2150E333-8FDC-42A3-9474-1A3956D46DE8}"
 EndProject
@@ -26,6 +30,10 @@ Global
                 {DB95C0C3-A429-403E-A3EE-A82730119924}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {DB95C0C3-A429-403E-A3EE-A82730119924}.Release|Any CPU.ActiveCfg = Release|Any CPU
                 {DB95C0C3-A429-403E-A3EE-A82730119924}.Release|Any CPU.Build.0 = Release|Any CPU
+                {FBC4F6D3-0B70-4D48-A00F-3BFFF8565B85}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {FBC4F6D3-0B70-4D48-A00F-3BFFF8565B85}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {FBC4F6D3-0B70-4D48-A00F-3BFFF8565B85}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {FBC4F6D3-0B70-4D48-A00F-3BFFF8565B85}.Release|Any CPU.Build.0 = Release|Any CPU
                 {5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
                 {5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -34,6 +42,10 @@ Global
                 {9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}.Release|Any CPU.ActiveCfg = Release|Any CPU
                 {9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}.Release|Any CPU.Build.0 = Release|Any CPU
+                {7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+                {7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+                {7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+                {7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}.Release|Any CPU.Build.0 = Release|Any CPU
                 {A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
                 {A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
                 {A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
