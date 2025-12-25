@@ -1,6 +1,5 @@
 // Central API（中心侧）：提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
 
-using System.Text.Json;
 using DataAcquisition.Central.Api.HealthChecks;
 using Serilog;
 using Prometheus;
@@ -13,7 +12,6 @@ builder.WebHost.UseUrls(urls);
 
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();
 builder.Services.AddSingleton<DataAcquisition.Central.Api.Services.EdgeRegistry>();
 
 builder.Services
@@ -54,7 +52,6 @@ builder.Host.UseSerilog();
 
 var app = builder.Build();
 
-app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
@@ -62,15 +59,14 @@ app.UseCors("frontend");
 
 // Prometheus 指标（中心自身进程）
 app.UseHttpMetrics();
-// 注意：/metrics 预留给 HTML 可视化页面，因此将原始 Prometheus 指标映射到 /metrics/raw
-app.MapMetrics("/metrics/raw");
+// Prometheus 原始指标（官方默认端点）
+app.MapMetrics("/metrics");
 
 // Health checks（官方风格）：统一用 /health
 app.MapHealthChecks("/health");
 
 // Attribute routing（/api/..）
 app.MapControllers();
-app.MapRazorPages();
 
 // 方便验证服务是否启动（不提供页面）
 app.MapGet("/", () => Results.Ok(new
@@ -81,7 +77,6 @@ app.MapGet("/", () => Results.Ok(new
         edges = "/api/edges",
         telemetry = "/api/telemetry/ingest",
         metrics = "/metrics",
-        metricsRaw = "/metrics/raw",
         metricsJson = "/api/metrics-data"
     }
 }));

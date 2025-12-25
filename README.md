@@ -188,8 +188,7 @@ dotnet build -f net8.0
 6. **访问监控界面**
 
 - Central Web（前端 UI）: http://localhost:3000
-- 指标可视化（HTML 页面）: http://localhost:8000/metrics
-- Prometheus 指标（raw）: http://localhost:8000/metrics/raw
+- Prometheus 指标: http://localhost:8000/metrics
 - API 文档: 未配置 Swagger（可通过代码启用）
 
 ### 🧪 使用 PLC 模拟器进行测试

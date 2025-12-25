@@ -188,8 +188,7 @@ dotnet build -f net8.0
 6. **Access Monitoring Interface**
 
 - Central Web (frontend UI): http://localhost:3000
-- Metrics Visualization (HTML): http://localhost:8000/metrics
-- Prometheus Metrics (raw): http://localhost:8000/metrics/raw
+- Prometheus Metrics: http://localhost:8000/metrics
 - API Documentation: Swagger not configured (can be enabled in code)
 
 ### 🧪 Testing with PLC Simulator

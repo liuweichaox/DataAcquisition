@@ -210,7 +210,7 @@ netstat -ano | findstr :502
 
 3. **观察数据**：
     - 访问 `http://localhost:3000` 查看中心 UI（Edges/Metrics/Logs）
-    - 访问 `http://localhost:8000/metrics` 查看中心 API 指标页面（raw 指标为 `/metrics/raw`）
+    - 访问 `http://localhost:8000/metrics` 查看中心 API Prometheus 指标
     - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
 
 ## 数据映射表
