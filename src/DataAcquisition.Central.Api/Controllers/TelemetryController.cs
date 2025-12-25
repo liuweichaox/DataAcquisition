@@ -1,7 +1,7 @@
 using DataAcquisition.Contracts.Telemetry;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Central.Api.Controllers.Api;
+namespace DataAcquisition.Central.Api.Controllers;
 
 [ApiController]
 [Route("api/telemetry")]

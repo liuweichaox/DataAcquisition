@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 using DataAcquisition.Central.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Central.Api.Controllers.Api;
+namespace DataAcquisition.Central.Api.Controllers;
 
 /// <summary>
 /// 中心代理：按 edgeId 代理查询 Edge.Agent 的诊断数据（metrics/logs）。
