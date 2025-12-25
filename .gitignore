@@ -72,6 +72,10 @@ ScaffoldingReadMe.txt
 # StyleCop
 StyleCopReport.xml
 
+# Frontend
+node_modules/
+frontend/dist/
+
 # Files built by Visual Studio
 *_i.c
 *_p.c
