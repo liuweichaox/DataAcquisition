@@ -1,0 +1,28 @@
+@{
+    Layout = null;
+}
+
+<div style="background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+    <div class="nav-menu-wrapper">
+        <el-menu
+            class="nav-menu"
+            mode="horizontal"
+            :default-active="activeMenu"
+            @@select="handleMenuSelect"
+        >
+            <el-menu-item index="/logs">
+                <el-icon><Document /></el-icon>
+                <span>日志</span>
+            </el-menu-item>
+            <el-menu-item index="/metrics">
+                <el-icon><Monitor /></el-icon>
+                <span>指标</span>
+            </el-menu-item>
+            <el-menu-item index="/health">
+                <el-icon><InfoFilled /></el-icon>
+                <span>健康检查</span>
+            </el-menu-item>
+        </el-menu>
+    </div>
+</div>
+

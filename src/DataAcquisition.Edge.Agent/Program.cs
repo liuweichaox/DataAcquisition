@@ -52,7 +52,8 @@ builder.Services.AddHostedService<DataAcquisitionHostedService>();
 builder.Services.AddHostedService<QueueHostedService>();
 builder.Services.AddHostedService<ParquetRetryWorker>();
 
-builder.Services.AddControllers();
+// 启用 MVC（用于 /logs 等诊断页面），API 仍使用 attribute routing
+builder.Services.AddControllersWithViews();
 
 // 配置 SQLite 日志数据库路径（从配置读取，支持相对路径和绝对路径）
 var logDbPath = builder.Configuration["Logging:DatabasePath"] ?? "Data/logs.db";
