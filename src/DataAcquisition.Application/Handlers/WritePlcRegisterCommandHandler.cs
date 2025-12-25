@@ -8,17 +8,17 @@ using MediatR;
 
 namespace DataAcquisition.Application.Handlers;
 
-public sealed class WritePlcRegisterCommandHandler(IDataAcquisitionService service)
-    : IRequestHandler<WritePlcRegisterCommand, IReadOnlyList<PLCWriteResult>>
+public sealed class WritePLCRegisterCommandHandler(IDataAcquisitionService service)
+    : IRequestHandler<WritePLCRegisterCommand, IReadOnlyList<PLCWriteResult>>
 {
-    public async Task<IReadOnlyList<PLCWriteResult>> Handle(WritePlcRegisterCommand request, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PLCWriteResult>> Handle(WritePLCRegisterCommand request, CancellationToken cancellationToken)
     {
         var results = new List<PLCWriteResult>(request.Items.Count);
 
         foreach (var item in request.Items)
         {
             var result = await service.WritePLCAsync(
-                request.PlcCode,
+                request.PLCCode,
                 item.Address,
                 item.Value,
                 item.DataType,
