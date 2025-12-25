@@ -2,160 +2,104 @@
 
 本文档介绍 DataAcquisition 系统的核心模块设计和使用方法。
 
+## 相关文档
+
+- [设计理念](design.md) - 了解系统设计思想
+- [数据处理流程](data-flow.md) - 理解数据流转过程
+
 ## PLC 客户端实现
 
 系统支持多种 PLC 协议，每个协议都有对应的客户端实现：
 
 | 协议         | 实现类                        | 描述                  |
 | ------------ | ----------------------------- | --------------------- |
-| Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通讯客户端   |
-| Inovance     | `InovancePLCClientService`    | 汇川 PLC 通讯客户端   |
-| Beckhoff ADS | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
-| Siemens      | `SiemensPLClientService`      | 西门子 PLC 通讯客户端 |
+| Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通信客户端   |
+| Inovance     | `InovancePLCClientService`    | 汇川 PLC 通信客户端   |
+| BeckhoffAds  | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
 
 ## ChannelCollector - 通道采集器
 
 `ChannelCollector` 是系统的核心采集组件，负责从 PLC 读取数据。
 
-### 核心方法
+### 功能特性
 
-```csharp
-public class ChannelCollector : IChannelCollector
+- **自动连接管理**: 自动检测和处理 PLC 连接状态，断开后自动重连
+- **多种采集模式**: 支持持续采集（Always）和条件触发采集（Conditional）
+- **批量读取优化**: 支持批量读取多个连续寄存器，减少网络往返，提高采集效率
+- **线程安全**: 确保同一 PLC 设备的并发访问安全
+
+### 采集模式说明
+
+#### Always 模式（持续采集）
+
+按配置的 `AcquisitionInterval` 间隔持续采集数据。
+
+**适用场景**：
+- 需要持续监控的传感器数据（温度、压力等）
+- 需要固定频率采集的数据
+
+**配置示例**：
+```json
 {
-    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
-        IPLCClientService client, CancellationToken ct = default)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            // 检查 PLC 连接状态
-            if (!await WaitForConnectionAsync(config, ct))
-                continue;
-
-            // 获取设备锁，确保线程安全的 PLC 访问
-            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
-                continue;
-
-            await locker.WaitAsync(ct);
-            try
-            {
-                var timestamp = DateTime.Now;
-
-                // 处理不同的采集模式
-                if (channel.AcquisitionMode == AcquisitionMode.Always)
-                {
-                    await HandleUnconditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-                else if (channel.AcquisitionMode == AcquisitionMode.Conditional)
-                {
-                    await HandleConditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-            }
-            finally
-            {
-                locker.Release();
-            }
-        }
-    }
+  "AcquisitionMode": "Always",
+  "AcquisitionInterval": 100,
+  "DataPoints": [...]
 }
 ```
 
-### 特性
+#### Conditional 模式（条件触发采集）
 
-- **线程安全**: 使用设备锁确保同一 PLC 设备的并发访问安全
-- **连接管理**: 自动检测和处理 PLC 连接状态
-- **多种采集模式**: 支持持续采集和条件触发采集
-- **批量读取优化**: 支持批量读取多个寄存器，减少网络往返
+根据指定寄存器的值变化触发采集。
+
+**适用场景**：
+- 生产周期管理（生产开始/结束事件）
+- 设备状态变化记录
+- 按条件触发的数据采集
+
+**配置示例**：
+```json
+{
+  "AcquisitionMode": "Conditional",
+  "ConditionalAcquisition": {
+    "Register": "D6006",
+    "DataType": "short",
+    "StartTriggerMode": "RisingEdge",
+    "EndTriggerMode": "FallingEdge"
+  }
+}
+```
 
 ## InfluxDbDataStorageService - 数据存储服务
 
 `InfluxDbDataStorageService` 负责将采集的数据写入 InfluxDB 时序数据库。
 
-### 核心方法
+### 功能特性
 
-```csharp
-public class InfluxDbDataStorageService : IDataStorageService
+- **批量写入**: 按配置的 `BatchSize` 批量写入数据，提高写入效率
+- **自动重试**: 写入失败时自动保留 WAL 文件，由后台重试机制自动重试
+- **性能监控**: 自动记录写入延迟和批量效率指标，便于性能分析
+- **数据安全**: 采用 WAL-first 架构，确保数据零丢失
+
+### 配置说明
+
+在 `appsettings.json` 中配置 InfluxDB 连接信息：
+
+```json
 {
-    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
-    {
-        if (dataMessages == null || dataMessages.Count == 0)
-            return true;
-
-        _writeStopwatch.Restart();
-        var writeSuccess = false;
-        Exception? writeException = null;
-        var resetEvent = new System.Threading.ManualResetEventSlim(false);
-
-        try
-        {
-            // 批量转换消息为数据点
-            var points = dataMessages.Select(ConvertToPoint).ToList();
-            using var writeApi = _client.GetWriteApi();
-
-            // 设置错误处理回调，捕获写入失败
-            writeApi.EventHandler += (sender, args) =>
-            {
-                writeException = new Exception($"InfluxDB 写入失败: {args.GetType().Name} - {args}");
-                writeSuccess = false;
-                resetEvent.Set();
-                _logger.LogError(writeException, "[ERROR] InfluxDB 写入错误事件触发: {EventType} - {Message}",
-                    args.GetType().Name, writeException.Message);
-            };
-
-            writeApi.WritePoints(_bucket, _org, points);
-            writeApi.Flush();
-
-            // 等待足够长的时间来检测错误（InfluxDB 异步写入，错误可能延迟）
-            _logger.LogDebug("等待 InfluxDB 批量写入响应，最多等待 5 秒...");
-            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
-
-            if (errorOccurred)
-            {
-                _logger.LogWarning("InfluxDB 批量写入错误事件已触发");
-            }
-            else
-            {
-                writeSuccess = true;
-                _logger.LogDebug("InfluxDB 批量写入在 5 秒内未检测到错误，假设写入成功");
-            }
-
-            _writeStopwatch.Stop();
-
-            if (!writeSuccess)
-            {
-                throw writeException ?? new Exception("InfluxDB 写入失败");
-            }
-
-            // 记录批量效率指标和写入延迟
-            var batchSize = dataMessages.Count;
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
-            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // 处理批量写入错误
-            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
-            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
-            _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
-            return false;
-        }
-        finally
-        {
-            resetEvent.Dispose();
-        }
-    }
+  "InfluxDB": {
+    "Url": "http://localhost:8086",
+    "Token": "your-token-here",
+    "Bucket": "plc_data",
+    "Org": "your-org"
+  }
 }
 ```
 
-### 特性
-
-- **批量写入**: 支持批量写入，提高写入效率
-- **错误处理**: 完善的错误处理和重试机制
-- **性能监控**: 自动记录写入延迟和批量效率指标
-- **异步处理**: 使用异步 API，提高性能
+**配置项说明**：
+- `Url`: InfluxDB 服务器地址
+- `Token`: InfluxDB 认证令牌（建议使用环境变量管理）
+- `Bucket`: 数据存储桶名称
+- `Org`: InfluxDB 组织名称
 
 ## MetricsCollector - 指标收集器
 
@@ -182,15 +126,28 @@ public class InfluxDbDataStorageService : IDataStorageService
 - **`data_acquisition_connection_status_changes_total`** - 连接状态变化总数
 - **`data_acquisition_connection_duration_seconds`** - 连接持续时间（秒）
 
-## 接口抽象
+## 系统扩展
 
-系统采用接口抽象设计，主要接口包括：
+系统采用接口抽象设计，支持灵活的扩展：
 
-- `IPLCClientService` - PLC 客户端服务接口
-- `IChannelCollector` - 通道采集器接口
-- `IDataStorageService` - 数据存储服务接口
-- `IQueueService` - 队列服务接口
-- `IMetricsCollector` - 指标收集器接口
-- `IDeviceConfigService` - 设备配置服务接口
+### 添加新的 PLC 协议
 
-通过接口抽象，系统支持灵活的扩展和替换，可以轻松添加新的 PLC 协议、存储后端等。
+1. 实现 `IPLCClientService` 接口
+2. 在 `PLCClientFactory` 中注册新的协议类型
+3. 在设备配置中使用新的协议类型
+
+### 添加新的存储后端
+
+1. 实现 `IDataStorageService` 接口
+2. 在 `Program.cs` 中注册新的存储服务
+3. 系统会同时使用多个存储后端
+
+详细的扩展方法请参考 [FAQ](faq.md) 中的相关说明。
+
+## 下一步
+
+了解核心模块后，你可以：
+
+- 阅读 [设计理念](design.md) 了解系统设计思想
+- 阅读 [常见问题](faq.md) 获取更多帮助
+- 阅读 [数据处理流程](data-flow.md) 理解数据流转过程

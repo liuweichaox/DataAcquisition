@@ -16,37 +16,39 @@ English: [README.en.md](README.en.md)
 - [🏗️ 系统架构](#-系统架构)
 - [📁 项目结构](#-项目结构)
 - [🚀 快速开始](#-快速开始)
-- [⚙️ 配置说明](docs/configuration.md)
-- [🔌 API 使用示例](docs/api-usage.md)
-- [📊 核心模块文档](docs/modules.md)
-- [🔄 数据处理流程](docs/data-flow.md)
-- [🎯 性能优化建议](docs/performance.md)
-- [❓ 常见问题](docs/faq.md)
-- [🏆 设计理念](docs/design.md)
+- [📚 文档导航](#-文档导航)
 - [🤝 贡献指南](#-贡献指南)
 - [📄 开源协议](#-开源协议)
 - [🙏 致谢](#-致谢)
 
 ## 📖 项目简介
 
-DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业数据采集系统，专门为 PLC（可编程逻辑控制器）数据采集场景设计。系统支持 .NET 10.0 和 .NET 8.0 两个 LTS 版本，采用 WAL-first 架构，确保数据零丢失，支持多 PLC 并行采集、条件触发采集、批量读取等高级功能。
+DataAcquisition 是一个基于 .NET 构建的工业级 PLC 数据采集系统。系统采用 **WAL-first（写前日志）架构**确保数据零丢失，支持 **Edge-Central 分布式架构**实现多车间集中管理。提供多 PLC 并行采集、条件触发采集、批量读取优化等高级功能，支持配置热更新和实时监控，开箱即用，运维友好。
+
+**技术栈：**
+- 运行时：.NET 10.0 / .NET 8.0（LTS 版本）
+- 数据存储：InfluxDB 2.x（时序数据库）+ Parquet（本地 WAL）
+- 监控：Prometheus 指标 + Vue3 可视化界面
+- 架构：Edge-Central 分布式架构
 
 ### 🎯 核心特性
 
-- ✅ **WAL-first 架构** - 写前日志保证数据不丢失
-- ✅ **多 PLC 并行采集** - 支持多种 PLC 协议（Modbus, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
-- ✅ **条件触发采集** - 支持边沿触发、值变化触发等智能采集模式
-- ✅ **批量读取优化** - 减少网络往返，提升采集效率
-- ✅ **配置热更新** - JSON 配置 + 文件监控，无需重启
-- ✅ **实时监控** - Prometheus 指标 + Vue3 可视化界面
-- ✅ **双存储策略** - InfluxDB + Parquet 本地持久化
-- ✅ **自动重试机制** - 网络异常自动重连，数据重传
+| 特性 | 说明 |
+|------|------|
+| 🔒 **数据安全** | WAL-first 架构，所有数据先写入本地 Parquet 文件，确保零丢失 |
+| 🔀 **多协议支持** | 支持 Mitsubishi（三菱）、Inovance（汇川）、BeckhoffAds（倍福）等 PLC 协议 |
+| ⚡ **高性能采集** | 多 PLC 并行采集，批量读取优化，减少网络往返 |
+| 🎯 **智能采集** | 支持条件触发采集（边沿触发、值变化触发）和持续采集两种模式 |
+| 🔄 **配置热更新** | JSON 配置文件 + 文件系统监控，修改配置无需重启服务 |
+| 📊 **实时监控** | Prometheus 指标暴露，Vue3 可视化界面，实时展示系统状态 |
+| 💾 **双存储策略** | InfluxDB 时序数据库 + Parquet 本地持久化（WAL） |
+| 🔁 **自动容错** | 网络异常自动重连，数据写入失败自动重试，保证数据完整性 |
 
 ## 🏗️ 系统架构
 
 ### 分布式架构概览
 
-系统采用 **Edge-Central（边缘-中心）** 分布式架构，支持多车间、多节点的集中式管理：
+系统采用 **Edge-Central（边缘-中心）分布式架构**，支持多车间、多节点的集中式管理和监控：
 
 ```
                     ┌─────────────────────────────────────────┐
@@ -74,7 +76,7 @@ DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业�
 
 ### Edge Agent 内部架构
 
-每个 Edge Agent 内部采用分层架构，确保数据零丢失：
+每个 Edge Agent 采用分层架构设计，各层职责清晰，确保数据零丢失：
 
 ```
 ┌────────────────────────────┐        ┌──────────────────────────┐
@@ -111,20 +113,20 @@ DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业�
 
 #### Edge Agent 内部流程
 
-1. **采集阶段**: PLC → ChannelCollector（支持条件触发、批量读取）
-2. **聚合阶段**: LocalQueueService（按 BatchSize 聚合数据）
-3. **持久化阶段**:
-   - Parquet WAL（立即写入本地，确保零丢失）
-   - InfluxDB（立即写入时序数据库）
-4. **容错阶段**: 成功删除 WAL 文件，失败由 RetryWorker 重试
-5. **上报阶段**: 数据上报到 Central API（可选，用于集中式管理）
+1. **数据采集阶段**：PLC 设备 → `ChannelCollector`（支持条件触发、批量读取优化）
+2. **数据聚合阶段**：`LocalQueueService` 按配置的 `BatchSize` 批量聚合数据
+3. **数据持久化阶段**：
+   - **Parquet WAL**：立即写入本地 Parquet 文件（写前日志，确保零丢失）
+   - **InfluxDB**：同步写入时序数据库（主存储）
+4. **容错处理阶段**：写入成功后删除 WAL 文件；写入失败时保留 WAL 文件，由 `RetryWorker` 定期重试
+5. **数据上报阶段**：可选地将数据上报到 Central API（用于集中式管理和监控）
 
 #### Edge-Central 交互流程
 
-1. **注册阶段**: Edge Agent 启动时向 Central API 注册（EdgeId、AgentBaseUrl、Hostname）
-2. **心跳阶段**: 周期性发送心跳（默认 10 秒），包含积压量、错误信息
-3. **遥测阶段**: 批量上报采集数据到 Central API（可选）
-4. **监控阶段**: Central Web 通过 Central API 查询边缘节点状态和指标
+1. **节点注册阶段**：Edge Agent 启动时自动向 Central API 注册节点信息（EdgeId、AgentBaseUrl、Hostname）
+2. **心跳上报阶段**：周期性发送心跳信息（默认间隔 10 秒），包含队列积压量、错误信息等状态
+3. **遥测数据上报阶段**：批量上报采集的时序数据到 Central API（可选功能）
+4. **监控查询阶段**：Central Web 前端通过 Central API 查询各边缘节点的状态、指标和日志
 
 ## 📁 项目结构
 
@@ -156,83 +158,15 @@ DataAcquisition/
 
 ## 🚀 快速开始
 
-### 环境要求
+想要快速开始使用系统？请查看 [快速开始指南](docs/getting-started.md)，该指南提供了从零开始的完整步骤，包括：
 
-- .NET 10.0 或 .NET 8.0 SDK（推荐使用最新 LTS 版本）
-- Node.js（建议 18+）+ npm（用于运行 Central Web 前端）
-- InfluxDB 2.x (可选，用于时序数据存储)
-- 支持的 PLC 设备（Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens）
+- 环境要求和安装步骤
+- InfluxDB 配置说明
+- 设备配置文件创建
+- 系统启动和验证
+- 使用 PLC 模拟器进行测试
 
-> **注意**: 项目支持多目标框架（.NET 10.0、.NET 8.0），可根据部署环境选择合适的版本。两个版本均为 LTS（长期支持）版本，适合生产环境使用。
->
-> **版本选择建议**:
->
-> - **.NET 10.0**: 最新 LTS 版本，支持至 2028 年，推荐用于新部署
-> - **.NET 8.0**: 稳定 LTS 版本，支持至 2026 年，推荐用于生产环境
-
-### 安装步骤
-
-1. **克隆项目**
-
-```bash
-git clone https://github.com/liuweichaox/DataAcquisition.git
-cd DataAcquisition
-```
-
-2. **恢复依赖**
-
-```bash
-dotnet restore
-```
-
-3. **配置设备**
-   在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建/编辑设备配置文件（例如项目已提供 `TEST_PLC.json`，也可按需新增 `*.json`）。
-
-4. **运行系统**
-
-```bash
-# 启动中心侧 API（Central API，默认 http://localhost:8000）
-dotnet run --project src/DataAcquisition.Central.Api
-
-# 启动车间侧采集（Edge Agent）
-dotnet run --project src/DataAcquisition.Edge.Agent
-
-# 启动中心前端（Central Web，Vue CLI dev server，默认 http://localhost:3000）
-cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
-
-# 可选：显式指定框架运行
-dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
-dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
-```
-
-> 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
->
-> 默认端口：
->
-> - Central API：`http://localhost:8000`
-> - Central Web（Vue dev server）：`http://localhost:3000`（已在 `vue.config.js` 里将 `/api`、`/metrics` 代理到 `http://localhost:8000`）
-> - Edge Agent：`http://localhost:8001`
-
-5. **构建特定框架**
-
-```bash
-# 构建所有目标框架
-dotnet build
-
-# 构建特定框架
-dotnet build -f net10.0
-dotnet build -f net8.0
-```
-
-6. **访问监控界面**
-
-- Central Web（前端 UI）: http://localhost:3000
-- Prometheus 指标: http://localhost:8000/metrics
-- API 文档: 未配置 Swagger（可通过代码启用）
+> **提示**: 如果你是第一次使用，建议按照 [快速开始指南](docs/getting-started.md) 的步骤操作。如果你已经熟悉系统，可以直接查看 [配置说明](docs/configuration.md) 和 [API 使用示例](docs/api-usage.md)。
 
 ### 🧪 使用 PLC 模拟器进行测试
 
@@ -285,17 +219,75 @@ npm run serve
 
 详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
+## 📚 文档导航
+
+根据你的使用场景，选择合适的文档阅读路径：
+
+### 新用户入门
+
+如果你是第一次使用本系统，建议按以下顺序阅读：
+
+1. **[快速开始指南](docs/getting-started.md)** - 从零开始，快速上手系统
+   - 环境要求和安装步骤
+   - 系统配置和启动
+   - 使用 PLC 模拟器测试
+
+2. **[配置说明](docs/configuration.md)** - 了解如何配置系统
+   - 设备配置文件详解
+   - 应用配置说明
+   - 配置示例和使用场景
+
+3. **[常见问题](docs/faq.md)** - 遇到问题时的参考
+   - 常见问题解答
+   - 故障排查指南
+   - 配置验证方法
+
+### 日常使用
+
+如果你已经熟悉系统，需要日常使用和维护：
+
+- **[API 使用示例](docs/api-usage.md)** - 查询数据和管理系统
+  - 指标数据查询
+  - PLC 连接状态查询
+  - 日志查询和管理
+
+- **[性能优化建议](docs/performance.md)** - 优化系统性能
+  - 采集参数调优
+  - 存储优化策略
+  - 系统资源优化
+
+### 深入了解
+
+如果你想深入了解系统架构和实现：
+
+- **[核心模块文档](docs/modules.md)** - 了解系统核心模块
+  - PLC 客户端实现
+  - 通道采集器
+  - 数据存储服务
+
+- **[数据处理流程](docs/data-flow.md)** - 理解数据流转过程
+  - 正常处理流程
+  - 异常处理机制
+  - 数据一致性保证
+
+- **[设计理念](docs/design.md)** - 了解系统设计思想
+  - WAL-first 架构
+  - 模块化设计
+  - 分布式架构
+
 ## ⚙️ 配置说明
 
 详细的配置说明请参考：[配置文档](docs/configuration.md)
 
 ### 快速参考
 
-- **设备配置文件**: 存放在 `src/DataAcquisition.Edge.Agent/Configs/` 目录，格式为 `*.json`
-- **Edge Agent 配置**: 编辑 `src/DataAcquisition.Edge.Agent/appsettings.json`
-- **配置热更新**: 支持配置文件热更新，无需重启服务
+| 配置类型 | 位置 | 说明 |
+|---------|------|------|
+| 设备配置 | `src/DataAcquisition.Edge.Agent/Configs/*.json` | 每个 PLC 设备对应一个 JSON 配置文件 |
+| Edge Agent 配置 | `src/DataAcquisition.Edge.Agent/appsettings.json` | 应用层配置（数据库、API 等） |
+| 配置热更新 | 自动检测 | 支持配置文件修改后自动热加载，无需重启服务 |
 
-基本配置示例：
+**设备配置示例：**
 
 ```json
 {
@@ -304,33 +296,18 @@ npm run serve
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
-  "Channels": [...]
+  "Channels": [
+    {
+      "Measurement": "sensor",
+      "ChannelCode": "PLC01C01",
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Always",
+      "DataPoints": [...]
+    }
+  ]
 }
 ```
 
-## 🔌 API 使用示例
-
-详细的 API 使用示例请参考：[API 使用文档](docs/api-usage.md)
-
-## 📊 核心模块文档
-
-详细的模块文档请参考：[核心模块文档](docs/modules.md)
-
-## 🔄 数据处理流程
-
-详细的数据处理流程请参考：[数据处理流程文档](docs/data-flow.md)
-
-## 🎯 性能优化建议
-
-详细的性能优化建议请参考：[性能优化文档](docs/performance.md)
-
-## ❓ 常见问题 (FAQ)
-
-常见问题解答请参考：[FAQ 文档](docs/faq.md)
-
-## 🏆 设计理念
-
-详细的设计理念说明请参考：[设计理念文档](docs/design.md)
 
 ## 🤝 贡献指南
 

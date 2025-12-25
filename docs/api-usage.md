@@ -2,6 +2,11 @@
 
 本文档介绍 DataAcquisition 系统提供的 API 接口使用方法。
 
+## 相关文档
+
+- [配置说明](configuration.md) - 详细的配置选项说明
+- [快速开始指南](getting-started.md) - 从零开始使用系统
+
 ## 指标数据查询
 
 ### Prometheus 格式指标
@@ -23,12 +28,14 @@ curl http://localhost:8000/api/metrics-data/info
 
 ## PLC 连接状态查询
 
+**注意**：此 API 由 Edge Agent 提供，默认端口为 8001。
+
 ```bash
 # 获取 PLC 连接状态
-curl http://localhost:8000/api/DataAcquisition/GetPLCConnectionStatus
+curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
 ```
 
-响应示例：
+**响应示例：**
 
 ```json
 {
@@ -85,7 +92,7 @@ curl -X POST http://localhost:8001/api/DataAcquisition/WriteRegister \
 curl http://localhost:8000/api/edges
 ```
 
-响应示例：
+**响应示例：**
 
 ```json
 [
@@ -104,12 +111,42 @@ curl http://localhost:8000/api/edges
 
 ### 获取日志列表
 
-```bash
-# 查询 Edge Agent 日志
-curl "http://localhost:8001/api/logs?level=Error&limit=100"
+日志查询支持按级别、关键词过滤和分页。
 
-# 查询指定时间范围的日志
-curl "http://localhost:8001/api/logs?startTime=2025-01-15T10:00:00Z&endTime=2025-01-15T11:00:00Z"
+**查询参数：**
+- `level` (可选): 日志级别（如 "Error", "Warning", "Information"）
+- `keyword` (可选): 关键词搜索（搜索日志消息内容）
+- `page` (可选): 页码，默认值为 1
+- `pageSize` (可选): 每页数量，默认值为 100
+
+**请求示例：**
+
+```bash
+# 查询 Error 级别的日志（第1页，每页100条）
+curl "http://localhost:8001/api/logs?level=Error&page=1&pageSize=100"
+
+# 按关键词搜索日志
+curl "http://localhost:8001/api/logs?keyword=InfluxDB&page=1&pageSize=50"
+```
+
+**响应示例：**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "timestamp": "2025-01-15T10:30:00Z",
+      "level": "Error",
+      "message": "InfluxDB 写入失败: Connection timeout",
+      "exception": "System.TimeoutException: ..."
+    }
+  ],
+  "total": 150,
+  "page": 1,
+  "pageSize": 100,
+  "totalPages": 2
+}
 ```
 
 ### 获取日志级别
@@ -118,29 +155,17 @@ curl "http://localhost:8001/api/logs?startTime=2025-01-15T10:00:00Z&endTime=2025
 curl http://localhost:8001/api/logs/levels
 ```
 
-## 遥测数据上报
+**响应示例：**
 
-Edge Agent 向 Central API 上报遥测数据：
-
-```bash
-curl -X POST http://localhost:8000/api/telemetry/ingest \
-  -H "Content-Type: application/json" \
-  -d '{
-    "edgeId": "EDGE-001",
-    "batchId": "batch-123",
-    "points": [
-      {
-        "measurement": "sensor",
-        "tags": {
-          "plc_code": "M01C123",
-          "channel_code": "M01C01"
-        },
-        "fields": {
-          "temperature": 25.5,
-          "pressure": 1013.25
-        },
-        "timestamp": "2025-01-15T10:30:00Z"
-      }
-    ]
-  }'
+```json
+["Trace", "Debug", "Information", "Warning", "Error", "Critical"]
 ```
+
+## 下一步
+
+了解 API 使用后，你可以：
+
+- 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
+- 阅读 [常见问题](faq.md) 获取更多帮助和故障排查指南
+- 阅读 [核心模块文档](modules.md) 深入了解系统核心模块
+

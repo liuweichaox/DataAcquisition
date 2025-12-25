@@ -2,42 +2,68 @@
 
 本文档详细说明 DataAcquisition 系统的各项配置。
 
+## 相关文档
+
+- [快速开始指南](getting-started.md) - 从零开始使用系统
+- [API 使用示例](api-usage.md) - API 接口使用方法
+- [性能优化建议](performance.md) - 优化系统性能
+
 ## 设备配置文件
 
 设备配置文件位于 `src/DataAcquisition.Edge.Agent/Configs/` 目录下，每个 PLC 设备对应一个 JSON 配置文件。
 
 ### 设备配置文件示例
 
+以下是一个实际的配置示例（基于项目中的 `TEST_PLC.json`）：
+
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "PLC01",
-  "Host": "192.168.1.100",
+  "PLCCode": "TEST_PLC",
+  "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
+  "HeartbeatPollingInterval": 2000,
   "Channels": [
     {
-      "Measurement": "temperature",
-      "ChannelCode": "PLC01C01",
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Conditional",
+      "Measurement": "sensor",
+      "ChannelCode": "CH01",
       "EnableBatchRead": true,
-      "BatchReadRegister": "D200",
-      "BatchReadLength": 20,
+      "BatchReadRegister": "D6000",
+      "BatchReadLength": 14,
+      "BatchSize": 10,
+      "AcquisitionInterval": 0,
+      "AcquisitionMode": "Always",
       "DataPoints": [
         {
-          "FieldName": "temp_value",
-          "Register": "D200",
+          "FieldName": "temperature",
+          "Register": "D6000",
           "Index": 0,
           "DataType": "short",
-          "EvalExpression": "value * 0.1"
+          "EvalExpression": "value / 100.0"
+        },
+        {
+          "FieldName": "pressure",
+          "Register": "D6001",
+          "Index": 2,
+          "DataType": "short",
+          "EvalExpression": "value / 100.0"
         }
-      ],
+      ]
+    },
+    {
+      "Measurement": "production",
+      "ChannelCode": "CH01",
+      "EnableBatchRead": false,
+      "BatchReadRegister": null,
+      "BatchReadLength": 0,
+      "BatchSize": 1,
+      "AcquisitionInterval": 0,
+      "AcquisitionMode": "Conditional",
+      "DataPoints": null,
       "ConditionalAcquisition": {
-        "Register": "D210",
+        "Register": "D6006",
         "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
@@ -46,6 +72,12 @@
   ]
 }
 ```
+
+**配置说明：**
+- 第一个通道使用 `Always` 模式持续采集传感器数据
+- 第二个通道使用 `Conditional` 模式，根据生产序号的变化触发采集
+- `AcquisitionInterval` 为 0 表示最高频率采集（无延迟）
+- 条件采集模式下 `DataPoints` 可以为 `null`
 
 ### 设备配置属性详细说明
 
@@ -57,7 +89,7 @@
 | `PLCCode`                  | `string`  | 是   | PLC 设备的唯一标识符                      |
 | `Host`                     | `string`  | 是   | PLC 设备的 IP 地址                        |
 | `Port`                     | `integer` | 是   | PLC 设备的通信端口                        |
-| `Type`                     | `string`  | 是   | PLC 设备类型（如 Mitsubishi, Siemens 等） |
+| `Type`                     | `string`  | 是   | PLC 设备类型（Mitsubishi、Inovance、BeckhoffAds） |
 | `HeartbeatMonitorRegister` | `string`  | 否   | 用于监控 PLC 心跳的寄存器地址             |
 | `HeartbeatPollingInterval` | `integer` | 否   | 心跳监控的轮询间隔（毫秒）                |
 | `Channels`                 | `array`   | 是   | 数据采集通道配置列表                      |
@@ -69,12 +101,12 @@
 | `Measurement`            | `string`  | 是   | 时序数据库中的测量名称（表名）                             |
 | `ChannelCode`            | `string`  | 是   | 采集通道的唯一标识符                                       |
 | `BatchSize`              | `integer` | 否   | 批量写入数据库的数据点数量                                 |
-| `AcquisitionInterval`    | `integer` | 是   | 数据采集的时间间隔（毫秒）                                 |
+| `AcquisitionInterval`    | `integer` | 是   | 数据采集的时间间隔（毫秒），0 表示最高频率采集（无延迟）   |
 | `AcquisitionMode`        | `string`  | 是   | 采集模式（Always: 持续采集, Conditional: 条件触发采集）    |
 | `EnableBatchRead`        | `boolean` | 否   | 是否启用批量读取功能                                       |
 | `BatchReadRegister`      | `string`  | 否   | 批量读取的起始寄存器地址                                   |
 | `BatchReadLength`        | `integer` | 否   | 批量读取的寄存器数量                                       |
-| `DataPoints`             | `array`   | 是   | 数据点配置列表                                             |
+| `DataPoints`             | `array`   | 否   | 数据点配置列表（条件采集模式下可为 null）                  |
 | `ConditionalAcquisition` | `object`  | 否   | 条件采集配置（仅在 AcquisitionMode 为 Conditional 时需要） |
 
 #### DataPoints 数组属性
@@ -291,3 +323,11 @@ from(bucket: "your-bucket")
   |> filter(fn: (r) => r["_measurement"] == "sensor")
   |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
 ```
+
+## 下一步
+
+配置完成后，你可以：
+
+- 阅读 [API 使用示例](api-usage.md) 了解如何通过 API 查询数据和管理系统
+- 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
+- 阅读 [常见问题](faq.md) 获取更多帮助

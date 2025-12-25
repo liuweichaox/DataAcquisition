@@ -16,37 +16,39 @@
 - [🏗️ System Architecture](#-system-architecture)
 - [📁 Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
-- [⚙️ Configuration Guide](docs/configuration.en.md)
-- [🔌 API Usage Examples](docs/api-usage.en.md)
-- [📊 Core Module Documentation](docs/modules.en.md)
-- [🔄 Data Processing Flow](docs/data-flow.en.md)
-- [🎯 Performance Optimization Recommendations](docs/performance.en.md)
-- [❓ Frequently Asked Questions (FAQ)](docs/faq.en.md)
-- [🏆 Design Philosophy](docs/design.en.md)
+- [📚 Documentation Navigation](#-documentation-navigation)
 - [🤝 Contributing Guidelines](#-contributing-guidelines)
 - [📄 Open Source License](#-open-source-license)
 - [🙏 Acknowledgments](#-acknowledgments)
 
 ## 📖 Project Overview
 
-DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system supports .NET 10.0 and .NET 8.0 (both LTS versions), employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
+DataAcquisition is an industrial-grade PLC data acquisition system built on .NET. The system employs a **WAL-first (Write-Ahead Logging) architecture** to ensure zero data loss, supports **Edge-Central distributed architecture** for centralized management across multiple workshops. It provides advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading optimization, supports configuration hot updates and real-time monitoring, ready to use out of the box, operations-friendly.
+
+**Tech Stack:**
+- Runtime: .NET 10.0 / .NET 8.0 (LTS versions)
+- Data Storage: InfluxDB 2.x (time-series database) + Parquet (local WAL)
+- Monitoring: Prometheus metrics + Vue3 visualization interface
+- Architecture: Edge-Central distributed architecture
 
 ### 🎯 Core Features
 
-- ✅ **WAL-first Architecture** - Write-ahead logging guarantees data integrity
-- ✅ **Multi-PLC Parallel Acquisition** - Supports multiple PLC protocols (Modbus, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
-- ✅ **Conditional Trigger Acquisition** - Intelligent acquisition modes including edge triggering, value change triggering
-- ✅ **Batch Reading Optimization** - Reduces network round-trips, improves efficiency
-- ✅ **Hot Configuration Reload** - JSON configuration + file monitoring, no restart required
-- ✅ **Real-time Monitoring** - Prometheus metrics + Vue3 visualization interface
-- ✅ **Dual Storage Strategy** - InfluxDB + Parquet local persistence
-- ✅ **Automatic Retry Mechanism** - Automatic reconnection on network failures, data retransmission
+| Feature | Description |
+|---------|-------------|
+| 🔒 **Data Safety** | WAL-first architecture, all data written to local Parquet files first, ensuring zero loss |
+| 🔀 **Multi-Protocol Support** | Supports PLC protocols: Mitsubishi, Inovance, BeckhoffAds |
+| ⚡ **High Performance** | Multi-PLC parallel acquisition, batch reading optimization, reduces network round-trips |
+| 🎯 **Intelligent Acquisition** | Supports conditional trigger acquisition (edge trigger, value change trigger) and continuous acquisition modes |
+| 🔄 **Hot Configuration** | JSON configuration files + file system monitoring, configuration changes without service restart |
+| 📊 **Real-time Monitoring** | Prometheus metrics exposure, Vue3 visualization interface, real-time system status |
+| 💾 **Dual Storage** | InfluxDB time-series database + Parquet local persistence (WAL) |
+| 🔁 **Automatic Fault Tolerance** | Automatic reconnection on network failures, automatic retry on write failures, ensures data integrity |
 
 ## 🏗️ System Architecture
 
 ### Distributed Architecture Overview
 
-The system adopts an **Edge-Central** distributed architecture, supporting centralized management of multiple workshops and nodes:
+The system adopts an **Edge-Central distributed architecture**, supporting centralized management and monitoring of multiple workshops and nodes:
 
 ```
                     ┌─────────────────────────────────────────┐
@@ -74,7 +76,7 @@ The system adopts an **Edge-Central** distributed architecture, supporting centr
 
 ### Edge Agent Internal Architecture
 
-Each Edge Agent internally adopts a layered architecture to ensure zero data loss:
+Each Edge Agent adopts a layered architecture design with clear responsibilities at each layer to ensure zero data loss:
 
 ```
 ┌────────────────────────────┐        ┌──────────────────────────┐
@@ -111,20 +113,20 @@ Each Edge Agent internally adopts a layered architecture to ensure zero data los
 
 #### Edge Agent Internal Flow
 
-1. **Acquisition Phase**: PLC → ChannelCollector (supports conditional triggers, batch reading)
-2. **Aggregation Phase**: LocalQueueService (aggregates data by BatchSize)
-3. **Persistence Phase**:
-   - Parquet WAL (immediate local write, ensures zero loss)
-   - InfluxDB (immediate write to time-series database)
-4. **Fault Tolerance Phase**: Delete WAL files on success, retry via RetryWorker on failure
-5. **Reporting Phase**: Report data to Central API (optional, for centralized management)
+1. **Data Acquisition Phase**: PLC devices → `ChannelCollector` (supports conditional triggers, batch reading optimization)
+2. **Data Aggregation Phase**: `LocalQueueService` aggregates data by configured `BatchSize`
+3. **Data Persistence Phase**:
+   - **Parquet WAL**: Immediate write to local Parquet files (write-ahead logging, ensures zero loss)
+   - **InfluxDB**: Synchronous write to time-series database (primary storage)
+4. **Fault Tolerance Phase**: Delete WAL files on successful write; retain WAL files on failure for periodic retry by `RetryWorker`
+5. **Data Reporting Phase**: Optionally report data to Central API (for centralized management and monitoring)
 
 #### Edge-Central Interaction Flow
 
-1. **Registration Phase**: Edge Agent registers with Central API on startup (EdgeId, AgentBaseUrl, Hostname)
-2. **Heartbeat Phase**: Periodically sends heartbeat (default 10 seconds), includes backlog and error information
-3. **Telemetry Phase**: Batch reports collected data to Central API (optional)
-4. **Monitoring Phase**: Central Web queries edge node status and metrics through Central API
+1. **Node Registration Phase**: Edge Agent automatically registers with Central API on startup (EdgeId, AgentBaseUrl, Hostname)
+2. **Heartbeat Reporting Phase**: Periodically sends heartbeat information (default 10 seconds interval), includes queue backlog, error information, and other status
+3. **Telemetry Data Reporting Phase**: Batch reports collected time-series data to Central API (optional feature)
+4. **Monitoring Query Phase**: Central Web frontend queries edge node status, metrics, and logs through Central API
 
 ## 📁 Project Structure
 
@@ -156,83 +158,15 @@ DataAcquisition/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+Want to get started quickly? Check out the [Getting Started Guide](docs/getting-started.en.md), which provides complete steps from scratch, including:
 
-- .NET 10.0 or .NET 8.0 SDK (recommended to use the latest LTS version)
-- Node.js (recommended 18+) + npm (for running the Central Web frontend)
-- InfluxDB 2.x (optional, for time-series data storage)
-- Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
+- Prerequisites and installation steps
+- InfluxDB configuration instructions
+- Device configuration file creation
+- System startup and verification
+- Testing with PLC simulator
 
-> **Note**: The project supports multi-target frameworks (.NET 10.0, .NET 8.0). You can choose the appropriate version based on your deployment environment. Both versions are LTS (Long Term Support) versions, suitable for production use.
->
-> **Version Selection Recommendations**:
->
-> - **.NET 10.0**: Latest LTS version, supported until 2028, recommended for new deployments
-> - **.NET 8.0**: Stable LTS version, supported until 2026, recommended for production environments
-
-### Installation Steps
-
-1. **Clone the Repository**
-
-```bash
-git clone https://github.com/liuweichaox/DataAcquisition.git
-cd DataAcquisition
-```
-
-2. **Restore Dependencies**
-
-```bash
-dotnet restore
-```
-
-3. **Configure Devices**
-   Create/edit device config files under `src/DataAcquisition.Edge.Agent/Configs/` (the repo already includes `TEST_PLC.json`; you can add more `*.json` as needed).
-
-4. **Run the System**
-
-```bash
-# Start central-side API (Central API, default http://localhost:8000)
-dotnet run --project src/DataAcquisition.Central.Api
-
-# Start acquisition backend (Edge Agent)
-dotnet run --project src/DataAcquisition.Edge.Agent
-
-# Start central frontend (Central Web, Vue CLI dev server, default http://localhost:3000)
-cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
-
-# Optional: run with a specific framework
-dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
-dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
-```
-
-> Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
->
-> Default ports:
->
-> - Central API: `http://localhost:8000`
-> - Central Web (Vue dev server): `http://localhost:3000` (proxy `/api` and `/metrics` to `http://localhost:8000` via `vue.config.js`)
-> - Edge Agent: `http://localhost:8001`
-
-5. **Build for Specific Framework**
-
-```bash
-# Build for all target frameworks
-dotnet build
-
-# Build for specific framework
-dotnet build -f net10.0
-dotnet build -f net8.0
-```
-
-6. **Access Monitoring Interface**
-
-- Central Web (frontend UI): http://localhost:3000
-- Prometheus Metrics: http://localhost:8000/metrics
-- API Documentation: Swagger not configured (can be enabled in code)
+> **Tip**: If this is your first time using the system, we recommend following the steps in the [Getting Started Guide](docs/getting-started.en.md). If you're already familiar with the system, you can directly check the [Configuration Guide](docs/configuration.en.md) and [API Usage Examples](docs/api-usage.en.md).
 
 ### 🧪 Testing with PLC Simulator
 
@@ -285,17 +219,75 @@ npm run serve
 
 For detailed information, please refer to: [src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
+## 📚 Documentation Navigation
+
+Choose the appropriate documentation reading path based on your use case:
+
+### New User Getting Started
+
+If this is your first time using the system, we recommend reading in the following order:
+
+1. **[Getting Started Guide](docs/getting-started.en.md)** - Get started from scratch, quickly get up and running
+   - Prerequisites and installation steps
+   - System configuration and startup
+   - Testing with PLC simulator
+
+2. **[Configuration Guide](docs/configuration.en.md)** - Learn how to configure the system
+   - Device configuration file details
+   - Application configuration instructions
+   - Configuration examples and use cases
+
+3. **[FAQ](docs/faq.en.md)** - Reference when encountering issues
+   - Common questions and answers
+   - Troubleshooting guide
+   - Configuration verification methods
+
+### Daily Use
+
+If you're already familiar with the system and need daily use and maintenance:
+
+- **[API Usage Examples](docs/api-usage.en.md)** - Query data and manage the system
+  - Metrics data query
+  - PLC connection status query
+  - Log query and management
+
+- **[Performance Optimization Recommendations](docs/performance.en.md)** - Optimize system performance
+  - Acquisition parameter tuning
+  - Storage optimization strategies
+  - System resource optimization
+
+### Deep Dive
+
+If you want to understand the system architecture and implementation in depth:
+
+- **[Core Module Documentation](docs/modules.en.md)** - Understand system core modules
+  - PLC client implementation
+  - Channel collector
+  - Data storage service
+
+- **[Data Processing Flow](docs/data-flow.en.md)** - Understand data flow process
+   - Normal processing flow
+   - Exception handling mechanism
+   - Data consistency guarantees
+
+- **[Design Philosophy](docs/design.en.md)** - Understand system design philosophy
+   - WAL-first architecture
+   - Modular design
+   - Distributed architecture
+
 ## ⚙️ Configuration Guide
 
 Detailed configuration guide: [Configuration Documentation](docs/configuration.en.md)
 
 ### Quick Reference
 
-- **Device Configuration Files**: Located in `src/DataAcquisition.Edge.Agent/Configs/` directory, format is `*.json`
-- **Edge Agent Configuration**: Edit `src/DataAcquisition.Edge.Agent/appsettings.json`
-- **Hot Reload**: Supports configuration file hot updates without service restart
+| Configuration Type | Location | Description |
+|-------------------|----------|-------------|
+| Device Configuration | `src/DataAcquisition.Edge.Agent/Configs/*.json` | One JSON configuration file per PLC device |
+| Edge Agent Configuration | `src/DataAcquisition.Edge.Agent/appsettings.json` | Application layer configuration (database, API, etc.) |
+| Hot Configuration Reload | Auto-detected | Supports automatic hot reload on configuration file changes, no service restart required |
 
-Basic configuration example:
+**Device Configuration Example:**
 
 ```json
 {
@@ -304,33 +296,18 @@ Basic configuration example:
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
-  "Channels": [...]
+  "Channels": [
+    {
+      "Measurement": "sensor",
+      "ChannelCode": "PLC01C01",
+      "AcquisitionInterval": 100,
+      "AcquisitionMode": "Always",
+      "DataPoints": [...]
+    }
+  ]
 }
 ```
 
-## 🔌 API Usage Examples
-
-Detailed API usage examples: [API Usage Documentation](docs/api-usage.en.md)
-
-## 📊 Core Module Documentation
-
-Detailed module documentation: [Core Module Documentation](docs/modules.en.md)
-
-## 🔄 Data Processing Flow
-
-Detailed data processing flow: [Data Processing Flow Documentation](docs/data-flow.en.md)
-
-## 🎯 Performance Optimization Recommendations
-
-Detailed performance optimization recommendations: [Performance Optimization Documentation](docs/performance.en.md)
-
-## ❓ Frequently Asked Questions (FAQ)
-
-Frequently asked questions: [FAQ Documentation](docs/faq.en.md)
-
-## 🏆 Design Philosophy
-
-Detailed design philosophy: [Design Philosophy Documentation](docs/design.en.md)
 
 ## 🤝 Contributing Guidelines
 
