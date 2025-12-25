@@ -15,7 +15,6 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
-    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" Version="12.1.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,7 +24,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Configs\\*.json">
+    <Content Update="Configs\\*.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
