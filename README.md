@@ -144,7 +144,7 @@ dotnet restore
 ```
 
 3. **配置设备**
-   编辑 `src/DataAcquisition.Worker/Configs/M01C123.json` 文件，配置您的 PLC 设备信息。
+   在 `src/DataAcquisition.Worker/Configs/` 目录创建/编辑设备配置文件（例如项目已提供 `TEST_PLC.json`，也可按需新增 `*.json`）。
 
 4. **运行系统**
 
@@ -155,12 +155,18 @@ dotnet run --project src/DataAcquisition.Worker
 # 启动管理门户（Web）
 dotnet run --project src/DataAcquisition.Web
 
-# 或指定特定框架运行
-dotnet run -f net10.0 --project src/DataAcquisition.Worker
+# 可选：显式指定框架运行
 dotnet run -f net8.0 --project src/DataAcquisition.Worker
-dotnet run -f net10.0 --project src/DataAcquisition.Web
 dotnet run -f net8.0 --project src/DataAcquisition.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Worker
+dotnet run -f net10.0 --project src/DataAcquisition.Web
 ```
+
+> 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
+>
+> 默认端口：
+> - Web：`http://localhost:8000`
+> - Worker：`http://localhost:8001`（Web 会将 `/metrics` 与大部分 `/api` 反向代理到 Worker）
 
 5. **构建特定框架**
 
@@ -186,7 +192,7 @@ dotnet build -f net8.0
 #### 启动模拟器
 
 ```bash
-cd DataAcquisition.Simulator
+cd src/DataAcquisition.Simulator
 dotnet run
 ```
 
@@ -204,7 +210,7 @@ dotnet run
 1. **启动模拟器**：
 
 ```bash
-cd DataAcquisition.Simulator
+cd src/DataAcquisition.Simulator
 dotnet run
 ```
 
@@ -331,7 +337,7 @@ dotnet run --project src/DataAcquisition.Web
 
 ```json
 {
-  "InfluxDb": {
+  "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token",
     "Org": "your-org",

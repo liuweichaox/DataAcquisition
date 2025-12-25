@@ -126,7 +126,7 @@ dotnet restore
 ```
 
 3. **Configure Devices**
-   Edit `src/DataAcquisition.Worker/Configs/M01C123.json` file to configure your PLC device information.
+   Create/edit device config files under `src/DataAcquisition.Worker/Configs/` (the repo already includes `TEST_PLC.json`; you can add more `*.json` as needed).
 
 4. **Run the System**
 
@@ -137,12 +137,18 @@ dotnet run --project src/DataAcquisition.Worker
 # Start management portal (Web)
 dotnet run --project src/DataAcquisition.Web
 
-# Or run with specific framework
-dotnet run -f net10.0 --project src/DataAcquisition.Worker
+# Optional: run with a specific framework
 dotnet run -f net8.0 --project src/DataAcquisition.Worker
-dotnet run -f net10.0 --project src/DataAcquisition.Web
 dotnet run -f net8.0 --project src/DataAcquisition.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Worker
+dotnet run -f net10.0 --project src/DataAcquisition.Web
 ```
+
+> Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
+>
+> Default ports:
+> - Web: `http://localhost:8000`
+> - Worker: `http://localhost:8001` (Web proxies `/metrics` and most `/api` calls to Worker)
 
 5. **Build for Specific Framework**
 
@@ -168,7 +174,7 @@ The project includes a standalone PLC simulator (`DataAcquisition.Simulator`) th
 #### Start the Simulator
 
 ```bash
-cd DataAcquisition.Simulator
+cd src/DataAcquisition.Simulator
 dotnet run
 ```
 
@@ -186,7 +192,7 @@ dotnet run
 1. **Start the Simulator**:
 
 ```bash
-cd DataAcquisition.Simulator
+cd src/DataAcquisition.Simulator
 dotnet run
 ```
 
@@ -313,7 +319,7 @@ For detailed information, please refer to: [DataAcquisition.Simulator/README.md]
 
 ```json
 {
-  "InfluxDb": {
+  "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token",
     "Org": "your-org",
