@@ -11,6 +11,7 @@ using DataAcquisition.Infrastructure.Metrics;
 using DataAcquisition.Infrastructure.Queues;
 using DataAcquisition.Worker.BackgroundServices;
 using DataAcquisition.Worker.Services;
+using MediatR;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
@@ -25,6 +26,9 @@ builder.Services.AddMemoryCache();
 
 // 配置 AcquisitionOptions
 builder.Services.Configure<AcquisitionOptions>(builder.Configuration.GetSection("Acquisition"));
+
+// CQRS/MediatR
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DataAcquisition.Application.AssemblyMarker).Assembly));
 
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<MetricsBridge>();

@@ -1,6 +1,8 @@
-using DataAcquisition.Application.Abstractions;
+using DataAcquisition.Application.Commands;
+using DataAcquisition.Application.Queries;
 using DataAcquisition.Contracts;
 using DataAcquisition.Domain.Clients;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Worker.Controllers;
@@ -9,16 +11,16 @@ namespace DataAcquisition.Worker.Controllers;
 ///     数据采集控制器
 /// </summary>
 [Route("api/[controller]/[action]")]
-public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionService) : ControllerBase
+public class DataAcquisitionController(IMediator mediator) : ControllerBase
 {
     /// <summary>
     ///     获取 PLC 连接状态
     /// </summary>
     /// <returns></returns>
     [HttpGet]
-    public IActionResult GetPlcConnectionStatus()
+    public async Task<IActionResult> GetPlcConnectionStatus(CancellationToken ct)
     {
-        var plcConnectionStatus = dataAcquisitionService.GetPlcConnectionStatus();
+        var plcConnectionStatus = await mediator.Send(new GetPlcConnectionStatusQuery(), ct);
         return Ok(plcConnectionStatus);
     }
 
@@ -44,16 +46,14 @@ public class DataAcquisitionController(IDataAcquisitionService dataAcquisitionSe
             if (item.Value == null) return BadRequest(new { error = "写入值不能为空" });
         }
 
-        var results = new List<PLCWriteResult>();
-        var allSuccess = true;
+        var command = new WritePlcRegisterCommand(
+            request.PLCCode,
+            request.Items
+                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, i.Value!))
+                .ToList());
 
-        foreach (var item in request.Items)
-        {
-            var result =
-                await dataAcquisitionService.WritePLCAsync(request.PLCCode, item.Address, item.Value!, item.DataType);
-            results.Add(result);
-            if (!result.IsSuccess) allSuccess = false;
-        }
+        var results = await mediator.Send(command);
+        var allSuccess = results.All(r => r.IsSuccess);
 
         if (allSuccess) return Ok(results);
 
