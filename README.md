@@ -100,10 +100,10 @@ DataAcquisition/
 │   ├── DataAcquisitions/           # 数据采集服务
 │   ├── DataStorages/               # 数据存储服务
 │   └── Metrics/                    # 指标收集
-├── src/DataAcquisition.Worker/     # Worker 宿主 - 采集后台 + 指标 + API
+├── src/DataAcquisition.Edge.Agent/ # Edge Agent - 车间侧采集后台 + 指标 + 本地 API
 │   ├── Configs/                    # 设备配置文件
 │   └── Controllers/                # 管理 API 控制器
-├── src/DataAcquisition.Web/        # Web 门户 - UI + 管理 API（代理到 Worker）
+├── src/DataAcquisition.Central.Web/ # Central Web - UI + 中心 API（接入多车间边缘）
 │   ├── Controllers/                # Web 控制器
 │   └── Views/                      # 视图页面
 ├── src/DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
@@ -144,29 +144,29 @@ dotnet restore
 ```
 
 3. **配置设备**
-   在 `src/DataAcquisition.Worker/Configs/` 目录创建/编辑设备配置文件（例如项目已提供 `TEST_PLC.json`，也可按需新增 `*.json`）。
+   在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建/编辑设备配置文件（例如项目已提供 `TEST_PLC.json`，也可按需新增 `*.json`）。
 
 4. **运行系统**
 
 ```bash
-# 启动采集后台（Worker）
-dotnet run --project src/DataAcquisition.Worker
+# 启动车间侧采集（Edge Agent）
+dotnet run --project src/DataAcquisition.Edge.Agent
 
-# 启动管理门户（Web）
-dotnet run --project src/DataAcquisition.Web
+# 启动中心门户/中心 API（Central Web）
+dotnet run --project src/DataAcquisition.Central.Web
 
 # 可选：显式指定框架运行
-dotnet run -f net8.0 --project src/DataAcquisition.Worker
-dotnet run -f net8.0 --project src/DataAcquisition.Web
-dotnet run -f net10.0 --project src/DataAcquisition.Worker
-dotnet run -f net10.0 --project src/DataAcquisition.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
 ```
 
 > 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
 >
 > 默认端口：
-> - Web：`http://localhost:8000`
-> - Worker：`http://localhost:8001`（Web 会将 `/metrics` 与大部分 `/api` 反向代理到 Worker）
+> - Central Web：`http://localhost:8000`
+> - Edge Agent：`http://localhost:8001`
 
 5. **构建特定框架**
 
@@ -216,13 +216,13 @@ dotnet run
 
 2. **配置测试设备**：
 
-   在 `src/DataAcquisition.Worker/Configs/` 目录创建 `TEST_PLC.json`（参考 `src/DataAcquisition.Simulator/README.md` 中的完整配置示例）
+   在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建 `TEST_PLC.json`（参考 `src/DataAcquisition.Simulator/README.md` 中的完整配置示例）
 
 3. **启动采集系统**：
 
 ```bash
-dotnet run --project src/DataAcquisition.Worker
-dotnet run --project src/DataAcquisition.Web
+dotnet run --project src/DataAcquisition.Edge.Agent
+dotnet run --project src/DataAcquisition.Central.Web
 ```
 
 4. **观察数据采集**：

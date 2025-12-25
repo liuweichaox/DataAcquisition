@@ -33,7 +33,7 @@ bld/
 [Ll]og/
 [Ll]ogs/
 # 排除代码中的 Logs 目录（视图和服务）
-!src/DataAcquisition.Web/Views/Logs/
+!src/DataAcquisition.Central.Web/Views/Logs/
 !src/DataAcquisition.Infrastructure/Logs/
 
 # Visual Studio 2015/2017 cache/options directory
@@ -71,6 +71,10 @@ ScaffoldingReadMe.txt
 
 # StyleCop
 StyleCopReport.xml
+
+# Frontend
+node_modules/
+src/DataAcquisition.Central.Web/ClientApp/dist/
 
 # Files built by Visual Studio
 *_i.c
