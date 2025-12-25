@@ -44,45 +44,93 @@ DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业�
 
 ## 🏗️ 系统架构
 
-### 整体架构图
+### 分布式架构概览
+
+系统采用 **Edge-Central（边缘-中心）** 分布式架构，支持多车间、多节点的集中式管理：
 
 ```
-┌────────────────────────────┐        ┌──────────────────────────┐
-│        PLC Device          │──────▶ │  Heartbeat Monitor Layer │
-└────────────────────────────┘        └──────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│   Data Acquisition Layer   │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│    Queue Service Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│          Storage Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐        ┌──────────────────────────────┐
-│      WAL Persistence       │──────▶ │ Time-Series Database Storage │
-└────────────────────────────┘        └──────────────────────────────┘
-                 │                                 │
-                 ▼                                 │  Write Failed
-┌────────────────────────────┐                     │
-│      Retry Worker          │◀────────────────────┘
-└────────────────────────────┘
+                    ┌─────────────────────────────────────────┐
+                    │         Central Web (Vue3)              │
+                    │   可视化界面 / 监控面板                  │
+                    └───────────────┬─────────────────────────┘
+                                    │ HTTP/API
+                    ┌───────────────▼─────────────────────────┐
+                    │         Central API                     │
+                    │  • 边缘节点注册/心跳管理                 │
+                    │  • 遥测数据接入                         │
+                    │  • 查询与管理接口                       │
+                    │  • Prometheus 指标聚合                  │
+                    └───────┬──────────────────┬──────────────┘
+                            │                  │
+              ┌─────────────┘                  └─────────────┐
+              │                                               │
+    ┌─────────▼─────────┐                         ┌─────────▼─────────┐
+    │   Edge Agent #1   │                         │   Edge Agent #N   │
+    │   (车间节点 1)     │                         │   (车间节点 N)     │
+    └─────────┬─────────┘                         └─────────┬─────────┘
+              │                                               │
+              └───────────────────────────────────────────────┘
+```
+
+### Edge Agent 内部架构
+
+每个 Edge Agent 内部采用分层架构，确保数据零丢失：
+
+```
+┌─────────────────────┐
+│    PLC Devices      │ (Modbus/ADS/Inovance/Mitsubishi/Siemens)
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────────────────────────┐
+│   Heartbeat Monitor Layer               │  ← 连接状态监控
+└──────────────────┬──────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────┐
+│   Data Acquisition Layer                │
+│   • ChannelCollector                    │  ← 条件触发采集
+│   • Batch Reading Optimization          │
+└──────────────────┬──────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────┐
+│   Queue Service Layer                   │
+│   • LocalQueueService                   │  ← 批量聚合 (BatchSize)
+└──────────────────┬──────────────────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+┌─────────────────┐   ┌──────────────────────────────┐
+│  Parquet WAL    │   │  InfluxDB Storage            │
+│  (本地持久化)    │   │  (时序数据库)                 │
+└────────┬────────┘   └──────────────────────────────┘
+         │
+         │ Write Failed
+         ▼
+┌─────────────────────────────────────────┐
+│   Retry Worker                          │  ← 自动重试机制
+└─────────────────────────────────────────┘
 ```
 
 ### 核心数据流
 
-1. **采集阶段**: PLC → ChannelCollector
-2. **聚合阶段**: LocalQueueService (按 BatchSize 聚合)
-3. **持久化阶段**: Parquet WAL (立即写入) → InfluxDB (立即写入)
+#### Edge Agent 内部流程
+
+1. **采集阶段**: PLC → ChannelCollector（支持条件触发、批量读取）
+2. **聚合阶段**: LocalQueueService（按 BatchSize 聚合数据）
+3. **持久化阶段**:
+   - Parquet WAL（立即写入本地，确保零丢失）
+   - InfluxDB（立即写入时序数据库）
 4. **容错阶段**: 成功删除 WAL 文件，失败由 RetryWorker 重试
+5. **上报阶段**: 数据上报到 Central API（可选，用于集中式管理）
+
+#### Edge-Central 交互流程
+
+1. **注册阶段**: Edge Agent 启动时向 Central API 注册（EdgeId、AgentBaseUrl、Hostname）
+2. **心跳阶段**: 周期性发送心跳（默认 10 秒），包含积压量、错误信息
+3. **遥测阶段**: 批量上报采集数据到 Central API（可选）
+4. **监控阶段**: Central Web 通过 Central API 查询边缘节点状态和指标
 
 ## 📁 项目结构
 
@@ -343,26 +391,79 @@ npm run serve
 
 > 注意：此处的 RisingEdge 和 FallingEdge 与传统的边沿触发（0→1 或 1→0）不同，它们基于数值的增减变化来触发，而非严格的 0/1 跳变。
 
-### 应用配置 (appsettings.json)
+### Edge Agent 应用配置 (appsettings.json)
+
+Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettings.json`：
 
 ```json
 {
+  "Urls": "http://localhost:8001",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    },
+    "DatabasePath": "Data/logs.db"
+  },
+  "AllowedHosts": "*",
   "InfluxDB": {
     "Url": "http://localhost:8086",
-    "Token": "your-token",
-    "Org": "your-org",
-    "Bucket": "your-bucket"
+    "Token": "your-token-here",
+    "Bucket": "plc_data",
+    "Org": "your-org"
   },
   "Parquet": {
     "Directory": "./Data/parquet"
   },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information"
+  "Edge": {
+    "EnableCentralReporting": true,
+    "CentralApiBaseUrl": "http://localhost:8000",
+    "EdgeId": "EDGE-001",
+    "HeartbeatIntervalSeconds": 10
+  },
+  "Acquisition": {
+    "ChannelCollector": {
+      "ConnectionCheckRetryDelayMs": 100,
+      "TriggerWaitDelayMs": 100
+    },
+    "QueueService": {
+      "FlushIntervalSeconds": 5,
+      "RetryIntervalSeconds": 10,
+      "MaxRetryCount": 3
+    },
+    "DeviceConfigService": {
+      "ConfigChangeDetectionDelayMs": 500
     }
   }
 }
 ```
+
+#### Edge Agent 配置项说明
+
+| 配置项路径 | 类型 | 必填 | 默认值 | 说明 |
+|-----------|------|------|--------|------|
+| `Urls` | `string` | 否 | `http://localhost:8001` | Edge Agent 服务监听地址，支持多个地址（用 `;` 或 `,` 分隔） |
+| `Logging:DatabasePath` | `string` | 否 | `Data/logs.db` | SQLite 日志数据库文件路径（相对路径相对于应用目录） |
+| `InfluxDB:Url` | `string` | 是 | - | InfluxDB 服务器地址 |
+| `InfluxDB:Token` | `string` | 是 | - | InfluxDB 认证令牌 |
+| `InfluxDB:Bucket` | `string` | 是 | - | InfluxDB 存储桶名称 |
+| `InfluxDB:Org` | `string` | 是 | - | InfluxDB 组织名称 |
+| `Parquet:Directory` | `string` | 否 | `./Data/parquet` | Parquet WAL 文件存储目录（相对路径相对于应用目录） |
+| `Edge:EnableCentralReporting` | `boolean` | 否 | `true` | 是否启用向 Central API 注册和心跳上报 |
+| `Edge:CentralApiBaseUrl` | `string` | 否 | `http://localhost:8000` | Central API 服务地址 |
+| `Edge:EdgeId` | `string` | 否 | 自动生成 | Edge 节点唯一标识符，为空时会自动生成并持久化到本地文件 |
+| `Edge:HeartbeatIntervalSeconds` | `integer` | 否 | `10` | 向 Central API 发送心跳的间隔（秒） |
+| `Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs` | `integer` | 否 | `100` | PLC 连接检查重试延迟（毫秒） |
+| `Acquisition:ChannelCollector:TriggerWaitDelayMs` | `integer` | 否 | `100` | 条件触发等待延迟（毫秒） |
+| `Acquisition:QueueService:FlushIntervalSeconds` | `integer` | 否 | `5` | 队列批量刷新间隔（秒） |
+| `Acquisition:QueueService:RetryIntervalSeconds` | `integer` | 否 | `10` | 重试间隔（秒） |
+| `Acquisition:QueueService:MaxRetryCount` | `integer` | 否 | `3` | 最大重试次数 |
+| `Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs` | `integer` | 否 | `500` | 设备配置文件变更检测延迟（毫秒） |
+
+> **提示**：
+> - 设备配置文件（PLC 配置）存放在 `Configs/` 目录下，格式为 `*.json`
+> - 所有路径配置支持相对路径和绝对路径，相对路径相对于应用的工作目录
+> - 配置支持通过环境变量覆盖，例如 `ASPNETCORE_URLS` 可覆盖 `Urls` 配置
 
 ### 📊 配置到数据库映射说明
 

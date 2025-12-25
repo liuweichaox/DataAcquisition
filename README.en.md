@@ -44,45 +44,93 @@ DataAcquisition is a high-performance, high-reliability industrial data acquisit
 
 ## 🏗️ System Architecture
 
-### Overall Architecture Diagram
+### Distributed Architecture Overview
+
+The system adopts an **Edge-Central** distributed architecture, supporting centralized management of multiple workshops and nodes:
 
 ```
-┌────────────────────────────┐        ┌──────────────────────────┐
-│        PLC Device          │──────▶ │  Heartbeat Monitor Layer │
-└────────────────────────────┘        └──────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│   Data Acquisition Layer   │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│    Queue Service Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│          Storage Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐        ┌──────────────────────────────┐
-│      WAL Persistence       │──────▶ │ Time-Series Database Storage │
-└────────────────────────────┘        └──────────────────────────────┘
-                 │                                 │
-                 ▼                                 │  Write Failed
-┌────────────────────────────┐                     │
-│      Retry Worker          │◀────────────────────┘
-└────────────────────────────┘
+                    ┌─────────────────────────────────────────┐
+                    │         Central Web (Vue3)              │
+                    │    Visualization / Monitoring Panel     │
+                    └───────────────┬─────────────────────────┘
+                                    │ HTTP/API
+                    ┌───────────────▼─────────────────────────┐
+                    │         Central API                     │
+                    │  • Edge Node Registration/Heartbeat     │
+                    │  • Telemetry Data Ingestion             │
+                    │  • Query & Management APIs              │
+                    │  • Prometheus Metrics Aggregation       │
+                    └───────┬──────────────────┬──────────────┘
+                            │                  │
+              ┌─────────────┘                  └─────────────┐
+              │                                               │
+    ┌─────────▼─────────┐                         ┌─────────▼─────────┐
+    │   Edge Agent #1   │                         │   Edge Agent #N   │
+    │   (Workshop Node 1)│                         │   (Workshop Node N)│
+    └─────────┬─────────┘                         └─────────┬─────────┘
+              │                                               │
+              └───────────────────────────────────────────────┘
+```
+
+### Edge Agent Internal Architecture
+
+Each Edge Agent internally adopts a layered architecture to ensure zero data loss:
+
+```
+┌─────────────────────┐
+│    PLC Devices      │ (Modbus/ADS/Inovance/Mitsubishi/Siemens)
+└──────────┬──────────┘
+           │
+           ▼
+┌─────────────────────────────────────────┐
+│   Heartbeat Monitor Layer               │  ← Connection Status Monitoring
+└──────────────────┬──────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────┐
+│   Data Acquisition Layer                │
+│   • ChannelCollector                    │  ← Conditional Trigger Acquisition
+│   • Batch Reading Optimization          │
+└──────────────────┬──────────────────────┘
+                   │
+                   ▼
+┌─────────────────────────────────────────┐
+│   Queue Service Layer                   │
+│   • LocalQueueService                   │  ← Batch Aggregation (BatchSize)
+└──────────────────┬──────────────────────┘
+                   │
+         ┌─────────┴─────────┐
+         ▼                   ▼
+┌─────────────────┐   ┌──────────────────────────────┐
+│  Parquet WAL    │   │  InfluxDB Storage            │
+│  (Local Persist)│   │  (Time-Series Database)      │
+└────────┬────────┘   └──────────────────────────────┘
+         │
+         │ Write Failed
+         ▼
+┌─────────────────────────────────────────┐
+│   Retry Worker                          │  ← Automatic Retry Mechanism
+└─────────────────────────────────────────┘
 ```
 
 ### Core Data Flow
 
-1. **Acquisition Phase**: PLC → ChannelCollector
-2. **Aggregation Phase**: LocalQueueService (aggregates by BatchSize)
-3. **Persistence Phase**: Parquet WAL (immediate write) → InfluxDB (immediate write)
+#### Edge Agent Internal Flow
+
+1. **Acquisition Phase**: PLC → ChannelCollector (supports conditional triggers, batch reading)
+2. **Aggregation Phase**: LocalQueueService (aggregates data by BatchSize)
+3. **Persistence Phase**:
+   - Parquet WAL (immediate local write, ensures zero loss)
+   - InfluxDB (immediate write to time-series database)
 4. **Fault Tolerance Phase**: Delete WAL files on success, retry via RetryWorker on failure
+5. **Reporting Phase**: Report data to Central API (optional, for centralized management)
+
+#### Edge-Central Interaction Flow
+
+1. **Registration Phase**: Edge Agent registers with Central API on startup (EdgeId, AgentBaseUrl, Hostname)
+2. **Heartbeat Phase**: Periodically sends heartbeat (default 10 seconds), includes backlog and error information
+3. **Telemetry Phase**: Batch reports collected data to Central API (optional)
+4. **Monitoring Phase**: Central Web queries edge node status and metrics through Central API
 
 ## 📁 Project Structure
 
@@ -343,26 +391,79 @@ For detailed information, please refer to: [src/DataAcquisition.Simulator/README
 
 > Note: The RisingEdge and FallingEdge here are different from traditional edge triggering (0→1 or 1→0). They are triggered based on value increases/decreases, not strict 0/1 transitions.
 
-### Application Configuration (appsettings.json)
+### Edge Agent Application Configuration (appsettings.json)
+
+Complete Edge Agent configuration example is located at `src/DataAcquisition.Edge.Agent/appsettings.json`:
 
 ```json
 {
+  "Urls": "http://localhost:8001",
+  "Logging": {
+    "LogLevel": {
+      "Default": "Information",
+      "Microsoft.AspNetCore": "Warning"
+    },
+    "DatabasePath": "Data/logs.db"
+  },
+  "AllowedHosts": "*",
   "InfluxDB": {
     "Url": "http://localhost:8086",
-    "Token": "your-token",
-    "Org": "your-org",
-    "Bucket": "your-bucket"
+    "Token": "your-token-here",
+    "Bucket": "plc_data",
+    "Org": "your-org"
   },
   "Parquet": {
     "Directory": "./Data/parquet"
   },
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information"
+  "Edge": {
+    "EnableCentralReporting": true,
+    "CentralApiBaseUrl": "http://localhost:8000",
+    "EdgeId": "EDGE-001",
+    "HeartbeatIntervalSeconds": 10
+  },
+  "Acquisition": {
+    "ChannelCollector": {
+      "ConnectionCheckRetryDelayMs": 100,
+      "TriggerWaitDelayMs": 100
+    },
+    "QueueService": {
+      "FlushIntervalSeconds": 5,
+      "RetryIntervalSeconds": 10,
+      "MaxRetryCount": 3
+    },
+    "DeviceConfigService": {
+      "ConfigChangeDetectionDelayMs": 500
     }
   }
 }
 ```
+
+#### Edge Agent Configuration Properties
+
+| Configuration Path | Type | Required | Default | Description |
+|-------------------|------|----------|---------|-------------|
+| `Urls` | `string` | No | `http://localhost:8001` | Edge Agent service listening address, supports multiple addresses (separated by `;` or `,`) |
+| `Logging:DatabasePath` | `string` | No | `Data/logs.db` | SQLite log database file path (relative path is relative to application directory) |
+| `InfluxDB:Url` | `string` | Yes | - | InfluxDB server address |
+| `InfluxDB:Token` | `string` | Yes | - | InfluxDB authentication token |
+| `InfluxDB:Bucket` | `string` | Yes | - | InfluxDB bucket name |
+| `InfluxDB:Org` | `string` | Yes | - | InfluxDB organization name |
+| `Parquet:Directory` | `string` | No | `./Data/parquet` | Parquet WAL file storage directory (relative path is relative to application directory) |
+| `Edge:EnableCentralReporting` | `boolean` | No | `true` | Whether to enable registration and heartbeat reporting to Central API |
+| `Edge:CentralApiBaseUrl` | `string` | No | `http://localhost:8000` | Central API service address |
+| `Edge:EdgeId` | `string` | No | Auto-generated | Edge node unique identifier, auto-generated and persisted to local file if empty |
+| `Edge:HeartbeatIntervalSeconds` | `integer` | No | `10` | Heartbeat interval sent to Central API (seconds) |
+| `Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs` | `integer` | No | `100` | PLC connection check retry delay (milliseconds) |
+| `Acquisition:ChannelCollector:TriggerWaitDelayMs` | `integer` | No | `100` | Conditional trigger wait delay (milliseconds) |
+| `Acquisition:QueueService:FlushIntervalSeconds` | `integer` | No | `5` | Queue batch flush interval (seconds) |
+| `Acquisition:QueueService:RetryIntervalSeconds` | `integer` | No | `10` | Retry interval (seconds) |
+| `Acquisition:QueueService:MaxRetryCount` | `integer` | No | `3` | Maximum retry count |
+| `Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs` | `integer` | No | `500` | Device config file change detection delay (milliseconds) |
+
+> **Tips**:
+> - Device configuration files (PLC configs) are stored in the `Configs/` directory, format is `*.json`
+> - All path configurations support both relative and absolute paths, relative paths are relative to the application working directory
+> - Configurations can be overridden via environment variables, e.g., `ASPNETCORE_URLS` can override the `Urls` configuration
 
 ### 📊 Configuration to Database Mapping
 
