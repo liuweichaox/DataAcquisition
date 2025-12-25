@@ -53,7 +53,16 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
             return;
         }
 
-        var edgeId = _identity.GetOrCreateEdgeId();
+        string edgeId;
+        try
+        {
+            edgeId = _identity.GetEdgeId();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "无法获取 EdgeId，已跳过中心上报");
+            return;
+        }
         var hostname = Environment.MachineName;
         var version = GetVersion();
 

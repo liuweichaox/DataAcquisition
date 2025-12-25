@@ -21,11 +21,6 @@ public sealed class EdgeReportingOptions
     public string? EdgeId { get; init; }
 
     /// <summary>
-    /// EdgeId 本地持久化文件路径（相对路径会基于应用目录）。
-    /// </summary>
-    public string IdentityFilePath { get; init; } = "Data/edge-id.txt";
-
-    /// <summary>
     /// 心跳间隔（秒）。
     /// </summary>
     public int HeartbeatIntervalSeconds { get; init; } = 10;
