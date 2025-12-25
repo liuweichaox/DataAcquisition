@@ -100,12 +100,11 @@ DataAcquisition/
 │   ├── DataAcquisitions/           # Data Acquisition Services
 │   ├── DataStorages/               # Data Storage Services
 │   └── Metrics/                    # Metrics Collection
+├── src/DataAcquisition.Central.Api/ # Central API - backend (edge register/heartbeat/ingest/query)
 ├── src/DataAcquisition.Edge.Agent/ # Edge Agent - workshop acquisition + metrics + local APIs
 │   ├── Configs/                    # Device configuration files
 │   └── Controllers/                # Management API controllers
-├── src/DataAcquisition.Central.Web/ # Central Web - UI + central APIs (ingest multi-edge)
-│   ├── Controllers/                # Web controllers
-│   └── Views/                      # View pages
+├── src/DataAcquisition.Central.Web/ # Central Web - frontend (Vue CLI, standalone)
 ├── src/DataAcquisition.Simulator/      # PLC Simulator - For Testing
 │   ├── Simulator.cs               # Simulator Core Logic
 │   ├── Program.cs                 # Program Entry Point
@@ -149,24 +148,30 @@ dotnet restore
 4. **Run the System**
 
 ```bash
+# Start central backend (Central API)
+dotnet run --project src/DataAcquisition.Central.Api
+
 # Start acquisition backend (Edge Agent)
 dotnet run --project src/DataAcquisition.Edge.Agent
 
-# Start central portal / central APIs (Central Web)
-dotnet run --project src/DataAcquisition.Central.Web
+# Optional: start central frontend (Vue dev server)
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 
 # Optional: run with a specific framework
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
 ```
 
 > Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
 >
 > Default ports:
-> - Central Web: `http://localhost:8000`
+> - Central API: `http://localhost:8000`
 > - Edge Agent: `http://localhost:8001`
+> - Central Web (dev): `http://localhost:3000`
 
 5. **Build for Specific Framework**
 
@@ -181,8 +186,9 @@ dotnet build -f net8.0
 
 6. **Access Monitoring Interface**
 
-- Metrics Visualization: http://localhost:8000/metrics
-- Prometheus Metrics: http://localhost:8000/metrics
+- Central API metrics (Prometheus): http://localhost:8000/metrics
+- Central API metrics (JSON): http://localhost:8000/api/metrics-data
+- Edge Agent metrics (Prometheus): http://localhost:8001/metrics
 - API Documentation: Swagger not configured (can be enabled in code)
 
 ### 🧪 Testing with PLC Simulator
@@ -222,7 +228,7 @@ dotnet run
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
-dotnet run --project src/DataAcquisition.Central.Web
+dotnet run --project src/DataAcquisition.Central.Api
 ```
 
 4. **Observe Data Acquisition**:

@@ -100,12 +100,11 @@ DataAcquisition/
 │   ├── DataAcquisitions/           # 数据采集服务
 │   ├── DataStorages/               # 数据存储服务
 │   └── Metrics/                    # 指标收集
+├── src/DataAcquisition.Central.Api/ # Central API - 中心侧后端（边缘注册/心跳/数据接入/查询）
 ├── src/DataAcquisition.Edge.Agent/ # Edge Agent - 车间侧采集后台 + 指标 + 本地 API
 │   ├── Configs/                    # 设备配置文件
 │   └── Controllers/                # 管理 API 控制器
-├── src/DataAcquisition.Central.Web/ # Central Web - UI + 中心 API（接入多车间边缘）
-│   ├── Controllers/                # Web 控制器
-│   └── Views/                      # 视图页面
+├── src/DataAcquisition.Central.Web/ # Central Web - 中心侧前端（Vue CLI，独立部署/开发）
 ├── src/DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
 │   ├── Simulator.cs               # 模拟器核心逻辑
 │   ├── Program.cs                 # 程序入口
@@ -149,24 +148,30 @@ dotnet restore
 4. **运行系统**
 
 ```bash
+# 启动中心后端（Central API）
+dotnet run --project src/DataAcquisition.Central.Api
+
 # 启动车间侧采集（Edge Agent）
 dotnet run --project src/DataAcquisition.Edge.Agent
 
-# 启动中心门户/中心 API（Central Web）
-dotnet run --project src/DataAcquisition.Central.Web
+# 可选：启动中心前端（Vue dev server）
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 
 # 可选：显式指定框架运行
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
 ```
 
 > 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
 >
 > 默认端口：
-> - Central Web：`http://localhost:8000`
+> - Central API：`http://localhost:8000`
 > - Edge Agent：`http://localhost:8001`
+> - Central Web（dev）：`http://localhost:3000`
 
 5. **构建特定框架**
 
@@ -181,8 +186,9 @@ dotnet build -f net8.0
 
 6. **访问监控界面**
 
-- 指标可视化: http://localhost:8000/metrics
-- Prometheus 指标: http://localhost:8000/metrics
+- Central API 指标（Prometheus）: http://localhost:8000/metrics
+- Central API 指标（JSON）: http://localhost:8000/api/metrics-data
+- Edge Agent 指标（Prometheus）: http://localhost:8001/metrics
 - API 文档: 未配置 Swagger（可通过代码启用）
 
 ### 🧪 使用 PLC 模拟器进行测试
@@ -222,7 +228,7 @@ dotnet run
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
-dotnet run --project src/DataAcquisition.Central.Web
+dotnet run --project src/DataAcquisition.Central.Api
 ```
 
 4. **观察数据采集**：

@@ -5,13 +5,13 @@
 1) 启动中心后端（API）
 
 ```bash
-dotnet run --project src/DataAcquisition.Central.Web
+dotnet run --project src/DataAcquisition.Central.Api
 ```
 
 2) 启动前端（dev server）
 
 ```bash
-cd src/DataAcquisition.Central.Web/ClientApp
+cd src/DataAcquisition.Central.Web
 npm install
 npm run serve
 ```
