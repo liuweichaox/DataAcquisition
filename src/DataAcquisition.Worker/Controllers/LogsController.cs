@@ -1,34 +1,19 @@
 using DataAcquisition.Application.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Gateway.Controllers;
+namespace DataAcquisition.Worker.Controllers;
 
 /// <summary>
-///     日志查看控制器
+///     日志查询 API（供 Web 门户代理调用）
 /// </summary>
-public class LogsController : Controller
+[ApiController]
+[Route("api/logs")]
+public class LogsController(ILogViewService logViewService) : ControllerBase
 {
-    private readonly ILogViewService _logViewService;
-
-    public LogsController(ILogViewService logViewService)
-    {
-        _logViewService = logViewService;
-    }
-
     /// <summary>
-    ///     日志查看页面
+    ///     获取日志数据
     /// </summary>
     [HttpGet]
-    public IActionResult Index()
-    {
-        return View();
-    }
-
-    /// <summary>
-    ///     获取日志数据 API
-    /// </summary>
-    [HttpGet]
-    [Route("api/logs")]
     public async Task<IActionResult> GetLogs(
         [FromQuery] string? level = null,
         [FromQuery] string? keyword = null,
@@ -39,7 +24,7 @@ public class LogsController : Controller
         try
         {
             var skip = (page - 1) * pageSize;
-            var (entries, totalCount) = await _logViewService.GetLogsAsync(
+            var (entries, totalCount) = await logViewService.GetLogsAsync(
                 level, keyword, skip, pageSize, cancellationToken);
 
             return Ok(new
@@ -60,11 +45,11 @@ public class LogsController : Controller
     /// <summary>
     ///     获取可用的日志级别
     /// </summary>
-    [HttpGet]
-    [Route("api/logs/levels")]
+    [HttpGet("levels")]
     public IActionResult GetLevels()
     {
-        var levels = _logViewService.GetAvailableLevels();
+        var levels = logViewService.GetAvailableLevels();
         return Ok(levels);
     }
 }
+

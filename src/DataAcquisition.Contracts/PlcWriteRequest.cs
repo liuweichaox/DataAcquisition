@@ -1,4 +1,4 @@
-namespace DataAcquisition.Gateway.Models;
+namespace DataAcquisition.Contracts;
 
 /// <summary>
 ///     PLC 批量写入请求

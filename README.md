@@ -88,23 +88,25 @@ DataAcquisition 是一个基于 .NET 构建的高性能、高可靠性的工业�
 
 ```
 DataAcquisition/
-├── DataAcquisition.Application/     # 应用层 - 接口定义
+├── src/DataAcquisition.Application/     # 应用层 - 接口定义
 │   ├── Abstractions/               # 核心接口抽象
 │   └── PLCRuntime.cs              # PLC 运行时枚举
-├── DataAcquisition.Domain/         # 领域层 - 核心模型
+├── src/DataAcquisition.Contracts/       # 契约层 - 对外 DTO/协议模型
+├── src/DataAcquisition.Domain/         # 领域层 - 核心模型
 │   ├── Models/                     # 数据模型
 │   └── OperationalEvents/          # 操作事件
-├── DataAcquisition.Infrastructure/ # 基础设施层 - 实现
+├── src/DataAcquisition.Infrastructure/ # 基础设施层 - 实现
 │   ├── Clients/                    # PLC 客户端实现
 │   ├── DataAcquisitions/           # 数据采集服务
 │   ├── DataStorages/               # 数据存储服务
 │   └── Metrics/                    # 指标收集
-├── DataAcquisition.Gateway/        # 网关层 - Web API
+├── src/DataAcquisition.Worker/     # Worker 宿主 - 采集后台 + 指标 + API
 │   ├── Configs/                    # 设备配置文件
-│   ├── Controllers/                # API 控制器
-│   ├── Services/                   # 网关服务
+│   └── Controllers/                # 管理 API 控制器
+├── src/DataAcquisition.Web/        # Web 门户 - UI + 管理 API（代理到 Worker）
+│   ├── Controllers/                # Web 控制器
 │   └── Views/                      # 视图页面
-├── DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
+├── src/DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
 │   ├── Simulator.cs               # 模拟器核心逻辑
 │   ├── Program.cs                 # 程序入口
 │   └── README.md                  # 模拟器文档
@@ -142,17 +144,22 @@ dotnet restore
 ```
 
 3. **配置设备**
-   编辑 `DataAcquisition.Gateway/Configs/M01C123.json` 文件，配置您的 PLC 设备信息。
+   编辑 `src/DataAcquisition.Worker/Configs/M01C123.json` 文件，配置您的 PLC 设备信息。
 
 4. **运行系统**
 
 ```bash
-# 使用默认框架运行
-dotnet run --project DataAcquisition.Gateway
+# 启动采集后台（Worker）
+dotnet run --project src/DataAcquisition.Worker
+
+# 启动管理门户（Web）
+dotnet run --project src/DataAcquisition.Web
 
 # 或指定特定框架运行
-dotnet run -f net10.0 --project DataAcquisition.Gateway
-dotnet run -f net8.0 --project DataAcquisition.Gateway
+dotnet run -f net10.0 --project src/DataAcquisition.Worker
+dotnet run -f net8.0 --project src/DataAcquisition.Worker
+dotnet run -f net10.0 --project src/DataAcquisition.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Web
 ```
 
 5. **构建特定框架**
@@ -203,12 +210,13 @@ dotnet run
 
 2. **配置测试设备**：
 
-   在 `DataAcquisition.Gateway/Configs/` 目录创建 `TEST_PLC.json`（参考 `DataAcquisition.Simulator/README.md` 中的完整配置示例）
+   在 `src/DataAcquisition.Worker/Configs/` 目录创建 `TEST_PLC.json`（参考 `src/DataAcquisition.Simulator/README.md` 中的完整配置示例）
 
 3. **启动采集系统**：
 
 ```bash
-dotnet run --project DataAcquisition.Gateway
+dotnet run --project src/DataAcquisition.Worker
+dotnet run --project src/DataAcquisition.Web
 ```
 
 4. **观察数据采集**：

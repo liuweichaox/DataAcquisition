@@ -7,22 +7,18 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <ApplicationIcon>wwwroot\favicon.ico</ApplicationIcon>
         <PackageIcon>favicon.ico</PackageIcon>
-        <RootNamespace>DataAcquisition.Gateway</RootNamespace>
+        <RootNamespace>DataAcquisition.Web</RootNamespace>
         <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2"/>
-        <PackageReference Include="prometheus-net" Version="8.2.1"/>
-        <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1"/>
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0"/>
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0"/>
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\DataAcquisition.Application\DataAcquisition.Application.csproj"/>
-        <ProjectReference Include="..\DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj"/>
+        <!-- Web 门户不直接依赖采集/存储实现，统一通过代理转发到 Worker -->
     </ItemGroup>
 
     <ItemGroup>
@@ -53,9 +49,6 @@
         <Content Remove="Services\DataStorages\**"/>
         <Content Remove="Services\Queues\**"/>
         <Content Remove="Logging\**"/>
-        <Content Update="Configs\M01C123.json">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
     </ItemGroup>
 
     <ItemGroup>

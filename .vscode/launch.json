@@ -10,9 +10,9 @@
             "request": "launch",
             "preLaunchTask": "build",
             // 如果已更改目标框架，请确保更新程序路径。
-            "program": "${workspaceFolder}/DataAcquisition.Gateway/bin/Debug/net8.0/DataAcquisition.Gateway.dll",
+            "program": "${workspaceFolder}/src/DataAcquisition.Web/bin/Debug/net8.0/DataAcquisition.Web.dll",
             "args": [],
-            "cwd": "${workspaceFolder}/DataAcquisition.Gateway",
+            "cwd": "${workspaceFolder}/src/DataAcquisition.Web",
             "stopAtEntry": false,
             // 启用在启动 ASP.NET Core 时启动 Web 浏览器。有关详细信息: https://aka.ms/VSCode-CS-LaunchJson-WebBrowser
             "serverReadyAction": {
@@ -23,7 +23,7 @@
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
             "sourceFileMap": {
-                "/Views": "${workspaceFolder}/Views"
+                "/Views": "${workspaceFolder}/src/DataAcquisition.Web/Views"
             }
         },
         {

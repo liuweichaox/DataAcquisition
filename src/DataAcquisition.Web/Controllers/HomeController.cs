@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using DataAcquisition.Gateway.Models;
+using DataAcquisition.Web.Models;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Gateway.Controllers;
+namespace DataAcquisition.Web.Controllers;
 
 /// <summary>
 ///     首页控制器。

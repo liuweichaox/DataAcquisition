@@ -1,4 +1,4 @@
-namespace DataAcquisition.Gateway.Models;
+namespace DataAcquisition.Web.Models;
 
 /// <summary>
 ///     错误信息视图模型。

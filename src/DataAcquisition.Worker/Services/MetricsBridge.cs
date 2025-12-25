@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Prometheus;
 
-namespace DataAcquisition.Gateway.Services;
+namespace DataAcquisition.Worker.Services;
 
 /// <summary>
 ///     将 System.Diagnostics.Metrics 的指标桥接到 Prometheus

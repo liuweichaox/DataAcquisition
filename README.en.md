@@ -70,23 +70,25 @@ DataAcquisition is a high-performance, high-reliability industrial data acquisit
 
 ```
 DataAcquisition/
-├── DataAcquisition.Application/     # Application Layer - Interface Definitions
+├── src/DataAcquisition.Application/     # Application Layer - Interface Definitions
 │   ├── Abstractions/               # Core Interface Abstractions
 │   └── PLCRuntime.cs              # PLC Runtime Enums
-├── DataAcquisition.Domain/         # Domain Layer - Core Models
+├── src/DataAcquisition.Contracts/       # Contracts Layer - External DTOs/Protocols
+├── src/DataAcquisition.Domain/         # Domain Layer - Core Models
 │   ├── Models/                     # Data Models
 │   └── OperationalEvents/          # Operational Events
-├── DataAcquisition.Infrastructure/ # Infrastructure Layer - Implementations
+├── src/DataAcquisition.Infrastructure/ # Infrastructure Layer - Implementations
 │   ├── Clients/                    # PLC Client Implementations
 │   ├── DataAcquisitions/           # Data Acquisition Services
 │   ├── DataStorages/               # Data Storage Services
 │   └── Metrics/                    # Metrics Collection
-├── DataAcquisition.Gateway/        # Gateway Layer - Web API
-│   ├── Configs/                    # Device Configuration Files
-│   ├── Controllers/                # API Controllers
-│   ├── Services/                   # Gateway Services
-│   └── Views/                      # View Pages
-├── DataAcquisition.Simulator/      # PLC Simulator - For Testing
+├── src/DataAcquisition.Worker/     # Worker Host - acquisition + metrics + APIs
+│   ├── Configs/                    # Device configuration files
+│   └── Controllers/                # Management API controllers
+├── src/DataAcquisition.Web/        # Web Portal - UI + management APIs (proxy to Worker)
+│   ├── Controllers/                # Web controllers
+│   └── Views/                      # View pages
+├── src/DataAcquisition.Simulator/      # PLC Simulator - For Testing
 │   ├── Simulator.cs               # Simulator Core Logic
 │   ├── Program.cs                 # Program Entry Point
 │   └── README.md                  # Simulator Documentation
@@ -124,17 +126,22 @@ dotnet restore
 ```
 
 3. **Configure Devices**
-   Edit `DataAcquisition.Gateway/Configs/M01C123.json` file to configure your PLC device information.
+   Edit `src/DataAcquisition.Worker/Configs/M01C123.json` file to configure your PLC device information.
 
 4. **Run the System**
 
 ```bash
-# Run with default framework
-dotnet run --project DataAcquisition.Gateway
+# Start acquisition backend (Worker)
+dotnet run --project src/DataAcquisition.Worker
+
+# Start management portal (Web)
+dotnet run --project src/DataAcquisition.Web
 
 # Or run with specific framework
-dotnet run -f net10.0 --project DataAcquisition.Gateway
-dotnet run -f net8.0 --project DataAcquisition.Gateway
+dotnet run -f net10.0 --project src/DataAcquisition.Worker
+dotnet run -f net8.0 --project src/DataAcquisition.Worker
+dotnet run -f net10.0 --project src/DataAcquisition.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Web
 ```
 
 5. **Build for Specific Framework**
@@ -185,12 +192,13 @@ dotnet run
 
 2. **Configure Test Device**:
 
-   Create `TEST_PLC.json` in `DataAcquisition.Gateway/Configs/` directory (refer to the complete configuration example in `DataAcquisition.Simulator/README.md`)
+   Create `TEST_PLC.json` in `src/DataAcquisition.Worker/Configs/` directory (refer to the complete configuration example in `src/DataAcquisition.Simulator/README.md`)
 
 3. **Start the Acquisition System**:
 
 ```bash
-dotnet run --project DataAcquisition.Gateway
+dotnet run --project src/DataAcquisition.Worker
+dotnet run --project src/DataAcquisition.Web
 ```
 
 4. **Observe Data Acquisition**:
