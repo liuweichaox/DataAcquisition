@@ -20,7 +20,7 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetPlcConnectionStatus(CancellationToken ct)
     {
-        var plcConnectionStatus = await mediator.Send(new GetPlcConnectionStatusQuery(), ct);
+        var plcConnectionStatus = await mediator.Send(new GetPLCConnectionStatusQuery(), ct);
         return Ok(plcConnectionStatus);
     }
 
@@ -46,10 +46,10 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
             if (item.Value == null) return BadRequest(new { error = "写入值不能为空" });
         }
 
-        var command = new WritePlcRegisterCommand(
+        var command = new WritePLCRegisterCommand(
             request.PLCCode,
             request.Items
-                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, i.Value!))
+                .Select(i => new WritePLCRegisterItem(i.Address, i.DataType, i.Value!))
                 .ToList());
 
         var results = await mediator.Send(command);

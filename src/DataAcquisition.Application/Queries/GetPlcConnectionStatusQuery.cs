@@ -3,5 +3,5 @@ using MediatR;
 
 namespace DataAcquisition.Application.Queries;
 
-public sealed record GetPlcConnectionStatusQuery : IRequest<SortedDictionary<string, bool>>;
+public sealed record GetPLCConnectionStatusQuery : IRequest<SortedDictionary<string, bool>>;
 

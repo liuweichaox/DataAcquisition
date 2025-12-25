@@ -7,10 +7,10 @@ using MediatR;
 
 namespace DataAcquisition.Application.Handlers;
 
-public sealed class GetPlcConnectionStatusQueryHandler(IDataAcquisitionService service)
-    : IRequestHandler<GetPlcConnectionStatusQuery, SortedDictionary<string, bool>>
+public sealed class GetPLCConnectionStatusQueryHandler(IDataAcquisitionService service)
+    : IRequestHandler<GetPLCConnectionStatusQuery, SortedDictionary<string, bool>>
 {
-    public Task<SortedDictionary<string, bool>> Handle(GetPlcConnectionStatusQuery request, CancellationToken cancellationToken)
+    public Task<SortedDictionary<string, bool>> Handle(GetPLCConnectionStatusQuery request, CancellationToken cancellationToken)
         => Task.FromResult(service.GetPlcConnectionStatus());
 }
 
