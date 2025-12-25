@@ -8,7 +8,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Contracts",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Infrastructure", "src\DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj", "{5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Central.Web", "src\DataAcquisition.Central.Web\DataAcquisition.Central.Web.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Central.Api", "src\DataAcquisition.Central.Api\DataAcquisition.Central.Api.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Edge.Agent", "src\DataAcquisition.Edge.Agent\DataAcquisition.Edge.Agent.csproj", "{7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}"
 EndProject
