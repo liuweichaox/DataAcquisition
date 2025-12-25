@@ -16,13 +16,13 @@ English: [README.en.md](README.en.md)
 - [🏗️ 系统架构](#-系统架构)
 - [📁 项目结构](#-项目结构)
 - [🚀 快速开始](#-快速开始)
-- [⚙️ 配置说明](#-配置说明)
-- [🔌 API 使用示例](#-api-使用示例)
-- [📊 核心模块文档](#-核心模块文档)
-- [🔄 数据处理流程](#-数据处理流程)
-- [🎯 性能优化建议](#-性能优化建议)
-- [❓ 常见问题](#-常见问题)
-- [🏆 设计理念](#-设计理念)
+- [⚙️ 配置说明](docs/configuration.md)
+- [🔌 API 使用示例](docs/api-usage.md)
+- [📊 核心模块文档](docs/modules.md)
+- [🔄 数据处理流程](docs/data-flow.md)
+- [🎯 性能优化建议](docs/performance.md)
+- [❓ 常见问题](docs/faq.md)
+- [🏆 设计理念](docs/design.md)
 - [🤝 贡献指南](#-贡献指南)
 - [📄 开源协议](#-开源协议)
 - [🙏 致谢](#-致谢)
@@ -218,6 +218,7 @@ dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 > 说明：项目默认在 **仅安装 .NET 8 SDK** 的环境下构建/运行 `net8.0`；当检测到 **SDK >= 10** 时，会自动启用 `net10.0` 多目标。
 >
 > 默认端口：
+>
 > - Central API：`http://localhost:8000`
 > - Central Web（Vue dev server）：`http://localhost:3000`（已在 `vue.config.js` 里将 `/api`、`/metrics` 代理到 `http://localhost:8000`）
 > - Edge Agent：`http://localhost:8001`
@@ -292,7 +293,15 @@ npm run serve
 
 ## ⚙️ 配置说明
 
-### 设备配置文件示例
+详细的配置说明请参考：[配置文档](docs/configuration.md)
+
+### 快速参考
+
+- **设备配置文件**: 存放在 `src/DataAcquisition.Edge.Agent/Configs/` 目录，格式为 `*.json`
+- **Edge Agent 配置**: 编辑 `src/DataAcquisition.Edge.Agent/appsettings.json`
+- **配置热更新**: 支持配置文件热更新，无需重启服务
+
+基本配置示例：
 
 ```json
 {
@@ -301,550 +310,33 @@ npm run serve
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
-  "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "temperature",
-      "ChannelCode": "PLC01C01",
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Conditional",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D200",
-      "BatchReadLength": 20,
-      "DataPoints": [
-        {
-          "FieldName": "temp_value",
-          "Register": "D200",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value * 0.1"
-        }
-      ],
-      "ConditionalAcquisition": {
-        "Register": "D210",
-        "DataType": "short",
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      }
-    }
-  ]
+  "Channels": [...]
 }
-```
-
-### 设备配置属性详细说明
-
-#### 根级别属性
-
-| 属性名称                   | 类型      | 必填 | 说明                                      |
-| -------------------------- | --------- | ---- | ----------------------------------------- |
-| `IsEnabled`                | `boolean` | 是   | 设备是否启用                              |
-| `PLCCode`                  | `string`  | 是   | PLC 设备的唯一标识符                      |
-| `Host`                     | `string`  | 是   | PLC 设备的 IP 地址                        |
-| `Port`                     | `integer` | 是   | PLC 设备的通信端口                        |
-| `Type`                     | `string`  | 是   | PLC 设备类型（如 Mitsubishi, Siemens 等） |
-| `HeartbeatMonitorRegister` | `string`  | 否   | 用于监控 PLC 心跳的寄存器地址             |
-| `HeartbeatPollingInterval` | `integer` | 否   | 心跳监控的轮询间隔（毫秒）                |
-| `Channels`                 | `array`   | 是   | 数据采集通道配置列表                      |
-
-#### Channels 数组属性
-
-| 属性名称                 | 类型      | 必填 | 说明                                                       |
-| ------------------------ | --------- | ---- | ---------------------------------------------------------- |
-| `Measurement`            | `string`  | 是   | 时序数据库中的测量名称（表名）                             |
-| `ChannelCode`            | `string`  | 是   | 采集通道的唯一标识符                                       |
-| `BatchSize`              | `integer` | 否   | 批量写入数据库的数据点数量                                 |
-| `AcquisitionInterval`    | `integer` | 是   | 数据采集的时间间隔（毫秒）                                 |
-| `AcquisitionMode`        | `string`  | 是   | 采集模式（Always: 持续采集, Conditional: 条件触发采集）    |
-| `EnableBatchRead`        | `boolean` | 否   | 是否启用批量读取功能                                       |
-| `BatchReadRegister`      | `string`  | 否   | 批量读取的起始寄存器地址                                   |
-| `BatchReadLength`        | `integer` | 否   | 批量读取的寄存器数量                                       |
-| `DataPoints`             | `array`   | 是   | 数据点配置列表                                             |
-| `ConditionalAcquisition` | `object`  | 否   | 条件采集配置（仅在 AcquisitionMode 为 Conditional 时需要） |
-
-#### DataPoints 数组属性
-
-| 属性名称         | 类型      | 必填 | 说明                                        |
-| ---------------- | --------- | ---- | ------------------------------------------- |
-| `FieldName`      | `string`  | 是   | 时序数据库中的字段名称                      |
-| `Register`       | `string`  | 是   | 数据点对应的 PLC 寄存器地址                 |
-| `Index`          | `integer` | 否   | 批量读取时在结果中的索引位置                |
-| `DataType`       | `string`  | 是   | 数据类型（如 short, int, float 等）         |
-| `EvalExpression` | `string`  | 否   | 数据转换表达式（使用 value 变量表示原始值） |
-
-#### ConditionalAcquisition 对象属性
-
-| 属性名称           | 类型     | 必填 | 说明                                                                      |
-| ------------------ | -------- | ---- | ------------------------------------------------------------------------- |
-| `Register`         | `string` | 是   | 条件触发监控的寄存器地址                                                  |
-| `DataType`         | `string` | 是   | 条件触发寄存器的数据类型                                                  |
-| `StartTriggerMode` | `string` | 是   | 开始采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
-| `EndTriggerMode`   | `string` | 是   | 结束采集的触发模式（RisingEdge: 数值增加触发, FallingEdge: 数值减少触发） |
-
-### AcquisitionTrigger 触发模式说明
-
-| 触发模式      | 说明                                          |
-| ------------- | --------------------------------------------- |
-| `RisingEdge`  | 当数值从较小值变为较大值时触发（prev < curr） |
-| `FallingEdge` | 当数值从较大值变为较小值时触发（prev > curr） |
-
-> 注意：此处的 RisingEdge 和 FallingEdge 与传统的边沿触发（0→1 或 1→0）不同，它们基于数值的增减变化来触发，而非严格的 0/1 跳变。
-
-### Edge Agent 应用配置 (appsettings.json)
-
-Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettings.json`：
-
-```json
-{
-  "Urls": "http://localhost:8001",
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    },
-    "DatabasePath": "Data/logs.db"
-  },
-  "AllowedHosts": "*",
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token-here",
-    "Bucket": "plc_data",
-    "Org": "your-org"
-  },
-  "Parquet": {
-    "Directory": "./Data/parquet"
-  },
-  "Edge": {
-    "EnableCentralReporting": true,
-    "CentralApiBaseUrl": "http://localhost:8000",
-    "EdgeId": "EDGE-001",
-    "HeartbeatIntervalSeconds": 10
-  },
-  "Acquisition": {
-    "ChannelCollector": {
-      "ConnectionCheckRetryDelayMs": 100,
-      "TriggerWaitDelayMs": 100
-    },
-    "QueueService": {
-      "FlushIntervalSeconds": 5,
-      "RetryIntervalSeconds": 10,
-      "MaxRetryCount": 3
-    },
-    "DeviceConfigService": {
-      "ConfigChangeDetectionDelayMs": 500
-    }
-  }
-}
-```
-
-#### Edge Agent 配置项说明
-
-| 配置项路径 | 类型 | 必填 | 默认值 | 说明 |
-|-----------|------|------|--------|------|
-| `Urls` | `string` | 否 | `http://localhost:8001` | Edge Agent 服务监听地址，支持多个地址（用 `;` 或 `,` 分隔） |
-| `Logging:DatabasePath` | `string` | 否 | `Data/logs.db` | SQLite 日志数据库文件路径（相对路径相对于应用目录） |
-| `InfluxDB:Url` | `string` | 是 | - | InfluxDB 服务器地址 |
-| `InfluxDB:Token` | `string` | 是 | - | InfluxDB 认证令牌 |
-| `InfluxDB:Bucket` | `string` | 是 | - | InfluxDB 存储桶名称 |
-| `InfluxDB:Org` | `string` | 是 | - | InfluxDB 组织名称 |
-| `Parquet:Directory` | `string` | 否 | `./Data/parquet` | Parquet WAL 文件存储目录（相对路径相对于应用目录） |
-| `Edge:EnableCentralReporting` | `boolean` | 否 | `true` | 是否启用向 Central API 注册和心跳上报 |
-| `Edge:CentralApiBaseUrl` | `string` | 否 | `http://localhost:8000` | Central API 服务地址 |
-| `Edge:EdgeId` | `string` | 否 | 自动生成 | Edge 节点唯一标识符，为空时会自动生成并持久化到本地文件 |
-| `Edge:HeartbeatIntervalSeconds` | `integer` | 否 | `10` | 向 Central API 发送心跳的间隔（秒） |
-| `Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs` | `integer` | 否 | `100` | PLC 连接检查重试延迟（毫秒） |
-| `Acquisition:ChannelCollector:TriggerWaitDelayMs` | `integer` | 否 | `100` | 条件触发等待延迟（毫秒） |
-| `Acquisition:QueueService:FlushIntervalSeconds` | `integer` | 否 | `5` | 队列批量刷新间隔（秒） |
-| `Acquisition:QueueService:RetryIntervalSeconds` | `integer` | 否 | `10` | 重试间隔（秒） |
-| `Acquisition:QueueService:MaxRetryCount` | `integer` | 否 | `3` | 最大重试次数 |
-| `Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs` | `integer` | 否 | `500` | 设备配置文件变更检测延迟（毫秒） |
-
-> **提示**：
-> - 设备配置文件（PLC 配置）存放在 `Configs/` 目录下，格式为 `*.json`
-> - 所有路径配置支持相对路径和绝对路径，相对路径相对于应用的工作目录
-> - 配置支持通过环境变量覆盖，例如 `ASPNETCORE_URLS` 可覆盖 `Urls` 配置
-
-### 📊 配置到数据库映射说明
-
-系统将配置文件映射到 InfluxDB 时序数据库，以下是映射关系：
-
-#### 映射关系表
-
-| 配置文件字段                        | InfluxDB 结构           | 说明                           | 示例值                       |
-| ----------------------------------- | ----------------------- | ------------------------------ | ---------------------------- |
-| `Channels[].Measurement`            | **Measurement**         | 时序数据库的测量名称（表名）   | `"sensor"`                   |
-| `PLCCode`                           | **Tag**: `plc_code`     | PLC 设备编码标签               | `"M01C123"`                  |
-| `Channels[].ChannelCode`            | **Tag**: `channel_code` | 通道编码标签                   | `"M01C01"`                   |
-| `EventType`                         | **Tag**: `event_type`   | 事件类型标签（Start/End/Data） | `"Start"`, `"End"`, `"Data"` |
-| `Channels[].DataPoints[].FieldName` | **Field**               | 数据字段名称                   | `"up_temp"`, `"down_temp"`   |
-| `CycleId`                           | **Field**: `cycle_id`   | 采集周期唯一标识符（GUID）     | `"guid-xxx"`                 |
-| 采集时间                            | **Timestamp**           | 数据点的时间戳                 | `2025-01-15T10:30:00Z`       |
-
-#### 配置示例与 Line Protocol
-
-**配置文件** (`M01C123.json`):
-
-```json
-{
-  "PLCCode": "M01C123",
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "M01C01",
-      "DataPoints": [
-        {
-          "FieldName": "up_temp",
-          "Register": "D6002",
-          "Index": 2,
-          "DataType": "short"
-        },
-        {
-          "FieldName": "down_temp",
-          "Register": "D6004",
-          "Index": 4,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ],
-      "ConditionalAcquisition": {
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      }
-    }
-  ]
-}
-```
-
-**生成的 InfluxDB Line Protocol**:
-
-**Start 事件**（条件采集开始）:
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=Start up_temp=250i,down_temp=0.18,cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312200000000000
-```
-
-**Data 事件**（普通数据点）:
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=Data up_temp=255i,down_temp=0.19 1705312210000000000
-```
-
-**End 事件**（条件采集结束）:
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=End cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312300000000000
-```
-
-#### Line Protocol 格式说明
-
-InfluxDB Line Protocol 格式：
-
-```
-measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
-```
-
-**字段类型说明**：
-
-- **Measurement**: 来自配置的 `Measurement`，例如 `"sensor"`
-- **Tags**（用于过滤和分组，索引字段）:
-  - `plc_code`: PLC 设备编码
-  - `channel_code`: 通道编码
-  - `event_type`: 事件类型（`Start`/`End`/`Data`）
-- **Fields**（实际数据值）:
-  - 来自 `DataPoints[].FieldName` 的所有字段（如 `up_temp`, `down_temp`）
-  - `cycle_id`: 条件采集的周期 ID（GUID，用于关联 Start/End 事件）
-  - 数值类型：整数使用 `i` 后缀（如 `250i`），浮点数直接写（如 `0.18`）
-- **Timestamp**: 数据采集时间（纳秒精度）
-
-#### 查询示例
-
-**查询特定 PLC 的采集通道的指定时间（1h）范围的数据**:
-
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["plc_code"] == "M01C123")
-  |> filter(fn: (r) => r["channel_code"] == "M01C01")
-```
-
-**查询条件采集的完整周期**:
-
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ## 🔌 API 使用示例
 
-### 指标数据查询
-
-```bash
-# 获取 Prometheus 格式指标
-curl http://localhost:8000/metrics
-
-# 获取 JSON 格式指标
-curl http://localhost:8000/api/metrics-data
-
-# 获取指标信息
-curl http://localhost:8000/api/metrics-data/info
-```
-
-### PLC 连接状态查询
-
-```bash
-# 获取 PLC 连接状态
-curl http://localhost:8000/api/DataAcquisition/GetPLCConnectionStatus
-```
-
-### PLC 写入操作
-
-```csharp
-// C# 客户端示例
-var request = new PLCWriteRequest
-{
-    PLCCode = "M01C123",
-    Items = new List<PLCWriteItem>
-    {
-        new PLCWriteItem
-        {
-            Address = "D300",
-            DataType = "short",
-            Value = 100
-        }
-    }
-};
-
-var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegister", request);
-```
+详细的 API 使用示例请参考：[API 使用文档](docs/api-usage.md)
 
 ## 📊 核心模块文档
 
-### PLC 客户端实现
-
-| 协议         | 实现类                        | 描述                  |
-| ------------ | ----------------------------- | --------------------- |
-| Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通讯客户端   |
-| Inovance     | `InovancePLCClientService`    | 汇川 PLC 通讯客户端   |
-| Beckhoff ADS | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
-| Siemens      | `SiemensPLClientService`      | 西门子 PLC 通讯客户端 |
-
-### ChannelCollector - 通道采集器
-
-```csharp
-public class ChannelCollector : IChannelCollector
-{
-    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
-        IPLCClientService client, CancellationToken ct = default)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            // 检查 PLC 连接状态
-            if (!await WaitForConnectionAsync(config, ct))
-                continue;
-
-            // 获取设备锁，确保线程安全的 PLC 访问
-            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
-                continue;
-
-            await locker.WaitAsync(ct);
-            try
-            {
-                var timestamp = DateTime.Now;
-
-                // 处理不同的采集模式
-                if (channel.AcquisitionMode == AcquisitionMode.Always)
-                {
-                    await HandleUnconditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-                else if (channel.AcquisitionMode == AcquisitionMode.Conditional)
-                {
-                    await HandleConditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-            }
-            finally
-            {
-                locker.Release();
-            }
-        }
-    }
-}
-```
-
-### InfluxDbDataStorageService - 数据存储服务
-
-```csharp
-public class InfluxDbDataStorageService : IDataStorageService
-{
-    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
-    {
-        if (dataMessages == null || dataMessages.Count == 0)
-            return true;
-
-        _writeStopwatch.Restart();
-        var writeSuccess = false;
-        Exception? writeException = null;
-        var resetEvent = new System.Threading.ManualResetEventSlim(false);
-
-        try
-        {
-            // 批量转换消息为数据点
-            var points = dataMessages.Select(ConvertToPoint).ToList();
-            using var writeApi = _client.GetWriteApi();
-
-            // 设置错误处理回调，捕获写入失败
-            writeApi.EventHandler += (sender, args) =>
-            {
-                writeException = new Exception($"InfluxDB 写入失败: {args.GetType().Name} - {args}");
-                writeSuccess = false;
-                resetEvent.Set();
-                _logger.LogError(writeException, "[ERROR] InfluxDB 写入错误事件触发: {EventType} - {Message}",
-                    args.GetType().Name, writeException.Message);
-            };
-
-            writeApi.WritePoints(_bucket, _org, points);
-            writeApi.Flush();
-
-            // 等待足够长的时间来检测错误（InfluxDB 异步写入，错误可能延迟）
-            _logger.LogDebug("等待 InfluxDB 批量写入响应，最多等待 5 秒...");
-            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
-
-            if (errorOccurred)
-            {
-                _logger.LogWarning("InfluxDB 批量写入错误事件已触发");
-            }
-            else
-            {
-                writeSuccess = true;
-                _logger.LogDebug("InfluxDB 批量写入在 5 秒内未检测到错误，假设写入成功");
-            }
-
-            _writeStopwatch.Stop();
-
-            if (!writeSuccess)
-            {
-                throw writeException ?? new Exception("InfluxDB 写入失败");
-            }
-
-            // 记录批量效率指标和写入延迟
-            var batchSize = dataMessages.Count;
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
-            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // 处理批量写入错误
-            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
-            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
-            _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
-            return false;
-        }
-        finally
-        {
-            resetEvent.Dispose();
-        }
-    }
-}
-```
-
-### MetricsCollector - 指标收集器
-
-系统内置以下核心监控指标：
-
-#### 采集指标
-
-- **`data_acquisition_collection_latency_ms`** - 采集延迟（从 PLC 读取到写入数据库的时间，毫秒）
-- **`data_acquisition_collection_rate`** - 采集频率（每秒采集的数据点数，points/s）
-
-#### 队列指标
-
-- **`data_acquisition_queue_depth`** - 队列深度（Channel 待读取 + 批量积累的待处理消息总数）
-- **`data_acquisition_processing_latency_ms`** - 处理延迟（队列处理延迟，毫秒）
-
-#### 存储指标
-
-- **`data_acquisition_write_latency_ms`** - 写入延迟（数据库写入延迟，毫秒）
-- **`data_acquisition_batch_write_efficiency`** - 批量写入效率（批量大小/写入耗时，points/ms）
-
-#### 错误与连接指标
-
-- **`data_acquisition_errors_total`** - 错误总数（按设备/通道统计）
-- **`data_acquisition_connection_status_changes_total`** - 连接状态变化总数
-- **`data_acquisition_connection_duration_seconds`** - 连接持续时间（秒）
+详细的模块文档请参考：[核心模块文档](docs/modules.md)
 
 ## 🔄 数据处理流程
 
-### 正常流程
-
-1. **数据采集**: ChannelCollector 从 PLC 读取数据
-2. **队列聚合**: LocalQueueService 按 BatchSize 聚合数据
-3. **WAL 写入**: 立即写入 Parquet 文件作为预写日志
-4. **主存储写入**: 立即写入 InfluxDB
-5. **WAL 清理**: 写入成功则删除对应的 Parquet 文件
-
-### 异常处理流程
-
-1. **网络异常**: 自动重连机制，心跳监控确保连接状态
-2. **存储失败**: WAL 文件保留，由 ParquetRetryWorker 定期重试
-3. **配置错误**: 配置验证和热重载机制
+详细的数据处理流程请参考：[数据处理流程文档](docs/data-flow.md)
 
 ## 🎯 性能优化建议
 
-### 采集参数调优
-
-| 参数                | 推荐值    | 说明              |
-| ------------------- | --------- | ----------------- |
-| BatchSize           | 10-50     | 平衡延迟和吞吐量  |
-| AcquisitionInterval | 100-500ms | 根据 PLC 性能调整 |
-| HeartbeatInterval   | 5000ms    | 连接监控频率      |
-
-### 存储优化
-
-- **Parquet 压缩**: 使用 Snappy 压缩减少磁盘占用
-- **重试间隔**: RetryWorker 默认 5 秒，可根据网络状况调整
+详细的性能优化建议请参考：[性能优化文档](docs/performance.md)
 
 ## ❓ 常见问题 (FAQ)
 
-### Q: 数据丢失怎么办？
-
-A: 系统采用 WAL-first 架构，所有数据先写入 Parquet 文件，再写入 InfluxDB。只有两者都成功才会删除 WAL 文件，确保数据零丢失。
-
-### Q: 如何添加新的 PLC 协议？
-
-A: 实现 `IPLCClientService` 接口，并在 `PLCClientFactory` 中注册新的协议支持。
-
-### Q: 配置修改后需要重启吗？
-
-A: 不需要。系统使用 FileSystemWatcher 监控配置文件变化，支持热更新。
-
-### Q: 监控指标在哪里查看？
-
-A: 访问 http://localhost:8000/metrics 查看可视化界面或获取 Prometheus 原始格式指标，或 http://localhost:8000/api/metrics-data 获取 JSON 格式指标数据（推荐）。
-
-### Q: 如何扩展存储后端？
-
-A: 实现 `IDataStorageService` 接口，保持与队列服务的写入契约一致性。
+常见问题解答请参考：[FAQ 文档](docs/faq.md)
 
 ## 🏆 设计理念
 
-### WAL-first 架构
-
-系统核心设计理念是"数据安全第一"。所有数据采集后立即写入本地 Parquet 文件作为预写日志，然后再异步写入 InfluxDB。这种设计确保即使在网络故障、存储服务不可用等异常情况下，数据也不会丢失。
-
-### 模块化设计
-
-系统采用清晰的分层架构，各模块通过接口抽象，支持灵活扩展和替换。新的 PLC 协议、存储后端、数据处理逻辑都可以通过实现相应接口快速集成。
-
-### 运维友好
-
-内置完整的监控指标和可视化界面，支持配置热更新，提供详细的日志记录，大大降低了运维复杂度。
+详细的设计理念说明请参考：[设计理念文档](docs/design.md)
 
 ## 🤝 贡献指南
 

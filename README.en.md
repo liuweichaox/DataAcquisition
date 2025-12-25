@@ -16,13 +16,13 @@
 - [🏗️ System Architecture](#-system-architecture)
 - [📁 Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
-- [⚙️ Configuration Guide](#-configuration-guide)
-- [🔌 API Usage Examples](#-api-usage-examples)
-- [📊 Core Module Documentation](#-core-module-documentation)
-- [🔄 Data Processing Flow](#-data-processing-flow)
-- [🎯 Performance Optimization Recommendations](#-performance-optimization-recommendations)
-- [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
-- [🏆 Design Philosophy](#-design-philosophy)
+- [⚙️ Configuration Guide](docs/configuration.en.md)
+- [🔌 API Usage Examples](docs/api-usage.en.md)
+- [📊 Core Module Documentation](docs/modules.en.md)
+- [🔄 Data Processing Flow](docs/data-flow.en.md)
+- [🎯 Performance Optimization Recommendations](docs/performance.en.md)
+- [❓ Frequently Asked Questions (FAQ)](docs/faq.en.md)
+- [🏆 Design Philosophy](docs/design.en.md)
 - [🤝 Contributing Guidelines](#-contributing-guidelines)
 - [📄 Open Source License](#-open-source-license)
 - [🙏 Acknowledgments](#-acknowledgments)
@@ -218,6 +218,7 @@ dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 > Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
 >
 > Default ports:
+>
 > - Central API: `http://localhost:8000`
 > - Central Web (Vue dev server): `http://localhost:3000` (proxy `/api` and `/metrics` to `http://localhost:8000` via `vue.config.js`)
 > - Edge Agent: `http://localhost:8001`
@@ -292,7 +293,15 @@ For detailed information, please refer to: [src/DataAcquisition.Simulator/README
 
 ## ⚙️ Configuration Guide
 
-### Device Configuration Example
+Detailed configuration guide: [Configuration Documentation](docs/configuration.en.md)
+
+### Quick Reference
+
+- **Device Configuration Files**: Located in `src/DataAcquisition.Edge.Agent/Configs/` directory, format is `*.json`
+- **Edge Agent Configuration**: Edit `src/DataAcquisition.Edge.Agent/appsettings.json`
+- **Hot Reload**: Supports configuration file hot updates without service restart
+
+Basic configuration example:
 
 ```json
 {
@@ -301,550 +310,33 @@ For detailed information, please refer to: [src/DataAcquisition.Simulator/README
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
-  "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "temperature",
-      "ChannelCode": "PLC01C01",
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Conditional",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D200",
-      "BatchReadLength": 20,
-      "DataPoints": [
-        {
-          "FieldName": "temp_value",
-          "Register": "D200",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value * 0.1"
-        }
-      ],
-      "ConditionalAcquisition": {
-        "Register": "D210",
-        "DataType": "short",
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      }
-    }
-  ]
+  "Channels": [...]
 }
-```
-
-### Detailed Device Configuration Properties
-
-#### Root Level Properties
-
-| Property Name              | Type      | Required | Description                                              |
-| -------------------------- | --------- | -------- | -------------------------------------------------------- |
-| `IsEnabled`                | `boolean` | Yes      | Whether the device is enabled                            |
-| `PLCCode`                  | `string`  | Yes      | Unique identifier for the PLC device                     |
-| `Host`                     | `string`  | Yes      | IP address of the PLC device                             |
-| `Port`                     | `integer` | Yes      | Communication port of the PLC device                     |
-| `Type`                     | `string`  | Yes      | PLC device type (e.g., Mitsubishi, Siemens, etc.)        |
-| `HeartbeatMonitorRegister` | `string`  | No       | Register address for PLC heartbeat monitoring            |
-| `HeartbeatPollingInterval` | `integer` | No       | Polling interval for heartbeat monitoring (milliseconds) |
-| `Channels`                 | `array`   | Yes      | List of data acquisition channel configurations          |
-
-#### Channels Array Properties
-
-| Property Name            | Type      | Required | Description                                                                                     |
-| ------------------------ | --------- | -------- | ----------------------------------------------------------------------------------------------- |
-| `Measurement`            | `string`  | Yes      | Measurement name in time-series database (table name)                                           |
-| `ChannelCode`            | `string`  | Yes      | Unique identifier for the acquisition channel                                                   |
-| `BatchSize`              | `integer` | No       | Number of data points to write to database in batch                                             |
-| `AcquisitionInterval`    | `integer` | Yes      | Data acquisition interval (milliseconds)                                                        |
-| `AcquisitionMode`        | `string`  | Yes      | Acquisition mode (Always: continuous acquisition, Conditional: conditional trigger acquisition) |
-| `EnableBatchRead`        | `boolean` | No       | Whether to enable batch read functionality                                                      |
-| `BatchReadRegister`      | `string`  | No       | Start register address for batch read                                                           |
-| `BatchReadLength`        | `integer` | No       | Number of registers to read in batch                                                            |
-| `DataPoints`             | `array`   | Yes      | List of data point configurations                                                               |
-| `ConditionalAcquisition` | `object`  | No       | Conditional acquisition configuration (required only when AcquisitionMode is Conditional)       |
-
-#### DataPoints Array Properties
-
-| Property Name    | Type      | Required | Description                                                                   |
-| ---------------- | --------- | -------- | ----------------------------------------------------------------------------- |
-| `FieldName`      | `string`  | Yes      | Field name in time-series database                                            |
-| `Register`       | `string`  | Yes      | PLC register address for the data point                                       |
-| `Index`          | `integer` | No       | Index position in batch read results                                          |
-| `DataType`       | `string`  | Yes      | Data type (e.g., short, int, float, etc.)                                     |
-| `EvalExpression` | `string`  | No       | Data conversion expression (use 'value' variable to represent original value) |
-
-#### ConditionalAcquisition Object Properties
-
-| Property Name      | Type     | Required | Description                                                                                                    |
-| ------------------ | -------- | -------- | -------------------------------------------------------------------------------------------------------------- |
-| `Register`         | `string` | Yes      | Register address for conditional trigger monitoring                                                            |
-| `DataType`         | `string` | Yes      | Data type of the conditional trigger register                                                                  |
-| `StartTriggerMode` | `string` | Yes      | Start acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease) |
-| `EndTriggerMode`   | `string` | Yes      | End acquisition trigger mode (RisingEdge: trigger on value increase, FallingEdge: trigger on value decrease)   |
-
-### AcquisitionTrigger Mode Description
-
-| Trigger Mode  | Description                                |
-| ------------- | ------------------------------------------ |
-| `RisingEdge`  | Trigger when value increases (prev < curr) |
-| `FallingEdge` | Trigger when value decreases (prev > curr) |
-
-> Note: The RisingEdge and FallingEdge here are different from traditional edge triggering (0→1 or 1→0). They are triggered based on value increases/decreases, not strict 0/1 transitions.
-
-### Edge Agent Application Configuration (appsettings.json)
-
-Complete Edge Agent configuration example is located at `src/DataAcquisition.Edge.Agent/appsettings.json`:
-
-```json
-{
-  "Urls": "http://localhost:8001",
-  "Logging": {
-    "LogLevel": {
-      "Default": "Information",
-      "Microsoft.AspNetCore": "Warning"
-    },
-    "DatabasePath": "Data/logs.db"
-  },
-  "AllowedHosts": "*",
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token-here",
-    "Bucket": "plc_data",
-    "Org": "your-org"
-  },
-  "Parquet": {
-    "Directory": "./Data/parquet"
-  },
-  "Edge": {
-    "EnableCentralReporting": true,
-    "CentralApiBaseUrl": "http://localhost:8000",
-    "EdgeId": "EDGE-001",
-    "HeartbeatIntervalSeconds": 10
-  },
-  "Acquisition": {
-    "ChannelCollector": {
-      "ConnectionCheckRetryDelayMs": 100,
-      "TriggerWaitDelayMs": 100
-    },
-    "QueueService": {
-      "FlushIntervalSeconds": 5,
-      "RetryIntervalSeconds": 10,
-      "MaxRetryCount": 3
-    },
-    "DeviceConfigService": {
-      "ConfigChangeDetectionDelayMs": 500
-    }
-  }
-}
-```
-
-#### Edge Agent Configuration Properties
-
-| Configuration Path | Type | Required | Default | Description |
-|-------------------|------|----------|---------|-------------|
-| `Urls` | `string` | No | `http://localhost:8001` | Edge Agent service listening address, supports multiple addresses (separated by `;` or `,`) |
-| `Logging:DatabasePath` | `string` | No | `Data/logs.db` | SQLite log database file path (relative path is relative to application directory) |
-| `InfluxDB:Url` | `string` | Yes | - | InfluxDB server address |
-| `InfluxDB:Token` | `string` | Yes | - | InfluxDB authentication token |
-| `InfluxDB:Bucket` | `string` | Yes | - | InfluxDB bucket name |
-| `InfluxDB:Org` | `string` | Yes | - | InfluxDB organization name |
-| `Parquet:Directory` | `string` | No | `./Data/parquet` | Parquet WAL file storage directory (relative path is relative to application directory) |
-| `Edge:EnableCentralReporting` | `boolean` | No | `true` | Whether to enable registration and heartbeat reporting to Central API |
-| `Edge:CentralApiBaseUrl` | `string` | No | `http://localhost:8000` | Central API service address |
-| `Edge:EdgeId` | `string` | No | Auto-generated | Edge node unique identifier, auto-generated and persisted to local file if empty |
-| `Edge:HeartbeatIntervalSeconds` | `integer` | No | `10` | Heartbeat interval sent to Central API (seconds) |
-| `Acquisition:ChannelCollector:ConnectionCheckRetryDelayMs` | `integer` | No | `100` | PLC connection check retry delay (milliseconds) |
-| `Acquisition:ChannelCollector:TriggerWaitDelayMs` | `integer` | No | `100` | Conditional trigger wait delay (milliseconds) |
-| `Acquisition:QueueService:FlushIntervalSeconds` | `integer` | No | `5` | Queue batch flush interval (seconds) |
-| `Acquisition:QueueService:RetryIntervalSeconds` | `integer` | No | `10` | Retry interval (seconds) |
-| `Acquisition:QueueService:MaxRetryCount` | `integer` | No | `3` | Maximum retry count |
-| `Acquisition:DeviceConfigService:ConfigChangeDetectionDelayMs` | `integer` | No | `500` | Device config file change detection delay (milliseconds) |
-
-> **Tips**:
-> - Device configuration files (PLC configs) are stored in the `Configs/` directory, format is `*.json`
-> - All path configurations support both relative and absolute paths, relative paths are relative to the application working directory
-> - Configurations can be overridden via environment variables, e.g., `ASPNETCORE_URLS` can override the `Urls` configuration
-
-### 📊 Configuration to Database Mapping
-
-The system maps configuration files to InfluxDB time-series database. Here's the mapping relationship:
-
-#### Mapping Table
-
-| Configuration Field                 | InfluxDB Structure      | Description                                | Example                      |
-| ----------------------------------- | ----------------------- | ------------------------------------------ | ---------------------------- |
-| `Channels[].Measurement`            | **Measurement**         | Measurement name (table name)              | `"sensor"`                   |
-| `PLCCode`                           | **Tag**: `plc_code`     | PLC device code tag                        | `"M01C123"`                  |
-| `Channels[].ChannelCode`            | **Tag**: `channel_code` | Channel code tag                           | `"M01C01"`                   |
-| `EventType`                         | **Tag**: `event_type`   | Event type tag (Start/End/Data)            | `"Start"`, `"End"`, `"Data"` |
-| `Channels[].DataPoints[].FieldName` | **Field**               | Data field name                            | `"up_temp"`, `"down_temp"`   |
-| `CycleId`                           | **Field**: `cycle_id`   | Acquisition cycle unique identifier (GUID) | `"guid-xxx"`                 |
-| Acquisition time                    | **Timestamp**           | Data point timestamp                       | `2025-01-15T10:30:00Z`       |
-
-#### Configuration Example and Line Protocol
-
-**Configuration File** (`M01C123.json`):
-
-```json
-{
-  "PLCCode": "M01C123",
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "M01C01",
-      "DataPoints": [
-        {
-          "FieldName": "up_temp",
-          "Register": "D6002",
-          "Index": 2,
-          "DataType": "short"
-        },
-        {
-          "FieldName": "down_temp",
-          "Register": "D6004",
-          "Index": 4,
-          "DataType": "short",
-          "EvalExpression": "value / 1000.0"
-        }
-      ],
-      "ConditionalAcquisition": {
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      }
-    }
-  ]
-}
-```
-
-**Generated InfluxDB Line Protocol**:
-
-**Start Event** (conditional acquisition start):
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=Start up_temp=250i,down_temp=0.18,cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312200000000000
-```
-
-**Data Event** (normal data point):
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=Data up_temp=255i,down_temp=0.19 1705312210000000000
-```
-
-**End Event** (conditional acquisition end):
-
-```
-sensor,plc_code=M01C123,channel_code=M01C01,event_type=End cycle_id="550e8400-e29b-41d4-a716-446655440000" 1705312300000000000
-```
-
-#### Line Protocol Format Explanation
-
-InfluxDB Line Protocol format:
-
-```
-measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
-```
-
-**Field Type Explanation**:
-
-- **Measurement**: From configuration `Measurement`, e.g., `"sensor"`
-- **Tags** (for filtering and grouping, indexed fields):
-  - `plc_code`: PLC device code
-  - `channel_code`: Channel code
-  - `event_type`: Event type (`Start`/`End`/`Data`)
-- **Fields** (actual data values):
-  - All fields from `DataPoints[].FieldName` (e.g., `up_temp`, `down_temp`)
-  - `cycle_id`: Conditional acquisition cycle ID (GUID, used to link Start/End events)
-  - Numeric types: integers use `i` suffix (e.g., `250i`), floats are written directly (e.g., `0.18`)
-- **Timestamp**: Data acquisition time (nanosecond precision)
-
-#### Query Examples
-
-**Query data from a specific PLC channel within a specified time range (1h)**:
-
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["plc_code"] == "M01C123")
-  |> filter(fn: (r) => r["channel_code"] == "M01C01")
-```
-
-**Query a complete conditional acquisition cycle**:
-
-```flux
-from(bucket: "your-bucket")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["cycle_id"] == "550e8400-e29b-41d4-a716-446655440000")
 ```
 
 ## 🔌 API Usage Examples
 
-### Metrics Data Query
-
-```bash
-# Get Prometheus format metrics
-curl http://localhost:8000/metrics
-
-# Get JSON format metrics
-curl http://localhost:8000/api/metrics-data
-
-# Get metrics information
-curl http://localhost:8000/api/metrics-data/info
-```
-
-### PLC Connection Status Query
-
-```bash
-# Get PLC connection status
-curl http://localhost:8000/api/DataAcquisition/GetPLCConnectionStatus
-```
-
-### PLC Write Operation
-
-```csharp
-// C# Client Example
-var request = new PLCWriteRequest
-{
-    PLCCode = "M01C123",
-    Items = new List<PLCWriteItem>
-    {
-        new PLCWriteItem
-        {
-            Address = "D300",
-            DataType = "short",
-            Value = 100
-        }
-    }
-};
-
-var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegister", request);
-```
+Detailed API usage examples: [API Usage Documentation](docs/api-usage.en.md)
 
 ## 📊 Core Module Documentation
 
-### PLC Client Implementations
-
-| Protocol     | Implementation Class          | Description                         |
-| ------------ | ----------------------------- | ----------------------------------- |
-| Mitsubishi   | `MitsubishiPLCClientService`  | Mitsubishi PLC communication client |
-| Inovance     | `InovancePLCClientService`    | Inovance PLC communication client   |
-| Beckhoff ADS | `BeckhoffAdsPLCClientService` | Beckhoff ADS protocol client        |
-| Siemens      | `SiemensPLCClientService`     | Siemens PLC communication client    |
-
-### ChannelCollector - Channel Collector
-
-```csharp
-public class ChannelCollector : IChannelCollector
-{
-    public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel channel,
-        IPLCClientService client, CancellationToken ct = default)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            // Check PLC connection status
-            if (!await WaitForConnectionAsync(config, ct))
-                continue;
-
-            // Acquire device lock for thread-safe PLC access
-            if (!_plcLifecycle.TryGetLock(config.PLCCode, out var locker))
-                continue;
-
-            await locker.WaitAsync(ct);
-            try
-            {
-                var timestamp = DateTime.Now;
-
-                // Handle different acquisition modes
-                if (channel.AcquisitionMode == AcquisitionMode.Always)
-                {
-                    await HandleUnconditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-                else if (channel.AcquisitionMode == AcquisitionMode.Conditional)
-                {
-                    await HandleConditionalCollectionAsync(config, channel, client, timestamp, ct);
-                }
-            }
-            finally
-            {
-                locker.Release();
-            }
-        }
-    }
-}
-```
-
-### InfluxDbDataStorageService - Data Storage Service
-
-```csharp
-public class InfluxDbDataStorageService : IDataStorageService
-{
-    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
-    {
-        if (dataMessages == null || dataMessages.Count == 0)
-            return true;
-
-        _writeStopwatch.Restart();
-        var writeSuccess = false;
-        Exception? writeException = null;
-        var resetEvent = new System.Threading.ManualResetEventSlim(false);
-
-        try
-        {
-            // Convert batch of messages to points
-            var points = dataMessages.Select(ConvertToPoint).ToList();
-            using var writeApi = _client.GetWriteApi();
-
-            // Set up error handler callback to catch write failures
-            writeApi.EventHandler += (sender, args) =>
-            {
-                writeException = new Exception($"InfluxDB write failed: {args.GetType().Name} - {args}");
-                writeSuccess = false;
-                resetEvent.Set();
-                _logger.LogError(writeException, "[ERROR] InfluxDB write error event triggered: {EventType} - {Message}",
-                    args.GetType().Name, writeException.Message);
-            };
-
-            writeApi.WritePoints(_bucket, _org, points);
-            writeApi.Flush();
-
-            // Wait long enough to detect errors (InfluxDB writes asynchronously, errors may be delayed)
-            _logger.LogDebug("Waiting for InfluxDB batch write response, max wait 5 seconds...");
-            var errorOccurred = resetEvent.Wait(TimeSpan.FromSeconds(5));
-
-            if (errorOccurred)
-            {
-                _logger.LogWarning("InfluxDB batch write error event triggered");
-            }
-            else
-            {
-                writeSuccess = true;
-                _logger.LogDebug("No error detected within 5 seconds, assuming write success");
-            }
-
-            _writeStopwatch.Stop();
-
-            if (!writeSuccess)
-            {
-                throw writeException ?? new Exception("InfluxDB write failed");
-            }
-
-            // Record batch efficiency metrics and write latency
-            var batchSize = dataMessages.Count;
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
-            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            // Handle batch write errors
-            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
-            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
-            _logger.LogError(ex, "[ERROR] Time-series database batch insert failed: {Message}", ex.Message);
-            return false;
-        }
-        finally
-        {
-            resetEvent.Dispose();
-        }
-    }
-}
-```
-
-### MetricsCollector - Metrics Collector
-
-The system includes the following core monitoring metrics:
-
-#### Acquisition Metrics
-
-- **`data_acquisition_collection_latency_ms`** - Collection latency (time from PLC read to database write, milliseconds)
-- **`data_acquisition_collection_rate`** - Collection rate (data points per second, points/s)
-
-#### Queue Metrics
-
-- **`data_acquisition_queue_depth`** - Queue depth (Channel pending + batch accumulated total pending messages)
-- **`data_acquisition_processing_latency_ms`** - Processing latency (queue processing delay, milliseconds)
-
-#### Storage Metrics
-
-- **`data_acquisition_write_latency_ms`** - Write latency (database write delay, milliseconds)
-- **`data_acquisition_batch_write_efficiency`** - Batch write efficiency (batch size / write time, points/ms)
-
-#### Error & Connection Metrics
-
-- **`data_acquisition_errors_total`** - Total errors (by device/channel)
-- **`data_acquisition_connection_status_changes_total`** - Connection status change count
-- **`data_acquisition_connection_duration_seconds`** - Connection duration (seconds)
+Detailed module documentation: [Core Module Documentation](docs/modules.en.md)
 
 ## 🔄 Data Processing Flow
 
-### Normal Flow
-
-1. **Data Acquisition**: ChannelCollector reads data from PLC
-2. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
-3. **WAL Write**: Immediate write to Parquet files as write-ahead log
-4. **Primary Storage Write**: Immediate write to InfluxDB
-5. **WAL Cleanup**: Delete corresponding Parquet files on successful write
-
-### Exception Handling Flow
-
-1. **Network Exception**: Automatic reconnection mechanism, heartbeat monitoring ensures connection status
-2. **Storage Failure**: WAL files retained, periodically retried by ParquetRetryWorker
-3. **Configuration Error**: Configuration validation and hot reload mechanism
+Detailed data processing flow: [Data Processing Flow Documentation](docs/data-flow.en.md)
 
 ## 🎯 Performance Optimization Recommendations
 
-### Acquisition Parameter Tuning
-
-| Parameter           | Recommended Value | Description                     |
-| ------------------- | ----------------- | ------------------------------- |
-| BatchSize           | 10-50             | Balance latency and throughput  |
-| AcquisitionInterval | 100-500ms         | Adjust based on PLC performance |
-| HeartbeatInterval   | 5000ms            | Connection monitoring frequency |
-
-### Storage Optimization
-
-- **Parquet Compression**: Use Snappy compression to reduce disk usage
-- **Retry Interval**: RetryWorker defaults to 5 seconds, adjustable based on network conditions
+Detailed performance optimization recommendations: [Performance Optimization Documentation](docs/performance.en.md)
 
 ## ❓ Frequently Asked Questions (FAQ)
 
-### Q: What if data is lost?
-
-A: The system uses a WAL-first architecture where all data is first written to Parquet files, then to InfluxDB. WAL files are only deleted when both writes succeed, ensuring zero data loss.
-
-### Q: How to add new PLC protocols?
-
-A: Implement the `IPLCClientService` interface and register the new protocol support in `PLCClientFactory`.
-
-### Q: Do I need to restart after configuration changes?
-
-A: No. The system uses FileSystemWatcher to monitor configuration file changes and supports hot reload.
-
-### Q: Where can I view monitoring metrics?
-
-A: Visit http://localhost:8000/metrics for the visualization interface or Prometheus raw format metrics, or http://localhost:8000/api/metrics-data to get JSON format metrics data (recommended).
-
-### Q: How to extend storage backends?
-
-A: Implement the `IDataStorageService` interface while maintaining consistency with the queue service write contract.
+Frequently asked questions: [FAQ Documentation](docs/faq.en.md)
 
 ## 🏆 Design Philosophy
 
-### WAL-first Architecture
-
-The core design philosophy is "data safety first." All acquired data is immediately written to local Parquet files as write-ahead logs before being asynchronously written to InfluxDB. This design ensures data integrity even during network failures, storage service unavailability, and other exceptional conditions.
-
-### Modular Design
-
-The system employs a clear layered architecture with interface abstractions for each module, supporting flexible extension and replacement. New PLC protocols, storage backends, and data processing logic can be quickly integrated by implementing the corresponding interfaces.
-
-### Operations-Friendly
-
-Built-in comprehensive monitoring metrics and visualization interfaces, support for hot configuration updates, and detailed logging significantly reduce operational complexity.
+Detailed design philosophy: [Design Philosophy Documentation](docs/design.en.md)
 
 ## 🤝 Contributing Guidelines
 
