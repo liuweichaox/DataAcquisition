@@ -15,8 +15,7 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
     [HttpGet("metrics/raw")]
     public async Task<IActionResult> GetEdgeMetricsRaw([FromRoute] string edgeId, CancellationToken cancellationToken)
     {
-        var baseUrl = GetEdgeBaseUrlOrNull(edgeId);
-        if (baseUrl == null) return BadRequest(new { error = "该 edge 未上报 AgentBaseUrl，无法代理 metrics。" });
+        if (!TryGetEdgeBaseUrl(edgeId, out var baseUrl, out var errorResult)) return errorResult!;
 
         var uri = new Uri(new Uri(baseUrl), "/metrics");
         var client = httpClientFactory.CreateClient();
@@ -31,8 +30,7 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
     [HttpGet("metrics/json")]
     public async Task<IActionResult> GetEdgeMetricsJson([FromRoute] string edgeId, CancellationToken cancellationToken)
     {
-        var baseUrl = GetEdgeBaseUrlOrNull(edgeId);
-        if (baseUrl == null) return BadRequest(new { error = "该 edge 未上报 AgentBaseUrl，无法代理 metrics。" });
+        if (!TryGetEdgeBaseUrl(edgeId, out var baseUrl, out var errorResult)) return errorResult!;
 
         var uri = new Uri(new Uri(baseUrl), "/metrics");
         var client = httpClientFactory.CreateClient();
@@ -59,8 +57,7 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
         [FromQuery] int pageSize = 100,
         CancellationToken cancellationToken = default)
     {
-        var baseUrl = GetEdgeBaseUrlOrNull(edgeId);
-        if (baseUrl == null) return BadRequest(new { error = "该 edge 未上报 AgentBaseUrl，无法代理 logs。" });
+        if (!TryGetEdgeBaseUrl(edgeId, out var baseUrl, out var errorResult)) return errorResult!;
 
         var query = new Dictionary<string, string?>
         {
@@ -88,8 +85,7 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
     [HttpGet("logs/levels")]
     public async Task<IActionResult> GetEdgeLogLevels([FromRoute] string edgeId, CancellationToken cancellationToken)
     {
-        var baseUrl = GetEdgeBaseUrlOrNull(edgeId);
-        if (baseUrl == null) return BadRequest(new { error = "该 edge 未上报 AgentBaseUrl，无法代理 logs。" });
+        if (!TryGetEdgeBaseUrl(edgeId, out var baseUrl, out var errorResult)) return errorResult!;
 
         var uri = new Uri(new Uri(baseUrl), "/api/logs/levels");
         var client = httpClientFactory.CreateClient();
@@ -100,12 +96,36 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
         return Content(body, "application/json; charset=utf-8");
     }
 
-    private string? GetEdgeBaseUrlOrNull(string edgeId)
+    private bool TryGetEdgeBaseUrl(string edgeId, out string baseUrl, out IActionResult? errorResult)
     {
+        baseUrl = "";
+        errorResult = null;
+
+        if (string.IsNullOrWhiteSpace(edgeId))
+        {
+            errorResult = BadRequest(new { error = "edgeId 不能为空。" });
+            return false;
+        }
+
         var state = registry.Find(edgeId);
-        var baseUrl = state?.AgentBaseUrl;
-        if (string.IsNullOrWhiteSpace(baseUrl)) return null;
-        return baseUrl;
+        if (state == null)
+        {
+            errorResult = NotFound(new { error = "未找到该 edge。请先调用 /api/edges/register 或 /api/edges/heartbeat。" });
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(state.AgentBaseUrl))
+        {
+            errorResult = Conflict(new
+            {
+                error = "该 edge 未上报 AgentBaseUrl，中心无法代理 metrics/logs。",
+                hint = "请在 Edge.Agent 配置 Edge:AgentBaseUrl（或确保 Urls/ASPNETCORE_URLS 可推导），并触发 register/heartbeat 更新。"
+            });
+            return false;
+        }
+
+        baseUrl = state.AgentBaseUrl.TrimEnd('/');
+        return true;
     }
 
     private static Dictionary<string, object> ParsePrometheusMetrics(string prometheusText)
