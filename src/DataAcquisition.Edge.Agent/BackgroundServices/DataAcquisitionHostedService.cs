@@ -1,6 +1,6 @@
 using DataAcquisition.Application.Abstractions;
 
-namespace DataAcquisition.Worker.BackgroundServices;
+namespace DataAcquisition.Edge.Agent.BackgroundServices;
 
 /// <summary>
 ///     后台服务，用于管理数据采集任务的生命周期。

@@ -5,7 +5,7 @@ using DataAcquisition.Domain.Clients;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Worker.Controllers;
+namespace DataAcquisition.Edge.Agent.Controllers;
 
 /// <summary>
 ///     数据采集控制器

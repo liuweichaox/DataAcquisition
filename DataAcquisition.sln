@@ -8,9 +8,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Contracts",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Infrastructure", "src\DataAcquisition.Infrastructure\DataAcquisition.Infrastructure.csproj", "{5163F3AE-F084-483D-A8C2-A67B4A0FAA4D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Web", "src\DataAcquisition.Web\DataAcquisition.Web.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Central.Web", "src\DataAcquisition.Central.Web\DataAcquisition.Central.Web.csproj", "{9E98A827-32FA-4FBA-9E75-6B3973DC8A7D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Worker", "src\DataAcquisition.Worker\DataAcquisition.Worker.csproj", "{7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Edge.Agent", "src\DataAcquisition.Edge.Agent\DataAcquisition.Edge.Agent.csproj", "{7D3D6F4F-D635-4E30-A634-B9B0ABF226B2}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataAcquisition.Simulator", "src\DataAcquisition.Simulator\DataAcquisition.Simulator.csproj", "{A1B2C3D4-E5F6-4A5B-8C9D-0E1F2A3B4C5D}"
 EndProject

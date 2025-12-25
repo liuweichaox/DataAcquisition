@@ -1,4 +1,4 @@
-// Worker 宿主：负责 PLC 采集、存储写入、指标与管理 API（不包含 UI）。
+// Edge Agent（车间侧）：负责 PLC 采集、本地缓冲/落盘、上报中心，以及本地诊断 API（不包含 UI）。
 
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
@@ -9,8 +9,8 @@ using DataAcquisition.Infrastructure.DeviceConfigs;
 using DataAcquisition.Infrastructure.Logs;
 using DataAcquisition.Infrastructure.Metrics;
 using DataAcquisition.Infrastructure.Queues;
-using DataAcquisition.Worker.BackgroundServices;
-using DataAcquisition.Worker.Services;
+using DataAcquisition.Edge.Agent.BackgroundServices;
+using DataAcquisition.Edge.Agent.Services;
 using MediatR;
 using Prometheus;
 using Serilog;
@@ -88,6 +88,6 @@ app.MapControllers();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
-Log.Logger.Information("Worker starting...");
+Log.Logger.Information("Edge agent starting...");
 app.Run();
 

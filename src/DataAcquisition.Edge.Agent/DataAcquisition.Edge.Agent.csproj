@@ -9,7 +9,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>DataAcquisition.Worker</RootNamespace>
+    <RootNamespace>DataAcquisition.Edge.Agent</RootNamespace>
+    <AssemblyName>DataAcquisition.Edge.Agent</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>

@@ -82,10 +82,10 @@ DataAcquisition/
 │   ├── DataAcquisitions/           # Data Acquisition Services
 │   ├── DataStorages/               # Data Storage Services
 │   └── Metrics/                    # Metrics Collection
-├── src/DataAcquisition.Worker/     # Worker Host - acquisition + metrics + APIs
+├── src/DataAcquisition.Edge.Agent/ # Edge Agent - workshop acquisition + metrics + local APIs
 │   ├── Configs/                    # Device configuration files
 │   └── Controllers/                # Management API controllers
-├── src/DataAcquisition.Web/        # Web Portal - UI + management APIs (proxy to Worker)
+├── src/DataAcquisition.Central.Web/ # Central Web - UI + central APIs (ingest multi-edge)
 │   ├── Controllers/                # Web controllers
 │   └── Views/                      # View pages
 ├── src/DataAcquisition.Simulator/      # PLC Simulator - For Testing
@@ -126,29 +126,29 @@ dotnet restore
 ```
 
 3. **Configure Devices**
-   Create/edit device config files under `src/DataAcquisition.Worker/Configs/` (the repo already includes `TEST_PLC.json`; you can add more `*.json` as needed).
+   Create/edit device config files under `src/DataAcquisition.Edge.Agent/Configs/` (the repo already includes `TEST_PLC.json`; you can add more `*.json` as needed).
 
 4. **Run the System**
 
 ```bash
-# Start acquisition backend (Worker)
-dotnet run --project src/DataAcquisition.Worker
+# Start acquisition backend (Edge Agent)
+dotnet run --project src/DataAcquisition.Edge.Agent
 
-# Start management portal (Web)
-dotnet run --project src/DataAcquisition.Web
+# Start central portal / central APIs (Central Web)
+dotnet run --project src/DataAcquisition.Central.Web
 
 # Optional: run with a specific framework
-dotnet run -f net8.0 --project src/DataAcquisition.Worker
-dotnet run -f net8.0 --project src/DataAcquisition.Web
-dotnet run -f net10.0 --project src/DataAcquisition.Worker
-dotnet run -f net10.0 --project src/DataAcquisition.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
 ```
 
 > Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
 >
 > Default ports:
-> - Web: `http://localhost:8000`
-> - Worker: `http://localhost:8001` (Web proxies `/metrics` and most `/api` calls to Worker)
+> - Central Web: `http://localhost:8000`
+> - Edge Agent: `http://localhost:8001`
 
 5. **Build for Specific Framework**
 
@@ -198,13 +198,13 @@ dotnet run
 
 2. **Configure Test Device**:
 
-   Create `TEST_PLC.json` in `src/DataAcquisition.Worker/Configs/` directory (refer to the complete configuration example in `src/DataAcquisition.Simulator/README.md`)
+   Create `TEST_PLC.json` in `src/DataAcquisition.Edge.Agent/Configs/` directory (refer to the complete configuration example in `src/DataAcquisition.Simulator/README.md`)
 
 3. **Start the Acquisition System**:
 
 ```bash
-dotnet run --project src/DataAcquisition.Worker
-dotnet run --project src/DataAcquisition.Web
+dotnet run --project src/DataAcquisition.Edge.Agent
+dotnet run --project src/DataAcquisition.Central.Web
 ```
 
 4. **Observe Data Acquisition**:

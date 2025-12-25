@@ -95,7 +95,7 @@ netstat -ano | findstr :502
 
 ## 测试配置
 
-在 `src/DataAcquisition.Worker/Configs/` 目录创建 `TEST_PLC.json`：
+在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建 `TEST_PLC.json`：
 
 ### 完整配置示例
 
@@ -198,8 +198,8 @@ netstat -ano | findstr :502
 2. **启动采集系统**：
 
    ```bash
-   dotnet run --project ./src/DataAcquisition.Worker/DataAcquisition.Worker.csproj
-   dotnet run --project ./src/DataAcquisition.Web/DataAcquisition.Web.csproj
+   dotnet run --project ./src/DataAcquisition.Edge.Agent/DataAcquisition.Edge.Agent.csproj
+   dotnet run --project ./src/DataAcquisition.Central.Web/DataAcquisition.Central.Web.csproj
    ```
 
    系统会自动连接到模拟器（127.0.0.1:502）并开始采集。

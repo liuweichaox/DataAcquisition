@@ -1,6 +1,6 @@
 using DataAcquisition.Infrastructure.DataStorages;
 
-namespace DataAcquisition.Worker.BackgroundServices;
+namespace DataAcquisition.Edge.Agent.BackgroundServices;
 
 /// <summary>
 ///     后台服务：扫描 Parquet 降级文件，批量写回 InfluxDB，成功后删除。

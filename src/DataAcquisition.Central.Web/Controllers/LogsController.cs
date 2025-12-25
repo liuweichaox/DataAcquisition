@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Web.Controllers;
+namespace DataAcquisition.Central.Web.Controllers;
 
 /// <summary>
 ///     日志查看控制器

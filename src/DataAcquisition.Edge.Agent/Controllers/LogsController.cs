@@ -1,7 +1,7 @@
 using DataAcquisition.Application.Abstractions;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Worker.Controllers;
+namespace DataAcquisition.Edge.Agent.Controllers;
 
 /// <summary>
 ///     日志查询 API（供 Web 门户代理调用）

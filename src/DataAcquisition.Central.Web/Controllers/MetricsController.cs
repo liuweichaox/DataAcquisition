@@ -1,7 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 
-namespace DataAcquisition.Web.Controllers;
+namespace DataAcquisition.Central.Web.Controllers;
 
 /// <summary>
 ///     指标查看控制器
