@@ -1,11 +1,8 @@
 // Central API（中心侧）：提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
 
-using System.Text.Json;
 using DataAcquisition.Central.Api.HealthChecks;
 using Serilog;
 using Prometheus;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +12,6 @@ builder.WebHost.UseUrls(urls);
 
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
-builder.Services.AddRazorPages();
 builder.Services.AddSingleton<DataAcquisition.Central.Api.Services.EdgeRegistry>();
 
 builder.Services
@@ -56,7 +52,6 @@ builder.Host.UseSerilog();
 
 var app = builder.Build();
 
-app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
@@ -64,35 +59,14 @@ app.UseCors("frontend");
 
 // Prometheus 指标（中心自身进程）
 app.UseHttpMetrics();
-// 注意：/metrics 预留给 HTML 可视化页面，因此将原始 Prometheus 指标映射到 /metrics/raw
-app.MapMetrics("/metrics/raw");
+// Prometheus 原始指标（官方默认端点）
+app.MapMetrics("/metrics");
 
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json; charset=utf-8";
-
-        var payload = new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.ToDictionary(
-                e => e.Key,
-                e => new
-                {
-                    status = e.Value.Status.ToString(),
-                    description = e.Value.Description,
-                    error = e.Value.Exception?.Message
-                })
-        };
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
-    }
-});
+// Health checks（官方风格）：统一用 /health
+app.MapHealthChecks("/health");
 
 // Attribute routing（/api/..）
 app.MapControllers();
-app.MapRazorPages();
 
 // 方便验证服务是否启动（不提供页面）
 app.MapGet("/", () => Results.Ok(new
@@ -103,7 +77,6 @@ app.MapGet("/", () => Results.Ok(new
         edges = "/api/edges",
         telemetry = "/api/telemetry/ingest",
         metrics = "/metrics",
-        metricsRaw = "/metrics/raw",
         metricsJson = "/api/metrics-data"
     }
 }));

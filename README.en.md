@@ -103,9 +103,8 @@ DataAcquisition/
 ├── src/DataAcquisition.Edge.Agent/ # Edge Agent - workshop acquisition + metrics + local APIs
 │   ├── Configs/                    # Device configuration files
 │   └── Controllers/                # Management API controllers
-├── src/DataAcquisition.Central.Web/ # Central Web - UI + central APIs (ingest multi-edge)
-│   ├── Controllers/                # Web controllers
-│   └── Views/                      # View pages
+├── src/DataAcquisition.Central.Api/ # Central API - central-side APIs (edge register/heartbeat/ingest, query & admin)
+├── src/DataAcquisition.Central.Web/ # Central Web - pure frontend (Vue CLI / Vue3), talks to Central API via /api
 ├── src/DataAcquisition.Simulator/      # PLC Simulator - For Testing
 │   ├── Simulator.cs               # Simulator Core Logic
 │   ├── Program.cs                 # Program Entry Point
@@ -118,6 +117,7 @@ DataAcquisition/
 ### Prerequisites
 
 - .NET 10.0 or .NET 8.0 SDK (recommended to use the latest LTS version)
+- Node.js (recommended 18+) + npm (for running the Central Web frontend)
 - InfluxDB 2.x (optional, for time-series data storage)
 - Supported PLC devices (Modbus TCP, Beckhoff ADS, Inovance, Mitsubishi, Siemens)
 
@@ -149,23 +149,29 @@ dotnet restore
 4. **Run the System**
 
 ```bash
+# Start central-side API (Central API, default http://localhost:8000)
+dotnet run --project src/DataAcquisition.Central.Api
+
 # Start acquisition backend (Edge Agent)
 dotnet run --project src/DataAcquisition.Edge.Agent
 
-# Start central portal / central APIs (Central Web)
-dotnet run --project src/DataAcquisition.Central.Web
+# Start central frontend (Central Web, Vue CLI dev server, default http://localhost:3000)
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 
 # Optional: run with a specific framework
 dotnet run -f net8.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net8.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net8.0 --project src/DataAcquisition.Central.Api
 dotnet run -f net10.0 --project src/DataAcquisition.Edge.Agent
-dotnet run -f net10.0 --project src/DataAcquisition.Central.Web
+dotnet run -f net10.0 --project src/DataAcquisition.Central.Api
 ```
 
 > Note: The repo is set up to build/run **net8.0 by default when only .NET 8 SDK is installed**. When it detects **SDK >= 10**, it automatically enables the additional `net10.0` target.
 >
 > Default ports:
-> - Central Web: `http://localhost:8000`
+> - Central API: `http://localhost:8000`
+> - Central Web (Vue dev server): `http://localhost:3000` (proxy `/api` and `/metrics` to `http://localhost:8000` via `vue.config.js`)
 > - Edge Agent: `http://localhost:8001`
 
 5. **Build for Specific Framework**
@@ -181,7 +187,7 @@ dotnet build -f net8.0
 
 6. **Access Monitoring Interface**
 
-- Metrics Visualization: http://localhost:8000/metrics
+- Central Web (frontend UI): http://localhost:3000
 - Prometheus Metrics: http://localhost:8000/metrics
 - API Documentation: Swagger not configured (can be enabled in code)
 
@@ -222,12 +228,16 @@ dotnet run
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
-dotnet run --project src/DataAcquisition.Central.Web
+dotnet run --project src/DataAcquisition.Central.Api
+
+cd src/DataAcquisition.Central.Web
+npm install
+npm run serve
 ```
 
 4. **Observe Data Acquisition**:
-   - Visit http://localhost:8000/metrics to view system metrics
-   - Visit http://localhost:8000/logs to view acquisition logs
+   - Visit http://localhost:3000 for the central UI (Edges/Metrics/Logs)
+   - Visit http://localhost:8000/metrics for Central API's own metrics page
    - Check the `sensor` and `production` measurements in InfluxDB
 
 For detailed information, please refer to: [src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
@@ -780,7 +790,6 @@ Thanks to the following open-source projects:
 - [InfluxDB](https://www.influxdata.com/) - High-performance time-series database
 - [Prometheus](https://prometheus.io/) - Monitoring system
 - [Vue.js](https://vuejs.org/) - Progressive JavaScript framework
-- [Element Plus](https://element-plus.org/) - Vue 3 component library
 
 ---
 

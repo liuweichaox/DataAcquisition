@@ -2,40 +2,52 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "build:central-api",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/DataAcquisition.Central.Web/DataAcquisition.Central.Web.csproj",
+                "${workspaceFolder}/src/DataAcquisition.Central.Api/DataAcquisition.Central.Api.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "publish",
+            "label": "publish:central-api",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "publish",
-                "${workspaceFolder}/src/DataAcquisition.Central.Web/DataAcquisition.Central.Web.csproj",
+                "${workspaceFolder}/src/DataAcquisition.Central.Api/DataAcquisition.Central.Api.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary;ForceNoAlign"
             ],
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "watch",
+            "label": "watch:central-api",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "watch",
                 "run",
                 "--project",
-                "${workspaceFolder}/src/DataAcquisition.Central.Web/DataAcquisition.Central.Web.csproj"
+                "${workspaceFolder}/src/DataAcquisition.Central.Api/DataAcquisition.Central.Api.csproj"
             ],
             "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "serve:central-web",
+            "type": "process",
+            "command": "npm",
+            "args": [
+                "run",
+                "serve"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/src/DataAcquisition.Central.Web"
+            }
         }
     ]
 }
