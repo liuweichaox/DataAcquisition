@@ -16,21 +16,32 @@
       <thead>
         <tr>
           <th>edge_id</th>
+          <th>agent_base_url</th>
           <th>hostname</th>
           <th>version</th>
           <th>last_seen_utc</th>
           <th>buffer_backlog</th>
           <th>last_error</th>
+          <th>actions</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="e in edges" :key="e.edgeId">
           <td><code>{{ e.edgeId }}</code></td>
+          <td class="urlcell">
+            <code v-if="e.agentBaseUrl">{{ e.agentBaseUrl }}</code>
+            <span v-else>-</span>
+          </td>
           <td>{{ e.hostname || "-" }}</td>
           <td>{{ e.version || "-" }}</td>
           <td>{{ e.lastSeenUtc }}</td>
           <td>{{ e.bufferBacklog ?? "-" }}</td>
           <td class="errcell">{{ e.lastError || "-" }}</td>
+          <td class="actioncell">
+            <router-link :to="{ path: '/metrics', query: { edgeId: e.edgeId } }">Metrics</router-link>
+            <span class="sep">|</span>
+            <router-link :to="{ path: '/logs', query: { edgeId: e.edgeId } }">Logs</router-link>
+          </td>
         </tr>
       </tbody>
     </table>
@@ -109,6 +120,18 @@ export default {
   max-width: 380px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.urlcell {
+  max-width: 280px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.actioncell {
+  white-space: nowrap;
+}
+.sep {
+  color: #aaa;
+  margin: 0 6px;
 }
 </style>
 

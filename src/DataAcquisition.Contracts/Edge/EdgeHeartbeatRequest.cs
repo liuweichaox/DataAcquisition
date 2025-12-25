@@ -8,6 +8,12 @@ public sealed record EdgeHeartbeatRequest
     public required string EdgeId { get; init; }
 
     /// <summary>
+    /// 可选：Edge.Agent 对中心可达的基础地址（如 http://10.0.0.12:8001）。
+    /// 允许在心跳时更新（比如 DHCP/容器重建后地址变化）。
+    /// </summary>
+    public string? AgentBaseUrl { get; init; }
+
+    /// <summary>
     /// 可选：边缘本地缓冲积压量（条数/批次/字节）。
     /// </summary>
     public long? BufferBacklog { get; init; }
