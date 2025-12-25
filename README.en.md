@@ -9,6 +9,24 @@
 
 中文: [README.md](README.md)
 
+## 📋 Table of Contents
+
+- [📖 Project Overview](#-project-overview)
+- [🎯 Core Features](#-core-features)
+- [🏗️ System Architecture](#-system-architecture)
+- [📁 Project Structure](#-project-structure)
+- [🚀 Quick Start](#-quick-start)
+- [⚙️ Configuration Guide](#-configuration-guide)
+- [🔌 API Usage Examples](#-api-usage-examples)
+- [📊 Core Module Documentation](#-core-module-documentation)
+- [🔄 Data Processing Flow](#-data-processing-flow)
+- [🎯 Performance Optimization Recommendations](#-performance-optimization-recommendations)
+- [❓ Frequently Asked Questions (FAQ)](#-frequently-asked-questions-faq)
+- [🏆 Design Philosophy](#-design-philosophy)
+- [🤝 Contributing Guidelines](#-contributing-guidelines)
+- [📄 Open Source License](#-open-source-license)
+- [🙏 Acknowledgments](#-acknowledgments)
+
 ## 📖 Project Overview
 
 DataAcquisition is a high-performance, high-reliability industrial data acquisition system built on .NET, specifically designed for PLC (Programmable Logic Controller) data acquisition scenarios. The system supports .NET 10.0 and .NET 8.0 (both LTS versions), employs a WAL-first architecture to ensure zero data loss, supporting advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading.
@@ -212,7 +230,7 @@ dotnet run --project src/DataAcquisition.Central.Web
    - Visit http://localhost:8000/logs to view acquisition logs
    - Check the `sensor` and `production` measurements in InfluxDB
 
-For detailed information, please refer to: [DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
+For detailed information, please refer to: [src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
 ## ⚙️ Configuration Guide
 
@@ -484,7 +502,7 @@ var request = new PLCWriteRequest
         {
             Address = "D300",
             DataType = "short",
-    Value = 100
+            Value = 100
         }
     }
 };
@@ -766,4 +784,4 @@ Thanks to the following open-source projects:
 
 ---
 
-**If you have questions or suggestions, please submit an [Issue](https://github.com/your-username/DataAcquisition/issues) or contribute code via Pull Request!**
+**If you have questions or suggestions, please submit an [Issue](https://github.com/liuweichaox/DataAcquisition/issues) or contribute code via Pull Request!**
