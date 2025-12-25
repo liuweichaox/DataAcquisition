@@ -4,8 +4,10 @@
 
 ## 相关文档
 
-- [设计理念](design.md) - 了解系统设计思想
-- [数据处理流程](data-flow.md) - 理解数据流转过程
+- [快速开始指南](getting-started.md) - 从零开始使用系统
+- [配置说明](configuration.md) - 详细的配置选项说明
+- [API 使用示例](api-usage.md) - API 接口使用方法
+- [性能优化建议](performance.md) - 优化系统性能
 
 ## PLC 客户端实现
 

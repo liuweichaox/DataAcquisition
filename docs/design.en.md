@@ -4,6 +4,10 @@ This document explains the core design philosophy and architectural principles o
 
 ## Related Documents
 
+- [Getting Started Guide](getting-started.en.md) - Get started from scratch
+- [Configuration Guide](configuration.en.md) - Detailed configuration options
+- [API Usage Examples](api-usage.en.md) - API interface usage methods
+- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
 - [Core Module Documentation](modules.en.md) - Understand system core modules
 - [Data Processing Flow](data-flow.en.md) - Understand data flow process
 

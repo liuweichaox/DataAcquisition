@@ -5,8 +5,6 @@ This document provides detailed configuration instructions for the DataAcquisiti
 ## Related Documents
 
 - [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
-- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
 
 ## Device Configuration Files
 

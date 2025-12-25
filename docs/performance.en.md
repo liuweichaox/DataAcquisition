@@ -4,8 +4,9 @@ This document provides performance optimization suggestions and best practices f
 
 ## Related Documents
 
+- [Getting Started Guide](getting-started.en.md) - Get started from scratch
 - [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [Data Processing Flow](data-flow.en.md) - Understand data flow process
+- [API Usage Examples](api-usage.en.md) - API interface usage methods
 
 ## Acquisition Parameter Tuning
 

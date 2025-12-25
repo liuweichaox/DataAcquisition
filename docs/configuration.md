@@ -5,8 +5,6 @@
 ## 相关文档
 
 - [快速开始指南](getting-started.md) - 从零开始使用系统
-- [API 使用示例](api-usage.md) - API 接口使用方法
-- [性能优化建议](performance.md) - 优化系统性能
 
 ## 设备配置文件
 

@@ -4,8 +4,8 @@ This document introduces how to use the APIs provided by the DataAcquisition sys
 
 ## Related Documents
 
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
 - [Getting Started Guide](getting-started.en.md) - Get started from scratch
+- [Configuration Guide](configuration.en.md) - Detailed configuration options
 
 ## Metrics Data Query
 

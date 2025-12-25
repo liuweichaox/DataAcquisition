@@ -4,8 +4,8 @@
 
 ## 相关文档
 
-- [配置说明](configuration.md) - 详细的配置选项说明
 - [快速开始指南](getting-started.md) - 从零开始使用系统
+- [配置说明](configuration.md) - 详细的配置选项说明
 
 ## 指标数据查询
 
