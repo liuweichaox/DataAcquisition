@@ -4,8 +4,6 @@ using System.Text.Json;
 using DataAcquisition.Central.Api.HealthChecks;
 using Serilog;
 using Prometheus;
-using Microsoft.AspNetCore.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -67,28 +65,8 @@ app.UseHttpMetrics();
 // 注意：/metrics 预留给 HTML 可视化页面，因此将原始 Prometheus 指标映射到 /metrics/raw
 app.MapMetrics("/metrics/raw");
 
-app.MapHealthChecks("/health", new HealthCheckOptions
-{
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json; charset=utf-8";
-
-        var payload = new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.ToDictionary(
-                e => e.Key,
-                e => new
-                {
-                    status = e.Value.Status.ToString(),
-                    description = e.Value.Description,
-                    error = e.Value.Exception?.Message
-                })
-        };
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(payload));
-    }
-});
+// Health checks（官方风格）：统一用 /health
+app.MapHealthChecks("/health");
 
 // Attribute routing（/api/..）
 app.MapControllers();

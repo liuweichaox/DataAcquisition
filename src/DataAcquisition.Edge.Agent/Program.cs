@@ -15,6 +15,7 @@ using MediatR;
 using Prometheus;
 using Serilog;
 using Serilog.Events;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,6 +61,10 @@ builder.Services.AddHostedService<EdgeCentralReporterHostedService>();
 
 builder.Services.AddControllers();
 
+// Health checks（官方风格）：统一用 /health
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy("ok"));
+
 // 配置 SQLite 日志数据库路径（从配置读取，支持相对路径和绝对路径）
 var logDbPath = builder.Configuration["Logging:DatabasePath"] ?? "Data/logs.db";
 if (!Path.IsPathRooted(logDbPath)) logDbPath = Path.Combine(AppContext.BaseDirectory, logDbPath);
@@ -91,8 +96,7 @@ app.Services.GetRequiredService<MetricsBridge>();
 app.MapMetrics();
 
 app.MapControllers();
-
-app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+app.MapHealthChecks("/health");
 
 Log.Logger.Information("Edge agent starting...");
 app.Run();
