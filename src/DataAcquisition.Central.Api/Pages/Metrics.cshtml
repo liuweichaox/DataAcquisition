@@ -1,0 +1,684 @@
+@page "/metrics"
+@{
+    ViewData["Title"] = "系统指标监控";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>@ViewData["Title"]</title>
+
+    <!-- Element Plus CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css"/>
+    <!-- Element Plus Icons -->
+    <link rel="stylesheet" href="https://unpkg.com/@@element-plus/icons-vue/dist/index.css"/>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+        }
+
+        #app {
+            min-height: 100vh;
+        }
+
+        .metrics-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .page-header {
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .page-header h2 {
+            margin: 0;
+            color: #303133;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .metric-card {
+            margin-bottom: 20px;
+        }
+
+        .metric-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .metric-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #303133;
+        }
+
+        .metric-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #409eff;
+            margin: 10px 0;
+        }
+
+        .metric-description {
+            font-size: 12px;
+            color: #909399;
+            margin-top: 5px;
+        }
+
+        .metric-tags {
+            margin-top: 10px;
+        }
+
+        .chart-wrapper {
+            margin-top: 15px;
+            height: 250px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .refresh-info {
+            color: #909399;
+            font-size: 12px;
+        }
+
+        .filter-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .nav-menu {
+            margin-bottom: 0;
+        }
+
+        .nav-menu-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .nav-menu .el-menu-item {
+            height: 60px;
+            line-height: 60px;
+            padding: 0 20px;
+        }
+
+        .nav-menu .el-menu-item.is-active {
+            color: #409eff;
+            border-bottom: 2px solid #409eff;
+        }
+    </style>
+</head>
+
+<body>
+<div id="app">
+    <partial name="_NavigationMenu"/>
+    <div class="metrics-container">
+        <div class="page-header">
+            <div>
+                <h2>
+                    <el-icon>
+                        <Monitor></Monitor>
+                    </el-icon>
+                    系统指标监控
+                </h2>
+                <div class="refresh-info" style="margin-top: 5px;">
+                    <span v-if="lastUpdate">最后更新: {{ lastUpdate }}</span>
+                    <span v-else>正在加载...</span>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; align-items: center;">
+                <el-button type="primary" @@click="loadMetrics" :loading="loading">
+                    <el-icon>
+                        <Refresh/>
+                    </el-icon>
+                    刷新
+                </el-button>
+            </div>
+        </div>
+
+        <div class="filter-card">
+            <el-row :gutter="20">
+                <el-col :span="12">
+                    <el-select v-model="selectedMetrics" multiple clearable collapse-tags filterable
+                               placeholder="选择要展示的指标" style="width: 100%;">
+                        <el-option v-for="name in availableMetrics" :key="name" :label="getMetricTitle(name)"
+                                   :value="name">
+                        </el-option>
+                    </el-select>
+                </el-col>
+                <el-col :span="6">
+                    <el-input v-model="searchKeyword" placeholder="搜索指标名称" clearable
+                              @@keyup.enter="searchMetrics">
+                        <template #prefix>
+                            <el-icon>
+                                <Search/>
+                            </el-icon>
+                        </template>
+                    </el-input>
+                </el-col>
+                <el-col :span="6">
+                    <div style="display: flex; gap: 10px;">
+                        <el-button type="primary" @@click="searchMetrics" :loading="loading" icon="Search">
+                            搜索
+                        </el-button>
+                        <el-button @@click="clearFilters" icon="Refresh">
+                            清空
+                        </el-button>
+                    </div>
+                </el-col>
+            </el-row>
+        </div>
+
+        <div>
+            <el-alert v-if="error" :title="error" type="error" :closable="false" style="margin-bottom: 20px;">
+            </el-alert>
+
+            <div v-if="loading && !metrics" style="text-align: center; padding: 40px;">
+                <el-icon class="is-loading" style="font-size: 32px;">
+                    <Loading/>
+                </el-icon>
+                <p style="margin-top: 10px; color: #909399;">正在加载指标数据...</p>
+            </div>
+
+            <div v-else-if="Object.keys(metrics).length === 0" style="text-align: center; padding: 40px;">
+                <el-empty description="暂无指标数据，请确保系统正在运行并产生指标"></el-empty>
+            </div>
+
+            <div v-else>
+                <!-- 关键指标概览 -->
+                <el-card class="metric-card" shadow="hover">
+                    <template #header>
+                        <div class="metric-header">
+                            <span class="metric-title">📊 关键指标概览</span>
+                        </div>
+                    </template>
+                    <div class="stats-grid">
+                        <el-statistic title="采集延迟" :value="getMetricValue('data_acquisition_collection_latency_ms')"
+                                      suffix="ms">
+                            <template #prefix>
+                                <el-icon style="vertical-align: -0.125em;">
+                                    <Timer/>
+                                </el-icon>
+                            </template>
+                        </el-statistic>
+                        <el-statistic title="采集频率" :value="getMetricValue('data_acquisition_collection_rate')"
+                                      suffix="points/s">
+                            <template #prefix>
+                                <el-icon style="vertical-align: -0.125em;">
+                                    <DataLine/>
+                                </el-icon>
+                            </template>
+                        </el-statistic>
+                        <el-statistic title="队列深度" :value="getMetricValue('data_acquisition_queue_depth')"
+                                      suffix="messages">
+                            <template #prefix>
+                                <el-icon style="vertical-align: -0.125em;">
+                                    <Box/>
+                                </el-icon>
+                            </template>
+                        </el-statistic>
+                        <el-statistic title="错误总数" :value="getMetricValue('data_acquisition_errors_total')">
+                            <template #prefix>
+                                <el-icon style="vertical-align: -0.125em; color: #f56c6c;">
+                                    <Warning/>
+                                </el-icon>
+                            </template>
+                        </el-statistic>
+                    </div>
+                </el-card>
+
+                <!-- 详细指标卡片 -->
+                <el-card v-for="(metric, metricName) in filteredMetrics" :key="metricName" class="metric-card"
+                         shadow="hover">
+                    <template #header>
+                        <div class="metric-header">
+                            <span class="metric-title">{{ getMetricTitle(metricName) }}</span>
+                            <el-tag :type="getMetricType(metric.type)">{{ metric.type }}</el-tag>
+                        </div>
+                    </template>
+
+                    <div v-if="metric.data && metric.data.length > 0">
+                        <!-- 最新值 -->
+                        <div class="metric-value">
+                            {{ formatMetricValue(metricName, getLatestValue(metric.data).value ??
+                                getLatestValue(metric.data)) }}
+                        </div>
+
+                        <!-- 描述 -->
+                        <div class="metric-description" v-if="metric.help">
+                            {{ metric.help }}
+                        </div>
+
+                        <!-- 标签 -->
+                        <div class="metric-tags" v-if="getLatestValue(metric.data).labels">
+                            <el-tag v-for="(value, key) in getLatestValue(metric.data).labels" :key="key"
+                                    size="small" style="margin-right: 8px; margin-bottom: 8px;">
+                                <strong>{{ key }}:</strong> {{ value }}
+                            </el-tag>
+                        </div>
+
+                        <!-- 图表 -->
+                        <div class="chart-wrapper" v-if="metric.data.length > 1">
+                            <el-divider></el-divider>
+                            <div :id="'chart-' + metricName" style="height: 250px;"></div>
+                        </div>
+
+                        <!-- 数据表格 -->
+                        <el-table v-if="metric.data.length > 0" :data="metric.data.slice(-10).reverse()"
+                                  size="small" style="margin-top: 15px;" max-height="200">
+                            <el-table-column prop="value" label="值" width="120">
+                                <template #default="scope">
+                                    {{ formatMetricValue(metricName, scope.row.value) }}
+                                </template>
+                            </el-table-column>
+                            <el-table-column label="标签" min-width="200">
+                                <template #default="scope">
+                                    <el-tag v-for="(value, key) in scope.row.labels" :key="key" size="small"
+                                            style="margin-right: 5px;">
+                                        {{ key }}: {{ value }}
+                                    </el-tag>
+                                </template>
+                            </el-table-column>
+                        </el-table>
+                    </div>
+
+                    <el-empty v-else description="暂无数据" :image-size="80"/>
+                </el-card>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vue 3 (production build) -->
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<!-- Element Plus -->
+<script src="https://unpkg.com/element-plus/dist/index.full.js"></script>
+<!-- Element Plus Icons -->
+<script src="https://unpkg.com/@@element-plus/icons-vue/dist/index.iife.js"></script>
+<!-- ECharts for charts -->
+<script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
+
+<script>
+    const {createApp, ref, computed, onMounted, onUnmounted, watch} = Vue;
+    const {ElMessage} = ElementPlus;
+    // 配置中文语言包
+    // 手动配置 Element Plus 中文语言
+    const zhCn = {
+        el: {
+            pagination: {
+                goto: '前往',
+                pagesize: '条/页',
+                total: '共 {total} 条',
+                pageClassifier: '页',
+                page: '页',
+                prev: '上一页',
+                next: '下一页',
+                currentPage: '当前页',
+                prevPages: '向前 {pagerCount} 页',
+                nextPages: '向后 {pagerCount} 页'
+            }
+        }
+    };
+
+    const app = createApp({
+        setup() {
+            // 按需使用的图标（绑定到按钮的 :icon）
+            const Refresh = ElementPlusIconsVue.Refresh;
+            const Monitor = ElementPlusIconsVue.Monitor;
+            const Document = ElementPlusIconsVue.Document;
+            const Search = ElementPlusIconsVue.Search;
+
+            // 导航菜单
+            const activeMenu = ref('/metrics');
+            const handleMenuSelect = (key) => {
+                window.location.href = key;
+            };
+
+            const loading = ref(false);
+            const error = ref('');
+            const metrics = ref({});
+            const lastUpdate = ref('');
+            const chartInstances = {};
+
+            // 核心概要指标（不参与下拉选择，始终在概览卡片展示）
+            const coreMetrics = [
+                'data_acquisition_collection_latency_ms',
+                'data_acquisition_collection_rate',
+                'data_acquisition_queue_depth',
+                'data_acquisition_errors_total'
+            ];
+
+            // 可选的详细指标默认列表（不含核心概要指标）
+            const importantMetrics = [
+                'data_acquisition_processing_latency_ms',
+                'data_acquisition_write_latency_ms',
+                'data_acquisition_batch_write_efficiency',
+                'data_acquisition_connection_status_changes_total',
+                'data_acquisition_connection_duration_seconds'
+            ];
+
+            const selectedMetrics = ref([]);
+            const searchKeyword = ref('');
+            const availableMetrics = ref([...importantMetrics]); // 不含核心指标
+            // 恢复已选择的指标
+            const storedSelected = localStorage.getItem('metrics-selected');
+            if (storedSelected) {
+                try {
+                    const parsed = JSON.parse(storedSelected);
+                    if (Array.isArray(parsed)) {
+                        // 过滤掉核心指标，确保不参与勾选
+                        selectedMetrics.value = parsed.filter(x => !coreMetrics.includes(x));
+                    }
+                } catch { /* ignore */ }
+            }
+
+            const filteredMetrics = computed(() => {
+                const result = {};
+                let sourceKeys = (selectedMetrics.value && selectedMetrics.value.length > 0)
+                    ? selectedMetrics.value
+                    : availableMetrics.value;
+
+                // 应用搜索关键词过滤
+                if (searchKeyword.value && searchKeyword.value.trim()) {
+                    const keyword = searchKeyword.value.toLowerCase();
+                    sourceKeys = sourceKeys.filter(name => {
+                        const title = getMetricTitle(name).toLowerCase();
+                        return title.includes(keyword) || name.toLowerCase().includes(keyword);
+                    });
+                }
+
+                sourceKeys.forEach(name => {
+                    if (metrics.value[name]) {
+                        result[name] = metrics.value[name];
+                    } else {
+                        // 即使当前没有数据，也保留卡片占位，便于观察
+                        result[name] = {
+                            type: '',
+                            help: '暂无数据',
+                            data: []
+                        };
+                    }
+                });
+
+                // 如果没有匹配的，回退展示全部
+                if (Object.keys(result).length === 0 && metrics.value) {
+                    Object.keys(metrics.value).forEach(name => {
+                        if (!coreMetrics.includes(name)) {
+                            result[name] = metrics.value[name];
+                        }
+                    });
+                }
+                return result;
+            });
+
+            async function loadMetrics() {
+                loading.value = true;
+                error.value = '';
+
+                try {
+                    const response = await fetch('/api/metrics-data');
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    metrics.value = data.metrics || {};
+                    // 更新可选指标列表：重要指标 + 返回指标键（排除核心概要指标）
+                    const keys = Object.keys(metrics.value || {});
+                    availableMetrics.value = Array.from(
+                        new Set([...importantMetrics, ...keys.filter(k => !coreMetrics.includes(k))])
+                    );
+                    lastUpdate.value = new Date(data.timestamp).toLocaleString('zh-CN');
+
+                    // 渲染图表
+                    setTimeout(() => {
+                        renderCharts();
+                    }, 100);
+                } catch (err) {
+                    error.value = err.message;
+                    ElMessage.error('加载指标数据失败: ' + err.message);
+                } finally {
+                    loading.value = false;
+                }
+            }
+
+            function renderCharts() {
+                Object.keys(filteredMetrics.value).forEach(metricName => {
+                    const metric = filteredMetrics.value[metricName];
+                    if (!metric.data || metric.data.length < 2) return;
+
+                    const chartId = 'chart-' + metricName;
+                    const chartDom = document.getElementById(chartId);
+                    if (!chartDom) return;
+
+                    // 销毁旧图表
+                    if (chartInstances[metricName]) {
+                        chartInstances[metricName].dispose();
+                    }
+
+                    // 创建新图表
+                    const chart = echarts.init(chartDom);
+                    const data = metric.data.map(d => d.value);
+                    const labels = metric.data.map((_, i) => `#${i + 1}`);
+
+                    chart.setOption({
+                        tooltip: {
+                            trigger: 'axis',
+                            formatter: function (params) {
+                                const point = metric.data[params[0].dataIndex];
+                                let labelText = formatMetricValue(metricName, params[0].value);
+                                if (point.labels) {
+                                    labelText += '<br/>' + Object.entries(point.labels)
+                                        .map(([k, v]) => `${k}: ${v}`)
+                                        .join('<br/>');
+                                }
+                                return labelText;
+                            }
+                        },
+                        grid: {
+                            left: '3%',
+                            right: '4%',
+                            bottom: '3%',
+                            containLabel: true
+                        },
+                        xAxis: {
+                            type: 'category',
+                            data: labels,
+                            boundaryGap: false
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: getMetricUnit(metricName)
+                        },
+                        series: [{
+                            name: getMetricTitle(metricName),
+                            type: 'line',
+                            smooth: true,
+                            data: data,
+                            areaStyle: {
+                                color: {
+                                    type: 'linear',
+                                    x: 0,
+                                    y: 0,
+                                    x2: 0,
+                                    y2: 1,
+                                    colorStops: [{
+                                        offset: 0, color: 'rgba(64, 158, 255, 0.3)'
+                                    }, {
+                                        offset: 1, color: 'rgba(64, 158, 255, 0.1)'
+                                    }]
+                                }
+                            },
+                            lineStyle: {
+                                color: '#409eff',
+                                width: 2
+                            },
+                            symbol: 'circle',
+                            symbolSize: 6
+                        }]
+                    });
+
+                    chartInstances[metricName] = chart;
+                });
+            }
+
+
+            function getMetricTitle(metricName) {
+                const titles = {
+                    'data_acquisition_collection_latency_ms': '采集延迟',
+                    'data_acquisition_collection_rate': '采集频率',
+                    'data_acquisition_queue_depth': '队列深度（总）',
+                    'data_acquisition_processing_latency_ms': '处理延迟',
+                    'data_acquisition_write_latency_ms': '写入延迟',
+                    'data_acquisition_batch_write_efficiency': '批量写入效率',
+                    'data_acquisition_errors_total': '错误总数',
+                    'data_acquisition_connection_status_changes_total': '连接状态变化',
+                    'data_acquisition_connection_duration_seconds': '连接持续时间'
+                };
+                return titles[metricName] || metricName;
+            }
+
+            function getMetricUnit(metricName) {
+                if (metricName.includes('latency_ms') || metricName.includes('_ms')) return '毫秒';
+                if (metricName.includes('_rate')) return 'points/s';
+                if (metricName.includes('_seconds')) return '秒';
+                if (metricName.includes('_total')) return '次';
+                if (metricName.includes('_depth')) return '消息数';
+                return '';
+            }
+
+            function formatMetricValue(metricName, value) {
+                if (value && typeof value === 'object' && 'value' in value) {
+                    value = value.value;
+                }
+                if (typeof value !== 'number') return value;
+
+                const unit = getMetricUnit(metricName);
+                const fixed = value.toFixed(2);
+
+                if (unit === '毫秒') return fixed + ' ms';
+                if (unit === 'points/s') return fixed + ' points/s';
+                if (unit === '秒') return fixed + ' s';
+                if (unit === '消息数') return fixed + ' messages';
+                if (unit === '次') return fixed + ' 次';
+                if (metricName.includes('efficiency')) return fixed + ' points/ms';
+
+                return fixed;
+            }
+
+            function getLatestValue(data) {
+                if (!data || data.length === 0) return {value: 0};
+                return data[data.length - 1];
+            }
+
+            function getMetricValue(metricName) {
+                const metric = metrics.value[metricName];
+                if (!metric || !metric.data || metric.data.length === 0) return 0;
+                const value = getLatestValue(metric.data).value;
+                return typeof value === 'number' ? value : 0;
+            }
+
+            function getMetricType(type) {
+                const types = {
+                    'histogram': 'success',
+                    'counter': 'warning',
+                    'gauge': 'info'
+                };
+                return types[type] || '';
+            }
+
+            function searchMetrics() {
+                // 搜索功能由 computed filteredMetrics 自动处理
+                // 这里可以添加额外的搜索逻辑，如果需要的话
+            }
+
+            function clearFilters() {
+                selectedMetrics.value = [];
+                searchKeyword.value = '';
+                // 清空本地存储
+                localStorage.removeItem('metrics-selected');
+            }
+
+            onMounted(() => {
+                loadMetrics();
+            });
+
+            // 记住选择
+            watch(selectedMetrics, (val) => {
+                localStorage.setItem('metrics-selected', JSON.stringify(val || []));
+            }, {deep: true});
+
+            onUnmounted(() => {
+                Object.values(chartInstances).forEach(chart => {
+                    if (chart) chart.dispose();
+                });
+            });
+
+            return {
+                loading,
+                error,
+                metrics,
+                lastUpdate,
+                Refresh,
+                Monitor,
+                Document,
+                activeMenu,
+                handleMenuSelect,
+                selectedMetrics,
+                searchKeyword,
+                availableMetrics,
+                filteredMetrics,
+                loadMetrics,
+                searchMetrics,
+                clearFilters,
+                getMetricTitle,
+                getMetricUnit,
+                formatMetricValue,
+                getLatestValue,
+                getMetricValue,
+                getMetricType,
+                Search
+            };
+        }
+    })
+
+    // 全局注册 Element Plus 图标，解决 <Monitor/> 等组件解析问题
+    Object.entries(ElementPlusIconsVue).forEach(([name, component]) => {
+        app.component(name, component);
+    });
+
+    // 配置中文语言
+    app.use(ElementPlus, {
+        locale: zhCn
+    });
+    app.mount('#app');
+</script>
+</body>
+
+</html>
+

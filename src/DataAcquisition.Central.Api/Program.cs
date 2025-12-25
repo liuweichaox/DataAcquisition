@@ -15,6 +15,7 @@ builder.WebHost.UseUrls(urls);
 
 builder.Services.AddHttpClient();
 builder.Services.AddControllers();
+builder.Services.AddRazorPages();
 builder.Services.AddSingleton<DataAcquisition.Central.Api.Services.EdgeRegistry>();
 
 builder.Services
@@ -55,6 +56,7 @@ builder.Host.UseSerilog();
 
 var app = builder.Build();
 
+app.UseStaticFiles();
 app.UseRouting();
 app.UseAuthorization();
 
@@ -62,7 +64,8 @@ app.UseCors("frontend");
 
 // Prometheus 指标（中心自身进程）
 app.UseHttpMetrics();
-app.MapMetrics();
+// 注意：/metrics 预留给 HTML 可视化页面，因此将原始 Prometheus 指标映射到 /metrics/raw
+app.MapMetrics("/metrics/raw");
 
 app.MapHealthChecks("/health", new HealthCheckOptions
 {
@@ -89,6 +92,7 @@ app.MapHealthChecks("/health", new HealthCheckOptions
 
 // Attribute routing（/api/..）
 app.MapControllers();
+app.MapRazorPages();
 
 // 方便验证服务是否启动（不提供页面）
 app.MapGet("/", () => Results.Ok(new
@@ -99,6 +103,7 @@ app.MapGet("/", () => Results.Ok(new
         edges = "/api/edges",
         telemetry = "/api/telemetry/ingest",
         metrics = "/metrics",
+        metricsRaw = "/metrics/raw",
         metricsJson = "/api/metrics-data"
     }
 }));
