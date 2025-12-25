@@ -13,14 +13,14 @@ English: [README.en.md](README.en.md)
 
 - [📖 项目简介](#-项目简介)
 - [🎯 核心特性](#-核心特性)
-- [🏗️ 系统架构](#️-系统架构)
+- [🏗️ 系统架构](#-系统架构)
 - [📁 项目结构](#-项目结构)
 - [🚀 快速开始](#-快速开始)
-- [⚙️ 配置说明](#️-配置说明)
+- [⚙️ 配置说明](#-配置说明)
 - [🔌 API 使用示例](#-api-使用示例)
 - [📊 核心模块文档](#-核心模块文档)
 - [🔄 数据处理流程](#-数据处理流程)
-- [🎯 性能优化](#-性能优化)
+- [🎯 性能优化建议](#-性能优化建议)
 - [❓ 常见问题](#-常见问题)
 - [🏆 设计理念](#-设计理念)
 - [🤝 贡献指南](#-贡献指南)
@@ -230,7 +230,7 @@ dotnet run --project src/DataAcquisition.Central.Web
    - 访问 http://localhost:8000/logs 查看采集日志
    - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
 
-详细说明请参考：[DataAcquisition.Simulator/README.md](DataAcquisition.Simulator/README.md)
+详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
 ## ⚙️ 配置说明
 
@@ -510,7 +510,7 @@ var request = new PLCWriteRequest
 var response = await httpClient.PostAsJsonAsync("/api/DataAcquisition/WriteRegister", request);
 ```
 
-## 📊 核心模块说明
+## 📊 核心模块文档
 
 ### PLC 客户端实现
 
@@ -784,4 +784,4 @@ dotnet build
 
 ---
 
-**如有问题或建议，请提交 [Issue](https://github.com/your-username/DataAcquisition/issues) 或通过 Pull Request 贡献代码！**
+**如有问题或建议，请提交 [Issue](https://github.com/liuweichaox/DataAcquisition/issues) 或通过 Pull Request 贡献代码！**
