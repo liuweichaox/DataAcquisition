@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Domain.Clients;
+using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
 
@@ -24,10 +25,16 @@ public interface IDataAcquisitionService : IDisposable
     Task StopCollectionTasks();
 
     /// <summary>
-    ///     获取 PLC 连接状态。
+    ///     获取 PLC 连接状态（简单格式，向后兼容）。
     /// </summary>
     /// <returns>包含 PLC 编号及其连接状态的有序字典。</returns>
     SortedDictionary<string, bool> GetPlcConnectionStatus();
+
+    /// <summary>
+    ///     获取 PLC 连接详细信息。
+    /// </summary>
+    /// <returns>所有 PLC 连接详细信息的只读集合（按 PLC 编码排序）。</returns>
+    IReadOnlyCollection<PlcConnectionStatus> GetPlcConnectionStatusDetailed();
 
     /// <summary>
     ///     写入 PLC 寄存器。

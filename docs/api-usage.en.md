@@ -31,18 +31,29 @@ curl http://localhost:8000/api/metrics-data/info
 **Note**: This API is provided by Edge Agent, default port is 8001.
 
 ```bash
-# Get PLC connection status
-curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+# Get all PLC connection statuses
+curl http://localhost:8001/api/DataAcquisition/plc-connections
 ```
 
 **Response Example:**
 
 ```json
-{
-  "plcCode": "M01C123",
-  "isConnected": true,
-  "lastConnectedTime": "2025-01-15T10:30:00"
-}
+[
+  {
+    "plcCode": "M01C123",
+    "isConnected": true,
+    "lastConnectedTime": "2025-01-15T10:30:00",
+    "connectionDurationSeconds": 3600.5,
+    "lastError": null
+  },
+  {
+    "plcCode": "PLC02",
+    "isConnected": false,
+    "lastConnectedTime": "2025-01-15T09:00:00",
+    "connectionDurationSeconds": null,
+    "lastError": "Connection timeout"
+  }
+]
 ```
 
 ## PLC Write Operation

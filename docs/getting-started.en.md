@@ -170,7 +170,7 @@ App running at:
 
 2. **Check Edge Agent**:
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    Should return PLC connection status list
 
@@ -260,7 +260,7 @@ After completing the getting started guide, we recommend continuing in the follo
 1. Confirm PLC device IP and port configuration are correct
 2. Check network connectivity: `ping <PLC_IP>`
 3. View Edge Agent logs: Visit http://localhost:8001/api/logs
-4. Check PLC connection status: Visit http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+4. Check PLC connection status: Visit http://localhost:8001/api/DataAcquisition/plc-connections
 
 ### Issue 2: Data Not Written to InfluxDB
 

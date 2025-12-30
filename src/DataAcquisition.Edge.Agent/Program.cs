@@ -108,7 +108,7 @@ app.MapGet("/", () => Results.Ok(new
         metrics = "/metrics",
         logs = "/api/logs",
         logLevels = "/api/logs/levels",
-        plcStatus = "/api/DataAcquisition/GetPlcConnectionStatus",
+        plcConnections = "/api/DataAcquisition/plc-connections",
         writeRegister = "/api/DataAcquisition/WriteRegister"
     }
 }));

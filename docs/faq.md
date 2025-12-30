@@ -138,7 +138,7 @@ curl http://localhost:8000/api/metrics-data
 
 1. **检查 PLC 连接状态**: 
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    查看返回的连接状态信息
 
@@ -222,7 +222,7 @@ curl http://localhost:8000/api/metrics-data
 1. **查看系统日志**: 启动 Edge Agent 后，查看日志中是否有配置加载错误
 2. **检查连接状态**: 
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    如果配置正确，应该能看到设备连接状态
 
@@ -257,7 +257,7 @@ curl http://localhost:8000/api/metrics-data
    curl http://localhost:8000/health
    
    # Edge Agent
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
 
 2. **查看监控指标**:

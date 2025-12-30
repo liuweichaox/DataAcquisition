@@ -170,7 +170,7 @@ App running at:
 
 2. **检查 Edge Agent**：
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    应该返回 PLC 连接状态列表
 
@@ -263,7 +263,7 @@ dotnet run
 1. 确认 PLC 设备 IP 和端口配置正确
 2. 检查网络连通性：`ping <PLC_IP>`
 3. 查看 Edge Agent 日志：访问 http://localhost:8001/api/logs
-4. 检查 PLC 连接状态：访问 http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+4. 检查 PLC 连接状态：访问 http://localhost:8001/api/DataAcquisition/plc-connections
 
 ### 问题 2：数据没有写入 InfluxDB
 

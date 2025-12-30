@@ -138,7 +138,7 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 1. **Check PLC Connection Status**: 
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    View the returned connection status information
 
@@ -222,7 +222,7 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
 1. **View System Logs**: After starting Edge Agent, check logs for configuration loading errors
 2. **Check Connection Status**: 
    ```bash
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    If configuration is correct, you should see device connection status
 
@@ -257,7 +257,7 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
    curl http://localhost:8000/health
    
    # Edge Agent
-   curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+   curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
 
 2. **View Monitoring Metrics**:

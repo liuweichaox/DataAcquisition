@@ -14,14 +14,14 @@ namespace DataAcquisition.Edge.Agent.Controllers;
 public class DataAcquisitionController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    ///     获取 PLC 连接状态
+    ///     获取所有 PLC 连接状态
     /// </summary>
     /// <returns></returns>
-    [HttpGet]
-    public async Task<IActionResult> GetPlcConnectionStatus(CancellationToken ct)
+    [HttpGet("plc-connections")]
+    public async Task<IActionResult> GetPlcConnections(CancellationToken ct)
     {
-        var plcConnectionStatus = await mediator.Send(new GetPLCConnectionStatusQuery(), ct);
-        return Ok(plcConnectionStatus);
+        var plcConnections = await mediator.Send(new GetPlcConnectionsQuery(), ct);
+        return Ok(plcConnections);
     }
 
     /// <summary>

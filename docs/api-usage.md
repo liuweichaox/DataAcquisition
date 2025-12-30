@@ -31,18 +31,29 @@ curl http://localhost:8000/api/metrics-data/info
 **注意**：此 API 由 Edge Agent 提供，默认端口为 8001。
 
 ```bash
-# 获取 PLC 连接状态
-curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
+# 获取所有 PLC 连接状态
+curl http://localhost:8001/api/DataAcquisition/plc-connections
 ```
 
 **响应示例：**
 
 ```json
-{
-  "plcCode": "M01C123",
-  "isConnected": true,
-  "lastConnectedTime": "2025-01-15T10:30:00"
-}
+[
+  {
+    "plcCode": "M01C123",
+    "isConnected": true,
+    "lastConnectedTime": "2025-01-15T10:30:00",
+    "connectionDurationSeconds": 3600.5,
+    "lastError": null
+  },
+  {
+    "plcCode": "PLC02",
+    "isConnected": false,
+    "lastConnectedTime": "2025-01-15T09:00:00",
+    "connectionDurationSeconds": null,
+    "lastError": "连接超时"
+  }
+]
 ```
 
 ## PLC 写入操作

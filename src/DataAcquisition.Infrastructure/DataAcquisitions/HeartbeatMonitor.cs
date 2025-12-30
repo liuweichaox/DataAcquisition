@@ -20,6 +20,8 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     private readonly ILogger<HeartbeatMonitor> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _lastConnectedTimes = new();
+    private readonly ConcurrentDictionary<string, string?> _lastErrors = new();
     private readonly IPLCClientLifecycleService _plcLifecycle;
 
     /// <summary>
@@ -68,10 +70,12 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 {
                     writeData ^= 1;
                     _plcConnectionHealth[config.PLCCode] = true;
+                    _lastErrors.TryRemove(config.PLCCode, out _); // 清除错误信息
 
                     // 首次检测成功或从失败状态恢复时记录日志
                     if (isFirstCheck || !lastOk)
                     {
+                        _lastConnectedTimes[config.PLCCode] = DateTimeOffset.Now;
                         _logger.LogInformation("{PLCCode}-✓ PLC连接成功，心跳检测正常 (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PLCCode, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PLCCode, true);
@@ -81,6 +85,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                 else
                 {
                     _plcConnectionHealth[config.PLCCode] = false;
+                    _lastErrors[config.PLCCode] = connect.Message; // 记录错误信息
 
                     // 首次检测失败或从成功状态变为失败时记录日志
                     if (isFirstCheck || lastOk)
@@ -98,6 +103,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             catch (Exception ex)
             {
                 _plcConnectionHealth[config.PLCCode] = false;
+                _lastErrors[config.PLCCode] = ex.Message; // 记录异常信息
                 if (isFirstCheck || lastOk)
                     _logger.LogError(ex, "{PLCCode}-心跳检测异常: {Message}", config.PLCCode, ex.Message);
                 lastOk = false;
@@ -115,6 +121,33 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     public bool TryGetConnectionHealth(string plcCode, out bool isConnected)
     {
         return _plcConnectionHealth.TryGetValue(plcCode, out isConnected);
+    }
+
+    /// <summary>
+    ///     获取 PLC 连接详细信息。
+    /// </summary>
+    public PlcConnectionStatus? GetConnectionStatus(string plcCode)
+    {
+        if (!_plcConnectionHealth.TryGetValue(plcCode, out var isConnected))
+            return null;
+
+        var lastConnectedTime = _lastConnectedTimes.TryGetValue(plcCode, out var time) ? time : (DateTimeOffset?)null;
+        var lastError = _lastErrors.TryGetValue(plcCode, out var error) ? error : null;
+        
+        double? connectionDuration = null;
+        if (isConnected && _connectionStartTimes.TryGetValue(plcCode, out var startTime))
+        {
+            connectionDuration = (DateTime.Now - startTime).TotalSeconds;
+        }
+
+        return new PlcConnectionStatus
+        {
+            PlcCode = plcCode,
+            IsConnected = isConnected,
+            LastConnectedTime = lastConnectedTime,
+            ConnectionDurationSeconds = connectionDuration,
+            LastError = lastError
+        };
     }
 
     /// <summary>

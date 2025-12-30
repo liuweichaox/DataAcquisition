@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
 
@@ -23,4 +24,11 @@ public interface IHeartbeatMonitor
     /// <param name="isConnected">连接状态（如果存在）</param>
     /// <returns>是否成功获取</returns>
     bool TryGetConnectionHealth(string plcCode, out bool isConnected);
+
+    /// <summary>
+    ///     获取 PLC 连接详细信息。
+    /// </summary>
+    /// <param name="plcCode">PLC 编码</param>
+    /// <returns>连接状态信息，如果不存在则返回 null</returns>
+    PlcConnectionStatus? GetConnectionStatus(string plcCode);
 }
