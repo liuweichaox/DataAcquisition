@@ -154,7 +154,7 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
                 AgentBaseUrl = _agentBaseUrl,
                 BufferBacklog = backlog,
                 LastError = _lastError,
-                Timestamp = DateTimeOffset.UtcNow
+                Timestamp = DateTimeOffset.Now
             };
 
             using var resp = await http.PostAsJsonAsync("api/edges/heartbeat", req, JsonOptions, ct)

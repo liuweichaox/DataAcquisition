@@ -223,7 +223,7 @@ The system maps configuration files to InfluxDB time-series database. The follow
 | `EventType`                                  | **Tag**: `event_type`   | Event type tag (Start/End/Data)                | `"Start"`, `"End"`, `"Data"`     |
 | `Channels[].DataPoints[].FieldName`         | **Field**               | Data field name                                | `"up_temp"`, `"down_temp"`       |
 | `CycleId`                                    | **Field**: `cycle_id`   | Acquisition cycle unique identifier (GUID)     | `"guid-xxx"`                     |
-| Acquisition time                             | **Timestamp**           | Data point timestamp                           | `2025-01-15T10:30:00Z`           |
+| Acquisition time                             | **Timestamp**           | Data point timestamp (local time)              | `2025-01-15T10:30:00`           |
 
 ### Configuration Example and Line Protocol
 
@@ -313,7 +313,7 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
   - All fields from `DataPoints[].FieldName` (e.g., `up_temp`, `down_temp`)
   - `cycle_id`: Conditional acquisition cycle ID (GUID, used to associate Start/End events)
   - Numeric types: integers use `i` suffix (e.g., `250i`), floating-point numbers are written directly (e.g., `0.18`)
-- **Timestamp**: Data acquisition time (nanosecond precision)
+- **Timestamp**: Data acquisition time (local time, nanosecond precision)
 
 ### Query Examples
 

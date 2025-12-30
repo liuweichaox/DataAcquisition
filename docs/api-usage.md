@@ -41,7 +41,7 @@ curl http://localhost:8001/api/DataAcquisition/GetPLCConnectionStatus
 {
   "plcCode": "M01C123",
   "isConnected": true,
-  "lastConnectedTime": "2025-01-15T10:30:00Z"
+  "lastConnectedTime": "2025-01-15T10:30:00"
 }
 ```
 
@@ -100,7 +100,7 @@ curl http://localhost:8000/api/edges
     "edgeId": "EDGE-001",
     "agentBaseUrl": "http://192.168.1.100:8001",
     "hostname": "WORKSTATION-01",
-    "lastSeenUtc": "2025-01-15T10:30:00Z",
+    "lastSeen": "2025-01-15T10:30:00",
     "bufferBacklog": 0,
     "lastError": null
   }
@@ -136,7 +136,7 @@ curl "http://localhost:8001/api/logs?keyword=InfluxDB&page=1&pageSize=50"
   "data": [
     {
       "id": 1,
-      "timestamp": "2025-01-15T10:30:00Z",
+      "timestamp": "2025-01-15T10:30:00",
       "level": "Error",
       "message": "InfluxDB 写入失败: Connection timeout",
       "exception": "System.TimeoutException: ..."

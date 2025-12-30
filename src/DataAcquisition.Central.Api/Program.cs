@@ -75,7 +75,6 @@ app.MapGet("/", () => Results.Ok(new
     endpoints = new
     {
         edges = "/api/edges",
-        telemetry = "/api/telemetry/ingest",
         metrics = "/metrics",
         metricsJson = "/api/metrics-data"
     }

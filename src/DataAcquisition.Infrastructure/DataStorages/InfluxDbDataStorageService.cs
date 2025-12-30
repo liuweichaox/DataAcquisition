@@ -93,7 +93,8 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     /// </summary>
     private PointData ConvertToPoint(DataMessage dataMessage)
     {
-        // InfluxDB 要求时间戳必须是 UTC 时间
+        // 注意：InfluxDB 要求时间戳必须是 UTC 时间，所以需要转换
+        // 系统内部使用本地时间，但写入 InfluxDB 时需要转换为 UTC
         var utcTimestamp = dataMessage.Timestamp.Kind == DateTimeKind.Utc
             ? dataMessage.Timestamp
             : dataMessage.Timestamp.ToUniversalTime();

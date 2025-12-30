@@ -48,9 +48,9 @@
             {{ row.hostname || "-" }}
           </template>
         </el-table-column>
-        <el-table-column prop="lastSeenUtc" label="最后在线" width="180">
+        <el-table-column prop="lastSeen" label="最后在线" width="180">
           <template #default="{ row }">
-            {{ formatTime(row.lastSeenUtc) }}
+            {{ formatTime(row.lastSeen) }}
           </template>
         </el-table-column>
         <el-table-column prop="bufferBacklog" label="积压量" width="100" align="center">

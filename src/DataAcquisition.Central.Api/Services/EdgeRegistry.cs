@@ -45,7 +45,7 @@ public sealed class EdgeRegistry
                 AgentBaseUrl = reader.IsDBNull(1) ? null : reader.GetString(1),
                 Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
                 Version = reader.IsDBNull(3) ? null : reader.GetString(3),
-                LastSeenUtc = ParseUtc(reader.IsDBNull(4) ? null : reader.GetString(4)),
+                LastSeen = ParseLocal(reader.IsDBNull(4) ? null : reader.GetString(4)),
                 BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
                 LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
             });
@@ -60,7 +60,7 @@ public sealed class EdgeRegistry
         return Get(edgeId);
     }
 
-    public EdgeState Upsert(string edgeId, string? agentBaseUrl, string? hostname, string? version, DateTimeOffset nowUtc)
+    public EdgeState Upsert(string edgeId, string? agentBaseUrl, string? hostname, string? version, DateTimeOffset now)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
@@ -77,7 +77,7 @@ public sealed class EdgeRegistry
         cmd.Parameters.AddWithValue("$agent_base_url", (object?)NormalizeBaseUrl(agentBaseUrl) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$hostname", (object?)hostname ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$version", (object?)version ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$last_seen_utc", nowUtc.ToUniversalTime().ToString("O"));
+        cmd.Parameters.AddWithValue("$last_seen_utc", now.ToString("O"));
         cmd.ExecuteNonQuery();
 
         return Get(edgeId) ?? new EdgeState(edgeId)
@@ -85,11 +85,11 @@ public sealed class EdgeRegistry
             AgentBaseUrl = agentBaseUrl,
             Hostname = hostname,
             Version = version,
-            LastSeenUtc = nowUtc
+            LastSeen = now
         };
     }
 
-    public EdgeState Heartbeat(string edgeId, string? agentBaseUrl, long? backlog, string? lastError, DateTimeOffset nowUtc)
+    public EdgeState Heartbeat(string edgeId, string? agentBaseUrl, long? backlog, string? lastError, DateTimeOffset now)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
@@ -104,7 +104,7 @@ public sealed class EdgeRegistry
                           """;
         cmd.Parameters.AddWithValue("$edge_id", edgeId);
         cmd.Parameters.AddWithValue("$agent_base_url", (object?)NormalizeBaseUrl(agentBaseUrl) ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$last_seen_utc", nowUtc.ToUniversalTime().ToString("O"));
+        cmd.Parameters.AddWithValue("$last_seen_utc", now.ToString("O"));
         cmd.Parameters.AddWithValue("$buffer_backlog", (object?)backlog ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$last_error", (object?)lastError ?? DBNull.Value);
         cmd.ExecuteNonQuery();
@@ -112,7 +112,7 @@ public sealed class EdgeRegistry
         return Get(edgeId) ?? new EdgeState(edgeId)
         {
             AgentBaseUrl = agentBaseUrl,
-            LastSeenUtc = nowUtc,
+            LastSeen = now,
             BufferBacklog = backlog,
             LastError = lastError
         };
@@ -191,16 +191,16 @@ public sealed class EdgeRegistry
             AgentBaseUrl = reader.IsDBNull(1) ? null : reader.GetString(1),
             Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
             Version = reader.IsDBNull(3) ? null : reader.GetString(3),
-            LastSeenUtc = ParseUtc(reader.IsDBNull(4) ? null : reader.GetString(4)),
+            LastSeen = ParseLocal(reader.IsDBNull(4) ? null : reader.GetString(4)),
             BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
             LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
         };
     }
 
-    private static DateTimeOffset ParseUtc(string? value)
+    private static DateTimeOffset ParseLocal(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return DateTimeOffset.UtcNow;
-        return DateTimeOffset.Parse(value).ToUniversalTime();
+        if (string.IsNullOrWhiteSpace(value)) return DateTimeOffset.Now;
+        return DateTimeOffset.Parse(value);
     }
 
     public sealed class EdgeState
@@ -214,7 +214,7 @@ public sealed class EdgeRegistry
         public string? AgentBaseUrl { get; set; }
         public string? Hostname { get; set; }
         public string? Version { get; set; }
-        public DateTimeOffset LastSeenUtc { get; set; } = DateTimeOffset.UtcNow;
+        public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.Now;
         public long? BufferBacklog { get; set; }
         public string? LastError { get; set; }
     }

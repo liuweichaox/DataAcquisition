@@ -223,7 +223,7 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 | `EventType`                         | **Tag**: `event_type`   | 事件类型标签（Start/End/Data） | `"Start"`, `"End"`, `"Data"` |
 | `Channels[].DataPoints[].FieldName` | **Field**               | 数据字段名称                   | `"up_temp"`, `"down_temp"`   |
 | `CycleId`                           | **Field**: `cycle_id`   | 采集周期唯一标识符（GUID）     | `"guid-xxx"`                 |
-| 采集时间                            | **Timestamp**           | 数据点的时间戳                 | `2025-01-15T10:30:00Z`       |
+| 采集时间                            | **Timestamp**           | 数据点的时间戳（本地时间）     | `2025-01-15T10:30:00`       |
 
 ### 配置示例与 Line Protocol
 
@@ -313,7 +313,7 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
   - 来自 `DataPoints[].FieldName` 的所有字段（如 `up_temp`, `down_temp`）
   - `cycle_id`: 条件采集的周期 ID（GUID，用于关联 Start/End 事件）
   - 数值类型：整数使用 `i` 后缀（如 `250i`），浮点数直接写（如 `0.18`）
-- **Timestamp**: 数据采集时间（纳秒精度）
+- **Timestamp**: 数据采集时间（本地时间，纳秒精度）
 
 ### 查询示例
 
