@@ -153,7 +153,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         var plcCodes = dataMessages.Select(x => x.PLCCode).ToArray();
         var channelCodes = dataMessages.Select(x => x.ChannelCode).ToArray();
         var cycleIds = dataMessages.Select(x => x.CycleId).ToArray();
-        var eventTypes = dataMessages.Select(x => x.EventType).ToArray();
+        var eventTypes = dataMessages.Select(x => x.EventType.ToString()).ToArray();
         var dataJsons = dataMessages.Select(x =>
             JsonSerializer.Serialize((IDictionary<string, object?>)x.DataValues)).ToArray();
 
