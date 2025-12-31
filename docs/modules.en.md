@@ -45,8 +45,9 @@ Continuously acquires data at the configured `AcquisitionInterval` interval.
 {
   "AcquisitionMode": "Always",
   "AcquisitionInterval": 100,
-  "DataPoints": [
+  "Metrics": [
     {
+      "MetricName": "temperature",
       "FieldName": "temperature",
       "Register": "D6000",
       "Index": 0,
@@ -70,7 +71,7 @@ Triggers acquisition based on value changes of a specified register.
 ```json
 {
   "AcquisitionMode": "Conditional",
-  "DataPoints": null,
+  "Metrics": null,
   "ConditionalAcquisition": {
     "Register": "D6006",
     "DataType": "short",

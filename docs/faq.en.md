@@ -91,8 +91,9 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
       "BatchSize": 10,
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -120,7 +121,7 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "DataPoints": null,
+      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",
@@ -136,25 +137,25 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 **A**: Follow these steps:
 
-1. **Check PLC Connection Status**: 
+1. **Check PLC Connection Status**:
    ```bash
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    View the returned connection status information
 
-2. **Check Network Connectivity**: 
+2. **Check Network Connectivity**:
    ```bash
    ping <PLC_IP_ADDRESS>
    telnet <PLC_IP_ADDRESS> <PORT>
    ```
    Confirm that Edge Agent can access the PLC's IP and port
 
-3. **Check Configuration Correctness**: 
+3. **Check Configuration Correctness**:
    - Confirm `Host` and `Port` parameters in device configuration file are correct
    - Confirm `Type` parameter matches the actual PLC type (Mitsubishi, Inovance, BeckhoffAds)
    - Confirm `PLCCode` is not empty and unique
 
-4. **View Log Information**: 
+4. **View Log Information**:
    ```bash
    curl "http://localhost:8001/api/logs?level=Error&page=1&pageSize=10"
    ```
@@ -220,13 +221,13 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
 **A**: You can verify in the following ways:
 
 1. **View System Logs**: After starting Edge Agent, check logs for configuration loading errors
-2. **Check Connection Status**: 
+2. **Check Connection Status**:
    ```bash
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    If configuration is correct, you should see device connection status
 
-3. **Check Metrics Data**: 
+3. **Check Metrics Data**:
    ```bash
    curl http://localhost:8000/api/metrics-data
    ```
@@ -239,7 +240,7 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
 **A**: Incorrect batch read configuration may cause:
 
 1. **Data Read Errors**: If `BatchReadLength` is set too small, may not read all data points
-2. **Index Errors**: If `Index` in `DataPoints` is configured incorrectly, may read wrong data
+2. **Index Errors**: If `Index` in `Metrics` is configured incorrectly, may read wrong data
 3. **Performance Degradation**: If batch read should be used but not enabled, will cause multiple network requests, degrading performance
 
 **Configuration Recommendations**:
@@ -255,7 +256,7 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
    ```bash
    # Central API
    curl http://localhost:8000/health
-   
+
    # Edge Agent
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```

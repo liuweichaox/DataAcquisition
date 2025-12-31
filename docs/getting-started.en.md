@@ -81,8 +81,9 @@ Create a PLC device configuration file in the `src/DataAcquisition.Edge.Agent/Co
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -90,6 +91,7 @@ Create a PLC device configuration file in the `src/DataAcquisition.Edge.Agent/Co
           "EvalExpression": "value / 100.0"
         },
         {
+          "MetricName": "pressure",
           "FieldName": "pressure",
           "Register": "D6001",
           "Index": 2,
@@ -283,4 +285,3 @@ After completing the getting started guide, we recommend continuing in the follo
 - Read [API Usage Documentation](api-usage.en.md) to learn how to query data via API
 - Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
 - Read [FAQ](faq.en.md) for more help
-

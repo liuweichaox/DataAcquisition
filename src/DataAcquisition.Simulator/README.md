@@ -118,14 +118,14 @@ netstat -ano | findstr :502
       "BatchSize": 10,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
-      "DataPoints": [
-        { "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
-        { "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
-        { "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
-        { "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
-        { "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
-        { "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
-        { "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
+      "Metrics": [
+        { "MetricName": "temperature", "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "MetricName": "pressure", "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "MetricName": "current", "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "MetricName": "voltage", "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "MetricName": "lightBarrierPosition", "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
+        { "MetricName": "servoSpeed", "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
+        { "MetricName": "productionSerial", "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
       ]
     },
     {
@@ -137,7 +137,7 @@ netstat -ano | findstr :502
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "DataPoints": null,
+      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",

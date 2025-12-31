@@ -33,8 +33,9 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
       "BatchSize": 10,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -42,6 +43,7 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
           "EvalExpression": "value / 100.0"
         },
         {
+          "MetricName": "pressure",
           "FieldName": "pressure",
           "Register": "D6001",
           "Index": 2,
@@ -59,7 +61,7 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "DataPoints": null,
+      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",
@@ -75,7 +77,7 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
 - The first channel uses `Always` mode for continuous sensor data acquisition
 - The second channel uses `Conditional` mode, triggered by production serial number changes
 - `AcquisitionInterval` of 0 means highest frequency acquisition (no delay)
-- `DataPoints` can be `null` in conditional acquisition mode
+- `Metrics` can be `null` in conditional acquisition mode
 
 ### Device Configuration Properties
 
@@ -104,15 +106,16 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
 | `EnableBatchRead`              | `boolean` | No       | Whether to enable batch read functionality                                         |
 | `BatchReadRegister`            | `string`  | No       | Starting register address for batch reads                                          |
 | `BatchReadLength`              | `integer` | No       | Number of registers to read in batch                                               |
-| `DataPoints`                   | `array`   | No       | List of data point configurations (can be null in conditional acquisition mode)  |
+| `Metrics`                      | `array`   | No       | List of metric configurations (can be null in conditional acquisition mode)      |
 | `ConditionalAcquisition`       | `object`  | No       | Conditional acquisition configuration (required only when AcquisitionMode is Conditional) |
 
-#### DataPoints Array Properties
+#### Metrics Array Properties
 
 | Property Name      | Type      | Required | Description                                                          |
 | ------------------ | --------- | -------- | -------------------------------------------------------------------- |
+| `MetricName`       | `string`  | Yes      | Metric name, used to identify the metric                             |
 | `FieldName`        | `string`  | Yes      | Field name in the time-series database                               |
-| `Register`         | `string`  | Yes      | PLC register address corresponding to the data point                 |
+| `Register`         | `string`  | Yes      | PLC register address corresponding to the metric                     |
 | `Index`            | `integer` | No       | Index position in the result when using batch reads                  |
 | `DataType`         | `string`  | Yes      | Data type (e.g., short, int, float, etc.)                            |
 | `EvalExpression`   | `string`  | No       | Data transformation expression (use value variable to represent raw value) |
@@ -221,7 +224,7 @@ The system maps configuration files to InfluxDB time-series database. The follow
 | `PLCCode`                                    | **Tag**: `plc_code`     | PLC device code tag                            | `"M01C123"`                      |
 | `Channels[].ChannelCode`                     | **Tag**: `channel_code` | Channel code tag                               | `"M01C01"`                       |
 | `EventType`                                  | **Tag**: `event_type`   | Event type tag (Start/End/Data)                | `"Start"`, `"End"`, `"Data"`     |
-| `Channels[].DataPoints[].FieldName`         | **Field**               | Data field name                                | `"up_temp"`, `"down_temp"`       |
+| `Channels[].Metrics[].FieldName`            | **Field**               | Data field name                                | `"up_temp"`, `"down_temp"`       |
 | `CycleId`                                    | **Field**: `cycle_id`   | Acquisition cycle unique identifier (GUID)     | `"guid-xxx"`                     |
 | Acquisition time                             | **Timestamp**           | Data point timestamp (local time)              | `2025-01-15T10:30:00`           |
 
@@ -248,14 +251,16 @@ The system maps configuration files to InfluxDB time-series database. The follow
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Conditional",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "up_temp",
           "FieldName": "up_temp",
           "Register": "D6002",
           "Index": 2,
           "DataType": "short"
         },
         {
+          "MetricName": "down_temp",
           "FieldName": "down_temp",
           "Register": "D6004",
           "Index": 4,
@@ -310,7 +315,7 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
   - `channel_code`: Channel code
   - `event_type`: Event type (`Start`/`End`/`Data`)
 - **Fields** (actual data values):
-  - All fields from `DataPoints[].FieldName` (e.g., `up_temp`, `down_temp`)
+  - All fields from `Metrics[].FieldName` (e.g., `up_temp`, `down_temp`)
   - `cycle_id`: Conditional acquisition cycle ID (GUID, used to associate Start/End events)
   - Numeric types: integers use `i` suffix (e.g., `250i`), floating-point numbers are written directly (e.g., `0.18`)
 - **Timestamp**: Data acquisition time (local time, nanosecond precision)

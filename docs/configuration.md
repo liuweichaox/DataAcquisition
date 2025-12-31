@@ -33,8 +33,9 @@
       "BatchSize": 10,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -42,6 +43,7 @@
           "EvalExpression": "value / 100.0"
         },
         {
+          "MetricName": "pressure",
           "FieldName": "pressure",
           "Register": "D6001",
           "Index": 2,
@@ -59,7 +61,7 @@
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "DataPoints": null,
+      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",
@@ -75,7 +77,7 @@
 - 第一个通道使用 `Always` 模式持续采集传感器数据
 - 第二个通道使用 `Conditional` 模式，根据生产序号的变化触发采集
 - `AcquisitionInterval` 为 0 表示最高频率采集（无延迟）
-- 条件采集模式下 `DataPoints` 可以为 `null`
+- 条件采集模式下 `Metrics` 可以为 `null`
 
 ### 设备配置属性详细说明
 
@@ -104,15 +106,15 @@
 | `EnableBatchRead`        | `boolean` | 否   | 是否启用批量读取功能                                       |
 | `BatchReadRegister`      | `string`  | 否   | 批量读取的起始寄存器地址                                   |
 | `BatchReadLength`        | `integer` | 否   | 批量读取的寄存器数量                                       |
-| `DataPoints`             | `array`   | 否   | 数据点配置列表（条件采集模式下可为 null）                  |
+| `Metrics`                | `array`   | 否   | 指标配置列表（条件采集模式下可为 null）                    |
 | `ConditionalAcquisition` | `object`  | 否   | 条件采集配置（仅在 AcquisitionMode 为 Conditional 时需要） |
 
-#### DataPoints 数组属性
+#### Metrics 数组属性
 
 | 属性名称         | 类型      | 必填 | 说明                                        |
 | ---------------- | --------- | ---- | ------------------------------------------- |
 | `FieldName`      | `string`  | 是   | 时序数据库中的字段名称                      |
-| `Register`       | `string`  | 是   | 数据点对应的 PLC 寄存器地址                 |
+| `Register`       | `string`  | 是   | 指标对应的 PLC 寄存器地址                   |
 | `Index`          | `integer` | 否   | 批量读取时在结果中的索引位置                |
 | `DataType`       | `string`  | 是   | 数据类型（如 short, int, float 等）         |
 | `EvalExpression` | `string`  | 否   | 数据转换表达式（使用 value 变量表示原始值） |
@@ -221,7 +223,7 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 | `PLCCode`                           | **Tag**: `plc_code`     | PLC 设备编码标签               | `"M01C123"`                  |
 | `Channels[].ChannelCode`            | **Tag**: `channel_code` | 通道编码标签                   | `"M01C01"`                   |
 | `EventType`                         | **Tag**: `event_type`   | 事件类型标签（Start/End/Data） | `"Start"`, `"End"`, `"Data"` |
-| `Channels[].DataPoints[].FieldName` | **Field**               | 数据字段名称                   | `"up_temp"`, `"down_temp"`   |
+| `Channels[].Metrics[].FieldName`    | **Field**               | 数据字段名称                   | `"up_temp"`, `"down_temp"`   |
 | `CycleId`                           | **Field**: `cycle_id`   | 采集周期唯一标识符（GUID）     | `"guid-xxx"`                 |
 | 采集时间                            | **Timestamp**           | 数据点的时间戳（本地时间）     | `2025-01-15T10:30:00`       |
 
@@ -248,14 +250,16 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Conditional",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "up_temp",
           "FieldName": "up_temp",
           "Register": "D6002",
           "Index": 2,
           "DataType": "short"
         },
         {
+          "MetricName": "down_temp",
           "FieldName": "down_temp",
           "Register": "D6004",
           "Index": 4,
@@ -310,7 +314,7 @@ measurement,tag1=value1,tag2=value2 field1=value1,field2=value2 timestamp
   - `channel_code`: 通道编码
   - `event_type`: 事件类型（`Start`/`End`/`Data`）
 - **Fields**（实际数据值）:
-  - 来自 `DataPoints[].FieldName` 的所有字段（如 `up_temp`, `down_temp`）
+  - 来自 `Metrics[].FieldName` 的所有字段（如 `up_temp`, `down_temp`）
   - `cycle_id`: 条件采集的周期 ID（GUID，用于关联 Start/End 事件）
   - 数值类型：整数使用 `i` 后缀（如 `250i`），浮点数直接写（如 `0.18`）
 - **Timestamp**: 数据采集时间（本地时间，纳秒精度）

@@ -81,8 +81,9 @@ dotnet restore
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -90,6 +91,7 @@ dotnet restore
           "EvalExpression": "value / 100.0"
         },
         {
+          "MetricName": "pressure",
           "FieldName": "pressure",
           "Register": "D6001",
           "Index": 2,
@@ -285,4 +287,3 @@ dotnet run
 完成快速开始后，建议按以下顺序继续学习：
 
 1. 阅读 [配置说明](configuration.md) 了解详细的配置选项和使用场景
-

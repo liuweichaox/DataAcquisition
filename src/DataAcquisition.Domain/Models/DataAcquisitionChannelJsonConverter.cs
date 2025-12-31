@@ -62,8 +62,9 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                 case "AcquisitionInterval":
                     channel.AcquisitionInterval = reader.GetInt32();
                     break;
-                case "DataPoints":
-                    channel.DataPoints = JsonSerializer.Deserialize<List<DataPoint>>(ref reader, options);
+                case "Metrics":
+                case "DataPoints": // 兼容旧字段名
+                    channel.Metrics = JsonSerializer.Deserialize<List<Metric>>(ref reader, options);
                     break;
                 default:
                     reader.Skip();
@@ -98,10 +99,10 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
         writer.WriteNumber("BatchSize", value.BatchSize);
         writer.WriteNumber("AcquisitionInterval", value.AcquisitionInterval);
 
-        if (value.DataPoints != null)
+        if (value.Metrics != null)
         {
-            writer.WritePropertyName("DataPoints");
-            JsonSerializer.Serialize(writer, value.DataPoints, options);
+            writer.WritePropertyName("Metrics");
+            JsonSerializer.Serialize(writer, value.Metrics, options);
         }
 
         writer.WriteEndObject();

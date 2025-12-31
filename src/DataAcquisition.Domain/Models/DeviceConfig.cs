@@ -158,9 +158,9 @@ public class DataAcquisitionChannel
     public int AcquisitionInterval { get; set; } = 100;
 
     /// <summary>
-    ///     采集位置配置
+    ///     采集指标配置
     /// </summary>
-    public List<DataPoint>? DataPoints { get; set; }
+    public List<Metric>? Metrics { get; set; }
 
     /// <summary>
     ///     采集模式：Always=无条件采集；Conditional=按触发条件采集
@@ -193,10 +193,15 @@ public enum AcquisitionMode
 }
 
 /// <summary>
-///     采集位置配置
+///     采集指标配置
 /// </summary>
-public class DataPoint
+public class Metric
 {
+    /// <summary>
+    ///     指标名称（Metric Name），用于标识指标
+    /// </summary>
+    public string MetricName { get; set; } = string.Empty;
+
     /// <summary>
     ///     字段名称（Field Name），时序数据库中存储数值的字段名
     /// </summary>

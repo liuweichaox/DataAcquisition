@@ -273,27 +273,27 @@ public class ChannelCollector : IChannelCollector
     ///     - 表达式计算是同步操作，但通过异步方法调用，可以更好地利用线程池
     /// </summary>
     /// <param name="dataMessage">数据消息，包含要计算的数据值。计算结果会更新到此消息中。</param>
-    /// <param name="dataPoints">数据点配置列表，包含字段名和表达式配置。可以为 null，如果为 null 则不进行任何计算。</param>
+    /// <param name="metrics">指标配置列表，包含字段名和表达式配置。可以为 null，如果为 null 则不进行任何计算。</param>
     /// <remarks>
     ///     注意：此方法会修改 dataMessage 中的数据值。如果数据点配置了 EvalExpression，
     ///     计算结果会覆盖原始值。建议在调用此方法前保存原始数据（如果需要）。
     /// </remarks>
-    private async Task EvaluateAsync(DataMessage dataMessage, List<DataPoint>? dataPoints)
+    private async Task EvaluateAsync(DataMessage dataMessage, List<Metric>? metrics)
     {
         await Task.Yield();
         try
         {
-            if (dataPoints == null) return;
+            if (metrics == null) return;
 
             foreach (var kv in dataMessage.DataValues.ToList())
             {
                 var originalValue = kv.Value;
                 if (!IsNumberType(originalValue)) continue;
 
-                var register = dataPoints.SingleOrDefault(x => x.FieldName == kv.Key);
-                if (register == null || originalValue is null) continue;
+                var metric = metrics.SingleOrDefault(x => x.FieldName == kv.Key);
+                if (metric == null || originalValue is null) continue;
 
-                var evalExpression = register.EvalExpression;
+                var evalExpression = metric.EvalExpression;
                 if (string.IsNullOrWhiteSpace(evalExpression)) continue;
 
                 // originalValue 已经在上面的 null 检查中验证，使用 ! 断言非空
@@ -327,7 +327,7 @@ public class ChannelCollector : IChannelCollector
     ///     处理流程：
     ///     1. 生成新的 CycleId（每次都是新的，表示独立的数据点）
     ///     2. 创建 DataMessage，事件类型为 Data
-    ///     3. 从 PLC 读取所有数据点的值（ReadDataPointsAsync）
+    ///     3. 从 PLC 读取所有指标的值（ReadMetricsAsync）
     ///     4. 异步执行表达式计算和消息发布（不阻塞采集循环）
     ///     异步处理：
     ///     - 表达式计算和消息发布使用 Task.Run 在后台线程执行
@@ -353,8 +353,8 @@ public class ChannelCollector : IChannelCollector
             var dataMessage = DataMessage.Create(cycleId, channel.Measurement, config.PLCCode, channel.ChannelCode,
                 EventType.Data, timestamp);
 
-            // 读取数据点
-            await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
+            // 读取指标数据
+            await ReadMetricsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
             _ = ProcessAndPublishMessageAsync(config, channel, dataMessage);
@@ -376,7 +376,7 @@ public class ChannelCollector : IChannelCollector
     ///     处理流程：
     ///     1. 调用 StateManager.StartCycle 创建新的采集周期，生成唯一的 CycleId
     ///     2. 创建 DataMessage，事件类型为 Start，包含 CycleId
-    ///     3. 从 PLC 读取所有数据点的值（ReadDataPointsAsync）
+    ///     3. 从 PLC 读取所有指标的值（ReadMetricsAsync）
     ///     4. 异步执行表达式计算和消息发布（不阻塞采集循环）
     ///     采集周期管理：
     ///     - 使用复合键（plcCode:measurement）存储周期状态
@@ -408,8 +408,8 @@ public class ChannelCollector : IChannelCollector
             var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, config.PLCCode,
                 channel.ChannelCode, EventType.Start, timestamp);
 
-            // 读取数据点
-            await ReadDataPointsAsync(client, channel, dataMessage).ConfigureAwait(false);
+            // 读取指标数据
+            await ReadMetricsAsync(client, channel, dataMessage).ConfigureAwait(false);
 
             // 异步处理表达式计算并发布消息，不阻塞采集循环
             _ = ProcessAndPublishMessageAsync(config, channel, dataMessage);
@@ -524,36 +524,36 @@ public class ChannelCollector : IChannelCollector
     /// <param name="dataMessage">数据消息，读取的数据值会添加到 DataValues 字典中，使用 FieldName 作为 key</param>
     /// <exception cref="NotSupportedException">当数据类型不支持时抛出</exception>
     /// <exception cref="Exception">PLC 读取操作可能抛出各种异常（网络异常、地址错误等），由调用方处理</exception>
-    private async Task ReadDataPointsAsync(
+    private async Task ReadMetricsAsync(
         IPLCClientService client,
         DataAcquisitionChannel channel,
         DataMessage dataMessage)
     {
-        if (channel.DataPoints == null) return;
+        if (channel.Metrics == null) return;
 
         if (channel.EnableBatchRead)
         {
             var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength)
                 .ConfigureAwait(false);
             var buffer = batchData.Content;
-            foreach (var dataPoint in channel.DataPoints)
+            foreach (var metric in channel.Metrics)
             {
-                var value = TransValue(client, buffer, dataPoint.Index, dataPoint.StringByteLength, dataPoint.DataType,
-                    dataPoint.Encoding);
-                dataMessage.AddDataValue(dataPoint.FieldName, value);
+                var value = TransValue(client, buffer, metric.Index, metric.StringByteLength, metric.DataType,
+                    metric.Encoding);
+                dataMessage.AddDataValue(metric.FieldName, value);
             }
         }
         else
         {
-            foreach (var dataPoint in channel.DataPoints)
+            foreach (var metric in channel.Metrics)
             {
                 var value = await ReadPlcValueAsync(
                     client,
-                    dataPoint.Register,
-                    dataPoint.DataType,
-                    dataPoint.StringByteLength,
-                    dataPoint.Encoding).ConfigureAwait(false);
-                dataMessage.AddDataValue(dataPoint.FieldName, value);
+                    metric.Register,
+                    metric.DataType,
+                    metric.StringByteLength,
+                    metric.Encoding).ConfigureAwait(false);
+                dataMessage.AddDataValue(metric.FieldName, value);
             }
         }
     }
@@ -566,7 +566,7 @@ public class ChannelCollector : IChannelCollector
     {
         try
         {
-            await EvaluateAsync(dataMessage, channel.DataPoints).ConfigureAwait(false);
+            await EvaluateAsync(dataMessage, channel.Metrics).ConfigureAwait(false);
             await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -681,7 +681,7 @@ public class ChannelCollector : IChannelCollector
     /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 0, 5)  // 返回 true
     /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 2, 3)  // 返回 true
     /// ShouldTrigger(AcquisitionTrigger.RisingEdge, 5, 1)  // 返回 false
-    /// 
+    ///
     /// // 生产序号从非 0 变为 0 时触发结束事件
     /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 1, 0)  // 返回 true
     /// ShouldTrigger(AcquisitionTrigger.FallingEdge, 5, 0)  // 返回 true

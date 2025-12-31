@@ -91,8 +91,9 @@ curl http://localhost:8000/api/metrics-data
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
       "BatchSize": 10,
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -120,7 +121,7 @@ curl http://localhost:8000/api/metrics-data
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "DataPoints": null,
+      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",
@@ -136,25 +137,25 @@ curl http://localhost:8000/api/metrics-data
 
 **A**: 按以下步骤排查：
 
-1. **检查 PLC 连接状态**: 
+1. **检查 PLC 连接状态**:
    ```bash
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    查看返回的连接状态信息
 
-2. **检查网络连通性**: 
+2. **检查网络连通性**:
    ```bash
    ping <PLC_IP地址>
    telnet <PLC_IP地址> <端口>
    ```
    确认 Edge Agent 能够访问 PLC 的 IP 和端口
 
-3. **检查配置正确性**: 
+3. **检查配置正确性**:
    - 确认设备配置文件中的 `Host`、`Port` 参数正确
    - 确认 `Type` 参数与实际的 PLC 类型匹配（Mitsubishi、Inovance、BeckhoffAds）
    - 确认 `PLCCode` 不为空且唯一
 
-4. **查看日志信息**: 
+4. **查看日志信息**:
    ```bash
    curl "http://localhost:8001/api/logs?level=Error&page=1&pageSize=10"
    ```
@@ -220,13 +221,13 @@ curl http://localhost:8000/api/metrics-data
 **A**: 可以通过以下方式验证：
 
 1. **查看系统日志**: 启动 Edge Agent 后，查看日志中是否有配置加载错误
-2. **检查连接状态**: 
+2. **检查连接状态**:
    ```bash
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```
    如果配置正确，应该能看到设备连接状态
 
-3. **检查指标数据**: 
+3. **检查指标数据**:
    ```bash
    curl http://localhost:8000/api/metrics-data
    ```
@@ -239,7 +240,7 @@ curl http://localhost:8000/api/metrics-data
 **A**: 批量读取配置错误可能导致：
 
 1. **数据读取错误**: 如果 `BatchReadLength` 设置过小，可能无法读取所有数据点
-2. **索引错误**: 如果 `DataPoints` 中的 `Index` 配置不正确，可能导致读取到错误的数据
+2. **索引错误**: 如果 `Metrics` 中的 `Index` 配置不正确，可能导致读取到错误的数据
 3. **性能下降**: 如果应该使用批量读取但没有启用，会导致多次网络请求，性能下降
 
 **配置建议**：
@@ -255,7 +256,7 @@ curl http://localhost:8000/api/metrics-data
    ```bash
    # Central API
    curl http://localhost:8000/health
-   
+
    # Edge Agent
    curl http://localhost:8001/api/DataAcquisition/plc-connections
    ```

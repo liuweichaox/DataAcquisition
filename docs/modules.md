@@ -45,8 +45,9 @@
 {
   "AcquisitionMode": "Always",
   "AcquisitionInterval": 100,
-  "DataPoints": [
+  "Metrics": [
     {
+      "MetricName": "temperature",
       "FieldName": "temperature",
       "Register": "D6000",
       "Index": 0,
@@ -70,7 +71,7 @@
 ```json
 {
   "AcquisitionMode": "Conditional",
-  "DataPoints": null,
+  "Metrics": null,
   "ConditionalAcquisition": {
     "Register": "D6006",
     "DataType": "short",
