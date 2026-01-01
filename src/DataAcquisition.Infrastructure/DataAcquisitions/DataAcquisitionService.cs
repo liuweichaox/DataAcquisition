@@ -155,23 +155,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    ///     获取当前所有 PLC 连接状态（简单格式，向后兼容）
+    ///     获取当前所有 PLC 连接信息
     /// </summary>
-    public SortedDictionary<string, bool> GetPlcConnectionStatus()
-    {
-        // 从 HeartbeatMonitor 获取连接状态
-        var connectionHealth = new SortedDictionary<string, bool>();
-        foreach (var runtime in _runtimes)
-            if (_heartbeatMonitor.TryGetConnectionHealth(runtime.Key, out var isConnected))
-                connectionHealth[runtime.Key] = isConnected;
-
-        return connectionHealth;
-    }
-
-    /// <summary>
-    ///     获取当前所有 PLC 连接详细信息
-    /// </summary>
-    public IReadOnlyCollection<PlcConnectionStatus> GetPlcConnectionStatusDetailed()
+    public IReadOnlyCollection<PlcConnectionStatus> GetPlcConnections()
     {
         var connectionStatuses = new List<PlcConnectionStatus>();
         foreach (var runtime in _runtimes)
