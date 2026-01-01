@@ -3,23 +3,23 @@ namespace DataAcquisition.Contracts;
 /// <summary>
 ///     PLC 批量写入请求
 /// </summary>
-public class PLCWriteRequest
+public class PlcWriteRequest
 {
     /// <summary>
     ///     PLC 编号
     /// </summary>
-    public string PLCCode { get; set; } = string.Empty;
+    public string PlcCode { get; set; } = string.Empty;
 
     /// <summary>
     ///     写入项集合
     /// </summary>
-    public List<PLCWriteItem> Items { get; set; } = new();
+    public List<PlcWriteItem> Items { get; set; } = new();
 }
 
 /// <summary>
 ///     PLC 写入项
 /// </summary>
-public class PLCWriteItem
+public class PlcWriteItem
 {
     /// <summary>
     ///     寄存器地址

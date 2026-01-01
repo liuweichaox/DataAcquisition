@@ -16,7 +16,7 @@ public class DeviceConfig
     /// <summary>
     ///     PLC 编码
     /// </summary>
-    public string PLCCode { get; set; } = string.Empty;
+    public string PlcCode { get; set; } = string.Empty;
 
     /// <summary>
     ///     IP 地址
@@ -32,7 +32,7 @@ public class DeviceConfig
     ///     PLC 类型
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
-    public PLCType Type { get; set; }
+    public PlcType Type { get; set; }
 
     /// <summary>
     ///     心跳检测地址

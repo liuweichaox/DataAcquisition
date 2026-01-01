@@ -21,7 +21,7 @@ public class DataMessage
     /// <summary>
     ///     PLC编码[Tag]
     /// </summary>
-    public required string PLCCode { get; init; }
+    public required string PlcCode { get; init; }
 
     /// <summary>
     ///     通道编码[Tag]
@@ -50,7 +50,7 @@ public class DataMessage
         {
             CycleId = cycleId,
             Measurement = measurement,
-            PLCCode = plcCode,
+            PlcCode = plcCode,
             ChannelCode = channelCode,
             EventType = eventType,
             Timestamp = timestamp

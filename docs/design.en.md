@@ -47,7 +47,7 @@ The system adopts a clear layered architecture with interface abstractions, supp
 
 ### Interface Abstractions
 
-- **IPLCClientService**: PLC client service interface
+- **IPlcClientService**: PLC client service interface
 - **IDataStorageService**: Data storage service interface
 - **IChannelCollector**: Channel collector interface
 - **IQueueService**: Queue service interface

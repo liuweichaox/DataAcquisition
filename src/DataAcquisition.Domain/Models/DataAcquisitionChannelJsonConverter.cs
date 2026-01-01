@@ -7,7 +7,6 @@ namespace DataAcquisition.Domain.Models;
 
 /// <summary>
 ///     数据采集通道 JSON 转换器
-///     仅支持 ConditionalAcquisition 命名，统一命名风格
 /// </summary>
 public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisitionChannel>
 {
@@ -52,7 +51,6 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                 case "BatchReadLength":
                     channel.BatchReadLength = reader.GetUInt16();
                     break;
-                case "TableName":
                 case "Measurement":
                     channel.Measurement = reader.GetString() ?? string.Empty;
                     break;
@@ -63,7 +61,6 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
                     channel.AcquisitionInterval = reader.GetInt32();
                     break;
                 case "Metrics":
-                case "DataPoints": // 兼容旧字段名
                     channel.Metrics = JsonSerializer.Deserialize<List<Metric>>(ref reader, options);
                     break;
                 default:

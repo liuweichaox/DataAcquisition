@@ -18,7 +18,7 @@ public interface IAcquisitionStateManager
     /// <summary>
     ///     开始一个新的采集周期
     /// </summary>
-    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码</param>
     /// <param name="measurement">测量值名称（Measurement）</param>
     /// <param name="channelCode">通道编码（ChannelCode）</param>
     /// <returns>采集周期对象，包含生成的CycleId</returns>
@@ -27,7 +27,7 @@ public interface IAcquisitionStateManager
     /// <summary>
     ///     结束一个采集周期
     /// </summary>
-    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码</param>
     /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，如果不存在则返回null</returns>
     AcquisitionCycle? EndCycle(string plcCode, string measurement);
@@ -35,7 +35,7 @@ public interface IAcquisitionStateManager
     /// <summary>
     ///     获取当前活跃的采集周期
     /// </summary>
-    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码</param>
     /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，如果不存在则返回null</returns>
     AcquisitionCycle? GetActiveCycle(string plcCode, string measurement);
@@ -43,7 +43,7 @@ public interface IAcquisitionStateManager
     /// <summary>
     ///     清理指定设备的所有采集周期状态
     /// </summary>
-    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码</param>
     void ClearCycles(string plcCode);
 
     /// <summary>

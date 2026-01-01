@@ -3,12 +3,12 @@ namespace DataAcquisition.Application.Abstractions;
 /// <summary>
 ///     通讯客户端工厂。
 /// </summary>
-public interface IPLCClientFactory
+public interface IPlcClientFactory
 {
     /// <summary>
     ///     创建对应协议的通讯客户端。
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <returns>通讯客户端</returns>
-    IPLCClientService Create(DeviceConfig config);
+    IPlcClientService Create(DeviceConfig config);
 }

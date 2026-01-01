@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -39,9 +39,9 @@ public class ConfigChangedEventArgs : EventArgs
     public ConfigChangeType ChangeType { get; set; }
 
     /// <summary>
-    ///     PLC编码（PLCCode），用于标识设备
+    ///     PLC编码（PlcCode），用于标识设备
     /// </summary>
-    public string PLCCode { get; set; } = string.Empty;
+    public string PlcCode { get; set; } = string.Empty;
 
     /// <summary>
     ///     新的配置（如果是删除则为null）

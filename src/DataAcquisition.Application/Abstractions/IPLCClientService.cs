@@ -1,14 +1,14 @@
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading.Tasks;
-using DataAcquisition.Domain.Clients;
+using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
 
 /// <summary>
 ///     通讯客户端通用接口，封装具体协议实现。
 /// </summary>
-public interface IPLCClientService
+public interface IPlcClientService
 {
     /// <summary>
     ///     关闭连接。
@@ -28,7 +28,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteUShortAsync(string address, ushort value);
+    Task<PlcWriteResult> WriteUShortAsync(string address, ushort value);
 
     /// <summary>
     ///     写入无符号整型值。
@@ -36,7 +36,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteUIntAsync(string address, uint value);
+    Task<PlcWriteResult> WriteUIntAsync(string address, uint value);
 
     /// <summary>
     ///     写入无符号长整型值。
@@ -44,7 +44,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteULongAsync(string address, ulong value);
+    Task<PlcWriteResult> WriteULongAsync(string address, ulong value);
 
     /// <summary>
     ///     写入短整型值。
@@ -52,7 +52,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteShortAsync(string address, short value);
+    Task<PlcWriteResult> WriteShortAsync(string address, short value);
 
     /// <summary>
     ///     写入整型值。
@@ -60,7 +60,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteIntAsync(string address, int value);
+    Task<PlcWriteResult> WriteIntAsync(string address, int value);
 
     /// <summary>
     ///     写入长整型值。
@@ -68,7 +68,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteLongAsync(string address, long value);
+    Task<PlcWriteResult> WriteLongAsync(string address, long value);
 
     /// <summary>
     ///     写入单精度浮点值。
@@ -76,7 +76,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteFloatAsync(string address, float value);
+    Task<PlcWriteResult> WriteFloatAsync(string address, float value);
 
     /// <summary>
     ///     写入双精度浮点值。
@@ -84,7 +84,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteDoubleAsync(string address, double value);
+    Task<PlcWriteResult> WriteDoubleAsync(string address, double value);
 
     /// <summary>
     ///     写入字符串。
@@ -92,7 +92,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteStringAsync(string address, string value);
+    Task<PlcWriteResult> WriteStringAsync(string address, string value);
 
     /// <summary>
     ///     写入布尔值。
@@ -100,7 +100,7 @@ public interface IPLCClientService
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WriteBoolAsync(string address, bool value);
+    Task<PlcWriteResult> WriteBoolAsync(string address, bool value);
 
     /// <summary>
     ///     批量读取原始数据。
@@ -108,7 +108,7 @@ public interface IPLCClientService
     /// <param name="address">起始地址</param>
     /// <param name="length">长度</param>
     /// <returns>表示读取结果的任务。</returns>
-    Task<PLCReadResult> ReadAsync(string address, ushort length);
+    Task<PlcReadResult> ReadAsync(string address, ushort length);
 
     /// <summary>
     ///     读取无符号短整型值。

@@ -15,9 +15,9 @@
 
 | 协议         | 实现类                        | 描述                  |
 | ------------ | ----------------------------- | --------------------- |
-| Mitsubishi   | `MitsubishiPLCClientService`  | 三菱 PLC 通信客户端   |
-| Inovance     | `InovancePLCClientService`    | 汇川 PLC 通信客户端   |
-| BeckhoffAds  | `BeckhoffAdsPLCClientService` | 倍福 ADS 协议客户端   |
+| Mitsubishi   | `MitsubishiPlcClientService`  | 三菱 PLC 通信客户端   |
+| Inovance     | `InovancePlcClientService`    | 汇川 PLC 通信客户端   |
+| BeckhoffAds  | `BeckhoffAdsPlcClientService` | 倍福 ADS 协议客户端   |
 
 ## ChannelCollector - 通道采集器
 
@@ -144,8 +144,8 @@
 
 ### 添加新的 PLC 协议
 
-1. 实现 `IPLCClientService` 接口
-2. 在 `PLCClientFactory` 中注册新的协议类型
+1. 实现 `IPlcClientService` 接口
+2. 在 `PlcClientFactory` 中注册新的协议类型
 3. 在设备配置中使用新的协议类型
 
 ### 添加新的存储后端

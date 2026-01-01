@@ -61,12 +61,12 @@ curl http://localhost:8001/api/DataAcquisition/plc-connections
 ### C# Client Example
 
 ```csharp
-var request = new PLCWriteRequest
+var request = new PlcWriteRequest
 {
-    PLCCode = "M01C123",
-    Items = new List<PLCWriteItem>
+    PlcCode = "M01C123",
+    Items = new List<PlcWriteItem>
     {
-        new PLCWriteItem
+        new PlcWriteItem
         {
             Address = "D300",
             DataType = "short",

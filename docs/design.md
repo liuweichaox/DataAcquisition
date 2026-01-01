@@ -47,7 +47,7 @@
 
 ### 接口抽象
 
-- **IPLCClientService**: PLC 客户端服务接口
+- **IPlcClientService**: PLC 客户端服务接口
 - **IDataStorageService**: 数据存储服务接口
 - **IChannelCollector**: 通道采集器接口
 - **IQueueService**: 队列服务接口

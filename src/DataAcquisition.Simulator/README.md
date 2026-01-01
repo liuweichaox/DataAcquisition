@@ -102,7 +102,7 @@ netstat -ano | findstr :502
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "TEST_PLC",
+  "PlcCode": "TEST_PLC",
   "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",

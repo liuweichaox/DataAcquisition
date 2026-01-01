@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -30,7 +30,6 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         _configDirectory = Path.Combine(AppContext.BaseDirectory, "Configs");
         _jsonOptions = new JsonSerializerOptions
         {
-            PropertyNameCaseInsensitive = true,
             ReadCommentHandling = JsonCommentHandling.Skip
         };
         InitializeFileWatcher();
@@ -55,7 +54,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         var result = new ConfigValidationResult { IsValid = true };
 
         // 验证设备编码
-        if (string.IsNullOrWhiteSpace(config.PLCCode))
+        if (string.IsNullOrWhiteSpace(config.PlcCode))
         {
             result.IsValid = false;
             result.Errors.Add("设备编码不能为空");
@@ -157,7 +156,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                PLCCode = oldConfig.PLCCode,
+                PlcCode = oldConfig.PlcCode,
                 OldConfig = oldConfig
             });
     }
@@ -173,7 +172,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
-                PLCCode = oldConfig.PLCCode,
+                PlcCode = oldConfig.PlcCode,
                 OldConfig = oldConfig
             });
 
@@ -211,7 +210,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = changeType,
-                PLCCode = newConfig.PLCCode,
+                PlcCode = newConfig.PlcCode,
                 NewConfig = newConfig,
                 OldConfig = oldConfig
             });

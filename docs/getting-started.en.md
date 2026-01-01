@@ -65,7 +65,7 @@ Create a PLC device configuration file in the `src/DataAcquisition.Edge.Agent/Co
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "MY_PLC",
+  "PlcCode": "MY_PLC",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
@@ -105,7 +105,7 @@ Create a PLC device configuration file in the `src/DataAcquisition.Edge.Agent/Co
 ```
 
 **Configuration Notes**:
-- `PLCCode`: Give your PLC device a unique name
+- `PlcCode`: Give your PLC device a unique name
 - `Host`: IP address of the PLC device
 - `Port`: Communication port of the PLC device (usually 502)
 - `Type`: PLC type, must be one of `Mitsubishi`, `Inovance`, or `BeckhoffAds`
@@ -211,7 +211,7 @@ Use the `TEST_PLC.json` configuration file provided in the project (already exis
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "TEST_PLC",
+  "PlcCode": "TEST_PLC",
   "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",

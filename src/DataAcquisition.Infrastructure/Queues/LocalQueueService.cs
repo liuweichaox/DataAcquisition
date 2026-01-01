@@ -91,7 +91,7 @@ public class LocalQueueService : IQueueService
             }
             catch (Exception ex)
             {
-                _metricsCollector?.RecordError(dataMessage.PLCCode ?? "unknown", dataMessage.Measurement,
+                _metricsCollector?.RecordError(dataMessage.PlcCode ?? "unknown", dataMessage.Measurement,
                     dataMessage.ChannelCode);
                 _logger.LogError(ex, "Error processing message: {Message}", ex.Message);
             }
@@ -262,7 +262,7 @@ public class LocalQueueService : IQueueService
             {
                 // InfluxDB 写入失败，保留 WAL 文件，记录日志
                 var firstMessage = messages.FirstOrDefault();
-                _metricsCollector?.RecordError(firstMessage?.PLCCode ?? "unknown", measurement,
+                _metricsCollector?.RecordError(firstMessage?.PlcCode ?? "unknown", measurement,
                     firstMessage?.ChannelCode);
                 _logger.LogWarning("写入 Influx 失败，保留 WAL 文件: {WalPath}", walPath);
             }
@@ -307,7 +307,7 @@ public class LocalQueueService : IQueueService
         try
         {
             var configs = _deviceConfigService.GetConfigs().GetAwaiter().GetResult();
-            var config = configs.FirstOrDefault(c => c.PLCCode == plcCode);
+            var config = configs.FirstOrDefault(c => c.PlcCode == plcCode);
             if (config != null)
             {
                 var channel = config.Channels?.FirstOrDefault(ch =>
@@ -322,7 +322,7 @@ public class LocalQueueService : IQueueService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "获取 BatchSize 配置失败，使用默认值 1: {PLCCode}:{ChannelCode}:{Measurement}",
+            _logger.LogWarning(ex, "获取 BatchSize 配置失败，使用默认值 1: {PlcCode}:{ChannelCode}:{Measurement}",
                 plcCode, channelCode, measurement);
         }
 
@@ -365,10 +365,10 @@ public class LocalQueueService : IQueueService
         // 使用锁保护批量操作，确保线程安全
         // 使用 plccode + channelcode + measurement 作为 key，确保不同 PLC/Channel 的数据独立批量处理
         var batchKey =
-            $"{dataMessage.PLCCode ?? "unknown"}:{dataMessage.ChannelCode ?? "unknown"}:{dataMessage.Measurement}";
+            $"{dataMessage.PlcCode ?? "unknown"}:{dataMessage.ChannelCode ?? "unknown"}:{dataMessage.Measurement}";
 
         // 从配置中获取 BatchSize
-        var batchSize = GetBatchSize(dataMessage.PLCCode, dataMessage.ChannelCode, dataMessage.Measurement);
+        var batchSize = GetBatchSize(dataMessage.PlcCode, dataMessage.ChannelCode, dataMessage.Measurement);
 
         List<DataMessage>? batchToSave = null;
         lock (_batchLock)

@@ -1,9 +1,9 @@
-namespace DataAcquisition.Domain.Clients;
+namespace DataAcquisition.Domain.Models;
 
 /// <summary>
 ///     PLC 写入结果。
 /// </summary>
-public class PLCWriteResult
+public class PlcWriteResult
 {
     /// <summary>
     ///     写入是否成功。

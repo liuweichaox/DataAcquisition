@@ -1,7 +1,7 @@
 using DataAcquisition.Application.Commands;
 using DataAcquisition.Application.Queries;
 using DataAcquisition.Contracts;
-using DataAcquisition.Domain.Clients;
+using DataAcquisition.Domain.Models;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
@@ -29,12 +29,12 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
     /// </summary>
     /// <param name="request">写入请求</param>
     [HttpPost]
-    public async Task<IActionResult> WriteRegister([FromBody] PLCWriteRequest? request)
+    public async Task<IActionResult> WriteRegister([FromBody] PlcWriteRequest? request)
     {
         // 输入验证
         if (request == null) return BadRequest(new { error = "请求体不能为空" });
 
-        if (string.IsNullOrWhiteSpace(request.PLCCode)) return BadRequest(new { error = "PLC编码不能为空" });
+        if (string.IsNullOrWhiteSpace(request.PlcCode)) return BadRequest(new { error = "PLC编码不能为空" });
 
         if (request.Items.Count == 0) return BadRequest(new { error = "写入项列表不能为空" });
 
@@ -46,10 +46,10 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
             if (item.Value == null) return BadRequest(new { error = "写入值不能为空" });
         }
 
-        var command = new WritePLCRegisterCommand(
-            request.PLCCode,
+        var command = new WritePlcRegisterCommand(
+            request.PlcCode,
             request.Items
-                .Select(i => new WritePLCRegisterItem(i.Address, i.DataType, i.Value!))
+                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, i.Value!))
                 .ToList());
 
         var results = await mediator.Send(command);

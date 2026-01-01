@@ -6,14 +6,14 @@ namespace DataAcquisition.Application.Abstractions;
 /// <summary>
 ///     PLC 客户端生命周期管理：创建、获取、关闭、清理。
 /// </summary>
-public interface IPLCClientLifecycleService
+public interface IPlcClientLifecycleService
 {
     /// <summary>
     ///     获取或创建 PLC 客户端。
     /// </summary>
     /// <param name="config">设备配置</param>
     /// <returns>PLC 客户端实例</returns>
-    IPLCClientService GetOrCreateClient(DeviceConfig config);
+    IPlcClientService GetOrCreateClient(DeviceConfig config);
 
     /// <summary>
     ///     尝试获取 PLC 客户端。
@@ -21,7 +21,7 @@ public interface IPLCClientLifecycleService
     /// <param name="plcCode">PLC 编码</param>
     /// <param name="client">PLC 客户端实例（如果存在）</param>
     /// <returns>是否成功获取</returns>
-    bool TryGetClient(string plcCode, out IPLCClientService client);
+    bool TryGetClient(string plcCode, out IPlcClientService client);
 
     /// <summary>
     ///     尝试获取 PLC 锁对象。

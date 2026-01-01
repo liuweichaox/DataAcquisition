@@ -1,11 +1,11 @@
 using System;
 
-namespace DataAcquisition.Domain.Clients;
+namespace DataAcquisition.Domain.Models;
 
 /// <summary>
 ///     PLC 读取结果。
 /// </summary>
-public class PLCReadResult
+public class PlcReadResult
 {
     /// <summary>
     ///     读取是否成功。

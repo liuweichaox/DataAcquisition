@@ -24,12 +24,12 @@
 
 ## Q: 如何添加新的 PLC 协议？
 
-**A**: 需要修改源代码，实现 `IPLCClientService` 接口并在 `PLCClientFactory` 中注册。
+**A**: 需要修改源代码，实现 `IPlcClientService` 接口并在 `PlcClientFactory` 中注册。
 
 **步骤**：
 
-1. 创建新的 PLC 客户端类，实现 `IPLCClientService` 接口
-2. 在 `PLCClientFactory` 中添加协议类型映射
+1. 创建新的 PLC 客户端类，实现 `IPlcClientService` 接口
+2. 在 `PlcClientFactory` 中添加协议类型映射
 3. 在 `PlcType` 枚举中添加新的协议类型
 4. 在设备配置中使用新的协议类型
 
@@ -153,7 +153,7 @@ curl http://localhost:8000/api/metrics-data
 3. **检查配置正确性**:
    - 确认设备配置文件中的 `Host`、`Port` 参数正确
    - 确认 `Type` 参数与实际的 PLC 类型匹配（Mitsubishi、Inovance、BeckhoffAds）
-   - 确认 `PLCCode` 不为空且唯一
+   - 确认 `PlcCode` 不为空且唯一
 
 4. **查看日志信息**:
    ```bash
@@ -188,14 +188,14 @@ curl http://localhost:8000/api/metrics-data
 - Inovance（汇川）
 - BeckhoffAds（倍福）
 
-其他协议可以通过实现 `IPLCClientService` 接口并在 `PLCClientFactory` 中注册来扩展支持。
+其他协议可以通过实现 `IPlcClientService` 接口并在 `PlcClientFactory` 中注册来扩展支持。
 
 ## Q: 配置文件格式错误怎么办？
 
 **A**: 配置文件必须是有效的 JSON 格式。常见错误：
 
 1. **JSON 格式错误**: 检查是否有缺少逗号、引号未闭合等问题
-2. **必填字段缺失**: 确保 `PLCCode`、`Host`、`Port`、`Type`、`Channels` 等必填字段存在
+2. **必填字段缺失**: 确保 `PlcCode`、`Host`、`Port`、`Type`、`Channels` 等必填字段存在
 3. **字段类型错误**: 确保 `Port` 是数字，`IsEnabled` 是布尔值等
 
 **验证方法**：
@@ -213,7 +213,7 @@ curl http://localhost:8000/api/metrics-data
 4. **检查配置路径**: 确认配置文件在 `Configs/` 目录下，且文件名以 `.json` 结尾
 
 **常见错误**：
-- "设备编码为空"：检查 `PLCCode` 是否配置
+- "设备编码为空"：检查 `PlcCode` 是否配置
 - "没有配置采集通道"：检查 `Channels` 数组是否为空
 
 ## Q: 如何验证配置是否正确？

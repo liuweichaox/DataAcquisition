@@ -17,7 +17,7 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "TEST_PLC",
+  "PlcCode": "TEST_PLC",
   "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",
@@ -86,7 +86,7 @@ The following is an actual configuration example (based on `TEST_PLC.json` in th
 | Property Name                  | Type      | Required | Description                                      |
 | ------------------------------ | --------- | -------- | ------------------------------------------------ |
 | `IsEnabled`                    | `boolean` | Yes      | Whether the device is enabled                    |
-| `PLCCode`                      | `string`  | Yes      | Unique identifier for the PLC device             |
+| `PlcCode`                      | `string`  | Yes      | Unique identifier for the PLC device             |
 | `Host`                         | `string`  | Yes      | IP address of the PLC device                     |
 | `Port`                         | `integer` | Yes      | Communication port of the PLC device             |
 | `Type`                         | `string`  | Yes      | PLC device type (Mitsubishi, Inovance, BeckhoffAds)|
@@ -221,7 +221,7 @@ The system maps configuration files to InfluxDB time-series database. The follow
 | Configuration File Field                     | InfluxDB Structure      | Description                                    | Example Value                    |
 | -------------------------------------------- | ----------------------- | ---------------------------------------------- | -------------------------------- |
 | `Channels[].Measurement`                     | **Measurement**         | Measurement name in time-series database (table name) | `"sensor"`                       |
-| `PLCCode`                                    | **Tag**: `plc_code`     | PLC device code tag                            | `"M01C123"`                      |
+| `PlcCode`                                    | **Tag**: `plc_code`     | PLC device code tag                            | `"M01C123"`                      |
 | `Channels[].ChannelCode`                     | **Tag**: `channel_code` | Channel code tag                               | `"M01C01"`                       |
 | `EventType`                                  | **Tag**: `event_type`   | Event type tag (Start/End/Data)                | `"Start"`, `"End"`, `"Data"`     |
 | `Channels[].Metrics[].FieldName`            | **Field**               | Data field name                                | `"up_temp"`, `"down_temp"`       |
@@ -235,7 +235,7 @@ The system maps configuration files to InfluxDB time-series database. The follow
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "M01C123",
+  "PlcCode": "M01C123",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",

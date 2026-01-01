@@ -3,7 +3,7 @@ namespace DataAcquisition.Domain.Models;
 /// <summary>
 ///     PLC 类型
 /// </summary>
-public enum PLCType
+public enum PlcType
 {
     /// <summary>
     ///     三菱

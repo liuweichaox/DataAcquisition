@@ -1,15 +1,15 @@
 using System.Collections.Generic;
-using DataAcquisition.Domain.Clients;
+using DataAcquisition.Domain.Models;
 using MediatR;
 
 namespace DataAcquisition.Application.Commands;
 
-public sealed record WritePLCRegisterCommand(
-    string PLCCode,
-    IReadOnlyList<WritePLCRegisterItem> Items
-) : IRequest<IReadOnlyList<PLCWriteResult>>;
+public sealed record WritePlcRegisterCommand(
+    string PlcCode,
+    IReadOnlyList<WritePlcRegisterItem> Items
+) : IRequest<IReadOnlyList<PlcWriteResult>>;
 
-public sealed record WritePLCRegisterItem(
+public sealed record WritePlcRegisterItem(
     string Address,
     string DataType,
     object Value

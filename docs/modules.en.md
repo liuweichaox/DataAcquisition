@@ -15,9 +15,9 @@ The system supports multiple PLC protocols, each with corresponding client imple
 
 | Protocol     | Implementation Class          | Description                         |
 | ------------ | ----------------------------- | ----------------------------------- |
-| Mitsubishi   | `MitsubishiPLCClientService`  | Mitsubishi PLC communication client |
-| Inovance     | `InovancePLCClientService`    | Inovance PLC communication client   |
-| BeckhoffAds  | `BeckhoffAdsPLCClientService` | Beckhoff ADS protocol client        |
+| Mitsubishi   | `MitsubishiPlcClientService`  | Mitsubishi PLC communication client |
+| Inovance     | `InovancePlcClientService`    | Inovance PLC communication client   |
+| BeckhoffAds  | `BeckhoffAdsPlcClientService` | Beckhoff ADS protocol client        |
 
 ## ChannelCollector - Channel Collector
 
@@ -144,8 +144,8 @@ The system adopts interface abstraction design, supporting flexible extension:
 
 ### Adding New PLC Protocols
 
-1. Implement the `IPLCClientService` interface
-2. Register the new protocol type in `PLCClientFactory`
+1. Implement the `IPlcClientService` interface
+2. Register the new protocol type in `PlcClientFactory`
 3. Use the new protocol type in device configuration
 
 ### Adding New Storage Backends

@@ -150,7 +150,7 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
         // 准备列数据
         var timestamps = dataMessages.Select(x => x.Timestamp).ToArray();
         var measurements = dataMessages.Select(x => x.Measurement).ToArray();
-        var plcCodes = dataMessages.Select(x => x.PLCCode).ToArray();
+        var plcCodes = dataMessages.Select(x => x.PlcCode).ToArray();
         var channelCodes = dataMessages.Select(x => x.ChannelCode).ToArray();
         var cycleIds = dataMessages.Select(x => x.CycleId).ToArray();
         var eventTypes = dataMessages.Select(x => x.EventType.ToString()).ToArray();

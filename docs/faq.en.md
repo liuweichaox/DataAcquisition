@@ -24,12 +24,12 @@ If data loss is detected, you can:
 
 ## Q: How to add a new PLC protocol?
 
-**A**: Requires modifying source code, implementing the `IPLCClientService` interface and registering in `PLCClientFactory`.
+**A**: Requires modifying source code, implementing the `IPlcClientService` interface and registering in `PlcClientFactory`.
 
 **Steps**:
 
-1. Create a new PLC client class implementing the `IPLCClientService` interface
-2. Add protocol type mapping in `PLCClientFactory`
+1. Create a new PLC client class implementing the `IPlcClientService` interface
+2. Add protocol type mapping in `PlcClientFactory`
 3. Add new protocol type to `PlcType` enum
 4. Use the new protocol type in device configuration
 
@@ -153,7 +153,7 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 3. **Check Configuration Correctness**:
    - Confirm `Host` and `Port` parameters in device configuration file are correct
    - Confirm `Type` parameter matches the actual PLC type (Mitsubishi, Inovance, BeckhoffAds)
-   - Confirm `PLCCode` is not empty and unique
+   - Confirm `PlcCode` is not empty and unique
 
 4. **View Log Information**:
    ```bash
@@ -188,14 +188,14 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 - Inovance
 - BeckhoffAds
 
-Other protocols can be extended by implementing the `IPLCClientService` interface and registering in `PLCClientFactory`.
+Other protocols can be extended by implementing the `IPlcClientService` interface and registering in `PlcClientFactory`.
 
 ## Q: What to do if configuration file format is incorrect?
 
 **A**: Configuration files must be valid JSON format. Common errors:
 
 1. **JSON Format Error**: Check for missing commas, unclosed quotes, etc.
-2. **Missing Required Fields**: Ensure required fields like `PLCCode`, `Host`, `Port`, `Type`, `Channels` exist
+2. **Missing Required Fields**: Ensure required fields like `PlcCode`, `Host`, `Port`, `Type`, `Channels` exist
 3. **Field Type Error**: Ensure `Port` is a number, `IsEnabled` is a boolean, etc.
 
 **Verification Methods**:
@@ -213,7 +213,7 @@ Other protocols can be extended by implementing the `IPLCClientService` interfac
 4. **Check Configuration Path**: Confirm configuration file is in `Configs/` directory and filename ends with `.json`
 
 **Common Errors**:
-- "设备编码为空" (Device code is empty): Check if `PLCCode` is configured
+- "设备编码为空" (Device code is empty): Check if `PlcCode` is configured
 - "没有配置采集通道" (No acquisition channels configured): Check if `Channels` array is empty
 
 ## Q: How to verify configuration is correct?

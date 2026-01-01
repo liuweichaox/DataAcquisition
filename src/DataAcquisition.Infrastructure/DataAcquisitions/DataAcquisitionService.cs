@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,7 +6,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application;
 using DataAcquisition.Application.Abstractions;
-using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
 using Microsoft.Extensions.Logging;
 
@@ -21,15 +20,15 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly IDeviceConfigService _deviceConfigService;
     private readonly IHeartbeatMonitor _heartbeatMonitor;
     private readonly ILogger<DataAcquisitionService> _logger;
-    private readonly IPLCClientLifecycleService _plcLifecycle;
+    private readonly IPlcClientLifecycleService _plcLifecycle;
     private readonly IQueueService _queue;
-    private readonly ConcurrentDictionary<string, PLCRuntime> _runtimes = new();
+    private readonly ConcurrentDictionary<string, PlcRuntime> _runtimes = new();
 
     /// <summary>
     ///     数据采集器
     /// </summary>
     public DataAcquisitionService(IDeviceConfigService deviceConfigService,
-        IPLCClientLifecycleService plcLifecycle,
+        IPlcClientLifecycleService plcLifecycle,
         ILogger<DataAcquisitionService> logger,
         IQueueService queue,
         IHeartbeatMonitor heartbeatMonitor,
@@ -112,18 +111,18 @@ public class DataAcquisitionService : IDataAcquisitionService
     /// <param name="dataType">数据类型</param>
     /// <param name="ct"></param>
     /// <returns>写入结果</returns>
-    public async Task<PLCWriteResult> WritePLCAsync(string plcCode, string address, object value,
+    public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
         string dataType, CancellationToken ct = default)
     {
         if (!_plcLifecycle.TryGetClient(plcCode, out var client))
-            return new PLCWriteResult
+            return new PlcWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode}"
             };
 
         if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
-            return new PLCWriteResult
+            return new PlcWriteResult
             {
                 IsSuccess = false,
                 Message = $"未找到 PLC {plcCode} 的锁对象"
@@ -145,7 +144,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty)
                     .ConfigureAwait(false),
                 "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
-                _ => new PLCWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
+                _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
             };
         }
         finally
@@ -186,15 +185,15 @@ public class DataAcquisitionService : IDataAcquisitionService
     private void StartCollectionTask(DeviceConfig config)
     {
         // 使用 TryAdd 原子操作检查并添加，避免竞态条件
-        if (!_runtimes.TryAdd(config.PLCCode, null!))
+        if (!_runtimes.TryAdd(config.PlcCode, null!))
         {
             // 任务已存在，移除刚添加的 null 值（这种情况不应该发生，但防御性编程）
-            if (_runtimes.TryGetValue(config.PLCCode, out var existingRuntime) && existingRuntime != null) return;
+            if (_runtimes.TryGetValue(config.PlcCode, out var existingRuntime) && existingRuntime != null) return;
             // 如果值为 null（不应该发生），继续执行创建流程
-            _runtimes.TryRemove(config.PLCCode, out _);
+            _runtimes.TryRemove(config.PlcCode, out _);
         }
 
-        if (string.IsNullOrWhiteSpace(config.PLCCode))
+        if (string.IsNullOrWhiteSpace(config.PlcCode))
         {
             _logger.LogError("启动采集任务失败：设备编码为空");
             return;
@@ -202,7 +201,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
         if (config.Channels.Count == 0)
         {
-            _logger.LogError("启动采集任务失败：设备 {PLCCode} 没有配置采集通道", config.PLCCode);
+            _logger.LogError("启动采集任务失败：设备 {PlcCode} 没有配置采集通道", config.PlcCode);
             return;
         }
 
@@ -222,7 +221,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             if (t.Exception != null)
             {
                 var innerException = t.Exception.Flatten().InnerException;
-                _logger.LogError(innerException, "{PLCCode}-采集任务异常: {Message}", config.PLCCode,
+                _logger.LogError(innerException, "{PlcCode}-采集任务异常: {Message}", config.PlcCode,
                     innerException?.Message);
             }
 
@@ -230,8 +229,8 @@ public class DataAcquisitionService : IDataAcquisitionService
         }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
 
         // 更新运行时对象（之前已用 TryAdd 占位）
-        var runtime = new PLCRuntime(cts, running);
-        _runtimes.TryUpdate(config.PLCCode, runtime, null!);
+        var runtime = new PlcRuntime(cts, running);
+        _runtimes.TryUpdate(config.PlcCode, runtime, null!);
     }
 
     /// <summary>
@@ -247,17 +246,17 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Added:
                     if (e.NewConfig is { IsEnabled: true })
                     {
-                        _logger.LogInformation("检测到新设备配置: {PLCCode}，启动采集任务", e.PLCCode);
+                        _logger.LogInformation("检测到新设备配置: {PlcCode}，启动采集任务", e.PlcCode);
                         StartCollectionTask(e.NewConfig);
                     }
 
                     break;
 
                 case ConfigChangeType.Updated:
-                    if (e.OldConfig != null) await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
+                    if (e.OldConfig != null) await StopCollectionTaskAsync(e.OldConfig.PlcCode).ConfigureAwait(false);
                     if (e.NewConfig is { IsEnabled: true })
                     {
-                        _logger.LogInformation("设备配置已更新: {PLCCode}，重启采集任务", e.PLCCode);
+                        _logger.LogInformation("设备配置已更新: {PlcCode}，重启采集任务", e.PlcCode);
                         StartCollectionTask(e.NewConfig);
                     }
 
@@ -266,8 +265,8 @@ public class DataAcquisitionService : IDataAcquisitionService
                 case ConfigChangeType.Removed:
                     if (e.OldConfig != null)
                     {
-                        _logger.LogInformation("设备配置已删除: {PLCCode}，停止采集任务", e.PLCCode);
-                        await StopCollectionTaskAsync(e.OldConfig.PLCCode).ConfigureAwait(false);
+                        _logger.LogInformation("设备配置已删除: {PlcCode}，停止采集任务", e.PlcCode);
+                        await StopCollectionTaskAsync(e.OldConfig.PlcCode).ConfigureAwait(false);
                     }
 
                     break;
@@ -316,7 +315,7 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "停止采集任务失败 {PLCCode}: {Message}", plcCode, ex.Message);
+            _logger.LogError(ex, "停止采集任务失败 {PlcCode}: {Message}", plcCode, ex.Message);
         }
     }
 }

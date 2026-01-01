@@ -39,8 +39,8 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DataA
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
-builder.Services.AddSingleton<IPLCClientFactory, PLCClientFactory>();
-builder.Services.AddSingleton<IPLCClientLifecycleService, PLCClientLifecycleService>();
+builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
+builder.Services.AddSingleton<IPlcClientLifecycleService, PlcClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();

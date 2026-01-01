@@ -16,6 +16,6 @@ public interface IChannelCollector
     /// <param name="client">PLC 通讯客户端</param>
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示异步操作的任务。</returns>
-    Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPLCClientService client,
+    Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel, IPlcClientService client,
         CancellationToken ct = default);
 }

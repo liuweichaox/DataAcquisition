@@ -71,7 +71,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         }
         catch (Exception ex)
         {
-            var plcCode = dataMessages.FirstOrDefault()?.PLCCode ?? "unknown";
+            var plcCode = dataMessages.FirstOrDefault()?.PlcCode ?? "unknown";
             var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
             var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
             _metricsCollector?.RecordError(plcCode, measurement, channelCode);
@@ -103,7 +103,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             .Timestamp(utcTimestamp, WritePrecision.Ns);
 
         // 添加标签（tags）
-        if (!string.IsNullOrEmpty(dataMessage.PLCCode)) point = point.Tag("plc_code", dataMessage.PLCCode);
+        if (!string.IsNullOrEmpty(dataMessage.PlcCode)) point = point.Tag("plc_code", dataMessage.PlcCode);
 
         if (!string.IsNullOrEmpty(dataMessage.ChannelCode)) point = point.Tag("channel_code", dataMessage.ChannelCode);
 

@@ -40,7 +40,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     ///     - 条件采集模式下的 Start 事件触发时调用
     ///     - 每个 Start 事件对应一个采集周期，直到对应的 End 事件结束
     /// </summary>
-    /// <param name="plcCode">PLC 设备编码（PLCCode）</param>
+    /// <param name="plcCode">PLC 设备编码</param>
     /// <param name="measurement">测量值名称（Measurement），用于区分不同的数据表</param>
     /// <param name="channelCode">通道编码（ChannelCode），用于标识采集通道</param>
     /// <returns>新创建的采集周期对象，包含生成的 CycleId 和开始时间</returns>
@@ -51,7 +51,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
         {
             CycleId = Guid.NewGuid().ToString(),
             Measurement = measurement,
-            PLCCode = plcCode,
+            PlcCode = plcCode,
             ChannelCode = channelCode
         };
 
@@ -78,7 +78,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     ///     - 如果对应的周期不存在（可能已被清理或从未开始），返回 null
     ///     - 调用方应该检查返回值，处理周期不存在的情况
     /// </summary>
-    /// <param name="plcCode">PLC 设备编码（PLCCode）</param>
+    /// <param name="plcCode">PLC 设备编码</param>
     /// <param name="measurement">测量值名称（Measurement），与 StartCycle 保持一致</param>
     /// <returns>已结束的采集周期对象，如果不存在则返回 null</returns>
     public AcquisitionCycle? EndCycle(string plcCode, string measurement)
@@ -105,7 +105,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     {
         var keysToRemove = new List<string>();
         foreach (var kvp in _activeCycles)
-            if (kvp.Value.PLCCode == plcCode)
+            if (kvp.Value.PlcCode == plcCode)
                 keysToRemove.Add(kvp.Key);
 
         foreach (var key in keysToRemove) _activeCycles.TryRemove(key, out _);
@@ -122,7 +122,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
     /// <summary>
     ///     生成复合键
     /// </summary>
-    /// <param name="plcCode">PLC编码（PLCCode）</param>
+    /// <param name="plcCode">PLC编码</param>
     /// <param name="measurement"></param>
     private static string GetKey(string plcCode, string measurement)
     {

@@ -18,7 +18,7 @@ public class AcquisitionCycle
     /// <summary>
     ///     PLC 编码
     /// </summary>
-    public required string PLCCode { get; set; }
+    public required string PlcCode { get; set; }
 
     /// <summary>
     ///     通道编码

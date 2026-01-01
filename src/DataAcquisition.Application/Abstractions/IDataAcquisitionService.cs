@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using DataAcquisition.Domain.Clients;
 using DataAcquisition.Domain.Models;
 
 namespace DataAcquisition.Application.Abstractions;
@@ -39,6 +38,6 @@ public interface IDataAcquisitionService : IDisposable
     /// <param name="dataType">数据类型</param>
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示写入结果的任务。</returns>
-    Task<PLCWriteResult> WritePLCAsync(string plcCode, string address, object value, string dataType,
+    Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value, string dataType,
         CancellationToken ct = default);
 }

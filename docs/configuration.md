@@ -17,7 +17,7 @@
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "TEST_PLC",
+  "PlcCode": "TEST_PLC",
   "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",
@@ -86,7 +86,7 @@
 | 属性名称                   | 类型      | 必填 | 说明                                      |
 | -------------------------- | --------- | ---- | ----------------------------------------- |
 | `IsEnabled`                | `boolean` | 是   | 设备是否启用                              |
-| `PLCCode`                  | `string`  | 是   | PLC 设备的唯一标识符                      |
+| `PlcCode`                  | `string`  | 是   | PLC 设备的唯一标识符                      |
 | `Host`                     | `string`  | 是   | PLC 设备的 IP 地址                        |
 | `Port`                     | `integer` | 是   | PLC 设备的通信端口                        |
 | `Type`                     | `string`  | 是   | PLC 设备类型（Mitsubishi、Inovance、BeckhoffAds） |
@@ -220,7 +220,7 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 | 配置文件字段                        | InfluxDB 结构           | 说明                           | 示例值                       |
 | ----------------------------------- | ----------------------- | ------------------------------ | ---------------------------- |
 | `Channels[].Measurement`            | **Measurement**         | 时序数据库的测量名称（表名）   | `"sensor"`                   |
-| `PLCCode`                           | **Tag**: `plc_code`     | PLC 设备编码标签               | `"M01C123"`                  |
+| `PlcCode`                           | **Tag**: `plc_code`     | PLC 设备编码标签               | `"M01C123"`                  |
 | `Channels[].ChannelCode`            | **Tag**: `channel_code` | 通道编码标签                   | `"M01C01"`                   |
 | `EventType`                         | **Tag**: `event_type`   | 事件类型标签（Start/End/Data） | `"Start"`, `"End"`, `"Data"` |
 | `Channels[].Metrics[].FieldName`    | **Field**               | 数据字段名称                   | `"up_temp"`, `"down_temp"`   |
@@ -234,7 +234,7 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "M01C123",
+  "PlcCode": "M01C123",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",

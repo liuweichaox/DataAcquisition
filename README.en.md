@@ -134,11 +134,10 @@ Each Edge Agent adopts a layered architecture design with clear responsibilities
 DataAcquisition/
 ├── src/DataAcquisition.Application/     # Application Layer - Interface Definitions
 │   ├── Abstractions/               # Core Interface Abstractions
-│   └── PLCRuntime.cs              # PLC Runtime Enums
+│   └── PlcRuntime.cs              # PLC Runtime
 ├── src/DataAcquisition.Contracts/       # Contracts Layer - External DTOs/Protocols
 ├── src/DataAcquisition.Domain/         # Domain Layer - Core Models
-│   ├── Models/                     # Data Models
-│   └── OperationalEvents/          # Operational Events
+│   └── Models/                     # Data Models
 ├── src/DataAcquisition.Infrastructure/ # Infrastructure Layer - Implementations
 │   ├── Clients/                    # PLC Client Implementations
 │   ├── DataAcquisitions/           # Data Acquisition Services
@@ -292,7 +291,7 @@ Detailed configuration guide: [Configuration Documentation](docs/configuration.e
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "PLC01",
+  "PlcCode": "PLC01",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",

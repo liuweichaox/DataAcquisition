@@ -134,11 +134,10 @@ DataAcquisition 是一个基于 .NET 构建的工业级 PLC 数据采集系统�
 DataAcquisition/
 ├── src/DataAcquisition.Application/     # 应用层 - 接口定义
 │   ├── Abstractions/               # 核心接口抽象
-│   └── PLCRuntime.cs              # PLC 运行时枚举
+│   └── PlcRuntime.cs              # PLC 运行时
 ├── src/DataAcquisition.Contracts/       # 契约层 - 对外 DTO/协议模型
 ├── src/DataAcquisition.Domain/         # 领域层 - 核心模型
-│   ├── Models/                     # 数据模型
-│   └── OperationalEvents/          # 操作事件
+│   └── Models/                     # 数据模型
 ├── src/DataAcquisition.Infrastructure/ # 基础设施层 - 实现
 │   ├── Clients/                    # PLC 客户端实现
 │   ├── DataAcquisitions/           # 数据采集服务
@@ -292,7 +291,7 @@ npm run serve
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "PLC01",
+  "PlcCode": "PLC01",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",

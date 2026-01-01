@@ -65,7 +65,7 @@ dotnet restore
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "MY_PLC",
+  "PlcCode": "MY_PLC",
   "Host": "192.168.1.100",
   "Port": 502,
   "Type": "Mitsubishi",
@@ -105,7 +105,7 @@ dotnet restore
 ```
 
 **配置说明**：
-- `PLCCode`: 为你的 PLC 设备起一个唯一的名字
+- `PlcCode`: 为你的 PLC 设备起一个唯一的名字
 - `Host`: PLC 设备的 IP 地址
 - `Port`: PLC 设备的通信端口（通常是 502）
 - `Type`: PLC 类型，必须是 `Mitsubishi`、`Inovance` 或 `BeckhoffAds` 之一
@@ -211,7 +211,7 @@ dotnet run
 ```json
 {
   "IsEnabled": true,
-  "PLCCode": "TEST_PLC",
+  "PlcCode": "TEST_PLC",
   "Host": "127.0.0.1",
   "Port": 502,
   "Type": "Mitsubishi",
