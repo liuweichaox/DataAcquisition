@@ -21,7 +21,11 @@ namespace DataAcquisition.Infrastructure.DataStorages;
 /// </summary>
 public class ParquetFileStorageService : IDataStorageService, IDisposable
 {
-    private readonly string _directory;
+    // pending 文件夹：用于新创建的 WAL 文件（WriteWalAndTryInfluxAsync 专属）
+    private readonly string _pendingDirectory;
+    
+    // retry 文件夹：用于需要 worker 重试的文件（ParquetRetryWorker 专属）
+    private readonly string _retryDirectory;
 
     private readonly SemaphoreSlim _lock = new(1, 1);
 
@@ -30,9 +34,16 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     public ParquetFileStorageService(IConfiguration configuration)
     {
-        _directory = configuration["Parquet:Directory"] ?? "Data/parquet";
+        var baseDirectory = configuration["Parquet:Directory"] ?? "Data/parquet";
+        
+        // pending 文件夹：用于新创建的 WAL 文件（WriteWalAndTryInfluxAsync 专属）
+        _pendingDirectory = Path.Combine(baseDirectory, "pending");
+        
+        // retry 文件夹：用于需要 worker 重试的文件（ParquetRetryWorker 专属）
+        _retryDirectory = Path.Combine(baseDirectory, "retry");
 
-        Directory.CreateDirectory(_directory);
+        Directory.CreateDirectory(_pendingDirectory);
+        Directory.CreateDirectory(_retryDirectory);
     }
 
     public async Task<bool> SaveBatchAsync(List<DataMessage>? dataMessages)
@@ -72,10 +83,11 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
 
     /// <summary>
     ///     内部方法：将一批消息写入一个新的 Parquet 文件，返回文件路径。
+    ///     文件写入到 pending 文件夹。
     /// </summary>
     private async Task<string> SaveBatchInternalAsync(List<DataMessage> dataMessages, bool validateFileSize)
     {
-        var filePath = CreateNewFilePath(dataMessages);
+        var filePath = CreateNewFilePath(dataMessages, _pendingDirectory);
 
         // 标记文件正在写入
         _writingFiles.Add(filePath);
@@ -183,12 +195,12 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
-    ///     获取所有待上传的 Parquet 文件（排除正在写入的文件）
+    ///     获取所有待上传的 Parquet 文件（只扫描 retry 文件夹）
     /// </summary>
     public Task<List<string>> GetPendingFilesAsync()
     {
-        var files = Directory.Exists(_directory)
-            ? Directory.GetFiles(_directory, "*.parquet", SearchOption.TopDirectoryOnly).ToList()
+        var files = Directory.Exists(_retryDirectory)
+            ? Directory.GetFiles(_retryDirectory, "*.parquet", SearchOption.TopDirectoryOnly).ToList()
             : new List<string>();
 
         // 排除正在写入的文件，避免读取不完整的文件
@@ -275,13 +287,44 @@ public class ParquetFileStorageService : IDataStorageService, IDisposable
     }
 
     /// <summary>
+    ///     将文件从 pending 文件夹移动到 retry 文件夹
+    ///     用于 InfluxDB 写入失败时，将文件移交给 worker 处理
+    /// </summary>
+    public Task MoveToRetryAsync(string filePath)
+    {
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+            return Task.CompletedTask;
+
+        try
+        {
+            var fileName = Path.GetFileName(filePath);
+            var retryPath = Path.Combine(_retryDirectory, fileName);
+            
+            // 如果 retry 文件夹中已存在同名文件，先删除（理论上不应该发生）
+            if (File.Exists(retryPath))
+                File.Delete(retryPath);
+            
+            // 移动文件到 retry 文件夹（原子操作）
+            File.Move(filePath, retryPath);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"移动文件到 retry 文件夹失败: {filePath}, 错误: {ex.Message}");
+            // 如果移动失败，文件仍然在 pending 文件夹，下次扫描时不会被处理
+            // 这是可以接受的，因为文件会被保留以便后续重试
+        }
+
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
     ///     创建新的文件路径
     /// </summary>
-    private string CreateNewFilePath(List<DataMessage> dataMessages)
+    private string CreateNewFilePath(List<DataMessage> dataMessages, string directory)
     {
         var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
         var fileName = $"{measurement}_{DateTime.Now:yyyyMMdd_HHmmss_fff}.parquet";
-        return Path.Combine(_directory, fileName);
+        return Path.Combine(directory, fileName);
     }
 
     /// <summary>

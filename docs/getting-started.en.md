@@ -269,7 +269,7 @@ After completing the getting started guide, we recommend continuing in the follo
 **Check Steps**:
 1. Confirm InfluxDB service is running
 2. Check InfluxDB configuration (Url, Token, Bucket, Org) is correct
-3. Check if there are WAL files in `Data/parquet` directory (if yes, write failed)
+3. Check if there are WAL files in `Data/parquet/retry` directory (if yes, write failed and retry is needed)
 4. Check error messages in logs
 
 ### Issue 3: Configuration Changes Not Taking Effect

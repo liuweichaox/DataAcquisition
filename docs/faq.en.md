@@ -18,9 +18,13 @@ This document collects common questions and answers about the DataAcquisition sy
 
 If data loss is detected, you can:
 
-1. Check if there are unprocessed WAL files in the `Data/parquet` directory
+1. Check if there are unprocessed WAL files in the `Data/parquet/retry` directory (these are files that need retry due to write failures)
 2. Check logs to confirm the reason for write failures
 3. The system will automatically retry failed write operations
+
+**Note**: The `Data/parquet` directory contains two subfolders:
+- `pending`: Newly created WAL files (exclusive to WriteWalAndTryInfluxAsync)
+- `retry`: WAL files that need retry (exclusive to ParquetRetryWorker)
 
 ## Q: How to add a new PLC protocol?
 
@@ -165,10 +169,13 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 **A**: Too many WAL files usually indicates InfluxDB write failures. Solutions:
 
-1. Check InfluxDB connection and configuration
-2. Check logs to confirm the reason for write failures
-3. After fixing the issue, the system will automatically process accumulated WAL files
-4. If manual cleanup is needed, first confirm that data has been written to InfluxDB
+1. Check the number of files in `Data/parquet/retry` directory (these are files that need retry)
+2. Check InfluxDB connection and configuration
+3. Check logs to confirm the reason for write failures
+4. After fixing the issue, the system will automatically process accumulated WAL files
+5. If manual cleanup is needed, first confirm that data has been written to InfluxDB
+
+**Note**: Under normal circumstances, the `pending` folder should be empty (files are deleted immediately after successful write), only the `retry` folder will have files.
 
 ## Q: How to deploy to production environment?
 

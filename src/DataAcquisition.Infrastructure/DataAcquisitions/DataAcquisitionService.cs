@@ -199,7 +199,7 @@ public class DataAcquisitionService : IDataAcquisitionService
 
         var client = _plcLifecycle.GetOrCreateClient(config);
 
-        var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, ct) };
+        var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, client, ct) };
 
         foreach (var channel in config.Channels) tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
 

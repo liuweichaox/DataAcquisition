@@ -37,13 +37,10 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// <summary>
     ///     监控指定设备的心跳状态。
     /// </summary>
-    public async Task MonitorAsync(DeviceConfig config, CancellationToken ct = default)
+    public async Task MonitorAsync(DeviceConfig config, IPlcClientService client, CancellationToken ct = default)
     {
         var lastOk = false;
         ushort writeData = 0;
-
-        // 在循环开始前获取客户端，整个循环复用同一个实例（关键：避免每次循环都查找和创建客户端）
-        var client = _plcLifecycle.GetOrCreateClient(config);
 
         _logger.LogInformation("{PlcCode}-开始心跳监控，目标地址: {Host}:{Port}，心跳寄存器: {Register}，检测间隔: {Interval}ms",
             config.PlcCode, config.Host, config.Port, config.HeartbeatMonitorRegister, config.HeartbeatPollingInterval);

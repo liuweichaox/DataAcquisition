@@ -28,8 +28,9 @@ This document details the data processing flow of the DataAcquisition system.
 
 ### Storage Failures
 
-- **WAL File Retention**: Parquet WAL files are retained when InfluxDB write fails
-- **Automatic Retry**: Retry writes periodically by ParquetRetryWorker
+- **WAL File Movement**: When InfluxDB write fails, Parquet WAL files are moved from `pending` folder to `retry` folder
+- **Automatic Retry**: ParquetRetryWorker periodically scans `retry` folder and retries writes
+- **Folder Isolation**: Uses two folders (`pending` and `retry`) for complete isolation, avoiding concurrency conflicts
 - **Retry Strategy**: Supports configuration of retry interval and maximum retry count
 
 ### Configuration Errors
@@ -47,15 +48,15 @@ ChannelCollector (Acquisition)
     ↓
 LocalQueueService (Queue Aggregation)
     ↓
-    ├─→ ParquetFileStorageService (WAL Write)
+    ├─→ ParquetFileStorageService (WAL Write to pending folder)
     │       ↓
     │   Write Success → Delete WAL File
-    │   Write Failure → Retain WAL File → RetryWorker Retry
+    │   Write Failure → Move to retry folder → RetryWorker Retry
     │
     └─→ InfluxDbDataStorageService (Primary Storage Write)
             ↓
          Write Success → Complete
-         Write Failure → Retain WAL File → RetryWorker Retry
+         Write Failure → Move WAL File to retry folder → RetryWorker Retry
 ```
 
 ## Data Consistency Guarantees

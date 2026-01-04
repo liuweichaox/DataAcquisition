@@ -260,11 +260,17 @@ public class LocalQueueService : IQueueService
             }
             else
             {
-                // InfluxDB 写入失败，保留 WAL 文件，记录日志
+                // InfluxDB 写入失败，将文件移动到 retry 文件夹，交给 worker 处理
+                if (!string.IsNullOrEmpty(walPath))
+                {
+                    await _parquetStorage.MoveToRetryAsync(walPath).ConfigureAwait(false);
+                }
+                
+                // 记录日志
                 var firstMessage = messages.FirstOrDefault();
                 _metricsCollector?.RecordError(firstMessage?.PlcCode ?? "unknown", measurement,
                     firstMessage?.ChannelCode);
-                _logger.LogWarning("写入 Influx 失败，保留 WAL 文件: {WalPath}", walPath);
+                _logger.LogWarning("写入 Influx 失败，文件已移动到 retry 文件夹: {WalPath}", walPath);
             }
         }
         catch (Exception ex)

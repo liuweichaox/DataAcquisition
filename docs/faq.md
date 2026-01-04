@@ -18,9 +18,13 @@
 
 如果发现数据丢失，可以：
 
-1. 检查 `Data/parquet` 目录下是否有未处理的 WAL 文件
+1. 检查 `Data/parquet/retry` 目录下是否有未处理的 WAL 文件（这些是写入失败需要重试的文件）
 2. 查看日志确认写入失败原因
 3. 系统会自动重试失败的写入操作
+
+**注意**：`Data/parquet` 目录下包含两个子文件夹：
+- `pending`：新创建的 WAL 文件（WriteWalAndTryInfluxAsync 专属）
+- `retry`：需要重试的 WAL 文件（ParquetRetryWorker 专属）
 
 ## Q: 如何添加新的 PLC 协议？
 
@@ -165,10 +169,13 @@ curl http://localhost:8000/api/metrics-data
 
 **A**: WAL 文件过多通常表示 InfluxDB 写入失败。解决方案：
 
-1. 检查 InfluxDB 连接和配置
-2. 查看日志确认写入失败原因
-3. 修复问题后，系统会自动处理积压的 WAL 文件
-4. 如需手动清理，先确认数据已写入 InfluxDB
+1. 检查 `Data/parquet/retry` 目录下的文件数量（这些是需要重试的文件）
+2. 检查 InfluxDB 连接和配置
+3. 查看日志确认写入失败原因
+4. 修复问题后，系统会自动处理积压的 WAL 文件
+5. 如需手动清理，先确认数据已写入 InfluxDB
+
+**注意**：正常情况下，`pending` 文件夹应该是空的（文件写入成功后立即删除），只有 `retry` 文件夹中会有文件。
 
 ## Q: 如何部署到生产环境？
 

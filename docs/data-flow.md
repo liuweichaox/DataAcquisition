@@ -28,8 +28,9 @@
 
 ### 存储失败
 
-- **WAL 文件保留**: InfluxDB 写入失败时，Parquet WAL 文件保留
-- **自动重试**: 由 ParquetRetryWorker 定期重试写入
+- **WAL 文件移动**: InfluxDB 写入失败时，Parquet WAL 文件从 `pending` 文件夹移动到 `retry` 文件夹
+- **自动重试**: 由 ParquetRetryWorker 定期扫描 `retry` 文件夹并重试写入
+- **文件夹隔离**: 使用两个文件夹（`pending` 和 `retry`）完全隔离，避免并发冲突
 - **重试策略**: 支持配置重试间隔和最大重试次数
 
 ### 配置错误
@@ -47,15 +48,15 @@ ChannelCollector (采集)
     ↓
 LocalQueueService (队列聚合)
     ↓
-    ├─→ ParquetFileStorageService (WAL 写入)
+    ├─→ ParquetFileStorageService (WAL 写入到 pending 文件夹)
     │       ↓
     │   写入成功 → 删除 WAL 文件
-    │   写入失败 → 保留 WAL 文件 → RetryWorker 重试
+    │   写入失败 → 移动到 retry 文件夹 → RetryWorker 重试
     │
     └─→ InfluxDbDataStorageService (主存储写入)
             ↓
         写入成功 → 完成
-        写入失败 → WAL 文件保留 → RetryWorker 重试
+        写入失败 → WAL 文件移动到 retry 文件夹 → RetryWorker 重试
 ```
 
 ## 数据一致性保证
