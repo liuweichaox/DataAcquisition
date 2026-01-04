@@ -308,7 +308,7 @@ public class ChannelCollector : IChannelCollector
                 };
 
                 var evaluatedValue = await expression.EvaluateAsync().ConfigureAwait(false);
-                dataMessage.AddDataValue(kv.Key, evaluatedValue ?? 0);
+                dataMessage.UpdateDataValue(kv.Key, evaluatedValue ?? 0, originalValue);
             }
         }
         catch (Exception ex)

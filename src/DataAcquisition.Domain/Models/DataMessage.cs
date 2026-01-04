@@ -58,9 +58,14 @@ public class DataMessage
     }
 
 
-    public void AddDataValue(string key, dynamic? value)
-    {
-        DataValues.TryAdd(key, value);
+    public bool AddDataValue(string key, dynamic? value)
+    { 
+        return DataValues.TryAdd(key, value);
+    }
+
+    public bool UpdateDataValue(string key, dynamic? newValue, dynamic? originalValue)
+    { 
+        return DataValues.TryUpdate(key, newValue, originalValue);
     }
 }
 
