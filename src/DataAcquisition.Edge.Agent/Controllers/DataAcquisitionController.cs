@@ -49,7 +49,7 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
         var command = new WritePlcRegisterCommand(
             request.PlcCode,
             request.Items
-                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, i.Value!))
+                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, ConvertJsonValue(i.Value, i.DataType)))
                 .ToList());
 
         var results = await mediator.Send(command);
@@ -58,5 +58,31 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
         if (allSuccess) return Ok(results);
 
         return BadRequest(results);
+    }
+
+    private static object? ConvertJsonValue(object? value, string dataType)
+    {
+        if (value == null) return null;
+
+        // 如果 value 是 JsonElement，需要提取实际值
+        if (value is JsonElement jsonElement)
+        {
+            return dataType switch
+            {
+                "ushort" => jsonElement.GetUInt16(),
+                "uint" => jsonElement.GetUInt32(),
+                "ulong" => jsonElement.GetUInt64(),
+                "short" => jsonElement.GetInt16(),
+                "int" => jsonElement.GetInt32(),
+                "long" => jsonElement.GetInt64(),
+                "float" => jsonElement.GetSingle(),
+                "double" => jsonElement.GetDouble(),
+                "string" => jsonElement.GetString(),
+                "bool" => jsonElement.GetBoolean(),
+                _ => value
+            };
+        }
+
+        return value;
     }
 }

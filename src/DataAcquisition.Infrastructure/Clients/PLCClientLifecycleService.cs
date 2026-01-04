@@ -18,7 +18,6 @@ public class PlcClientLifecycleService : IPlcClientLifecycleService
     private readonly ILogger<PlcClientLifecycleService> _logger;
     private readonly IPlcClientFactory _plcClientFactory;
     private readonly ConcurrentDictionary<string, IPlcClientService> _plcClients = new();
-    private readonly ConcurrentDictionary<string, SemaphoreSlim> _plcLocks = new();
 
     public PlcClientLifecycleService(
         IPlcClientFactory plcClientFactory,
@@ -33,36 +32,7 @@ public class PlcClientLifecycleService : IPlcClientLifecycleService
     /// </summary>
     public IPlcClientService GetOrCreateClient(DeviceConfig config)
     {
-        // 先尝试获取已存在的客户端（快速路径）
-        if (_plcClients.TryGetValue(config.PlcCode, out var existingClient)) return existingClient;
-
-        // 使用 GetOrAdd 确保线程安全创建
-        // 如果多个线程同时调用，只有一个会执行工厂方法创建客户端
-        var client = _plcClients.GetOrAdd(config.PlcCode, _ =>
-        {
-            var newClient = _plcClientFactory.Create(config);
-            // 同时创建对应的锁对象
-            _plcLocks.TryAdd(config.PlcCode, new SemaphoreSlim(1, 1));
-            return newClient;
-        });
-
-        return client;
-    }
-
-    /// <summary>
-    ///     尝试获取 PLC 客户端。
-    /// </summary>
-    public bool TryGetClient(string plcCode, out IPlcClientService client)
-    {
-        return _plcClients.TryGetValue(plcCode, out client!);
-    }
-
-    /// <summary>
-    ///     尝试获取 PLC 锁对象。
-    /// </summary>
-    public bool TryGetLock(string plcCode, out SemaphoreSlim locker)
-    {
-        return _plcLocks.TryGetValue(plcCode, out locker!);
+        return _plcClients.GetOrAdd(config.PlcCode, _ => _plcClientFactory.Create(config));
     }
 
     /// <summary>
@@ -78,16 +48,6 @@ public class PlcClientLifecycleService : IPlcClientLifecycleService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "关闭 PLC 客户端失败 {PlcCode}: {Message}", plcCode, ex.Message);
-            }
-
-        if (_plcLocks.TryRemove(plcCode, out var locker))
-            try
-            {
-                locker.Dispose();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "释放 PLC 锁失败 {PlcCode}: {Message}", plcCode, ex.Message);
             }
     }
 

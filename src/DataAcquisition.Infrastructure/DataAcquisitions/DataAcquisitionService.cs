@@ -114,43 +114,31 @@ public class DataAcquisitionService : IDataAcquisitionService
     public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
         string dataType, CancellationToken ct = default)
     {
-        if (!_plcLifecycle.TryGetClient(plcCode, out var client))
+        var configs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
+        var config = configs.FirstOrDefault(c => c.PlcCode == plcCode);
+        if (config == null)
             return new PlcWriteResult
             {
                 IsSuccess = false,
-                Message = $"未找到 PLC {plcCode}"
+                Message = $"未找到 PLC {plcCode} 的配置"
             };
 
-        if (!_plcLifecycle.TryGetLock(plcCode, out var locker))
-            return new PlcWriteResult
-            {
-                IsSuccess = false,
-                Message = $"未找到 PLC {plcCode} 的锁对象"
-            };
-
-        await locker.WaitAsync(ct).ConfigureAwait(false);
-        try
+        var client = _plcLifecycle.GetOrCreateClient(config);
+        return dataType switch
         {
-            return dataType switch
-            {
-                "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)).ConfigureAwait(false),
-                "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)).ConfigureAwait(false),
-                "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)).ConfigureAwait(false),
-                "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)).ConfigureAwait(false),
-                "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)).ConfigureAwait(false),
-                "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)).ConfigureAwait(false),
-                "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)).ConfigureAwait(false),
-                "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)).ConfigureAwait(false),
-                "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty)
-                    .ConfigureAwait(false),
-                "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
-                _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
-            };
-        }
-        finally
-        {
-            locker.Release();
-        }
+            "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)).ConfigureAwait(false),
+            "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)).ConfigureAwait(false),
+            "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)).ConfigureAwait(false),
+            "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)).ConfigureAwait(false),
+            "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)).ConfigureAwait(false),
+            "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)).ConfigureAwait(false),
+            "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)).ConfigureAwait(false),
+            "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)).ConfigureAwait(false),
+            "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty)
+                .ConfigureAwait(false),
+            "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
+            _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
+        };
     }
 
     /// <summary>

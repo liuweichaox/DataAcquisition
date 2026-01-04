@@ -88,7 +88,6 @@ public class ChannelCollector : IChannelCollector
     ///     性能优化：
     ///     - 表达式计算和消息发布使用 Task.Run 异步执行，不阻塞采集循环
     ///     - 批量读取模式可以减少 PLC 通信次数，提高采集效率
-    ///     - 使用 SemaphoreSlim 锁确保同一设备的通道不会并发访问，避免 PLC 通信冲突
     /// </summary>
     /// <param name="config">设备配置，包含 PLC 连接信息和设备编码</param>
     /// <param name="dataAcquisitionChannel">采集通道配置，定义采集的测量值、数据点、触发条件等</param>
@@ -105,29 +104,14 @@ public class ChannelCollector : IChannelCollector
             // 检查连接状态
             if (!await WaitForConnectionAsync(config, ct).ConfigureAwait(false)) continue;
 
-            // 获取锁并执行采集
-            if (!_plcLifecycle.TryGetLock(config.PlcCode, out var locker))
-            {
-                _logger.LogError("{PlcCode}-未找到锁对象，跳过本次采集", config.PlcCode);
-                await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
-                continue;
-            }
-
-            await locker.WaitAsync(ct).ConfigureAwait(false);
-            try
-            {
-                var timestamp = DateTime.Now;
-                if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always)
-                    await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct)
-                        .ConfigureAwait(false);
-                else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
-                    prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client,
-                        timestamp, prevValue, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                locker.Release();
-            }
+            // 执行采集
+            var timestamp = DateTime.Now;
+            if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always)
+                await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct)
+                    .ConfigureAwait(false);
+            else if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Conditional)
+                prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client,
+                    timestamp, prevValue, ct).ConfigureAwait(false);
         }
     }
 

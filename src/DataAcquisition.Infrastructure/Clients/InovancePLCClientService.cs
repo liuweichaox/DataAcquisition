@@ -145,8 +145,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<ushort> ReadUShortAsync(string address)
     {
-        var res = await _device.ReadUInt16Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadUInt16Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -154,8 +154,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<uint> ReadUIntAsync(string address)
     {
-        var res = await _device.ReadUInt32Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadUInt32Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -163,8 +163,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<ulong> ReadULongAsync(string address)
     {
-        var res = await _device.ReadUInt64Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadUInt64Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -172,8 +172,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<short> ReadShortAsync(string address)
     {
-        var res = await _device.ReadInt16Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadInt16Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -181,8 +181,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<int> ReadIntAsync(string address)
     {
-        var res = await _device.ReadInt32Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadInt32Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -190,8 +190,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<long> ReadLongAsync(string address)
     {
-        var res = await _device.ReadInt64Async(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadInt64Async(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -199,8 +199,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<float> ReadFloatAsync(string address)
     {
-        var res = await _device.ReadFloatAsync(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadFloatAsync(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -208,8 +208,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<double> ReadDoubleAsync(string address)
     {
-        var res = await _device.ReadDoubleAsync(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadDoubleAsync(address);
+        return res.Content;
     }
 
     /// <summary>
@@ -226,8 +226,8 @@ public class InovancePlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<bool> ReadBoolAsync(string address)
     {
-        var res = await _device.ReadBoolAsync(address, 1);
-        return res.Content[0];
+        var res = await _device.ReadBoolAsync(address);
+        return res.Content;
     }
 
     /// <summary>
