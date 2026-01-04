@@ -41,29 +41,8 @@ public class MitsubishiPlcClientService(DeviceConfig config) : IPlcClientService
     /// </summary>
     public async Task<PlcWriteResult> WriteUShortAsync(string address, ushort value)
     {
-        try
-        {
-            // HslCommunication 的 WriteAsync 会自动建立连接，但为了确保连接，可以先尝试连接
-            // 如果连接已存在，Connect 会快速返回
-            var connectResult = await _device.ConnectServerAsync();
-            if (!connectResult.IsSuccess)
-                return new PlcWriteResult
-                {
-                    IsSuccess = false,
-                    Message = $"连接失败: {connectResult.Message}"
-                };
-
-            var res = await _device.WriteAsync(address, value);
-            return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
-        }
-        catch (Exception ex)
-        {
-            return new PlcWriteResult
-            {
-                IsSuccess = false,
-                Message = $"写入异常: {ex.Message}"
-            };
-        }
+        var res = await _device.WriteAsync(address, value);
+        return new PlcWriteResult { IsSuccess = res.IsSuccess, Message = res.Message };
     }
 
     /// <summary>
