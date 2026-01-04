@@ -31,5 +31,20 @@ public sealed class PlcConnectionStatus
     ///     最后一次错误信息（如果存在）
     /// </summary>
     public string? LastError { get; init; }
+
+    /// <summary>
+    ///     当前离线时长（秒），如果当前已连接则为 null
+    /// </summary>
+    public double? DisconnectedDurationSeconds { get; init; }
+
+    /// <summary>
+    ///     总重连次数
+    /// </summary>
+    public int TotalReconnectCount { get; init; }
+
+    /// <summary>
+    ///     最后断开时间（本地时间），如果从未断开则为 null
+    /// </summary>
+    public DateTimeOffset? LastDisconnectedTime { get; init; }
 }
 
