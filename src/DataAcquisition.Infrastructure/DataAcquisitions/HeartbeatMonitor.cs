@@ -43,14 +43,17 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         var lastOk = false;
         ushort writeData = 0;
 
+        // 在循环开始前获取客户端，整个循环复用同一个实例（关键：避免每次循环都查找和创建客户端）
+        var client = _plcLifecycle.GetOrCreateClient(config);
+
         _logger.LogInformation("{PlcCode}-开始心跳监控，目标地址: {Host}:{Port}，心跳寄存器: {Register}，检测间隔: {Interval}ms",
             config.PlcCode, config.Host, config.Port, config.HeartbeatMonitorRegister, config.HeartbeatPollingInterval);
 
         while (!ct.IsCancellationRequested)
             try
             {
-                // 先尝试写入心跳寄存器（这是最直接的连接测试）
-                var connect = await WriteAsync(config.PlcCode, config.HeartbeatMonitorRegister, writeData, ct, config)
+                // 直接使用已获取的客户端实例写入心跳寄存器
+                var connect = await client.WriteUShortAsync(config.HeartbeatMonitorRegister, writeData)
                     .ConfigureAwait(false);
                 var ok = connect.IsSuccess;
 
@@ -155,14 +158,5 @@ public class HeartbeatMonitor : IHeartbeatMonitor
             _metricsCollector?.RecordConnectionDuration(plcCode, duration);
             _connectionStartTimes.Remove(plcCode);
         }
-    }
-
-    /// <summary>
-    ///     向 PLC 写入心跳测试值。
-    /// </summary>
-    private async Task<PlcWriteResult> WriteAsync(string plcCode, string address, ushort value, CancellationToken ct, DeviceConfig config)
-    {
-        var client = _plcLifecycle.GetOrCreateClient(config);
-        return await client.WriteUShortAsync(address, value).ConfigureAwait(false);
     }
 }
