@@ -97,12 +97,16 @@ public class ChannelCollector : IChannelCollector
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel,
         IPlcClientService client, CancellationToken ct = default)
     {
-        await Task.Yield();
         object? prevValue = null;
         while (!ct.IsCancellationRequested)
         {
-            // 检查连接状态
-            if (!await WaitForConnectionAsync(config, ct).ConfigureAwait(false)) continue;
+            // 检查连接状态（快速检查，未连接时直接跳过，不延迟）
+            if (!_heartbeatMonitor.TryGetConnectionHealth(config.PlcCode, out var isConnected) || !isConnected)
+            {
+                // 未连接时等待一小段时间再重试，避免CPU空转
+                await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
+                continue;
+            }
 
             // 执行采集
             var timestamp = DateTime.Now;
@@ -113,18 +117,6 @@ public class ChannelCollector : IChannelCollector
                 prevValue = await HandleConditionalCollectionAsync(config, dataAcquisitionChannel, client,
                     timestamp, prevValue, ct).ConfigureAwait(false);
         }
-    }
-
-    /// <summary>
-    ///     等待 PLC 连接就绪。
-    /// </summary>
-    /// <returns>如果连接就绪返回 true，否则返回 false 并已延迟等待</returns>
-    private async Task<bool> WaitForConnectionAsync(DeviceConfig config, CancellationToken ct)
-    {
-        if (_heartbeatMonitor.TryGetConnectionHealth(config.PlcCode, out var isConnected) && isConnected) return true;
-
-        await Task.Delay(_connectionCheckRetryDelayMs, ct).ConfigureAwait(false);
-        return false;
     }
 
     /// <summary>
