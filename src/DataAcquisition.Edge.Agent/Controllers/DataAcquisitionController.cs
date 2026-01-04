@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DataAcquisition.Application.Commands;
 using DataAcquisition.Application.Queries;
 using DataAcquisition.Contracts;

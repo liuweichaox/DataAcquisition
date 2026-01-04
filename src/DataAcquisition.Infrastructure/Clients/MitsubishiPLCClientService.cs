@@ -248,7 +248,7 @@ public class MitsubishiPlcClientService(DeviceConfig config) : IPlcClientService
     public async Task<bool> ReadBoolAsync(string address)
     {
         var res = await _device.ReadBoolAsync(address);
-        return res.Content[0];
+        return res.Content;
     }
 
     /// <summary>
