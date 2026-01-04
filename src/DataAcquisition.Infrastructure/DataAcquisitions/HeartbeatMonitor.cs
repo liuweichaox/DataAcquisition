@@ -39,7 +39,6 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     /// </summary>
     public async Task MonitorAsync(DeviceConfig config, CancellationToken ct = default)
     {
-        await Task.Yield();
         var lastOk = false;
         ushort writeData = 0;
 
