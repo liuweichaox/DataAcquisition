@@ -272,7 +272,7 @@ dotnet run
 **检查步骤**：
 1. 确认 InfluxDB 服务正在运行
 2. 检查 InfluxDB 配置（Url、Token、Bucket、Org）是否正确
-3. 查看 `Data/parquet` 目录是否有 WAL 文件（如果有，说明写入失败）
+3. 查看 `Data/parquet/retry` 目录是否有 WAL 文件（如果有，说明写入失败，需要重试）
 4. 查看日志中的错误信息
 
 ### 问题 3：配置文件修改后没有生效

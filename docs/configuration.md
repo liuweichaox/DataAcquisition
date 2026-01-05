@@ -194,7 +194,7 @@ Edge Agent 的完整配置示例位于 `src/DataAcquisition.Edge.Agent/appsettin
 | `InfluxDB:Token` | `string` | 是 | - | InfluxDB 认证令牌 |
 | `InfluxDB:Bucket` | `string` | 是 | - | InfluxDB 存储桶名称 |
 | `InfluxDB:Org` | `string` | 是 | - | InfluxDB 组织名称 |
-| `Parquet:Directory` | `string` | 否 | `./Data/parquet` | Parquet WAL 文件存储目录（相对路径相对于应用目录） |
+| `Parquet:Directory` | `string` | 否 | `./Data/parquet` | Parquet WAL 文件存储目录（相对路径相对于应用目录）。系统会在该目录下创建两个子文件夹：`pending`（新创建的 WAL 文件）和 `retry`（需要重试的 WAL 文件） |
 | `Edge:EnableCentralReporting` | `boolean` | 否 | `true` | 是否启用向 Central API 注册和心跳上报 |
 | `Edge:CentralApiBaseUrl` | `string` | 否 | `http://localhost:8000` | Central API 服务地址 |
 | `Edge:EdgeId` | `string` | 否 | 自动生成 | Edge 节点唯一标识符，为空时会自动生成并持久化到本地文件 |

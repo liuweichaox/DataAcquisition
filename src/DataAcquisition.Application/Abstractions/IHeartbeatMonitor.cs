@@ -13,9 +13,10 @@ public interface IHeartbeatMonitor
     ///     监控设备心跳状态。
     /// </summary>
     /// <param name="config">设备配置</param>
+    /// <param name="client">PLC 通讯客户端</param>
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示异步操作的任务。</returns>
-    Task MonitorAsync(DeviceConfig config, CancellationToken ct = default);
+    Task MonitorAsync(DeviceConfig config, IPlcClientService client, CancellationToken ct = default);
 
     /// <summary>
     ///     获取 PLC 连接状态。
