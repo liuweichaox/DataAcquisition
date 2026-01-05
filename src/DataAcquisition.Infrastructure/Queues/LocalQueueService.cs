@@ -99,7 +99,7 @@ public class LocalQueueService : IQueueService
     }
 
     /// <summary>
-    ///     释放队列资源，并刷新所有未完成的批次。
+    ///     释放队列资源（仅释放，不等待同步操作）。
     /// </summary>
     public async ValueTask DisposeAsync()
     {
@@ -111,41 +111,13 @@ public class LocalQueueService : IQueueService
         // TryComplete 不会抛出异常，返回 false 表示已经关闭
         _channel.Writer.TryComplete();
 
-        // 刷新所有未完成的批次，避免数据丢失
-        List<KeyValuePair<string, List<DataMessage>>> batchesToFlush = new();
+        // 清理内存中的批次数据
         lock (_batchLock)
         {
-            foreach (var kvp in _dataBatchMap)
-                if (kvp.Value.Count > 0)
-                    batchesToFlush.Add(new KeyValuePair<string, List<DataMessage>>(kvp.Key, [..kvp.Value]));
-
             _dataBatchMap.Clear();
         }
 
-        // 同步刷新所有批次
-        foreach (var batch in batchesToFlush)
-            try
-            {
-                // batch.Key 是 "plccode:channelcode:measurement" 格式
-                // 提取 measurement（最后一个冒号后的部分）
-                var measurement = batch.Key.Split(':').LastOrDefault() ?? batch.Key;
-                await WriteWalAndTryInfluxAsync(measurement, batch.Value).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "刷新未完成批次失败 {BatchKey}: {Message}", batch.Key, ex.Message);
-            }
-
-        // 尝试最后一次重试失败的批次
-        while (_failedBatches.TryDequeue(out var failedBatch))
-            try
-            {
-                await WriteWalAndTryInfluxAsync(failedBatch.Measurement, failedBatch.Messages).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "最终重试失败批次失败 {Measurement}: {Message}", failedBatch.Measurement, ex.Message);
-            }
+        await Task.CompletedTask;
     }
 
     /// <summary>
