@@ -79,7 +79,7 @@ public enum AcquisitionTrigger
 ///     2. 当满足Start触发条件时，生成唯一的cycle_id（GUID），插入新记录并保存cycle_id
 ///     3. 当满足End触发条件时，使用cycle_id作为条件更新对应的记录
 ///     4. 使用cycle_id而非时间戳作为Update条件，避免并发冲突
-///     数据库兼容性：
+///     数据存储说明：
 ///     - 时序数据库：cycle_id作为字段（field），类型为字符串。因为cycle_id是GUID（高基数），作为field可以避免索引膨胀问题
 /// </summary>
 public class ConditionalAcquisition

@@ -8,7 +8,7 @@
 
 | 软件 | 版本要求 | 下载地址 | 说明 |
 |------|---------|---------|------|
-| .NET SDK | 8.0 或 10.0 | [.NET 官网](https://dotnet.microsoft.com/download) | 必须安装，用于运行系统 |
+| .NET SDK | 10.0 | [.NET 官网](https://dotnet.microsoft.com/download) | 必须安装，用于运行系统 |
 | Node.js | 18 或更高版本 | [Node.js 官网](https://nodejs.org/) | 用于运行前端界面（可选） |
 | InfluxDB | 2.x | [InfluxDB 官网](https://www.influxdata.com/downloads/) | 时序数据库，生产环境推荐安装 |
 

@@ -1,11 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <!-- 兼容仅安装 .NET 8 SDK 的环境：默认只编译 net8.0；
-         当 SDK >= 10 时自动启用 net10.0 多目标。 -->
-    <TargetFrameworks>net8.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(NETCoreSdkVersion)' &gt;= '10.0.0'">net8.0;net10.0</TargetFrameworks>
-    <DefaultTargetFramework>net8.0</DefaultTargetFramework>
-    <DefaultTargetFramework Condition="'$(NETCoreSdkVersion)' &gt;= '10.0.0'">net10.0</DefaultTargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>

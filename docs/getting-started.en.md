@@ -8,7 +8,7 @@ Before you begin, ensure you have the following software installed:
 
 | Software | Version Requirement | Download | Notes |
 |----------|---------------------|----------|-------|
-| .NET SDK | 8.0 or 10.0 | [.NET Official](https://dotnet.microsoft.com/download) | Required to run the system |
+| .NET SDK | 10.0 | [.NET Official](https://dotnet.microsoft.com/download) | Required to run the system |
 | Node.js | 18 or higher | [Node.js Official](https://nodejs.org/) | For running frontend interface (optional) |
 | InfluxDB | 2.x | [InfluxDB Official](https://www.influxdata.com/downloads/) | Time-series database, recommended for production |
 

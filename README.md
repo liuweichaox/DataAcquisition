@@ -1,6 +1,6 @@
 # 🛰️ DataAcquisition - 工业级 PLC 数据采集系统
 
-[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
@@ -26,7 +26,7 @@ English: [README.en.md](README.en.md)
 DataAcquisition 是一个基于 .NET 构建的工业级 PLC 数据采集系统。系统采用 **WAL-first（写前日志）架构**确保数据零丢失，支持 **Edge-Central 分布式架构**实现多车间集中管理。提供多 PLC 并行采集、条件触发采集、批量读取优化等高级功能，支持配置热更新和实时监控，开箱即用，运维友好。
 
 **技术栈：**
-- 运行时：.NET 10.0 / .NET 8.0（LTS 版本）
+- 运行时：.NET 10.0
 - 数据存储：InfluxDB 2.x（时序数据库）+ Parquet（本地 WAL）
 - 监控：Prometheus 指标 + Vue3 可视化界面
 - 架构：Edge-Central 分布式架构

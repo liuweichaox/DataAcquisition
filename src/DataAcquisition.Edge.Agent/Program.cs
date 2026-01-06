@@ -117,20 +117,20 @@ app.MapGet("/", () => Results.Ok(new
 var addresses = urls.Split(';', ',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 var baseAddress = addresses.FirstOrDefault()?.Trim() ?? "http://localhost:8001";
 
-Log.Logger.Information("╔═══════════════════════════════════════════════════════════╗");
-Log.Logger.Information("║        Edge Agent 服务已启动                              ║");
-Log.Logger.Information("╠═══════════════════════════════════════════════════════════╣");
-Log.Logger.Information("║  服务地址:                                                 ║");
+Log.Logger.Information("==================================================================");
+Log.Logger.Information("              Edge Agent Service Started");
+Log.Logger.Information("==================================================================");
+Log.Logger.Information("  Service Addresses:");
 foreach (var addr in addresses)
 {
-    Log.Logger.Information("║    • {0,-55} ║", addr.Trim());
+    Log.Logger.Information("    > {0}", addr.Trim());
 }
-Log.Logger.Information("╠═══════════════════════════════════════════════════════════╣");
-Log.Logger.Information("║  主要端点:                                                 ║");
-Log.Logger.Information("║    • 健康检查:  {0}/health                                ║", baseAddress);
-Log.Logger.Information("║    • 指标数据:  {0}/metrics                               ║", baseAddress);
-Log.Logger.Information("║    • 日志查询:  {0}/api/logs                              ║", baseAddress);
-Log.Logger.Information("║    • 日志级别:  {0}/api/logs/levels                       ║", baseAddress);
-Log.Logger.Information("╚═══════════════════════════════════════════════════════════╝");
+Log.Logger.Information("==================================================================");
+Log.Logger.Information("  Endpoints:");
+Log.Logger.Information("    > Health Check:  {0}/health", baseAddress);
+Log.Logger.Information("    > Metrics:       {0}/metrics", baseAddress);
+Log.Logger.Information("    > Logs:          {0}/api/logs", baseAddress);
+Log.Logger.Information("    > Log Levels:    {0}/api/logs/levels", baseAddress);
+Log.Logger.Information("==================================================================");
 
 app.Run();

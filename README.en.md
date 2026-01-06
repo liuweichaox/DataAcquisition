@@ -1,6 +1,6 @@
 # 🛰️ DataAcquisition - Industrial PLC Data Acquisition System
 
-[![.NET](https://img.shields.io/badge/.NET-10.0%20%7C%208.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
@@ -26,7 +26,7 @@
 DataAcquisition is an industrial-grade PLC data acquisition system built on .NET. The system employs a **WAL-first (Write-Ahead Logging) architecture** to ensure zero data loss, supports **Edge-Central distributed architecture** for centralized management across multiple workshops. It provides advanced features like multi-PLC parallel acquisition, conditional trigger acquisition, and batch reading optimization, supports configuration hot updates and real-time monitoring, ready to use out of the box, operations-friendly.
 
 **Tech Stack:**
-- Runtime: .NET 10.0 / .NET 8.0 (LTS versions)
+- Runtime: .NET 10.0
 - Data Storage: InfluxDB 2.x (time-series database) + Parquet (local WAL)
 - Monitoring: Prometheus metrics + Vue3 visualization interface
 - Architecture: Edge-Central distributed architecture
