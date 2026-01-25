@@ -3,12 +3,12 @@ using System;
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-///     PLC 连接状态详细信息
+///     Plc 连接状态详细信息
 /// </summary>
 public sealed class PlcConnectionStatus
 {
     /// <summary>
-    ///     PLC 编码
+    ///     Plc 编码
     /// </summary>
     public required string PlcCode { get; init; }
 

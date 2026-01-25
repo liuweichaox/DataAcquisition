@@ -16,7 +16,7 @@ public class AcquisitionCycle
     public required string Measurement { get; set; }
 
     /// <summary>
-    ///     PLC 编码
+    ///     Plc 编码
     /// </summary>
     public required string PlcCode { get; set; }
 

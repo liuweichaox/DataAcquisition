@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
-///     心跳监控器，周期性检测 PLC 连通性。
+///     心跳监控器，周期性检测 Plc 连通性。
 ///     连接恢复由下次心跳检测自动完成，无需额外重连逻辑。
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
@@ -63,7 +63,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     if (!lastOk)
                     {
                         _lastConnectedTimes[config.PlcCode] = DateTimeOffset.Now;
-                        _logger.LogInformation("{PlcCode}-✓ PLC连接成功，心跳检测正常 (地址: {Host}:{Port}, 寄存器: {Register})",
+                        _logger.LogInformation("{PlcCode}-✓ Plc连接成功，心跳检测正常 (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PlcCode, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PlcCode, true);
                         RecordConnectionStart(config.PlcCode);
@@ -77,7 +77,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     // 从成功状态变为失败时记录日志
                     if (lastOk)
                     {
-                        _logger.LogWarning("{PlcCode}-✗ PLC连接失败: {Message} (地址: {Host}:{Port}, 寄存器: {Register})",
+                        _logger.LogWarning("{PlcCode}-✗ Plc连接失败: {Message} (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PlcCode, connect.Message, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PlcCode, false);
                         RecordConnectionEnd(config.PlcCode);
@@ -101,7 +101,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     }
 
     /// <summary>
-    ///     获取 PLC 连接状态。
+    ///     获取 Plc 连接状态。
     /// </summary>
     public bool TryGetConnectionHealth(string plcCode, out bool isConnected)
     {
@@ -109,7 +109,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
     }
 
     /// <summary>
-    ///     获取 PLC 连接详细信息。
+    ///     获取 Plc 连接详细信息。
     /// </summary>
     public PlcConnectionStatus? GetConnectionStatus(string plcCode)
     {

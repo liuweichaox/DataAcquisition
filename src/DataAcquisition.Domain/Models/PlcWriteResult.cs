@@ -1,7 +1,7 @@
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-///     PLC 写入结果。
+///     Plc 写入结果。
 /// </summary>
 public class PlcWriteResult
 {

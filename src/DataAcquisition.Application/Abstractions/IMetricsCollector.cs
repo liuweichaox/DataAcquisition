@@ -6,7 +6,7 @@ namespace DataAcquisition.Application.Abstractions;
 public interface IMetricsCollector
 {
     /// <summary>
-    ///     记录采集延迟（从PLC读取到写入数据库的时间，毫秒）
+    ///     记录采集延迟（从Plc读取到写入数据库的时间，毫秒）
     /// </summary>
     /// <param name="plcCode">PLC编码</param>
     /// <param name="measurement">测量值名称</param>

@@ -15,7 +15,7 @@ namespace DataAcquisition.Edge.Agent.Controllers;
 public class DataAcquisitionController(IMediator mediator) : ControllerBase
 {
     /// <summary>
-    ///     获取所有 PLC 连接状态
+    ///     获取所有 Plc 连接状态
     /// </summary>
     /// <returns></returns>
     [HttpGet("plc-connections")]
@@ -35,7 +35,7 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
         // 输入验证
         if (request == null) return BadRequest(new { error = "请求体不能为空" });
 
-        if (string.IsNullOrWhiteSpace(request.PlcCode)) return BadRequest(new { error = "PLC编码不能为空" });
+        if (string.IsNullOrWhiteSpace(request.PlcCode)) return BadRequest(new { error = "Plc编码不能为空" });
 
         if (request.Items.Count == 0) return BadRequest(new { error = "写入项列表不能为空" });
 

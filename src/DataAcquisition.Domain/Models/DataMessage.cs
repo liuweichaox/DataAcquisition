@@ -19,7 +19,7 @@ public class DataMessage
     public required string Measurement { get; init; }
 
     /// <summary>
-    ///     PLC编码[Tag]
+    ///     Plc编码[Tag]
     /// </summary>
     public required string PlcCode { get; init; }
 
@@ -59,12 +59,12 @@ public class DataMessage
 
 
     public bool AddDataValue(string key, dynamic? value)
-    { 
+    {
         return DataValues.TryAdd(key, value);
     }
 
     public bool UpdateDataValue(string key, dynamic? newValue, dynamic? originalValue)
-    { 
+    {
         return DataValues.TryUpdate(key, newValue, originalValue);
     }
 }

@@ -10,7 +10,7 @@ using HslCommunication.Profinet.Beckhoff;
 namespace DataAcquisition.Infrastructure.Clients;
 
 /// <summary>
-///     基于 HslCommunication 的 PLC 通讯客户端
+///     基于 HslCommunication 的 Plc 通讯客户端
 /// </summary>
 public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPlcClientService
 {
@@ -21,7 +21,7 @@ public class BeckhoffAdsPlcClientService(DeviceConfig config) : IPlcClientServic
     };
 
     /// <summary>
-    ///     关闭与 PLC 的连接。
+    ///     关闭与 Plc 的连接。
     /// </summary>
     public Task ConnectCloseAsync()
     {

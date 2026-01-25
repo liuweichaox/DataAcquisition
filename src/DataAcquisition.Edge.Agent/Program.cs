@@ -1,4 +1,4 @@
-// Edge Agent（车间侧）：负责 PLC 采集、本地缓冲/落盘、上报中心，以及本地诊断 API（不包含 UI）。
+// Edge Agent（车间侧）：负责 Plc 采集、本地缓冲/落盘、上报中心，以及本地诊断 API（不包含 UI）。
 
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;

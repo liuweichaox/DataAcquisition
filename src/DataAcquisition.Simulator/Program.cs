@@ -49,14 +49,14 @@ internal class Program
     private static void PrintHeader()
     {
         Console.WriteLine("=".PadRight(60, '='));
-        Console.WriteLine("PLC 模拟器 - DataAcquisition Simulator");
+        Console.WriteLine("Plc 模拟器 - DataAcquisition Simulator");
         Console.WriteLine("=".PadRight(60, '='));
         Console.WriteLine();
     }
 
     private static void PrintInfo(int port)
     {
-        Console.WriteLine($"PLC 模拟器运行在 0.0.0.0:{port}");
+        Console.WriteLine($"Plc 模拟器运行在 0.0.0.0:{port}");
         Console.WriteLine($"提示: 使用 'telnet 127.0.0.1 {port}' 测试连接");
         Console.WriteLine($"提示: 使用 'netstat -ano | findstr :{port}' 检查端口监听状态");
         Console.WriteLine();
@@ -112,7 +112,7 @@ internal class Program
 
         while (running)
         {
-            Console.Write("PLC> ");
+            Console.Write("Plc> ");
             var input = Console.ReadLine()?.Trim();
 
             if (string.IsNullOrWhiteSpace(input))

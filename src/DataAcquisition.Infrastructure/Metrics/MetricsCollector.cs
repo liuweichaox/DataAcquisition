@@ -28,7 +28,7 @@ public class MetricsCollector : IMetricsCollector
         _collectionLatencyHistogram = _meter.CreateHistogram<double>(
             "data_acquisition.collection_latency_ms",
             "ms",
-            "采集延迟（从PLC读取到写入数据库的时间，毫秒）");
+            "采集延迟（从Plc读取到写入数据库的时间，毫秒）");
 
         // 采集频率指标
         _collectionRateHistogram = _meter.CreateHistogram<double>(

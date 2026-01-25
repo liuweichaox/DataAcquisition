@@ -1,12 +1,12 @@
 namespace DataAcquisition.Contracts;
 
 /// <summary>
-///     PLC 批量写入请求
+///     Plc 批量写入请求
 /// </summary>
 public class PlcWriteRequest
 {
     /// <summary>
-    ///     PLC 编号
+    ///     Plc 编号
     /// </summary>
     public string PlcCode { get; set; } = string.Empty;
 
@@ -17,7 +17,7 @@ public class PlcWriteRequest
 }
 
 /// <summary>
-///     PLC 写入项
+///     Plc 写入项
 /// </summary>
 public class PlcWriteItem
 {

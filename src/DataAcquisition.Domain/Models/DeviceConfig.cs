@@ -14,7 +14,7 @@ public class DeviceConfig
     public bool IsEnabled { get; set; }
 
     /// <summary>
-    ///     PLC 编码
+    ///     Plc 编码
     /// </summary>
     public string PlcCode { get; set; } = string.Empty;
 
@@ -29,7 +29,7 @@ public class DeviceConfig
     public ushort Port { get; set; }
 
     /// <summary>
-    ///     PLC 类型
+    ///     Plc 类型
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public PlcType Type { get; set; }
@@ -70,7 +70,7 @@ public enum AcquisitionTrigger
 
 /// <summary>
 ///     条件采集配置，包含开始与结束事件
-///     用于实现条件采集：根据PLC寄存器状态判断何时开始采集，何时结束采集。
+///     用于实现条件采集：根据Plc寄存器状态判断何时开始采集，何时结束采集。
 ///     典型应用场景：
 ///     - 生产周期管理：生产开始（Start）时写入Start事件数据点，生产结束（End）时写入End事件数据点
 ///     - 设备状态监控：设备启动（Start）时写入Start事件数据点，设备停止（End）时写入End事件数据点
@@ -86,8 +86,8 @@ public class ConditionalAcquisition
 {
     /// <summary>
     ///     触发地址
-    ///     用于判断触发条件的PLC寄存器地址
-    ///     例如："D6200"（三菱PLC）或 "M100"（位寄存器）
+    ///     用于判断触发条件的Plc寄存器地址
+    ///     例如："D6200"（三菱Plc）或 "M100"（位寄存器）
     /// </summary>
     public string? Register { get; set; }
 

@@ -3,7 +3,7 @@ using System;
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-///     PLC 读取结果。
+///     Plc 读取结果。
 /// </summary>
 public class PlcReadResult
 {

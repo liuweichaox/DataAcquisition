@@ -10,7 +10,7 @@ namespace DataAcquisition.Infrastructure.Clients;
 public class PlcClientFactory : IPlcClientFactory
 {
     /// <summary>
-    ///     创建 PLC 客户端实例。
+    ///     创建 Plc 客户端实例。
     /// </summary>
     public IPlcClientService Create(DeviceConfig config)
     {
@@ -19,7 +19,7 @@ public class PlcClientFactory : IPlcClientFactory
             PlcType.Mitsubishi => new MitsubishiPlcClientService(config),
             PlcType.Inovance => new InovancePlcClientService(config),
             PlcType.BeckhoffAds => new BeckhoffAdsPlcClientService(config),
-            _ => throw new NotImplementedException("不支持的 PLC 类型")
+            _ => throw new NotImplementedException("不支持的 Plc 类型")
         };
     }
 }

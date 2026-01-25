@@ -90,7 +90,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                     kv.Value.Cts.Dispose();
                 }
 
-            // 关闭并清理所有 PLC 客户端与锁
+            // 关闭并清理所有 Plc 客户端与锁
             await _plcLifecycle.CloseAllAsync().ConfigureAwait(false);
 
             // Complete and dispose the queue.
@@ -103,9 +103,9 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    ///     写入 PLC 寄存器
+    ///     写入 Plc 寄存器
     /// </summary>
-    /// <param name="plcCode">PLC 编号</param>
+    /// <param name="plcCode">Plc 编号</param>
     /// <param name="address">寄存器地址</param>
     /// <param name="value">写入值</param>
     /// <param name="dataType">数据类型</param>
@@ -120,7 +120,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             return new PlcWriteResult
             {
                 IsSuccess = false,
-                Message = $"未找到 PLC {plcCode} 的配置"
+                Message = $"未找到 Plc {plcCode} 的配置"
             };
 
         var client = _plcLifecycle.GetOrCreateClient(config);
@@ -142,7 +142,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    ///     获取当前所有 PLC 连接信息
+    ///     获取当前所有 Plc 连接信息
     /// </summary>
     public IReadOnlyCollection<PlcConnectionStatus> GetPlcConnections()
     {
@@ -154,7 +154,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 connectionStatuses.Add(status);
         }
 
-        // 按 PLC 编码排序
+        // 按 Plc 编码排序
         return connectionStatuses.OrderBy(c => c.PlcCode).ToList();
     }
 
@@ -222,8 +222,7 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>
-    ///     配置变更处理（异步事件处理器）。
-    ///     注意：使用 async void 是事件处理器的标准模式，但异常必须完全捕获。
+    ///     配置变更事件处理。异常必须完全捕获。
     /// </summary>
     private async void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
     {
@@ -298,7 +297,7 @@ public class DataAcquisitionService : IDataAcquisitionService
                 runtime.Cts.Dispose();
             }
 
-            // 关闭并清理 PLC 客户端与锁
+            // 关闭并清理 Plc 客户端与锁
             await _plcLifecycle.CloseAsync(plcCode).ConfigureAwait(false);
         }
         catch (Exception ex)

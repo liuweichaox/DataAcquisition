@@ -1,7 +1,7 @@
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-///     PLC 类型
+///     Plc 类型
 /// </summary>
 public enum PlcType
 {
