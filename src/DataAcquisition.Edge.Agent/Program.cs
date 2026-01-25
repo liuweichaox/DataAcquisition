@@ -90,7 +90,8 @@ app.UseRouting();
 app.UseHttpMetrics();
 
 // 初始化 System.Diagnostics.Metrics 到 Prometheus 的桥接
-app.Services.GetRequiredService<MetricsBridge>();
+var metricsBridge = app.Services.GetRequiredService<MetricsBridge>();
+metricsBridge.StartListening();
 
 // 暴露 Prometheus 指标端点
 app.MapMetrics();

@@ -26,7 +26,13 @@ public class MetricsBridge : IDisposable
         _listener.SetMeasurementEventCallback<double>(OnMeasurementRecorded);
         _listener.SetMeasurementEventCallback<int>(OnMeasurementRecorded);
         _listener.SetMeasurementEventCallback<long>(OnMeasurementRecorded);
+    }
 
+    /// <summary>
+    ///     启动指标监听器（显式初始化）
+    /// </summary>
+    public void StartListening()
+    {
         _listener.Start();
     }
 

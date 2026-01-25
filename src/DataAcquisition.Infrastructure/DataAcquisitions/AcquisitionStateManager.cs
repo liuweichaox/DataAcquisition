@@ -41,16 +41,7 @@ public class AcquisitionStateManager : IAcquisitionStateManager
         var key = GetKey(plcCode, channelCode, measurement);
         return _activeCycles.TryRemove(key, out var cycle) ? cycle : null;
     }
-
-    /// <summary>
-    ///     获取当前活跃的采集周期
-    /// </summary>
-    public AcquisitionCycle? GetActiveCycle(string plcCode, string channelCode, string measurement)
-    {
-        var key = GetKey(plcCode, channelCode, measurement);
-        return _activeCycles.GetValueOrDefault(key);
-    }
-
+    
     /// <summary>
     ///     生成复合键：plcCode:channelCode:measurement
     /// </summary>

@@ -79,29 +79,27 @@ public class MetricsCollector : IMetricsCollector
             "连接持续时间（秒）");
     }
 
-    public void RecordCollectionLatency(string plcCode, string measurement, double latencyMs,
-        string? channelCode = null)
+    public void RecordCollectionLatency(string plcCode, string? channelCode, string measurement, double latencyMs)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("plc_code", plcCode),
-            new("measurement", measurement)
+            new("plc_code", plcCode)
         };
         if (!string.IsNullOrEmpty(channelCode))
             tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
+        tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
         _collectionLatencyHistogram.Record(latencyMs, tagList.ToArray());
     }
 
-    public void RecordCollectionRate(string plcCode, string measurement, double pointsPerSecond,
-        string? channelCode = null)
+    public void RecordCollectionRate(string plcCode, string? channelCode, string measurement, double pointsPerSecond)
     {
         var tagList = new List<KeyValuePair<string, object?>>
         {
-            new("plc_code", plcCode),
-            new("measurement", measurement)
+            new("plc_code", plcCode)
         };
         if (!string.IsNullOrEmpty(channelCode))
             tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
+        tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
         _collectionRateHistogram.Record(pointsPerSecond, tagList.ToArray());
     }
 
@@ -139,10 +137,10 @@ public class MetricsCollector : IMetricsCollector
         {
             new("plc_code", plcCode)
         };
-        if (!string.IsNullOrEmpty(measurement))
-            tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
         if (!string.IsNullOrEmpty(channelCode))
             tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
+        if (!string.IsNullOrEmpty(measurement))
+            tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
         _errorCounter.Add(1, tagList.ToArray());
     }
 
