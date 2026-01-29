@@ -138,10 +138,11 @@ public class Simulator : IDisposable
         try
         {
             var now = DateTime.Now;
+
             var timeBase = now.Second + now.Millisecond * 0.001;
 
-            // 心跳寄存器自动递增
-            _heartbeatCounter = (_heartbeatCounter + 1) % 65536;
+            // 心跳寄存器, 默认为0，等数据采集写入
+            _heartbeatCounter = 0;
             _server.Write("D100", (ushort)_heartbeatCounter);
 
             // 批量数据起始地址：D6000
@@ -169,17 +170,16 @@ public class Simulator : IDisposable
             var servoSpeed = (short)(1500 + Math.Cos(timeBase * 0.18) * 1500);
             _server.Write("D6005", (ushort)servoSpeed);
 
-            // 索引12: 生产序号
-            // 逻辑：每个序号持续10秒，然后变为0持续5秒，然后序号+1
-            // 模式：1111111111, 00000, 2222222222, 00000, 3333333333, 00000...
-            var totalSeconds = (int)(DateTime.Now - _simulatorStartTime).TotalSeconds;
-            var cycleSeconds = totalSeconds % 15; // 15秒一个周期（10秒序号 + 5秒0）
-            var cycleNumber = totalSeconds / 15; // 当前是第几个周期（从0开始）
-            var currentProductionNumber = cycleNumber + 1; // 当前生产序号（从1开始）
-
-            // 如果在一个周期内的前10秒，显示生产序号；后5秒显示0
-            var productionSerial = cycleSeconds < 10 ? currentProductionNumber : 0;
-            _server.Write("D6006", (ushort)productionSerial);
+            // 索引12: 设备的生产状态，这个状态为0表示设备在休息，为1表示设备再生产中
+            // 逻辑：每个设备休息5秒，持续生产10秒，然后休息5秒，再生产
+            // 模式：0、0、0、0、0，1、1、1、1、1、1、1、1、1、1, 0、0、0、0、0,1......
+            var totalSeconds = (int)(now - _simulatorStartTime).TotalSeconds;
+            var cycleSeconds = totalSeconds % 15; // 15秒一个周期（5秒休息 + 10秒生产中）
+            
+            // 如果在一个周期内的前5秒，显示0；后10秒显示1
+            var deviceFlag = cycleSeconds < 5 ? 0 : 1;
+            
+            _server.Write("D6006", (ushort)deviceFlag);
         }
         catch (Exception ex)
         {

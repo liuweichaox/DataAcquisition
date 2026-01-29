@@ -33,9 +33,7 @@ internal class Program
         {
             simulator.Start();
             PrintInfo(port);
-
-            // 交互式命令处理
-            await HandleCommandsAsync(simulator, logger);
+            await PrintRealTimeDataAsync(simulator, logger);
 
             simulator.Stop();
         }
@@ -71,18 +69,9 @@ internal class Program
         Console.WriteLine("    D6004 (索引8) - 光栅位置 (0-1000, 单位mm)");
         Console.WriteLine("    D6005 (索引10) - 伺服速度 (0-3000, 单位rpm)");
         Console.WriteLine("    D6006 (索引12) - 生产序号 (持续10秒，然后0持续5秒，序号+1)");
-        Console.WriteLine();
-        Console.WriteLine("命令:");
-        Console.WriteLine("  set <地址> <值>  - 设置寄存器值（例如: set D6000 123）");
-        Console.WriteLine("  get <地址>       - 读取寄存器值（例如: get D6000）");
-        Console.WriteLine("  info             - 显示当前测试寄存器状态");
-        Console.WriteLine("  exit             - 退出程序");
-        Console.WriteLine();
-        Console.WriteLine("按 Enter 继续...");
-        Console.ReadLine();
     }
 
-    private static async Task HandleCommandsAsync(Simulator simulator, ILogger logger)
+    private static async Task PrintRealTimeDataAsync(Simulator simulator, ILogger logger)
     {
         var running = true;
 
@@ -101,80 +90,14 @@ internal class Program
                     var voltage = simulator.GetRegister("D6003") ?? 0;
                     var lightBarrierPos = simulator.GetRegister("D6004") ?? 0;
                     var servoSpeed = simulator.GetRegister("D6005") ?? 0;
-                    var productionSerial = simulator.GetRegister("D6006") ?? 0;
+                    var deviceFlag = simulator.GetRegister("D6006") ?? 0;
                     var timestamp = DateTime.Now.ToString("HH:mm:ss");
 
-                    Console.WriteLine(
-                        $"[{timestamp}] 心跳={heartbeat,5} | 温度={temp,4} | 压力={pressure,4} | 电流={current,3} | 电压={voltage,4} | 光栅={lightBarrierPos,4} | 伺服={servoSpeed,4} | 生产序号={productionSerial}");
+                    logger.LogInformation(
+                        $"[{timestamp}] 心跳={heartbeat} | 温度={temp,4} | 压力={pressure,4} | 电流={current,3} | 电压={voltage,4} | 光栅={lightBarrierPos,4} | 伺服={servoSpeed,4} | 生产状态={deviceFlag}");
                 }
             }
         });
-
-        while (running)
-        {
-            Console.Write("Plc> ");
-            var input = Console.ReadLine()?.Trim();
-
-            if (string.IsNullOrWhiteSpace(input))
-                continue;
-
-            var parts = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var command = parts[0].ToLower();
-
-            try
-            {
-                switch (command)
-                {
-                    case "set" when parts.Length >= 3:
-                        var address = parts[1];
-                        if (ushort.TryParse(parts[2], out var value))
-                        {
-                            var success = simulator.SetRegister(address, value);
-                            Console.WriteLine(success ? $"✓ 已设置 {address} = {value}" : "✗ 设置失败");
-                        }
-                        else
-                        {
-                            Console.WriteLine("✗ 无效的数值");
-                        }
-
-                        break;
-
-                    case "get" when parts.Length >= 2:
-                        var addr = parts[1];
-                        var val = simulator.GetRegister(addr);
-                        Console.WriteLine(val.HasValue ? $"{addr} = {val.Value}" : "✗ 读取失败");
-                        break;
-
-                    case "info":
-                        Console.WriteLine("\n当前测试寄存器状态:");
-                        Console.WriteLine($"  心跳寄存器:   D100 = {simulator.GetRegister("D100") ?? 0}");
-                        Console.WriteLine("  传感器数据:");
-                        Console.WriteLine($"    温度:       D6000 = {simulator.GetRegister("D6000") ?? 0}");
-                        Console.WriteLine($"    压力:       D6001 = {simulator.GetRegister("D6001") ?? 0}");
-                        Console.WriteLine($"    电流:       D6002 = {simulator.GetRegister("D6002") ?? 0}");
-                        Console.WriteLine($"    电压:       D6003 = {simulator.GetRegister("D6003") ?? 0}");
-                        Console.WriteLine($"    光栅位置:   D6004 = {simulator.GetRegister("D6004") ?? 0}");
-                        Console.WriteLine($"    伺服速度:   D6005 = {simulator.GetRegister("D6005") ?? 0}");
-                        Console.WriteLine($"    生产序号:   D6006 = {simulator.GetRegister("D6006") ?? 0}");
-                        Console.WriteLine();
-                        break;
-
-                    case "exit":
-                    case "quit":
-                        running = false;
-                        Console.WriteLine("正在退出...");
-                        break;
-
-                    default:
-                        Console.WriteLine("✗ 未知命令");
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"✗ 错误: {ex.Message}");
-            }
-        }
 
         await displayTask;
     }
