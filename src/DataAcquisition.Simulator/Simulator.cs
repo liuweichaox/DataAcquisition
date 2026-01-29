@@ -28,7 +28,6 @@ public class Simulator : IDisposable
     private readonly ILogger<Simulator>? _logger;
     private readonly MelsecA1EServer _server;
     private readonly DateTime _simulatorStartTime = DateTime.Now;
-    private int _heartbeatCounter;
     private bool _isRunning;
 
     public Simulator(int port, ILogger<Simulator>? logger = null)
@@ -124,8 +123,8 @@ public class Simulator : IDisposable
             var timeBase = now.Second + now.Millisecond * 0.001;
 
             // 心跳寄存器, 默认为0，等数据采集写入
-            _heartbeatCounter = 0;
-            _server.Write("D100", (ushort)_heartbeatCounter);
+            var heartbeatCounter = 0;
+            _server.Write("D100", (ushort)heartbeatCounter);
 
             // 批量数据起始地址：D6000
             // 索引0: 温度 (200-300, 单位0.1°C，实际20-30°C)
@@ -166,7 +165,7 @@ public class Simulator : IDisposable
             // 保存数据快照并输出
             var lastData = new SimulatorData
             {
-                Heartbeat = (ushort)_heartbeatCounter,
+                Heartbeat = (ushort)heartbeatCounter,
                 Temperature = (ushort)temperature,
                 Pressure = (ushort)pressure,
                 Current = (ushort)current,
