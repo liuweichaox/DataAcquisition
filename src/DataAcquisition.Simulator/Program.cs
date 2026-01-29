@@ -1,4 +1,5 @@
 using System.Text;
+using HslCommunication.Profinet.Melsec;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
@@ -6,6 +7,16 @@ namespace DataAcquisition.Simulator;
 
 internal class Program
 {
+    // 寄存器地址常量
+    private const string D100_HEARTBEAT = "D100";
+    private const string D6000_TEMPERATURE = "D6000";
+    private const string D6001_PRESSURE = "D6001";
+    private const string D6002_CURRENT = "D6002";
+    private const string D6003_VOLTAGE = "D6003";
+    private const string D6004_LIGHT_BARRIER = "D6004";
+    private const string D6005_SERVO_SPEED = "D6005";
+    private const string D6006_DEVICE_FLAG = "D6006";
+
     private static async Task Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -41,20 +52,17 @@ internal class Program
 
         try
         {
-            // 启动实时显示（支持取消）
-            await PrintRealTimeDataAsync(simulator, logger, cts.Token);
+            // 保持应用运行，实时数据输出已在 UpdateSimulatedData 中进行
+            await Task.Delay(Timeout.Infinite, cts.Token);
         }
         catch (OperationCanceledException)
         {
-            logger.LogInformation("实时数据显示已取消");
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "实时数据显示出错");
+            logger.LogInformation("应用已退出");
         }
         finally
         {
             simulator.Stop();
+            logger.LogInformation("模拟器已关闭");
         }
     }
 
@@ -82,30 +90,6 @@ internal class Program
         Console.WriteLine("    D6003 (索引6) - 电压 (3800-4200, 单位0.1V)");
         Console.WriteLine("    D6004 (索引8) - 光栅位置 (0-1000, 单位mm)");
         Console.WriteLine("    D6005 (索引10) - 伺服速度 (0-3000, 单位rpm)");
-        Console.WriteLine("    D6006 (索引12) - 设备的生产状态 (状态为0表示设备在休息，为1表示设备再生产中)");
-    }
-    
-    private static async Task PrintRealTimeDataAsync(
-        Simulator simulator, 
-        ILogger logger, 
-        CancellationToken cancellationToken)
-    {
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            await Task.Delay(1000, cancellationToken); // 支持取消的延迟
-
-            var heartbeat = simulator.GetRegister("D100") ?? 0;
-            var temp = simulator.GetRegister("D6000") ?? 0;
-            var pressure = simulator.GetRegister("D6001") ?? 0;
-            var current = simulator.GetRegister("D6002") ?? 0;
-            var voltage = simulator.GetRegister("D6003") ?? 0;
-            var lightBarrierPos = simulator.GetRegister("D6004") ?? 0;
-            var servoSpeed = simulator.GetRegister("D6005") ?? 0;
-            var deviceFlag = simulator.GetRegister("D6006") ?? 0;
-            var timestamp = DateTime.Now.ToString("HH:mm:ss");
-
-            Console.WriteLine(
-                $"[{timestamp}] 心跳={heartbeat} | 温度={temp,4} | 压力={pressure,4} | 电流={current,3} | 电压={voltage,4} | 光栅={lightBarrierPos,4} | 伺服={servoSpeed,4} | 生产状态={deviceFlag}");
-        }
+        Console.WriteLine("    D6006 (索引12) - 设备的生产状态 (0=休息 1=生产中)");
     }
 }

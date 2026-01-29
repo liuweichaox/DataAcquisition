@@ -4,6 +4,22 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Simulator;
 
 /// <summary>
+/// 模拟器数据快照
+/// </summary>
+public class SimulatorData
+{
+    public ushort Heartbeat { get; set; }
+    public ushort Temperature { get; set; }
+    public ushort Pressure { get; set; }
+    public ushort Current { get; set; }
+    public ushort Voltage { get; set; }
+    public ushort LightBarrierPos { get; set; }
+    public ushort ServoSpeed { get; set; }
+    public ushort DeviceFlag { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+/// <summary>
 ///     Mitsubishi A1E 模拟器，直接使用 HslCommunication 服务器
 /// </summary>
 public class Simulator : IDisposable
@@ -95,40 +111,6 @@ public class Simulator : IDisposable
     }
 
     /// <summary>
-    ///     设置寄存器值（直接使用服务器的 Write 方法）
-    /// </summary>
-    public bool SetRegister(string address, ushort value)
-    {
-        try
-        {
-            var result = _server.Write(address, value);
-            if (result.IsSuccess) _logger?.LogDebug("设置寄存器 {Address} = {Value}", address, value);
-            return result.IsSuccess;
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogError(ex, "设置寄存器失败: {Address}", address);
-            return false;
-        }
-    }
-
-    /// <summary>
-    ///     读取寄存器值
-    /// </summary>
-    public ushort? GetRegister(string address)
-    {
-        try
-        {
-            var result = _server.ReadUInt16(address);
-            return result.IsSuccess ? result.Content : null;
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    /// <summary>
     ///     更新模拟数据（定期执行）
     /// </summary>
     private void UpdateSimulatedData(object? state)
@@ -175,11 +157,28 @@ public class Simulator : IDisposable
             // 模式：0、0、0、0、0，1、1、1、1、1、1、1、1、1、1, 0、0、0、0、0,1......
             var totalSeconds = (int)(now - _simulatorStartTime).TotalSeconds;
             var cycleSeconds = totalSeconds % 15; // 15秒一个周期（5秒休息 + 10秒生产中）
-            
+
             // 如果在一个周期内的前5秒，显示0；后10秒显示1
             var deviceFlag = cycleSeconds < 5 ? 0 : 1;
-            
+
             _server.Write("D6006", (ushort)deviceFlag);
+
+            // 保存数据快照并输出
+            var lastData = new SimulatorData
+            {
+                Heartbeat = (ushort)_heartbeatCounter,
+                Temperature = (ushort)temperature,
+                Pressure = (ushort)pressure,
+                Current = (ushort)current,
+                Voltage = (ushort)voltage,
+                LightBarrierPos = (ushort)lightBarrierPos,
+                ServoSpeed = (ushort)servoSpeed,
+                DeviceFlag = (ushort)deviceFlag,
+                Timestamp = now
+            };
+
+            Console.WriteLine(
+                $"[{now:HH:mm:ss}] 心跳={lastData.Heartbeat} | 温度={lastData.Temperature,4} | 压力={lastData.Pressure,4} | 电流={lastData.Current,3} | 电压={lastData.Voltage,4} | 光栅={lastData.LightBarrierPos,4} | 伺服={lastData.ServoSpeed,4} | 生产状态={lastData.DeviceFlag}");
         }
         catch (Exception ex)
         {
