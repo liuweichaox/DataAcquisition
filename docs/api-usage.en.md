@@ -2,10 +2,9 @@
 
 This document introduces how to use the APIs provided by the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
+This page focuses on API usage examples. Use the index for full navigation.
 
 ## Metrics Data Query
 
@@ -174,7 +173,9 @@ curl http://localhost:8001/api/logs/levels
 
 ## Next Steps
 
-After learning about API usage, we recommend continuing to learn:
+After learning about API usage, continue with:
 
-- Read [Performance Optimization Recommendations](performance.en.md) to learn how to optimize system performance
+- [Documentation Index](index.en.md)
+- [Performance Recommendations](performance.en.md)
+- [FAQ](faq.en.md)
 

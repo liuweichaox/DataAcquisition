@@ -2,14 +2,17 @@
 
 本文档说明 DataAcquisition 系统的核心设计理念和架构原则。
 
-## 相关文档
+## 概览
 
-- [快速开始指南](getting-started.md) - 从零开始使用系统
-- [配置说明](configuration.md) - 详细的配置选项说明
-- [API 使用示例](api-usage.md) - API 接口使用方法
-- [性能优化建议](performance.md) - 优化系统性能
-- [核心模块文档](modules.md) - 了解系统核心模块
-- [数据处理流程](data-flow.md) - 理解数据流转过程
+本页聚焦系统设计理念与架构原则。完整导航见索引页。
+
+## 目录
+
+- [WAL-first 架构](#wal-first-架构)
+- [模块化设计](#模块化设计)
+- [运维友好](#运维友好)
+- [Edge-Central 分布式架构](#edge-central-分布式架构)
+- [安全性](#安全性)
 
 ## WAL-first 架构
 
@@ -121,5 +124,6 @@
 
 了解设计理念后，建议：
 
-- 阅读 [常见问题](faq.md) 获取更多帮助和参考
-- 返回 [README](../README.md) 查看项目概览
+- [文档索引](index.md)
+- [数据处理流程](data-flow.md)
+- [核心模块文档](modules.md)

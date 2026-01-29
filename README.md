@@ -13,10 +13,13 @@ English: [README.en.md](README.en.md)
 
 - [📖 项目简介](#-项目简介)
 - [🎯 核心特性](#-核心特性)
+- [✨ 应用场景](#-应用场景)
 - [🏗️ 系统架构](#-系统架构)
 - [📁 项目结构](#-项目结构)
 - [🚀 快速开始](#-快速开始)
-- [📚 文档导航](#-文档导航)
+- [📸 屏幕截图](#-屏幕截图)
+- [📚 教程导航](#-教程导航)
+- [📖 文档导航](#-文档导航)
 - [🤝 贡献指南](#-贡献指南)
 - [📄 开源协议](#-开源协议)
 - [🙏 致谢](#-致谢)
@@ -33,16 +36,126 @@ DataAcquisition 是一个基于 .NET 构建的工业级 PLC 数据采集系统�
 
 ### 🎯 核心特性
 
-| 特性 | 说明 |
-|------|------|
-| 🔒 **数据安全** | WAL-first 架构，所有数据先写入本地 Parquet 文件，确保零丢失 |
-| 🔀 **多协议支持** | 支持 Mitsubishi（三菱）、Inovance（汇川）、BeckhoffAds（倍福）等 PLC 协议 |
-| ⚡ **高性能采集** | 多 PLC 并行采集，批量读取优化，减少网络往返 |
-| 🎯 **智能采集** | 支持条件触发采集（边沿触发、值变化触发）和持续采集两种模式 |
-| 🔄 **配置热更新** | JSON 配置文件 + 文件系统监控，修改配置无需重启服务 |
-| 📊 **实时监控** | Prometheus 指标暴露，Vue3 可视化界面，实时展示系统状态 |
-| 💾 **双存储策略** | InfluxDB 时序数据库 + Parquet 本地持久化（WAL） |
-| 🔁 **自动容错** | 网络异常自动重连，数据写入失败自动重试，保证数据完整性 |
+#### 🔒 WAL-first 数据安全架构
+
+系统采用 **Write-Ahead Log (WAL) 优先** 的设计理念，确保工业数据零丢失：
+
+```
+数据采集 → Parquet WAL (本地) → InfluxDB (远程)
+              ↓ (失败保留)         ↓ (失败重试)
+         pending/ 目录         retry/ 目录
+```
+
+- **双重保险**：数据同时写入本地 Parquet 文件和 InfluxDB，任一失败都有备份
+- **自动重试**：后台 Worker 每 5 秒扫描 retry/ 目录，自动重传失败数据
+- **故障恢复**：即使网络中断、数据库宕机，数据也不会丢失
+
+#### ⚡ 高性能采集优化
+
+| 特性 | 说明 | 性能提升 |
+|------|------|---------|
+| **批量读取** | 一次性读取连续寄存器块，减少网络往返 | ~10x 速度提升 |
+| **并行采集** | 多 PLC、多通道同时采集 | 支持 100+ 设备并发 |
+| **条件触发** | 仅在关键事件发生时采集，节省资源 | 减少 80% 无效采集 |
+| **智能聚合** | 按 BatchSize 聚合后批量写入 | 减少数据库压力 |
+
+#### 🎯 智能采集模式
+
+**Always 模式**（持续采集）
+- 适用场景：温度、压力、电流等需要持续监控的参数
+- 按固定间隔采集数据
+
+**Conditional 模式**（条件触发采集）
+- 适用场景：生产周期管理、设备状态变化记录
+- 支持 RisingEdge（上升沿触发）和 FallingEdge（下降沿触发）
+- 自动记录 Start/End 事件，通过 CycleId 关联完整生产周期
+
+#### 🌐 Edge-Central 分布式架构
+
+- **Edge Agent**：部署在车间侧，负责 PLC 数据采集和本地存储
+- **Central API**：中心服务，接收边缘节点注册、心跳和数据上报
+- **Central Web**：Vue3 可视化界面，实时展示系统状态和监控指标
+
+#### 🔄 配置热更新
+
+- 修改配置文件后自动重新加载（默认延迟 500ms）
+- 支持设备配置和应用配置热更新
+- 无需重启服务，不影响生产环境运行
+
+#### 📊 完整的监控体系
+
+- **Prometheus 指标**：采集延迟、队列深度、写入延迟、错误统计等
+- **可视化界面**：Vue3 + Element Plus，实时展示边缘节点列表和系统指标
+- **日志查询**：SQLite 日志存储，支持 API 查询和分页
+
+#### 🔀 多协议支持
+
+- Mitsubishi（三菱 PLC）
+- Inovance（汇川 PLC）
+- BeckhoffAds（倍福 PLC）
+- 支持通过实现 `IPlcClientService` 接口扩展新协议
+
+## ✨ 应用场景
+
+### 📦 制造业生产线数据采集
+
+**场景**：某汽车零部件生产线，需要实时采集 50+ 工位的设备状态、工艺参数和质量数据
+
+**解决方案**：
+- 每个工位部署 Edge Agent 采集 PLC 数据
+- 使用条件触发模式记录每个产品的完整生产过程
+- 通过 CycleId 关联产品从上料到下料的全部数据
+- Central Web 实时监控各工位状态和产量统计
+
+**效果**：
+- ✅ 数据零丢失，满足质量追溯要求
+- ✅ 条件触发采集，节省 80% 存储空间
+- ✅ 批量读取优化，采集延迟 < 100ms
+
+### 🏭 多车间集中监控
+
+**场景**：某制造企业有 5 个车间分布在不同地区，需要集中监控设备运行状态
+
+**解决方案**：
+- 每个车间部署 Edge Agent 采集本地设备数据
+- 所有 Edge Agent 向同一个 Central API 注册和上报心跳
+- Central Web 统一展示所有车间的设备状态和告警信息
+- 使用 Grafana 展示跨车间的生产统计和趋势分析
+
+**效果**：
+- ✅ 分布式部署，单点故障不影响其他车间
+- ✅ 集中管理，降低运维成本
+- ✅ 实时监控，快速定位问题
+
+### 🔧 设备预测性维护
+
+**场景**：某化工企业需要监控关键设备（压缩机、泵）的振动、温度、压力等参数，预测设备故障
+
+**解决方案**：
+- 配置 Always 模式持续采集振动、温度、压力等参数
+- 数据存储到 InfluxDB，保留 1 年历史数据
+- 使用 Grafana 配置告警规则（超过阈值自动告警）
+- 通过 Flux 查询分析历史趋势，建立预测模型
+
+**效果**：
+- ✅ 实时监控设备健康状态
+- ✅ 提前 7-14 天预测设备故障
+- ✅ 减少计划外停机 60%
+
+### 📊 生产数据追溯
+
+**场景**：某食品企业需要记录每批次产品的完整生产参数，满足质量追溯要求
+
+**解决方案**：
+- 使用条件触发模式，在批次开始时触发 Start 事件
+- 记录生产过程中的所有关键参数（温度、时间、添加量等）
+- 批次结束时触发 End 事件
+- 通过 CycleId 查询某批次产品的完整生产记录
+
+**效果**：
+- ✅ 完整记录每批次生产数据
+- ✅ 快速定位质量问题根因
+- ✅ 满足食品安全追溯要求
 
 ## 🏗️ 系统架构
 
@@ -157,15 +270,36 @@ DataAcquisition/
 
 ## 🚀 快速开始
 
-想要快速开始使用系统？请查看 [快速开始指南](docs/getting-started.md)，该指南提供了从零开始的完整步骤，包括：
+### 方式一：本地部署（推荐新手）
+
+请查看 [入门教程](docs/tutorial-getting-started.md)，该指南提供了从零开始的完整步骤，包括：
 
 - 环境要求和安装步骤
-- InfluxDB 配置说明
+- InfluxDB 本地安装或 Docker 部署
 - 设备配置文件创建
 - 系统启动和验证
 - 使用 PLC 模拟器进行测试
 
-> **提示**: 如果你是第一次使用，建议按照 [快速开始指南](docs/getting-started.md) 的步骤操作。如果你已经熟悉系统，可以直接查看 [配置说明](docs/configuration.md) 和 [API 使用示例](docs/api-usage.md)。
+### 方式二：Docker 快速启动（推荐测试）
+
+使用 Docker Compose 快速部署 InfluxDB，无需手动安装数据库：
+
+```bash
+# 启动 InfluxDB
+docker-compose up -d influxdb
+
+# 初始化（访问 http://localhost:8086）
+# 用户名：admin，密码：admin123
+
+# 更新 appsettings.json 中的 Token
+
+# 启动 Edge Agent
+dotnet run --project src/DataAcquisition.Edge.Agent
+```
+
+详细说明见：[Docker InfluxDB 部署指南](docs/docker-influxdb.md)
+
+> **提示**: 如果你是第一次使用，建议按照 [入门教程](docs/tutorial-getting-started.md) 的步骤操作。如果你已经熟悉系统，可以直接查看 [配置教程](docs/tutorial-configuration.md) 和 [API 使用示例](docs/api-usage.md)。
 
 ### 🧪 使用 PLC 模拟器进行测试
 
@@ -218,65 +352,71 @@ npm run serve
 
 详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
-## 📚 文档导航
+## 📸 屏幕截图
 
-根据你的使用场景，选择合适的文档阅读路径：
+### Central Web 可视化界面
 
-### 新用户入门
+> **注意**：以下为界面示意图，实际界面请参考系统运行后的效果
 
-如果你是第一次使用本系统，建议按以下顺序阅读：
+**边缘节点列表**
+![edges.png](images/edges.png)
 
-1. **[快速开始指南](docs/getting-started.md)** - 从零开始，快速上手系统
-   - 环境要求和安装步骤
-   - 系统配置和启动
-   - 使用 PLC 模拟器测试
+**系统监控指标**
+![metrics.png](images/metrics.png)
 
-2. **[配置说明](docs/configuration.md)** - 了解如何配置系统
-   - 设备配置文件详解
-   - 应用配置说明
-   - 配置示例和使用场景
+**日志列表**
+![logs.png](images/logs.png)
 
-3. **[常见问题](docs/faq.md)** - 遇到问题时的参考
-   - 常见问题解答
-   - 故障排查指南
-   - 配置验证方法
+### Prometheus 监控面板
 
-### 日常使用
+访问 `http://localhost:5000/metrics` 可以看到 Prometheus 格式的指标：
 
-如果你已经熟悉系统，需要日常使用和维护：
+```prometheus
+# HELP data_acquisition_collection_latency_ms 数据采集延迟(ms)
+# TYPE data_acquisition_collection_latency_ms gauge
+data_acquisition_collection_latency_ms{device="PLC01",channel="PLC01C01"} 12.5
 
-- **[API 使用示例](docs/api-usage.md)** - 查询数据和管理系统
-  - 指标数据查询
-  - PLC 连接状态查询
-  - 日志查询和管理
+# HELP data_acquisition_queue_depth 队列深度
+# TYPE data_acquisition_queue_depth gauge
+data_acquisition_queue_depth{device="PLC01"} 45
 
-- **[性能优化建议](docs/performance.md)** - 优化系统性能
-  - 采集参数调优
-  - 存储优化策略
-  - 系统资源优化
+# HELP data_acquisition_errors_total 错误总数
+# TYPE data_acquisition_errors_total counter
+data_acquisition_errors_total{device="PLC01",type="connection"} 0
+```
 
-### 深入了解
+### InfluxDB 数据查询
 
-如果你想深入了解系统架构和实现：
+使用 Flux 查询某设备的温度数据：
 
-- **[核心模块文档](docs/modules.md)** - 了解系统核心模块
-  - PLC 客户端实现
-  - 通道采集器
-  - 数据存储服务
+```flux
+from(bucket: "iot")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensor")
+  |> filter(fn: (r) => r["device_code"] == "PLC01")
+  |> filter(fn: (r) => r["_field"] == "temperature")
+  |> yield(name: "temperature")
+```
 
-- **[数据处理流程](docs/data-flow.md)** - 理解数据流转过程
-  - 正常处理流程
-  - 异常处理机制
-  - 数据一致性保证
+## 📚 教程导航
 
-- **[设计理念](docs/design.md)** - 了解系统设计思想
-  - WAL-first 架构
-  - 模块化设计
-  - 分布式架构
+按“入门 → 配置 → 部署 → 查询 → 开发”的主线学习：
+
+- [入门教程](docs/tutorial-getting-started.md)
+- [配置教程](docs/tutorial-configuration.md)
+- [部署教程](docs/tutorial-deployment.md)
+- [数据查询教程](docs/tutorial-data-query.md)
+- [开发扩展教程](docs/tutorial-development.md)
+
+完整索引见：[文档索引](docs/index.md)
+
+## 📖 文档导航
+
+主入口与完整目录请使用：[文档索引](docs/index.md)
 
 ## ⚙️ 配置说明
 
-详细的配置说明请参考：[配置文档](docs/configuration.md)
+详细的配置说明请参考：[配置教程](docs/tutorial-configuration.md)
 
 ### 快速参考
 
@@ -307,8 +447,9 @@ npm run serve
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,

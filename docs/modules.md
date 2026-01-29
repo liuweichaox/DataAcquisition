@@ -2,12 +2,17 @@
 
 本文档介绍 DataAcquisition 系统的核心模块设计和使用方法。
 
-## 相关文档
+## 概览
 
-- [快速开始指南](getting-started.md) - 从零开始使用系统
-- [配置说明](configuration.md) - 详细的配置选项说明
-- [API 使用示例](api-usage.md) - API 接口使用方法
-- [性能优化建议](performance.md) - 优化系统性能
+本页聚焦核心模块与职责划分。完整导航见索引页。
+
+## 目录
+
+- [PLC 客户端实现](#plc-客户端实现)
+- [ChannelCollector - 通道采集器](#channelcollector---通道采集器)
+- [InfluxDbDataStorageService - 数据存储服务](#influxdbdatastorageservice---数据存储服务)
+- [MetricsCollector - 指标收集器](#metricscollector---指标收集器)
+- [系统扩展](#系统扩展)
 
 ## PLC 客户端实现
 
@@ -160,4 +165,6 @@
 
 了解核心模块后，建议继续学习：
 
-- 阅读 [数据处理流程](data-flow.md) 理解数据流转过程
+- [文档索引](index.md)
+- [数据处理流程](data-flow.md)
+- [设计理念](design.md)

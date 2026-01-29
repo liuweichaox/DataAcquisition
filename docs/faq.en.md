@@ -2,15 +2,28 @@
 
 This document collects common questions and answers about the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
-- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
-- [Core Module Documentation](modules.en.md) - Understand system core modules
-- [Data Processing Flow](data-flow.en.md) - Understand data flow process
-- [Design Philosophy](design.en.md) - Understand system design philosophy
+This page focuses on common questions and troubleshooting. Use the index for full navigation.
+
+## Table of Contents
+
+- [What if data is lost?](#q-what-if-data-is-lost)
+- [How to add a new PLC protocol?](#q-how-to-add-a-new-plc-protocol)
+- [Do I need to restart after configuration changes?](#q-do-i-need-to-restart-after-configuration-changes)
+- [Where to view monitoring metrics?](#q-where-to-view-monitoring-metrics)
+- [How to extend storage backend?](#q-how-to-extend-storage-backend)
+- [How to adjust acquisition frequency?](#q-how-to-adjust-acquisition-frequency)
+- [How to configure conditional acquisition?](#q-how-to-configure-conditional-acquisition)
+- [How to troubleshoot connection issues?](#q-how-to-troubleshoot-connection-issues)
+- [What to do if there are too many WAL files?](#q-what-to-do-if-there-are-too-many-wal-files)
+- [How to deploy to production environment?](#q-how-to-deploy-to-production-environment)
+- [Which PLC protocols are supported?](#q-which-plc-protocols-are-supported)
+- [What to do if configuration file format is incorrect?](#q-what-to-do-if-configuration-file-format-is-incorrect)
+- [What to do if acquisition tasks don't start?](#q-what-to-do-if-acquisition-tasks-dont-start)
+- [How to verify configuration is correct?](#q-how-to-verify-configuration-is-correct)
+- [What happens if batch read configuration is incorrect?](#q-what-happens-if-batch-read-configuration-is-incorrect)
+- [How to check if the system is running normally?](#q-how-to-check-if-the-system-is-running-normally)
 
 ## Q: What if data is lost?
 
@@ -281,6 +294,8 @@ Other protocols can be extended by implementing the `IPlcClientService` interfac
 
 4. **Check Logs**: Check for error logs, normal operation should mainly have Information level logs
 
-## Return
+## Next steps
 
-- Return to [README](../README.en.md) to view project overview and documentation navigation
+- [Documentation Index](index.en.md)
+- [API Usage Examples](api-usage.en.md)
+- [Getting Started Tutorial](tutorial-getting-started.en.md)

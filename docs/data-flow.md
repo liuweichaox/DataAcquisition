@@ -2,13 +2,9 @@
 
 本文档详细说明 DataAcquisition 系统的数据处理流程。
 
-## 相关文档
+## 概览
 
-- [快速开始指南](getting-started.md) - 从零开始使用系统
-- [配置说明](configuration.md) - 详细的配置选项说明
-- [API 使用示例](api-usage.md) - API 接口使用方法
-- [性能优化建议](performance.md) - 优化系统性能
-- [核心模块文档](modules.md) - 了解系统核心模块
+本页聚焦数据流转与 WAL 机制。完整导航见索引页。
 
 ## 正常流程
 
@@ -71,4 +67,6 @@ LocalQueueService (队列聚合)
 
 理解数据处理流程后，建议继续学习：
 
-- 阅读 [设计理念](design.md) 了解系统设计思想
+- [文档索引](index.md)
+- [设计理念](design.md)
+- [性能优化建议](performance.md)

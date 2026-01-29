@@ -2,14 +2,17 @@
 
 This document explains the core design philosophy and architectural principles of the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
-- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
-- [Core Module Documentation](modules.en.md) - Understand system core modules
-- [Data Processing Flow](data-flow.en.md) - Understand data flow process
+This page focuses on design principles and architectural decisions. Use the index for full navigation.
+
+## Table of Contents
+
+- [WAL-first Architecture](#wal-first-architecture)
+- [Modular Design](#modular-design)
+- [Operations-Friendly](#operations-friendly)
+- [Edge-Central Distributed Architecture](#edge-central-distributed-architecture)
+- [Security](#security)
 
 ## WAL-first Architecture
 
@@ -119,7 +122,8 @@ The system adopts the following security measures:
 
 ## Next Steps
 
-After understanding the design philosophy, we recommend:
+After understanding the design philosophy, continue with:
 
-- Read [FAQ](faq.en.md) for more help and reference
-- Return to [README](../README.en.md) to view project overview
+- [Documentation Index](index.en.md)
+- [Data Flow](data-flow.en.md)
+- [Core Modules](modules.en.md)

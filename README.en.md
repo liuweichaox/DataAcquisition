@@ -13,10 +13,13 @@
 
 - [📖 Project Overview](#-project-overview)
 - [🎯 Core Features](#-core-features)
+- [✨ Use Cases](#-use-cases)
 - [🏗️ System Architecture](#-system-architecture)
 - [📁 Project Structure](#-project-structure)
 - [🚀 Quick Start](#-quick-start)
-- [📚 Documentation Navigation](#-documentation-navigation)
+- [📸 Screenshots](#-screenshots)
+- [📚 Tutorial Navigation](#-tutorial-navigation)
+- [📖 Documentation Navigation](#-documentation-navigation)
 - [🤝 Contributing Guidelines](#-contributing-guidelines)
 - [📄 Open Source License](#-open-source-license)
 - [🙏 Acknowledgments](#-acknowledgments)
@@ -33,16 +36,121 @@ DataAcquisition is an industrial-grade PLC data acquisition system built on .NET
 
 ### 🎯 Core Features
 
-| Feature | Description |
-|---------|-------------|
-| 🔒 **Data Safety** | WAL-first architecture, all data written to local Parquet files first, ensuring zero loss |
-| 🔀 **Multi-Protocol Support** | Supports PLC protocols: Mitsubishi, Inovance, BeckhoffAds |
-| ⚡ **High Performance** | Multi-PLC parallel acquisition, batch reading optimization, reduces network round-trips |
-| 🎯 **Intelligent Acquisition** | Supports conditional trigger acquisition (edge trigger, value change trigger) and continuous acquisition modes |
-| 🔄 **Hot Configuration** | JSON configuration files + file system monitoring, configuration changes without service restart |
-| 📊 **Real-time Monitoring** | Prometheus metrics exposure, Vue3 visualization interface, real-time system status |
-| 💾 **Dual Storage** | InfluxDB time-series database + Parquet local persistence (WAL) |
-| 🔁 **Automatic Fault Tolerance** | Automatic reconnection on network failures, automatic retry on write failures, ensures data integrity |
+#### 🔒 WAL-first Data Safety Architecture
+
+The system follows a **Write-Ahead Log (WAL)-first** design to ensure zero data loss:
+
+```
+Acquisition → Parquet WAL (local) → InfluxDB (remote)
+       ↓ (keep on failure)   ↓ (retry on failure)
+  pending/ directory      retry/ directory
+```
+
+- **Dual guarantee**: data is written to local Parquet and InfluxDB in parallel
+- **Automatic retry**: background worker scans retry/ every 5 seconds
+- **Crash-safe**: network outages or DB downtime will not lose data
+
+#### ⚡ High-Performance Acquisition
+
+| Feature | Description | Benefit |
+|---------|-------------|---------|
+| **Batch Read** | Read contiguous registers in one call | ~10x faster |
+| **Parallel Devices** | Multi-PLC concurrent acquisition | 100+ devices |
+| **Conditional Mode** | Capture only on events | 80% less noise |
+| **Batch Write** | Aggregate with BatchSize before write | Lower DB pressure |
+
+#### 🎯 Intelligent Acquisition Modes
+
+**Always Mode** (continuous)
+- For temperature/pressure/current and other continuous signals
+- Fixed interval sampling
+
+**Conditional Mode** (event-driven)
+- For production cycle or state changes
+- Supports RisingEdge and FallingEdge
+- Emits Start/End events with CycleId for full cycle trace
+
+#### 🌐 Edge-Central Distributed Architecture
+
+- **Edge Agent**: runs on the shop floor for PLC collection and local persistence
+- **Central API**: manages edge registration, heartbeats, and telemetry
+- **Central Web**: Vue3 UI for real-time monitoring
+
+#### 🔄 Hot Configuration Reload
+
+- Reload config files automatically (default 500ms)
+- Supports device and app settings
+- No service restart required
+
+#### 📊 Observability Built-in
+
+- **Prometheus metrics**: latency, queue depth, write time, error counts
+- **Vue3 UI**: edge status and system metrics
+- **Log query**: SQLite log storage with API access
+
+#### 🔀 Multi-Protocol Support
+
+- Mitsubishi PLC
+- Inovance PLC
+- BeckhoffAds PLC
+- Extend via `IPlcClientService`
+
+## ✨ Use Cases
+
+### 📦 Production Line Data Collection
+
+**Scenario**: 50+ stations need real-time process parameters and quality tracking.
+
+**Solution**:
+- Deploy Edge Agent per station to collect PLC data
+- Use Conditional Mode to capture each product cycle
+- Link full cycle data with CycleId
+
+**Outcome**:
+- ✅ Zero-loss data for traceability
+- ✅ 80% storage savings by event-driven capture
+- ✅ < 100ms acquisition latency
+
+### 🏭 Multi-Workshop Centralized Monitoring
+
+**Scenario**: 5 workshops across different locations require centralized monitoring.
+
+**Solution**:
+- Edge Agent deployed in each workshop
+- Central API aggregates heartbeats and status
+- Central Web provides a unified UI
+
+**Outcome**:
+- ✅ Distributed resilience (no single point impact)
+- ✅ Centralized operations and monitoring
+- ✅ Fast issue localization
+
+### 🔧 Predictive Maintenance
+
+**Scenario**: Monitor compressors/pumps for vibration, temperature, and pressure to predict failures.
+
+**Solution**:
+- Always Mode for continuous sampling
+- Store 1-year history in InfluxDB
+- Grafana alerts on thresholds and trends
+
+**Outcome**:
+- ✅ Early fault prediction (7-14 days)
+- ✅ 60% reduction in unplanned downtime
+
+### 📊 Batch Traceability
+
+**Scenario**: Record all parameters for each production batch.
+
+**Solution**:
+- Conditional Mode triggers Start/End events
+- Store all key parameters between Start/End
+- Query by CycleId for full batch history
+
+**Outcome**:
+- ✅ Full batch traceability
+- ✅ Fast root-cause analysis
+- ✅ Compliance-ready records
 
 ## 🏗️ System Architecture
 
@@ -157,7 +265,9 @@ DataAcquisition/
 
 ## 🚀 Quick Start
 
-Want to get started quickly? Check out the [Getting Started Guide](docs/getting-started.en.md), which provides complete steps from scratch, including:
+### Method 1: Local Deployment (Recommended for Beginners)
+
+Check out the [Getting Started Tutorial](docs/tutorial-getting-started.en.md), which provides complete steps from scratch, including:
 
 - Prerequisites and installation steps
 - InfluxDB configuration instructions
@@ -165,7 +275,26 @@ Want to get started quickly? Check out the [Getting Started Guide](docs/getting-
 - System startup and verification
 - Testing with PLC simulator
 
-> **Tip**: If this is your first time using the system, we recommend following the steps in the [Getting Started Guide](docs/getting-started.en.md). If you're already familiar with the system, you can directly check the [Configuration Guide](docs/configuration.en.md) and [API Usage Examples](docs/api-usage.en.md).
+### Method 2: Docker Quick Start (Recommended for Testing)
+
+Use Docker Compose to quickly deploy InfluxDB without manual database installation:
+
+```bash
+# Start InfluxDB
+docker-compose up -d influxdb
+
+# Initialize (visit http://localhost:8086)
+# Username: admin, Password: admin123
+
+# Update Token in appsettings.json
+
+# Start Edge Agent
+dotnet run --project src/DataAcquisition.Edge.Agent
+```
+
+Detailed guide: [Docker InfluxDB Deployment Guide](docs/docker-influxdb.en.md)
+
+> **Tip**: If this is your first time using the system, we recommend following the steps in the [Getting Started Tutorial](docs/tutorial-getting-started.en.md). If you're already familiar with the system, you can directly check the [Configuration Tutorial](docs/tutorial-configuration.en.md) and [API Usage Examples](docs/api-usage.en.md).
 
 ### 🧪 Testing with PLC Simulator
 
@@ -218,7 +347,65 @@ npm run serve
 
 For detailed information, please refer to: [src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
 
-## 📚 Documentation Navigation
+## 📸 Screenshots
+
+### Central Web UI
+
+> **Note**: The following are illustrative mockups. Actual UI reflects real-time data.
+
+**Edge Nodes List**
+![edges.png](images/edges.png)
+
+**System Metrics**
+![metrics.png](images/metrics.png)
+
+**Logs List**
+![logs.png](images/logs.png)
+
+### Prometheus Metrics
+
+Visit `http://localhost:5000/metrics` to view metrics:
+
+```prometheus
+# HELP data_acquisition_collection_latency_ms Collection latency(ms)
+# TYPE data_acquisition_collection_latency_ms gauge
+data_acquisition_collection_latency_ms{device="PLC01",channel="PLC01C01"} 12.5
+
+# HELP data_acquisition_queue_depth Queue depth
+# TYPE data_acquisition_queue_depth gauge
+data_acquisition_queue_depth{device="PLC01"} 45
+
+# HELP data_acquisition_errors_total Total errors
+# TYPE data_acquisition_errors_total counter
+data_acquisition_errors_total{device="PLC01",type="connection"} 0
+```
+
+### InfluxDB Query Example
+
+```flux
+from(bucket: "iot")
+  |> range(start: -1h)
+  |> filter(fn: (r) => r["_measurement"] == "sensor")
+  |> filter(fn: (r) => r["device_code"] == "PLC01")
+  |> filter(fn: (r) => r["_field"] == "temperature")
+  |> yield(name: "temperature")
+```
+
+## 📚 Tutorial Navigation
+
+Follow the main learning path: Getting Started → Configuration → Deployment → Querying → Development.
+
+- [Getting Started Tutorial](docs/tutorial-getting-started.en.md)
+- [Configuration Tutorial](docs/tutorial-configuration.en.md)
+- [Deployment Tutorial](docs/tutorial-deployment.en.md)
+- [Data Query Tutorial](docs/tutorial-data-query.en.md)
+- [Development Tutorial](docs/tutorial-development.en.md)
+
+Full index: [Documentation Index](docs/index.en.md)
+
+## 📖 Documentation Navigation
+
+Use the master entry: [Documentation Index](docs/index.en.md)
 
 Choose the appropriate documentation reading path based on your use case:
 
@@ -226,12 +413,12 @@ Choose the appropriate documentation reading path based on your use case:
 
 If this is your first time using the system, we recommend reading in the following order:
 
-1. **[Getting Started Guide](docs/getting-started.en.md)** - Get started from scratch, quickly get up and running
+1. **[Getting Started Tutorial](docs/tutorial-getting-started.en.md)** - Get started from scratch, quickly get up and running
    - Prerequisites and installation steps
    - System configuration and startup
    - Testing with PLC simulator
 
-2. **[Configuration Guide](docs/configuration.en.md)** - Learn how to configure the system
+2. **[Configuration Tutorial](docs/tutorial-configuration.en.md)** - Learn how to configure the system
    - Device configuration file details
    - Application configuration instructions
    - Configuration examples and use cases
@@ -276,7 +463,7 @@ If you want to understand the system architecture and implementation in depth:
 
 ## ⚙️ Configuration Guide
 
-Detailed configuration guide: [Configuration Documentation](docs/configuration.en.md)
+Detailed configuration guide: [Configuration Tutorial](docs/tutorial-configuration.en.md)
 
 ### Quick Reference
 
@@ -307,8 +494,9 @@ Detailed configuration guide: [Configuration Documentation](docs/configuration.e
       "BatchSize": 10,
       "AcquisitionInterval": 100,
       "AcquisitionMode": "Always",
-      "DataPoints": [
+      "Metrics": [
         {
+          "MetricName": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,

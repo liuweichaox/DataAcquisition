@@ -2,12 +2,17 @@
 
 This document introduces the core module design and usage of the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
-- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
+This page focuses on core modules and responsibilities. Use the index for full navigation.
+
+## Table of Contents
+
+- [PLC Client Implementations](#plc-client-implementations)
+- [ChannelCollector - Channel Collector](#channelcollector---channel-collector)
+- [InfluxDbDataStorageService - Data Storage Service](#influxdbdatastorageservice---data-storage-service)
+- [MetricsCollector - Metrics Collector](#metricscollector---metrics-collector)
+- [System Extensibility](#system-extensibility)
 
 ## PLC Client Implementations
 
@@ -158,6 +163,8 @@ For detailed extension methods, please refer to the relevant instructions in [FA
 
 ## Next Steps
 
-After understanding core modules, we recommend continuing to learn:
+After understanding core modules, continue with:
 
-- Read [Data Processing Flow](data-flow.en.md) to understand data flow process
+- [Documentation Index](index.en.md)
+- [Data Flow](data-flow.en.md)
+- [Design](design.en.md)

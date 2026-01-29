@@ -14,7 +14,7 @@
       "BatchReadRegister": "D6000",
       "BatchReadLength": 14,
       "BatchSize": 10,
-      "AcquisitionInterval": 0,
+      "AcquisitionInterval": 1000,
       "AcquisitionMode": "Always",
       "Metrics": [
         {

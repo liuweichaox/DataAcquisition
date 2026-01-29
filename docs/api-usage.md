@@ -2,10 +2,9 @@
 
 本文档介绍 DataAcquisition 系统提供的 API 接口使用方法。
 
-## 相关文档
+## 概览
 
-- [快速开始指南](getting-started.md) - 从零开始使用系统
-- [配置说明](configuration.md) - 详细的配置选项说明
+本页聚焦 API 使用示例与调用方式。完整导航见索引页。
 
 ## 指标数据查询
 
@@ -176,5 +175,7 @@ curl http://localhost:8001/api/logs/levels
 
 了解 API 使用后，建议继续学习：
 
-- 阅读 [性能优化建议](performance.md) 了解如何优化系统性能
+- [文档索引](index.md)
+- [性能优化建议](performance.md)
+- [常见问题](faq.md)
 

@@ -2,11 +2,9 @@
 
 This document provides performance optimization suggestions and best practices for the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
+This page focuses on performance tuning and deployment suggestions. Use the index for full navigation.
 
 ## Acquisition Parameter Tuning
 
@@ -93,6 +91,8 @@ Adjust configuration parameters based on monitoring data to optimize system perf
 
 ## Next Steps
 
-After performance optimization, we recommend continuing with in-depth learning:
+After performance optimization, continue with:
 
-- Read [Core Module Documentation](modules.en.md) to understand system core modules in depth
+- [Documentation Index](index.en.md)
+- [Core Modules](modules.en.md)
+- [Data Flow](data-flow.en.md)

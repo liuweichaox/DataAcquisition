@@ -2,13 +2,9 @@
 
 This document details the data processing flow of the DataAcquisition system.
 
-## Related Documents
+## Overview
 
-- [Getting Started Guide](getting-started.en.md) - Get started from scratch
-- [Configuration Guide](configuration.en.md) - Detailed configuration options
-- [API Usage Examples](api-usage.en.md) - API interface usage methods
-- [Performance Optimization Recommendations](performance.en.md) - Optimize system performance
-- [Core Module Documentation](modules.en.md) - Understand system core modules
+This page focuses on data flow and WAL behavior. Use the index for full navigation.
 
 ## Normal Flow
 
@@ -69,6 +65,8 @@ LocalQueueService (Queue Aggregation)
 
 ## Next Steps
 
-After understanding the data processing flow, we recommend continuing to learn:
+After understanding the data processing flow, continue with:
 
-- Read [Design Philosophy](design.en.md) to understand system design philosophy
+- [Documentation Index](index.en.md)
+- [Design](design.en.md)
+- [Performance Recommendations](performance.en.md)
