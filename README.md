@@ -480,7 +480,7 @@ from(bucket: "iot")
 | Edge Agent 配置 | `src/DataAcquisition.Edge.Agent/appsettings.json` | 应用层配置（数据库、API 等） |
 | 配置热更新 | 自动检测 | 支持配置文件修改后自动热加载，无需重启服务 |
 
-**设备配置示例：**
+### 设备配置示例
 
 ```json
 {
@@ -503,7 +503,7 @@ from(bucket: "iot")
       "AcquisitionMode": "Always",
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -515,6 +515,58 @@ from(bucket: "iot")
   ]
 }
 ```
+
+### 字段说明
+
+#### 设备级（DeviceConfig）
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `IsEnabled` | `bool` | ✅ | 是否启用该设备采集 |
+| `PlcCode` | `string` | ✅ | PLC 唯一编码，用于标识设备 |
+| `Host` | `string` | ✅ | PLC 的 IP 地址 |
+| `Port` | `ushort` | ✅ | 通信端口号（如 Modbus 默认 502） |
+| `Type` | `enum` | ✅ | PLC 类型：`Mitsubishi`、`Inovance`、`BeckhoffAds` |
+| `HeartbeatMonitorRegister` | `string` | ✅ | 心跳检测寄存器地址（如 `D100`） |
+| `HeartbeatPollingInterval` | `int` | ✅ | 心跳检测间隔，单位毫秒 |
+| `Channels` | `array` | ✅ | 采集通道列表 |
+
+#### 通道级（Channel）
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `ChannelCode` | `string` | ✅ | 通道唯一编码 |
+| `Measurement` | `string` | ✅ | 时序数据库中的表名（measurement） |
+| `EnableBatchRead` | `bool` | ✅ | 是否启用批量读取，`true` 时一次读取连续寄存器区块 |
+| `BatchReadRegister` | `string` | 条件 | 批量读取起始寄存器地址（`EnableBatchRead=true` 时必填） |
+| `BatchReadLength` | `ushort` | 条件 | 批量读取的寄存器长度（字数） |
+| `BatchSize` | `int` | ✅ | 批量写入数据库的条数，达到该数量后刷写一次 |
+| `AcquisitionInterval` | `int` | ✅ | 采集间隔（毫秒），`0` 表示最高频率（无延迟） |
+| `AcquisitionMode` | `enum` | ✅ | 采集模式：`Always`（持续采集）、`Conditional`（条件触发） |
+| `Metrics` | `array` | 条件 | 采集指标列表（`Always` 模式必填） |
+| `ConditionalAcquisition` | `object` | 条件 | 条件采集配置（`Conditional` 模式必填） |
+
+#### 指标级（Metric）
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `MetricLabel` | `string` | ✅ | 指标标签，用于标识该指标 |
+| `FieldName` | `string` | ✅ | 时序数据库中的字段名 |
+| `Register` | `string` | ✅ | PLC 寄存器地址（如 `D6000`） |
+| `Index` | `int` | ✅ | 在批量读取缓冲区中的字节偏移位置 |
+| `DataType` | `string` | ✅ | 数据类型：`short`、`ushort`、`int`、`uint`、`float`、`double`、`long`、`ulong`、`string` |
+| `EvalExpression` | `string` | ❌ | 数值转换表达式（如 `value / 100.0`），为空则使用原始值 |
+| `StringByteLength` | `int` | 条件 | 字符串字节长度（`DataType=string` 时必填） |
+| `Encoding` | `string` | 条件 | 字符串编码（`DataType=string` 时使用） |
+
+#### 条件采集配置（ConditionalAcquisition）
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|:----:|------|
+| `Register` | `string` | ✅ | 触发寄存器地址 |
+| `DataType` | `string` | ✅ | 触发寄存器的数据类型 |
+| `StartTriggerMode` | `enum` | ✅ | 开始触发模式：`RisingEdge`（值从 0 变非 0）、`FallingEdge`（值从非 0 变 0） |
+| `EndTriggerMode` | `enum` | ✅ | 结束触发模式：同上 |
 
 
 ## 🤝 贡献指南

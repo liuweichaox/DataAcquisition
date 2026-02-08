@@ -119,13 +119,13 @@ netstat -ano | findstr :502
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Always",
       "Metrics": [
-        { "MetricName": "temperature", "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
-        { "MetricName": "pressure", "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
-        { "MetricName": "current", "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
-        { "MetricName": "voltage", "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
-        { "MetricName": "lightBarrierPosition", "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
-        { "MetricName": "servoSpeed", "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
-        { "MetricName": "productionSerial", "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
+        { "MetricLabel": "temperature", "FieldName": "temperature", "Register": "D6000", "Index": 0, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "MetricLabel": "pressure", "FieldName": "pressure", "Register": "D6001", "Index": 2, "DataType": "short", "EvalExpression": "value / 100.0" },
+        { "MetricLabel": "current", "FieldName": "current", "Register": "D6002", "Index": 4, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "MetricLabel": "voltage", "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
+        { "MetricLabel": "lightBarrierPosition", "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
+        { "MetricLabel": "servoSpeed", "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
+        { "MetricLabel": "productionSerial", "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
       ]
     },
     {

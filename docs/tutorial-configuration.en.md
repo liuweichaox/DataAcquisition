@@ -34,7 +34,7 @@ This guide explains device configs and application settings with examples and be
       "AcquisitionMode": "Always",
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,

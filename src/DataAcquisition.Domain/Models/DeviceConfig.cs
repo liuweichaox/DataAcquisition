@@ -198,9 +198,9 @@ public enum AcquisitionMode
 public class Metric
 {
     /// <summary>
-    ///     指标名称（Metric Name），用于标识指标
+    ///     指标标签（Metric Label），用于标识指标
     /// </summary>
-    public string MetricName { get; set; } = string.Empty;
+    public string MetricLabel { get; set; } = string.Empty;
 
     /// <summary>
     ///     字段名称（Field Name），时序数据库中存储数值的字段名

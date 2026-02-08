@@ -112,7 +112,7 @@ Create `TEST_PLC.json` in `src/DataAcquisition.Edge.Agent/Configs/`:
       "AcquisitionMode": "Always",
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,

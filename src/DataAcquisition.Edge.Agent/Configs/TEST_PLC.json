@@ -18,7 +18,7 @@
       "AcquisitionMode": "Always",
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
@@ -26,7 +26,7 @@
           "EvalExpression": "value / 100.0"
         },
         {
-          "MetricName": "pressure",
+          "MetricLabel": "pressure",
           "FieldName": "pressure",
           "Register": "D6001",
           "Index": 2,
@@ -34,7 +34,7 @@
           "EvalExpression": "value / 100.0"
         },
         {
-          "MetricName": "current",
+          "MetricLabel": "current",
           "FieldName": "current",
           "Register": "D6002",
           "Index": 4,
@@ -42,7 +42,7 @@
           "EvalExpression": "value / 10.0"
         },
         {
-          "MetricName": "voltage",
+          "MetricLabel": "voltage",
           "FieldName": "voltage",
           "Register": "D6003",
           "Index": 6,
@@ -50,21 +50,21 @@
           "EvalExpression": "value / 10.0"
         },
         {
-          "MetricName": "lightBarrierPosition",
+          "MetricLabel": "lightBarrierPosition",
           "FieldName": "lightBarrierPosition",
           "Register": "D6004",
           "Index": 8,
           "DataType": "short"
         },
         {
-          "MetricName": "servoSpeed",
+          "MetricLabel": "servoSpeed",
           "FieldName": "servoSpeed",
           "Register": "D6005",
           "Index": 10,
           "DataType": "short"
         },
         {
-          "MetricName": "productionSerial",
+          "MetricLabel": "productionSerial",
           "FieldName": "productionSerial",
           "Register": "D6006",
           "Index": 12,

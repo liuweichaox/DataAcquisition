@@ -52,7 +52,7 @@ Continuously acquires data at the configured `AcquisitionInterval` interval.
   "AcquisitionInterval": 100,
   "Metrics": [
     {
-      "MetricName": "temperature",
+      "MetricLabel": "temperature",
       "FieldName": "temperature",
       "Register": "D6000",
       "Index": 0,

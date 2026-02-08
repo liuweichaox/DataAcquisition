@@ -110,7 +110,7 @@ curl http://localhost:8000/api/metrics-data
       "BatchSize": 10,
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,

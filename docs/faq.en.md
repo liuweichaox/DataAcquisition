@@ -110,7 +110,7 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
       "BatchSize": 10,
       "Metrics": [
         {
-          "MetricName": "temperature",
+          "MetricLabel": "temperature",
           "FieldName": "temperature",
           "Register": "D6000",
           "Index": 0,
