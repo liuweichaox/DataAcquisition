@@ -510,57 +510,7 @@ Detailed configuration guide: [Configuration Tutorial](docs/tutorial-configurati
 }
 ```
 
-### Field Reference
-
-#### Device Level (DeviceConfig)
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `IsEnabled` | `bool` | ✅ | Whether to enable data acquisition for this device |
-| `PlcCode` | `string` | ✅ | Unique PLC identifier |
-| `Host` | `string` | ✅ | PLC IP address |
-| `Port` | `ushort` | ✅ | Communication port (e.g., Modbus default 502) |
-| `Type` | `enum` | ✅ | PLC type: `Mitsubishi`, `Inovance`, `BeckhoffAds` |
-| `HeartbeatMonitorRegister` | `string` | ✅ | Heartbeat detection register address (e.g., `D100`) |
-| `HeartbeatPollingInterval` | `int` | ✅ | Heartbeat polling interval in milliseconds |
-| `Channels` | `array` | ✅ | List of acquisition channels |
-
-#### Channel Level (Channel)
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `ChannelCode` | `string` | ✅ | Unique channel identifier |
-| `Measurement` | `string` | ✅ | Time-series database table name (measurement) |
-| `EnableBatchRead` | `bool` | ✅ | Enable batch reading to read a contiguous register block in one request |
-| `BatchReadRegister` | `string` | Cond. | Starting register address for batch read (required when `EnableBatchRead=true`) |
-| `BatchReadLength` | `ushort` | Cond. | Number of registers to read in batch (word count) |
-| `BatchSize` | `int` | ✅ | Number of data points to buffer before flushing to the database |
-| `AcquisitionInterval` | `int` | ✅ | Acquisition interval in milliseconds; `0` for maximum frequency (no delay) |
-| `AcquisitionMode` | `enum` | ✅ | Acquisition mode: `Always` (continuous) or `Conditional` (trigger-based) |
-| `Metrics` | `array` | Cond. | List of metrics to collect (required for `Always` mode) |
-| `ConditionalAcquisition` | `object` | Cond. | Conditional acquisition config (required for `Conditional` mode) |
-
-#### Metric Level (Metric)
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `MetricLabel` | `string` | ✅ | Label to identify the metric |
-| `FieldName` | `string` | ✅ | Field name in the time-series database |
-| `Register` | `string` | ✅ | PLC register address (e.g., `D6000`) |
-| `Index` | `int` | ✅ | Byte offset within the batch read buffer |
-| `DataType` | `string` | ✅ | Data type: `short`, `ushort`, `int`, `uint`, `float`, `double`, `long`, `ulong`, `string` |
-| `EvalExpression` | `string` | ❌ | Value conversion expression (e.g., `value / 100.0`); raw value used if omitted |
-| `StringByteLength` | `int` | Cond. | String byte length (required when `DataType=string`) |
-| `Encoding` | `string` | Cond. | String encoding (used when `DataType=string`) |
-
-#### Conditional Acquisition (ConditionalAcquisition)
-
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `Register` | `string` | ✅ | Trigger register address |
-| `DataType` | `string` | ✅ | Data type of the trigger register |
-| `StartTriggerMode` | `enum` | ✅ | Start trigger: `RisingEdge` (value changes from 0 to non-zero) or `FallingEdge` (non-zero to 0) |
-| `EndTriggerMode` | `enum` | ✅ | End trigger: same options as above |
+> For complete field reference, see: [Configuration Tutorial - Field Reference](docs/tutorial-configuration.en.md#field-reference)
 
 
 ## 🤝 Contributing Guidelines

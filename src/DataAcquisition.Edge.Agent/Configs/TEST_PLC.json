@@ -16,6 +16,7 @@
       "BatchSize": 10,
       "AcquisitionInterval": 1000,
       "AcquisitionMode": "Always",
+      "ConditionalAcquisition": null,
       "Metrics": [
         {
           "MetricLabel": "temperature",
@@ -81,13 +82,13 @@
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
-      }
+      },
+      "Metrics": null
     }
   ]
 }

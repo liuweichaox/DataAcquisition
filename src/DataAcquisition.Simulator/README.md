@@ -137,13 +137,13 @@ netstat -ano | findstr :502
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D6006",
         "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
-      }
+      },
+      "Metrics": null
     }
   ]
 }

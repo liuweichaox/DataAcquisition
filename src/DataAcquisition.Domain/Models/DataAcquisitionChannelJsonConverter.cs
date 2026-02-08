@@ -81,20 +81,20 @@ public class DataAcquisitionChannelJsonConverter : JsonConverter<DataAcquisition
 
         writer.WriteString("ChannelCode", value.ChannelCode);
 
-        // 序列化时使用 ConditionalAcquisition
-        if (value.ConditionalAcquisition != null)
-        {
-            writer.WritePropertyName("ConditionalAcquisition");
-            JsonSerializer.Serialize(writer, value.ConditionalAcquisition, options);
-        }
-
-        writer.WriteString("AcquisitionMode", value.AcquisitionMode.ToString());
         writer.WriteBoolean("EnableBatchRead", value.EnableBatchRead);
         writer.WriteString("BatchReadRegister", value.BatchReadRegister);
         writer.WriteNumber("BatchReadLength", value.BatchReadLength);
         writer.WriteString("Measurement", value.Measurement);
         writer.WriteNumber("BatchSize", value.BatchSize);
         writer.WriteNumber("AcquisitionInterval", value.AcquisitionInterval);
+        writer.WriteString("AcquisitionMode", value.AcquisitionMode.ToString());
+
+        // 序列化时 ConditionalAcquisition 紧跟 AcquisitionMode
+        if (value.ConditionalAcquisition != null)
+        {
+            writer.WritePropertyName("ConditionalAcquisition");
+            JsonSerializer.Serialize(writer, value.ConditionalAcquisition, options);
+        }
 
         if (value.Metrics != null)
         {

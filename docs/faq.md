@@ -138,13 +138,13 @@ curl http://localhost:8000/api/metrics-data
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
-      }
+      },
+      "Metrics": null
     }
   ]
 }

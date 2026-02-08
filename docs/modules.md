@@ -76,13 +76,13 @@
 ```json
 {
   "AcquisitionMode": "Conditional",
-  "Metrics": null,
   "ConditionalAcquisition": {
     "Register": "D6006",
     "DataType": "short",
     "StartTriggerMode": "RisingEdge",
     "EndTriggerMode": "FallingEdge"
-  }
+  },
+  "Metrics": null
 }
 ```
 

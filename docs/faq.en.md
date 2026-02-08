@@ -138,13 +138,13 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
       "BatchSize": 1,
       "AcquisitionInterval": 0,
       "AcquisitionMode": "Conditional",
-      "Metrics": null,
       "ConditionalAcquisition": {
         "Register": "D210",
         "DataType": "short",
         "StartTriggerMode": "RisingEdge",
         "EndTriggerMode": "FallingEdge"
-      }
+      },
+      "Metrics": null
     }
   ]
 }

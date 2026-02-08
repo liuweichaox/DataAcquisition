@@ -158,11 +158,6 @@ public class DataAcquisitionChannel
     public int AcquisitionInterval { get; set; } = 100;
 
     /// <summary>
-    ///     采集指标配置
-    /// </summary>
-    public List<Metric>? Metrics { get; set; }
-
-    /// <summary>
     ///     采集模式：Always=无条件采集；Conditional=按触发条件采集
     /// </summary>
     [JsonConverter(typeof(JsonStringEnumConverter))]
@@ -174,6 +169,11 @@ public class DataAcquisitionChannel
     ///     如果为null，则按照采集频率持续采集所有数据点
     /// </summary>
     public ConditionalAcquisition? ConditionalAcquisition { get; set; }
+
+    /// <summary>
+    ///     采集指标配置
+    /// </summary>
+    public List<Metric>? Metrics { get; set; }
 }
 
 /// <summary>
