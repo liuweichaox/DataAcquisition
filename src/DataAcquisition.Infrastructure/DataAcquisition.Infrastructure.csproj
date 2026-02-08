@@ -9,7 +9,6 @@
         <PackageReference Include="HslCommunication" Version="12.2.0" />
         <PackageReference Include="InfluxDB.Client" Version="4.18.0" />
         <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.2" />
         <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="10.0.1" />
         <PackageReference Include="NCalcAsync" Version="5.4.0" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

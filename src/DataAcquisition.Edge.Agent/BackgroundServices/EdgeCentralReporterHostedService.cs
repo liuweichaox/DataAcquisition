@@ -1,11 +1,7 @@
-using System.Net.Http.Json;
 using System.Text.Json;
+using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Contracts.Edge;
 using DataAcquisition.Edge.Agent.Services;
-using DataAcquisition.Infrastructure.DataStorages;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DataAcquisition.Edge.Agent.BackgroundServices;
@@ -21,7 +17,7 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
     private readonly EdgeIdentityService _identity;
     private readonly ILogger<EdgeCentralReporterHostedService> _logger;
     private readonly EdgeReportingOptions _options;
-    private readonly ParquetFileStorageService _parquetStorage;
+    private readonly IWalStorageService _walStorage;
     private readonly IConfiguration _configuration;
 
     private string? _lastError;
@@ -31,13 +27,13 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
         IHttpClientFactory httpClientFactory,
         IOptions<EdgeReportingOptions> options,
         EdgeIdentityService identity,
-        ParquetFileStorageService parquetStorage,
+        IWalStorageService walStorage,
         IConfiguration configuration,
         ILogger<EdgeCentralReporterHostedService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _identity = identity;
-        _parquetStorage = parquetStorage;
+        _walStorage = walStorage;
         _configuration = configuration;
         _logger = logger;
         _options = options.Value;
@@ -138,7 +134,7 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
         long? backlog = null;
         try
         {
-            var pending = await _parquetStorage.GetPendingFilesAsync().ConfigureAwait(false);
+            var pending = await _walStorage.GetRetryFilesAsync().ConfigureAwait(false);
             backlog = pending.Count;
         }
         catch (Exception ex)

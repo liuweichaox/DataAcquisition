@@ -1,85 +1,68 @@
-using DataAcquisition.Infrastructure.DataStorages;
+using DataAcquisition.Application.Abstractions;
 
 namespace DataAcquisition.Edge.Agent.BackgroundServices;
 
 /// <summary>
-///     后台服务：扫描 Parquet 降级文件，批量写回 InfluxDB，成功后删除。
+///     后台服务：扫描 WAL 重试队列，写回主存储，成功后删除。
 /// </summary>
-public class ParquetRetryWorker : BackgroundService
+public class ParquetRetryWorker(
+    IWalStorageService walStorage,
+    IDataStorageService primaryStorage,
+    ILogger<ParquetRetryWorker> logger) : BackgroundService
 {
-    private readonly InfluxDbDataStorageService _influxStorage;
-
-    // 缩短扫描间隔，加快 WAL → Influx 写入延迟
-    private readonly TimeSpan _interval = TimeSpan.FromSeconds(5);
-    private readonly ILogger<ParquetRetryWorker> _logger;
-    private readonly ParquetFileStorageService _parquetStorage;
-
-    public ParquetRetryWorker(
-        ParquetFileStorageService parquetStorage,
-        InfluxDbDataStorageService influxStorage,
-        ILogger<ParquetRetryWorker> logger)
-    {
-        _parquetStorage = parquetStorage;
-        _influxStorage = influxStorage;
-        _logger = logger;
-    }
+    private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken).ConfigureAwait(false); // 启动延迟
+        await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken).ConfigureAwait(false);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                await ProcessPendingFilesAsync().ConfigureAwait(false);
+                await ProcessRetryFilesAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Parquet 重传任务异常: {Message}", ex.Message);
+                logger.LogError(ex, "WAL 重传任务异常");
             }
-
-            await Task.Delay(_interval, stoppingToken).ConfigureAwait(false);
+            await Task.Delay(Interval, stoppingToken).ConfigureAwait(false);
         }
     }
 
-    private async Task ProcessPendingFilesAsync()
+    private async Task ProcessRetryFilesAsync()
     {
-        var files = await _parquetStorage.GetPendingFilesAsync().ConfigureAwait(false);
+        var files = await walStorage.GetRetryFilesAsync().ConfigureAwait(false);
         if (files.Count == 0) return;
 
-        _logger.LogInformation("发现 {Count} 个待上传的 Parquet 文件", files.Count);
+        logger.LogInformation("发现 {Count} 个待重试的 WAL 文件", files.Count);
 
         foreach (var file in files)
+        {
             try
             {
-                var messages = await _parquetStorage.ReadFileAsync(file).ConfigureAwait(false);
+                var messages = await walStorage.ReadAsync(file).ConfigureAwait(false);
                 if (messages.Count == 0)
                 {
-                    // 文件为空或损坏，删除它
-                    _logger.LogWarning("Parquet 文件为空或损坏，删除: {File}", file);
-                    await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
+                    logger.LogWarning("WAL 文件为空或损坏，删除: {File}", file);
+                    await walStorage.DeleteAsync(file).ConfigureAwait(false);
                     continue;
                 }
 
-                // 由于每个文件只包含一个 BatchSize 的消息（写入时就是按 BatchSize 一个文件），
-                // 所以文件中的所有消息都是同一个批次的，可以直接一次性写入 InfluxDB
-                var success = await _influxStorage.SaveBatchAsync(messages).ConfigureAwait(false);
-
-                // 只有在写入成功时才删除 Parquet 文件
-                if (success)
+                if (await primaryStorage.SaveBatchAsync(messages).ConfigureAwait(false))
                 {
-                    await _parquetStorage.DeleteFileAsync(file).ConfigureAwait(false);
-                    _logger.LogInformation("成功写回并删除文件: {File} (包含 {Count} 条消息)", file, messages.Count);
+                    await walStorage.DeleteAsync(file).ConfigureAwait(false);
+                    logger.LogInformation("重试成功: {File} ({Count} 条)", file, messages.Count);
                 }
                 else
                 {
-                    _logger.LogWarning("写入 InfluxDB 失败，保留文件以便下次重试: {File} (包含 {Count} 条消息)", file, messages.Count);
+                    logger.LogWarning("主存储写入失败，保留待重试: {File}", file);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "处理 Parquet 文件失败，保留文件以便下次重试: {File}, 原因: {Message}", file, ex.Message);
+                logger.LogWarning(ex, "处理 WAL 文件失败: {File}", file);
             }
+        }
     }
 }

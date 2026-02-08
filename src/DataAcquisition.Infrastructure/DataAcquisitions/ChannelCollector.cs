@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -24,12 +25,11 @@ public class ChannelCollector : IChannelCollector
     private readonly IMetricsCollector? _metricsCollector;
     private readonly IPlcClientLifecycleService _plcLifecycle;
     private readonly IQueueService _queue;
-    private readonly object _rateLock = new();
     private readonly IAcquisitionStateManager _stateManager;
-    private readonly Stopwatch _stopwatch = new();
     private readonly int _triggerWaitDelayMs;
-    private int _collectionCount;
-    private DateTime _lastCollectionTime = DateTime.Now;
+
+    // 采集频率统计（per-channel，避免跨通道竞态）
+    private readonly ConcurrentDictionary<string, (int Count, long LastTicks)> _rateStats = new();
 
     /// <summary>
     ///     初始化通道采集器。
@@ -56,16 +56,8 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
-    ///     按通道配置执行采集任务。支持无条件采集（Always）和条件采集（Conditional）两种模式：
-    ///     Always 模式：按配置频率无条件读取数据。
-    ///     Conditional 模式：监控触发条件，触发后开启采集周期，结束时关闭周期。
-    ///     数据处理：读取后执行表达式计算（若配置），然后异步发布到队列。
+    ///     按通道配置执行采集任务。支持 Always（持续）和 Conditional（边沿触发）两种模式。
     /// </summary>
-    /// <param name="config">设备配置，包含 Plc 连接信息和设备编码</param>
-    /// <param name="dataAcquisitionChannel">采集通道配置，定义采集的测量值、数据点、触发条件等</param>
-    /// <param name="client">Plc 通讯客户端，用于读取寄存器数据</param>
-    /// <param name="ct">取消标记，用于取消采集任务</param>
-    /// <exception cref="OperationCanceledException">当 ct 被取消时，会中断采集循环</exception>
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel,
         IPlcClientService client, CancellationToken ct = default)
     {
@@ -92,7 +84,7 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
-    ///     处理无条件采集。读取数据並按配置频率延迟。
+    ///     处理无条件采集。读取数据并按配置频率延迟。
     /// </summary>
     private async Task HandleUnconditionalCollectionAsync(
         DeviceConfig config,
@@ -107,7 +99,7 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
-    ///     处理条件采集。监控触发條件，触发后会调用 HandleStartEventAsync 和 HandleEndEventAsync。
+    ///     处理条件采集。监控触发条件，触发后会调用 HandleStartEventAsync 和 HandleEndEventAsync。
     /// </summary>
     private async Task<object?> HandleConditionalCollectionAsync(
         DeviceConfig config,
@@ -155,11 +147,11 @@ public class ChannelCollector : IChannelCollector
         IPlcClientService client,
         DateTime timestamp)
     {
-        _stopwatch.Restart();
+        var sw = Stopwatch.StartNew();
         await HandleStartEventAsync(plcCode, channel, client, timestamp).ConfigureAwait(false);
-        _stopwatch.Stop();
+        sw.Stop();
 
-        RecordCollectionMetrics(plcCode, channel, _stopwatch.ElapsedMilliseconds);
+        RecordCollectionMetrics(plcCode, channel, sw.ElapsedMilliseconds);
     }
 
     /// <summary>
@@ -172,77 +164,59 @@ public class ChannelCollector : IChannelCollector
         _metricsCollector.RecordCollectionLatency(plcCode, channel.ChannelCode, channel.Measurement,
             elapsedMilliseconds);
 
-        lock (_rateLock)
-        {
-            _collectionCount++;
-            var elapsed = (DateTime.Now - _lastCollectionTime).TotalSeconds;
-            if (elapsed >= 1.0) // 每秒更新一次频率
+        var key = $"{plcCode}:{channel.ChannelCode}:{channel.Measurement}";
+        var now = DateTime.Now.Ticks;
+        var updated = _rateStats.AddOrUpdate(key,
+            _ => (1, now),
+            (_, prev) =>
             {
-                var rate = _collectionCount / elapsed;
-                _metricsCollector.RecordCollectionRate(plcCode, channel.ChannelCode, channel.Measurement, rate);
-                _collectionCount = 0;
-                _lastCollectionTime = DateTime.Now;
-            }
-        }
+                var elapsed = (now - prev.LastTicks) / (double)TimeSpan.TicksPerSecond;
+                if (elapsed >= 1.0)
+                {
+                    var rate = (prev.Count + 1) / elapsed;
+                    _metricsCollector.RecordCollectionRate(plcCode, channel.ChannelCode, channel.Measurement, rate);
+                    return (0, now);
+                }
+                return (prev.Count + 1, prev.LastTicks);
+            });
     }
 
     /// <summary>
-    ///     对数据消息执行表达式计算。遍历数据值，对配置了 EvalExpression 的数据点使用 NCalc 计算表达式结果。
-    ///     异常会被捕获并记录，不中断流程。此方法会修改 dataMessage 中的数据值。
+    ///     对数据消息执行表达式计算。会修改 dataMessage 中的数据值。
     /// </summary>
-    /// <param name="dataMessage">数据消息，包含要计算的数据值。计算结果会更新到此消息中。</param>
-    /// <param name="metrics">指标配置列表，包含字段名和表达式配置。可以为 null，如果为 null 则不进行任何计算。</param>
-    /// <remarks>
-    ///     注意：此方法会修改 dataMessage 中的数据值。如果数据点配置了 EvalExpression，
-    ///     计算结果会覆盖原始值。建议在调用此方法前保存原始数据（如果需要）。
-    /// </remarks>
     private async Task EvaluateAsync(DataMessage dataMessage, List<Metric>? metrics)
     {
-        await Task.Yield();
-        try
+        if (metrics == null) return;
+
+        foreach (var kv in dataMessage.DataValues.ToList())
         {
-            if (metrics == null) return;
+            var originalValue = kv.Value;
+            if (!IsNumberType(originalValue)) continue;
 
-            foreach (var kv in dataMessage.DataValues.ToList())
+            var metric = metrics.SingleOrDefault(x => x.FieldName == kv.Key);
+            if (metric == null || originalValue is null) continue;
+
+            var evalExpression = metric.EvalExpression;
+            if (string.IsNullOrWhiteSpace(evalExpression)) continue;
+
+            try
             {
-                var originalValue = kv.Value;
-                if (!IsNumberType(originalValue)) continue;
-
-                var metric = metrics.SingleOrDefault(x => x.FieldName == kv.Key);
-                if (metric == null || originalValue is null) continue;
-
-                var evalExpression = metric.EvalExpression;
-                if (string.IsNullOrWhiteSpace(evalExpression)) continue;
-
-                // originalValue 已经在上面的 null 检查中验证，使用 ! 断言非空
-                var valueToEval = originalValue;
-
                 var expression = new AsyncExpression(evalExpression)
                 {
-                    Parameters =
-                    {
-                        ["value"] = valueToEval
-                    }
+                    Parameters = { ["value"] = originalValue }
                 };
-
                 var evaluatedValue = await expression.EvaluateAsync().ConfigureAwait(false);
                 dataMessage.UpdateDataValue(kv.Key, evaluatedValue ?? 0, originalValue);
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error handling data point: {Message}", ex.Message);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "表达式计算失败 [{Field}]: {Expression}", kv.Key, metric.EvalExpression);
+            }
         }
     }
 
 
-    /// <summary>
-    ///     处理无条件采集事件。生成 CycleId，读取数据，异步执行表达式计算和消息发布。
-    /// </summary>
-    /// <param name="plcCode">PLC编码</param>
-    /// <param name="channel">采集通道配置</param>
-    /// <param name="client">Plc 通讯客户端</param>
-    /// <param name="timestamp">采集时间戳</param>
+    /// <summary>处理无条件采集事件：生成 CycleId → 读取数据 → 异步发布。</summary>
     private async Task HandleUnconditionalEventAsync(
         string plcCode,
         DataAcquisitionChannel channel,
@@ -269,13 +243,7 @@ public class ChannelCollector : IChannelCollector
         }
     }
 
-    /// <summary>
-    ///     处理条件采集的开始事件。使用 StateManager.StartCycle 生成不太 CycleId，然后读取数据并异步发布消息。
-    /// </summary>
-    /// <param name="plcCode">PLC编码</param>
-    /// <param name="channel">采集通道配置</param>
-    /// <param name="client">Plc 通讯客户端</param>
-    /// <param name="timestamp">采集时间戳</param>
+    /// <summary>处理条件采集的开始事件：StartCycle → 读取数据 → 异步发布。</summary>
     private async Task HandleStartEventAsync(
         string plcCode,
         DataAcquisitionChannel channel,
@@ -306,42 +274,8 @@ public class ChannelCollector : IChannelCollector
     }
 
     /// <summary>
-    ///     处理结束事件：结束采集周期，写入End事件数据点。
-    /// </summary>
-    /// <returns>如果应该跳过后续处理则返回true，否则返回false</returns>
-    /// <summary>
     ///     处理条件采集的结束事件：结束采集周期并发布 End 消息。
-    ///     功能说明：
-    ///     - 条件采集模式（<see cref="AcquisitionMode.Conditional" />）在触发 End 条件时调用此方法
-    ///     - 结束当前活跃的采集周期，获取 CycleId 用于关联 Start 和 End 事件
-    ///     - 创建 End 事件消息并发布到队列，标记采集周期的结束
-    ///     处理流程：
-    ///     1. 调用 StateManager.EndCycle 结束采集周期，获取 CycleId
-    ///     2. 如果找不到对应的周期（异常情况），记录错误并返回 true（跳过后续处理）
-    ///     3. 创建 DataMessage，事件类型为 End，包含 CycleId
-    ///     4. 异步发布消息到队列（不阻塞采集循环）
-    ///     异常情况处理：
-    ///     - 找不到对应的采集周期（cycle == null）：
-    ///     - 可能原因：Start 事件未正确触发、系统重启导致状态丢失、配置错误
-    ///     - 处理方式：记录错误日志，返回 true 表示需要跳过后续处理
-    ///     - 不创建 End 消息，避免数据不一致
-    ///     数据一致性：
-    ///     - End 事件必须与对应的 Start 事件关联（相同的 CycleId）
-    ///     - 时序数据库不支持 Update 操作，因此 End 事件也是作为新的数据点写入
-    ///     - 通过 EventType 标签区分 Start、End、Data 三种事件类型
-    ///     异步处理：
-    ///     - 消息发布使用 Task.Run 在后台线程执行
-    ///     - 这样可以立即返回，让采集循环继续监控触发条件
-    ///     返回值：
-    ///     - true：表示需要跳过后续处理（通常是异常情况）
-    ///     - false：表示正常处理完成（实际上方法返回 Task&lt;bool&gt;，异步执行）
     /// </summary>
-    /// <param name="plcCode">PLC编码</param>
-    /// <param name="channel">采集通道配置</param>
-    /// <param name="timestamp">事件时间戳</param>
-    /// <returns>
-    ///     Task&lt;bool&gt;，true 表示需要跳过后续处理（异常情况），false 表示正常处理
-    /// </returns>
     private async Task HandleEndEventAsync(string plcCode,
         DataAcquisitionChannel channel,
         DateTime timestamp)
@@ -371,9 +305,7 @@ public class ChannelCollector : IChannelCollector
         }
     }
 
-    /// <summary>
-    ///     从 Plc 读取数据点的值并添加到数据消息中。支持批量读取（地址连续）和单点读取（地址分散）两种方式。
-    /// </summary>
+    /// <summary>读取数据点。支持批量读取（地址连续）和单点读取。</summary>
     private async Task ReadMetricsAsync(
         IPlcClientService client,
         DataAcquisitionChannel channel,

@@ -9,7 +9,7 @@ This page focuses on data flow and WAL behavior. Use the index for full navigati
 ## Normal Flow
 
 1. **Data Acquisition**: ChannelCollector reads data from PLC
-2. **Queue Aggregation**: LocalQueueService aggregates data by BatchSize
+2. **Queue Aggregation**: QueueService aggregates data by BatchSize
 3. **WAL Write**: Immediately write to Parquet file as write-ahead log
 4. **Primary Storage Write**: Immediately write to InfluxDB
 5. **WAL Cleanup**: Delete corresponding Parquet file on successful write
@@ -42,7 +42,7 @@ PLC Device
     ↓
 ChannelCollector (Acquisition)
     ↓
-LocalQueueService (Queue Aggregation)
+QueueService (Queue Aggregation)
     ↓
     ├─→ ParquetFileStorageService (WAL Write to pending folder)
     │       ↓

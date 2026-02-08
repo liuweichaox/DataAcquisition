@@ -36,7 +36,7 @@ If data loss is detected, you can:
 3. The system will automatically retry failed write operations
 
 **Note**: The `Data/parquet` directory contains two subfolders:
-- `pending`: Newly created WAL files (exclusive to WriteWalAndTryInfluxAsync)
+- `pending`: Newly created WAL files (exclusive to PersistBatchAsync)
 - `retry`: WAL files that need retry (exclusive to ParquetRetryWorker)
 
 ## Q: How to add a new PLC protocol?
@@ -85,11 +85,11 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 ## Q: How to extend storage backend?
 
-**A**: Requires modifying source code, implementing the `IDataStorageService` interface and registering in `Program.cs`.
+**A**: Requires modifying source code, implementing the `IDataStorageService` (TSDB) or `IWalStorageService` (WAL) interface and registering in `Program.cs`.
 
 **Steps**:
 
-1. Create a new storage service class implementing the `IDataStorageService` interface
+1. Create a new storage service class implementing the `IDataStorageService` or `IWalStorageService` interface
 2. Register the new storage service in `Program.cs`
 3. The system will use multiple storage backends simultaneously
 

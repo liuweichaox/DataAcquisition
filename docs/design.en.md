@@ -51,7 +51,8 @@ The system adopts a clear layered architecture with interface abstractions, supp
 ### Interface Abstractions
 
 - **IPlcClientService**: PLC client service interface
-- **IDataStorageService**: Data storage service interface
+- **IDataStorageService**: Data storage service interface (TSDB, e.g. InfluxDB)
+- **IWalStorageService**: WAL storage service interface (e.g. Parquet)
 - **IChannelCollector**: Channel collector interface
 - **IQueueService**: Queue service interface
 - **IMetricsCollector**: Metrics collector interface

@@ -51,7 +51,8 @@
 ### 接口抽象
 
 - **IPlcClientService**: PLC 客户端服务接口
-- **IDataStorageService**: 数据存储服务接口
+- **IDataStorageService**: 数据存储服务接口（TSDB，如 InfluxDB）
+- **IWalStorageService**: WAL 存储服务接口（如 Parquet）
 - **IChannelCollector**: 通道采集器接口
 - **IQueueService**: 队列服务接口
 - **IMetricsCollector**: 指标收集器接口

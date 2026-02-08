@@ -1,4 +1,4 @@
-using System.Text.RegularExpressions;
+using DataAcquisition.Central.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DataAcquisition.Central.Api.Controllers;
@@ -26,17 +26,15 @@ public class MetricsController : ControllerBase
         try
         {
             var client = _httpClientFactory.CreateClient();
-            // 使用相对路径，避免硬编码
             var baseUrl = $"{Request.Scheme}://{Request.Host}";
-            // 使用 Prometheus 原始端点
             var response = await client.GetStringAsync($"{baseUrl}/metrics");
 
-            var metrics = ParsePrometheusMetrics(response);
+            var metrics = PrometheusTextParser.Parse(response);
 
             return Ok(new
             {
-                // 使用本地时间，避免 UTC 显示
-                timestamp = DateTime.Now, metrics
+                timestamp = DateTime.Now,
+                metrics
             });
         }
         catch (Exception ex)
@@ -72,88 +70,5 @@ public class MetricsController : ControllerBase
                 "data_acquisition_connection_duration_seconds - 连接持续时间（秒）"
             }
         });
-    }
-
-    private Dictionary<string, object> ParsePrometheusMetrics(string prometheusText)
-    {
-        var result = new Dictionary<string, object>();
-        var lines = prometheusText.Split('\n');
-
-        string? currentMetric = null;
-        string? currentType = null;
-        string? currentHelp = null;
-        var metricData = new List<Dictionary<string, object>>();
-
-        foreach (var line in lines)
-        {
-            var trimmed = line.Trim();
-            if (string.IsNullOrWhiteSpace(trimmed) || trimmed.StartsWith("#"))
-            {
-                if (trimmed.StartsWith("# HELP"))
-                {
-                    var match = Regex.Match(trimmed, @"# HELP\s+(\S+)\s+(.+)");
-                    if (match.Success) currentHelp = match.Groups[2].Value;
-                }
-                else if (trimmed.StartsWith("# TYPE"))
-                {
-                    var match = Regex.Match(trimmed, @"# TYPE\s+(\S+)\s+(\S+)");
-                    if (match.Success)
-                    {
-                        if (currentMetric != null && metricData.Count > 0)
-                            result[currentMetric] = new
-                            {
-                                type = currentType,
-                                help = currentHelp,
-                                data = metricData
-                            };
-                        currentMetric = match.Groups[1].Value;
-                        currentType = match.Groups[2].Value;
-                        currentHelp = null;
-                        metricData = new List<Dictionary<string, object>>();
-                    }
-                }
-
-                continue;
-            }
-
-            // 解析指标行: metric_name{labels} value
-            var metricMatch = Regex.Match(trimmed, @"^([^{]+)(?:\{([^}]+)\})?\s+(.+)$");
-            if (metricMatch.Success)
-            {
-                var metricName = metricMatch.Groups[1].Value;
-                var labelsStr = metricMatch.Groups[2].Value;
-                var value = metricMatch.Groups[3].Value;
-
-                var dataPoint = new Dictionary<string, object>
-                {
-                    ["value"] = double.TryParse(value, out var numValue) ? numValue : value
-                };
-
-                if (!string.IsNullOrEmpty(labelsStr))
-                {
-                    var labels = new Dictionary<string, string>();
-                    foreach (var label in labelsStr.Split(','))
-                    {
-                        var labelParts = label.Split('=');
-                        if (labelParts.Length == 2) labels[labelParts[0].Trim()] = labelParts[1].Trim().Trim('"');
-                    }
-
-                    dataPoint["labels"] = labels;
-                }
-
-                metricData.Add(dataPoint);
-            }
-        }
-
-        // 添加最后一个指标
-        if (currentMetric != null && metricData.Count > 0)
-            result[currentMetric] = new
-            {
-                type = currentType,
-                help = currentHelp,
-                data = metricData
-            };
-
-        return result;
     }
 }

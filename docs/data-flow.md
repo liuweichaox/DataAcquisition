@@ -9,7 +9,7 @@
 ## 正常流程
 
 1. **数据采集**: ChannelCollector 从 PLC 读取数据
-2. **队列聚合**: LocalQueueService 按 BatchSize 聚合数据
+2. **队列聚合**: QueueService 按 BatchSize 聚合数据
 3. **WAL 写入**: 立即写入 Parquet 文件作为预写日志
 4. **主存储写入**: 立即写入 InfluxDB
 5. **WAL 清理**: 写入成功则删除对应的 Parquet 文件
@@ -42,7 +42,7 @@ PLC Device
     ↓
 ChannelCollector (采集)
     ↓
-LocalQueueService (队列聚合)
+QueueService (队列聚合)
     ↓
     ├─→ ParquetFileStorageService (WAL 写入到 pending 文件夹)
     │       ↓

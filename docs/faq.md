@@ -36,7 +36,7 @@
 3. 系统会自动重试失败的写入操作
 
 **注意**：`Data/parquet` 目录下包含两个子文件夹：
-- `pending`：新创建的 WAL 文件（WriteWalAndTryInfluxAsync 专属）
+- `pending`：新创建的 WAL 文件（PersistBatchAsync 专属）
 - `retry`：需要重试的 WAL 文件（ParquetRetryWorker 专属）
 
 ## Q: 如何添加新的 PLC 协议？
@@ -85,11 +85,11 @@ curl http://localhost:8000/api/metrics-data
 
 ## Q: 如何扩展存储后端？
 
-**A**: 需要修改源代码，实现 `IDataStorageService` 接口并在 `Program.cs` 中注册。
+**A**: 需要修改源代码，实现 `IDataStorageService`（TSDB）或 `IWalStorageService`（WAL）接口并在 `Program.cs` 中注册。
 
 **步骤**：
 
-1. 创建新的存储服务类，实现 `IDataStorageService` 接口
+1. 创建新的存储服务类，实现 `IDataStorageService` 或 `IWalStorageService` 接口
 2. 在 `Program.cs` 中注册新的存储服务
 3. 系统会同时使用多个存储后端
 

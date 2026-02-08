@@ -24,7 +24,6 @@ var urls = builder.Configuration["Urls"] ?? builder.Configuration["ASPNETCORE_UR
 builder.WebHost.UseUrls(urls);
 
 builder.Services.AddHttpClient();
-builder.Services.AddMemoryCache();
 
 // 配置 AcquisitionOptions
 builder.Services.Configure<AcquisitionOptions>(builder.Configuration.GetSection("Acquisition"));
@@ -45,10 +44,10 @@ builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
 
-// 存储：Parquet 作为 WAL，后台重传到 Influx
-builder.Services.AddSingleton<ParquetFileStorageService>();
-builder.Services.AddSingleton<InfluxDbDataStorageService>();
-builder.Services.AddSingleton<IQueueService, LocalQueueService>();
+// 存储：Parquet 作为 WAL，主存储可替换（默认 InfluxDB）
+builder.Services.AddSingleton<IWalStorageService, ParquetFileStorageService>();
+builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
+builder.Services.AddSingleton<IQueueService, QueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
 
 // 日志查看服务（使用 SQLite）

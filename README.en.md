@@ -52,12 +52,12 @@ Acquisition → Parquet WAL (local) → InfluxDB (remote)
 
 #### ⚡ High-Performance Acquisition
 
-| Feature | Description | Benefit |
-|---------|-------------|---------|
-| **Batch Read** | Read contiguous registers in one call | ~10x faster |
-| **Parallel Devices** | Multi-PLC concurrent acquisition | 100+ devices |
-| **Conditional Mode** | Capture only on events | 80% less noise |
-| **Batch Write** | Aggregate with BatchSize before write | Lower DB pressure |
+| Feature | Description |
+|---------|-------------|
+| **Batch Read** | Read contiguous registers in one call, significantly reducing network round trips and improving acquisition speed |
+| **Parallel Devices** | Multi-PLC, multi-channel async parallel acquisition |
+| **Conditional Mode** | Capture only on events, avoiding unnecessary data writes |
+| **Batch Write** | Aggregate by BatchSize before writing, reducing DB write frequency |
 
 #### 🎯 Intelligent Acquisition Modes
 
@@ -107,9 +107,9 @@ Acquisition → Parquet WAL (local) → InfluxDB (remote)
 - Link full cycle data with CycleId
 
 **Outcome**:
-- ✅ Zero-loss data for traceability
-- ✅ 80% storage savings by event-driven capture
-- ✅ < 100ms acquisition latency
+- ✅ WAL-first architecture ensures zero data loss for traceability
+- ✅ Event-driven capture records only relevant production data, saving storage
+- ✅ Batch read optimization reduces acquisition latency
 
 ### 🏭 Multi-Workshop Centralized Monitoring
 
@@ -135,8 +135,9 @@ Acquisition → Parquet WAL (local) → InfluxDB (remote)
 - Grafana alerts on thresholds and trends
 
 **Outcome**:
-- ✅ Early fault prediction (7-14 days)
-- ✅ 60% reduction in unplanned downtime
+- ✅ Real-time equipment health monitoring
+- ✅ Historical trend analysis to support maintenance decisions
+- ✅ Reduced risk of unplanned downtime
 
 ### 📊 Batch Traceability
 
@@ -222,7 +223,7 @@ Each Edge Agent adopts a layered architecture design with clear responsibilities
 #### Edge Agent Internal Flow
 
 1. **Data Acquisition Phase**: PLC devices → `ChannelCollector` (supports conditional triggers, batch reading optimization)
-2. **Data Aggregation Phase**: `LocalQueueService` aggregates data by configured `BatchSize`
+2. **Data Aggregation Phase**: `QueueService` aggregates data by configured `BatchSize`
 3. **Data Persistence Phase**:
    - **Parquet WAL**: Immediate write to local Parquet files (write-ahead logging, ensures zero loss)
    - **InfluxDB**: Synchronous write to time-series database (primary storage)

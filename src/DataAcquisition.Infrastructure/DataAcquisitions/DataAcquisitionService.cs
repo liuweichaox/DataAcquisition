@@ -12,7 +12,7 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
 /// <summary>
-///     数据采集器实现
+///     数据采集任务编排器。管理 PLC 运行时生命周期（启动/停止/热更新）、心跳和通道采集任务。
 /// </summary>
 public class DataAcquisitionService : IDataAcquisitionService
 {
@@ -23,10 +23,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     private readonly IPlcClientLifecycleService _plcLifecycle;
     private readonly IQueueService _queue;
     private readonly ConcurrentDictionary<string, PlcRuntime> _runtimes = new();
+    private bool _disposed;
 
-    /// <summary>
-    ///     数据采集器
-    /// </summary>
     public DataAcquisitionService(IDeviceConfigService deviceConfigService,
         IPlcClientLifecycleService plcLifecycle,
         ILogger<DataAcquisitionService> logger,
@@ -45,55 +43,33 @@ public class DataAcquisitionService : IDataAcquisitionService
         _deviceConfigService.ConfigChanged += OnConfigChanged;
     }
 
-    /// <summary>
-    ///     开始所有采集任务
-    /// </summary>
     public async Task StartCollectionTasks()
     {
         var dataAcquisitionConfigs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
         foreach (var config in dataAcquisitionConfigs.Where(config => config.IsEnabled)) StartCollectionTask(config);
     }
 
-    /// <summary>
-    ///     停止所有数据采集任务并释放相关资源
-    /// </summary>
     public async Task StopCollectionTasks()
     {
         try
         {
-            // Cancel the data acquisition tasks.
+            // 先取消所有任务
             foreach (var kvp in _runtimes)
-                try
-                {
-                    await kvp.Value.Cts.CancelAsync().ConfigureAwait(false);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "取消采集任务失败: {Message}", ex.Message);
-                }
+            {
+                try { await kvp.Value.Cts.CancelAsync().ConfigureAwait(false); }
+                catch (Exception ex) { _logger.LogError(ex, "取消采集任务失败: {Message}", ex.Message); }
+            }
 
-            foreach (var kv in _runtimes)
-                try
-                {
-                    await kv.Value.Running.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    // 预期的取消异常，忽略
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "等待任务完成失败: {Message}", ex.Message);
-                }
-                finally
-                {
-                    kv.Value.Cts.Dispose();
-                }
+            // 等待所有任务完成并释放 CTS
+            foreach (var kvp in _runtimes)
+            {
+                try { await kvp.Value.Running.ConfigureAwait(false); }
+                catch (OperationCanceledException) { /* 预期的取消 */ }
+                catch (Exception ex) { _logger.LogError(ex, "等待任务完成失败: {Message}", ex.Message); }
+                finally { kvp.Value.Cts.Dispose(); }
+            }
 
-            // 关闭并清理所有 Plc 客户端与锁
             await _plcLifecycle.CloseAllAsync().ConfigureAwait(false);
-
-            // Complete and dispose the queue.
             await _queue.DisposeAsync().ConfigureAwait(false);
         }
         finally
@@ -102,15 +78,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
     }
 
-    /// <summary>
-    ///     写入 Plc 寄存器
-    /// </summary>
-    /// <param name="plcCode">Plc 编号</param>
-    /// <param name="address">寄存器地址</param>
-    /// <param name="value">写入值</param>
-    /// <param name="dataType">数据类型</param>
-    /// <param name="ct"></param>
-    /// <returns>写入结果</returns>
     public async Task<PlcWriteResult> WritePlcAsync(string plcCode, string address, object value,
         string dataType, CancellationToken ct = default)
     {
@@ -141,46 +108,27 @@ public class DataAcquisitionService : IDataAcquisitionService
         };
     }
 
-    /// <summary>
-    ///     获取当前所有 Plc 连接信息
-    /// </summary>
     public IReadOnlyCollection<PlcConnectionStatus> GetPlcConnections()
     {
-        var connectionStatuses = new List<PlcConnectionStatus>();
-        foreach (var runtime in _runtimes)
-        {
-            var status = _heartbeatMonitor.GetConnectionStatus(runtime.Key);
-            if (status != null)
-                connectionStatuses.Add(status);
-        }
-
-        // 按 Plc 编码排序
-        return connectionStatuses.OrderBy(c => c.PlcCode).ToList();
+        return _runtimes.Keys
+            .Select(plcCode => _heartbeatMonitor.GetConnectionStatus(plcCode))
+            .Where(s => s != null)
+            .OrderBy(s => s!.PlcCode)
+            .ToList()!;
     }
 
-    /// <summary>
-    ///     释放资源
-    /// </summary>
     public void Dispose()
     {
-        // 使用 ConfigureAwait(false) 避免死锁
+        if (_disposed) return;
+        _disposed = true;
+        _deviceConfigService.ConfigChanged -= OnConfigChanged;
         StopCollectionTasks().ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    /// <summary>
-    ///     启动单个采集任务（如果任务已存在则直接返回）
-    /// </summary>
+    /// <summary>启动单个采集任务，已存在则跳过。</summary>
     private void StartCollectionTask(DeviceConfig config)
     {
-        // 使用 TryAdd 原子操作检查并添加，避免竞态条件
-        if (!_runtimes.TryAdd(config.PlcCode, null!))
-        {
-            // 任务已存在，移除刚添加的 null 值（这种情况不应该发生，但防御性编程）
-            if (_runtimes.TryGetValue(config.PlcCode, out var existingRuntime) && existingRuntime != null) return;
-            // 如果值为 null（不应该发生），继续执行创建流程
-            _runtimes.TryRemove(config.PlcCode, out _);
-        }
-
+        // 前置校验
         if (string.IsNullOrWhiteSpace(config.PlcCode))
         {
             _logger.LogError("启动采集任务失败：设备编码为空");
@@ -193,37 +141,38 @@ public class DataAcquisitionService : IDataAcquisitionService
             return;
         }
 
+        // 任务已存在则跳过
+        if (_runtimes.ContainsKey(config.PlcCode))
+            return;
 
         var cts = new CancellationTokenSource();
         var ct = cts.Token;
-
         var client = _plcLifecycle.GetOrCreateClient(config);
 
-        var tasks = new List<Task> { _heartbeatMonitor.MonitorAsync(config, client, ct) };
-
-        foreach (var channel in config.Channels) tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
+        var tasks = new List<Task>(config.Channels.Count + 1)
+        {
+            _heartbeatMonitor.MonitorAsync(config, client, ct)
+        };
+        foreach (var channel in config.Channels)
+            tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
 
         var running = Task.WhenAll(tasks);
         _ = running.ContinueWith(t =>
         {
-            if (t.Exception != null)
-            {
-                var innerException = t.Exception.Flatten().InnerException;
-                _logger.LogError(innerException, "{PlcCode}-采集任务异常: {Message}", config.PlcCode,
-                    innerException?.Message);
-            }
+            var ex = t.Exception?.Flatten().InnerException;
+            if (ex != null)
+                _logger.LogError(ex, "{PlcCode}-采集任务异常: {Message}", config.PlcCode, ex.Message);
+        }, TaskContinuationOptions.OnlyOnFaulted);
 
-            return Task.CompletedTask;
-        }, TaskContinuationOptions.OnlyOnFaulted).Unwrap();
-
-        // 更新运行时对象（之前已用 TryAdd 占位）
         var runtime = new PlcRuntime(cts, running);
-        _runtimes.TryUpdate(config.PlcCode, runtime, null!);
+        // 原子性写入；如果并发竞争失败（极少见），释放 cts
+        if (!_runtimes.TryAdd(config.PlcCode, runtime))
+        {
+            cts.Dispose();
+        }
     }
 
-    /// <summary>
-    ///     配置变更事件处理。异常必须完全捕获。
-    /// </summary>
+    /// <summary>配置变更事件处理。async void 中异常必须完全捕获。</summary>
     private async void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
     {
         try
@@ -274,9 +223,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
     }
 
-    /// <summary>
-    ///     停止单个采集任务
-    /// </summary>
     private async Task StopCollectionTaskAsync(string plcCode)
     {
         if (!_runtimes.TryRemove(plcCode, out var runtime)) return;

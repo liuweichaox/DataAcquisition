@@ -155,7 +155,7 @@ The system adopts interface abstraction design, supporting flexible extension:
 
 ### Adding New Storage Backends
 
-1. Implement the `IDataStorageService` interface
+1. Implement the `IDataStorageService` (TSDB) or `IWalStorageService` (WAL) interface
 2. Register the new storage service in `Program.cs`
 3. The system will use multiple storage backends simultaneously
 

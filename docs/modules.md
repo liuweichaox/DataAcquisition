@@ -155,7 +155,7 @@
 
 ### 添加新的存储后端
 
-1. 实现 `IDataStorageService` 接口
+1. 实现 `IDataStorageService`（TSDB）或 `IWalStorageService`（WAL）接口
 2. 在 `Program.cs` 中注册新的存储服务
 3. 系统会同时使用多个存储后端
 

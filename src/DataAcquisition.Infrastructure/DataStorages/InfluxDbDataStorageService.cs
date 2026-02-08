@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 namespace DataAcquisition.Infrastructure.DataStorages;
 
 /// <summary>
-///     使用 InfluxDB 实现的时序数据库存储服务。
+///     基于 InfluxDB 的时序数据存储实现。可通过替换 IDataStorageService 注册切换到其他 TSDB。
 /// </summary>
 public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 {
@@ -23,99 +23,66 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
     private readonly ILogger<InfluxDbDataStorageService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly string _org;
-    private readonly Stopwatch _writeStopwatch = new();
 
-    /// <summary>
-    ///     构造函数，初始化时序数据库客户端。
-    /// </summary>
     public InfluxDbDataStorageService(IConfiguration configuration, ILogger<InfluxDbDataStorageService> logger,
         IMetricsCollector? metricsCollector = null)
     {
-        var url = configuration["InfluxDB:Url"] ?? throw new ArgumentNullException("InfluxDB:Url is not configured.");
-        var token = configuration["InfluxDB:Token"] ??
-                    throw new ArgumentNullException("InfluxDB:Token is not configured.");
-        _bucket = configuration["InfluxDB:Bucket"] ??
-                  throw new ArgumentNullException("InfluxDB:Bucket is not configured.");
-        _org = configuration["InfluxDB:Org"] ?? throw new ArgumentNullException("InfluxDB:Org is not configured.");
+        var url = configuration["InfluxDB:Url"]
+            ?? throw new ArgumentNullException(nameof(configuration), "InfluxDB:Url is not configured.");
+        var token = configuration["InfluxDB:Token"]
+            ?? throw new ArgumentNullException(nameof(configuration), "InfluxDB:Token is not configured.");
+        _bucket = configuration["InfluxDB:Bucket"]
+            ?? throw new ArgumentNullException(nameof(configuration), "InfluxDB:Bucket is not configured.");
+        _org = configuration["InfluxDB:Org"]
+            ?? throw new ArgumentNullException(nameof(configuration), "InfluxDB:Org is not configured.");
         _logger = logger;
         _metricsCollector = metricsCollector;
-
-        // InfluxDB.Client 4.x 推荐直接使用客户端初始化方式
         _client = new InfluxDBClient(url, token);
     }
 
-    /// <summary>
-    ///     批量保存数据消息。
-    /// </summary>
-    public async Task<bool> SaveBatchAsync(List<DataMessage>? dataMessages)
+    public async Task<bool> SaveBatchAsync(List<DataMessage> dataMessages)
     {
-        if (dataMessages == null || dataMessages.Count == 0)
-            return true;
+        if (dataMessages.Count == 0) return true;
 
-        _writeStopwatch.Restart();
-
+        var sw = Stopwatch.StartNew();
         try
         {
             var points = dataMessages.Select(ConvertToPoint).ToList();
-            var writeApi = _client.GetWriteApiAsync();
-            await writeApi.WritePointsAsync(points, _bucket, _org);
-            _writeStopwatch.Stop();
+            await _client.GetWriteApiAsync().WritePointsAsync(points, _bucket, _org);
+            sw.Stop();
 
-            var batchSize = dataMessages.Count;
-            _metricsCollector?.RecordBatchWriteEfficiency(batchSize, _writeStopwatch.ElapsedMilliseconds);
-
-            // 记录每个测量值的写入延迟
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            _metricsCollector?.RecordWriteLatency(measurement, _writeStopwatch.ElapsedMilliseconds);
+            _metricsCollector?.RecordBatchWriteEfficiency(dataMessages.Count, sw.ElapsedMilliseconds);
+            _metricsCollector?.RecordWriteLatency(
+                dataMessages[0].Measurement ?? "unknown", sw.ElapsedMilliseconds);
             return true;
         }
         catch (Exception ex)
         {
-            var plcCode = dataMessages.FirstOrDefault()?.PlcCode ?? "unknown";
-            var measurement = dataMessages.FirstOrDefault()?.Measurement ?? "unknown";
-            var channelCode = dataMessages.FirstOrDefault()?.ChannelCode;
-            _metricsCollector?.RecordError(plcCode, measurement, channelCode);
-            _logger.LogError(ex, "[ERROR] 时序数据库批量插入失败: {Message}", ex.Message);
+            var first = dataMessages[0];
+            _metricsCollector?.RecordError(first.PlcCode ?? "unknown", first.Measurement, first.ChannelCode);
+            _logger.LogError(ex, "时序数据库批量插入失败");
             return false;
         }
     }
 
-    /// <summary>
-    ///     释放资源。
-    /// </summary>
-    public void Dispose()
-    {
-        _client.Dispose();
-    }
+    public void Dispose() => _client.Dispose();
 
-    /// <summary>
-    ///     将DataMessage转换为时序数据库数据点。
-    /// </summary>
-    private PointData ConvertToPoint(DataMessage dataMessage)
+    private static PointData ConvertToPoint(DataMessage msg)
     {
-        // 注意：InfluxDB 要求时间戳必须是 UTC 时间，所以需要转换
-        // 系统内部使用本地时间，但写入 InfluxDB 时需要转换为 UTC
-        var utcTimestamp = dataMessage.Timestamp.Kind == DateTimeKind.Utc
-            ? dataMessage.Timestamp
-            : dataMessage.Timestamp.ToUniversalTime();
+        var utcTimestamp = msg.Timestamp.Kind == DateTimeKind.Utc
+            ? msg.Timestamp
+            : msg.Timestamp.ToUniversalTime();
 
-        var point = PointData.Measurement(dataMessage.Measurement)
+        var point = PointData.Measurement(msg.Measurement)
             .Timestamp(utcTimestamp, WritePrecision.Ns);
 
-        // 添加标签（tags）
-        if (!string.IsNullOrEmpty(dataMessage.PlcCode)) point = point.Tag("plc_code", dataMessage.PlcCode);
+        if (!string.IsNullOrEmpty(msg.PlcCode)) point = point.Tag("plc_code", msg.PlcCode);
+        if (!string.IsNullOrEmpty(msg.ChannelCode)) point = point.Tag("channel_code", msg.ChannelCode);
+        point = point.Tag("event_type", msg.EventType.ToString());
 
-        if (!string.IsNullOrEmpty(dataMessage.ChannelCode)) point = point.Tag("channel_code", dataMessage.ChannelCode);
+        if (!string.IsNullOrEmpty(msg.CycleId)) point = point.Field("cycle_id", msg.CycleId);
 
-        // 添加event_type标签
-        var eventType = dataMessage.EventType;
-        point = point.Tag("event_type", eventType.ToString());
-
-        // 添加所有数据值作为字段（fields）
-        // 注意：cycle_id 作为 field 而不是 tag，因为它是高基数的唯一标识符（GUID）
-        if (!string.IsNullOrEmpty(dataMessage.CycleId)) point = point.Field("cycle_id", dataMessage.CycleId);
-
-        foreach (var kvp in dataMessage.DataValues)
+        foreach (var kvp in msg.DataValues)
         {
             var value = kvp.Value;
             if (value is not null)
@@ -135,10 +102,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
         return point;
     }
 
-    /// <summary>
-    ///     将对象值转换为时序数据库字段值。
-    /// </summary>
-    private object ConvertToFieldValue(object? value)
+    private static object ConvertToFieldValue(object? value)
     {
         if (value == null)
             return string.Empty;

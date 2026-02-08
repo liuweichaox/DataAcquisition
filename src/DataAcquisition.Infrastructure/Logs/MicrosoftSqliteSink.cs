@@ -26,7 +26,7 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
     {
         _dbPath = dbPath;
         _batchSize = batchSize;
-        
+
         // 确保目录存在
         var directory = Path.GetDirectoryName(_dbPath);
         if (!string.IsNullOrEmpty(directory))
@@ -77,11 +77,15 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
 
             // 关键日志（Error/Fatal）立即刷新，避免丢失重要信息
             var isCritical = logEvent.Level >= LogEventLevel.Error;
-            
+
             // 如果队列达到批次大小，或遇到关键日志，立即刷新
             if (_eventQueue.Count >= _batchSize || isCritical)
             {
-                Task.Run(() => FlushQueue());
+                _ = Task.Run(() =>
+                {
+                    try { FlushQueue(); }
+                    catch { /* Sink 不应抛异常影响日志调用方 */ }
+                });
             }
         }
     }
@@ -122,22 +126,22 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
                 foreach (var logEvent in eventsToWrite)
                 {
                     using var command = new SqliteCommand(sql, _connection, transaction);
-                    
+
                     command.Parameters.AddWithValue("@timestamp", logEvent.Timestamp.ToString("O"));
                     command.Parameters.AddWithValue("@level", logEvent.Level.ToString());
                     command.Parameters.AddWithValue("@message", logEvent.RenderMessage());
                     command.Parameters.AddWithValue("@messageTemplate", logEvent.MessageTemplate.Text);
-                    command.Parameters.AddWithValue("@exception", 
+                    command.Parameters.AddWithValue("@exception",
                         logEvent.Exception?.ToString() ?? (object)DBNull.Value);
-                    
+
                     // 序列化 Properties 为 JSON
                     var properties = new Dictionary<string, object>();
                     foreach (var property in logEvent.Properties)
                     {
                         properties[property.Key] = property.Value.ToString();
                     }
-                    var propertiesJson = properties.Count > 0 
-                        ? JsonSerializer.Serialize(properties) 
+                    var propertiesJson = properties.Count > 0
+                        ? JsonSerializer.Serialize(properties)
                         : (object)DBNull.Value;
                     command.Parameters.AddWithValue("@properties", propertiesJson);
 
@@ -161,10 +165,10 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
     public void Dispose()
     {
         _flushTimer?.Dispose();
-        
+
         // 刷新剩余的事件
         FlushQueueInternal();
-        
+
         _connection?.Close();
         _connection?.Dispose();
         _writeLock?.Dispose();

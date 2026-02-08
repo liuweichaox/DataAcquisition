@@ -11,7 +11,7 @@ namespace DataAcquisition.Edge.Agent.Controllers;
 /// <summary>
 ///     数据采集控制器
 /// </summary>
-[Route("api/[controller]/[action]")]
+[Route("api/[controller]")]
 public class DataAcquisitionController(IMediator mediator) : ControllerBase
 {
     /// <summary>
@@ -50,7 +50,7 @@ public class DataAcquisitionController(IMediator mediator) : ControllerBase
         var command = new WritePlcRegisterCommand(
             request.PlcCode,
             request.Items
-                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, ConvertJsonValue(i.Value, i.DataType)))
+                .Select(i => new WritePlcRegisterItem(i.Address, i.DataType, ConvertJsonValue(i.Value, i.DataType)!))
                 .ToList());
 
         var results = await mediator.Send(command);

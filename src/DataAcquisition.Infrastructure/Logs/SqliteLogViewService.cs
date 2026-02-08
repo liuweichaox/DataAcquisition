@@ -24,12 +24,12 @@ public class SqliteLogViewService : ILogViewService, IDisposable
     {
         // 从配置或默认路径获取数据库路径
         var configuredPath = options?.Value?.DatabasePath ?? "Data/logs.db";
-        
+
         // 如果是相对路径，转换为绝对路径
         _dbPath = Path.IsPathRooted(configuredPath)
             ? configuredPath
             : Path.Combine(AppContext.BaseDirectory, configuredPath);
-        
+
         // 确保目录存在
         var directory = Path.GetDirectoryName(_dbPath);
         if (!string.IsNullOrEmpty(directory))
@@ -85,68 +85,70 @@ public class SqliteLogViewService : ILogViewService, IDisposable
         {
             command.ExecuteNonQuery();
         }
-        catch
+        catch (SqliteException)
         {
-            // 如果表还不存在，忽略错误
-            // MicrosoftSqliteSink 会在第一次写入时创建表
+            // Logs 表可能尚未由 MicrosoftSqliteSink 创建，此处忽略
         }
     }
 
     /// <summary>
     ///     获取日志条目列表
     /// </summary>
-    public Task<(List<LogEntry> Entries, int TotalCount)> GetLogsAsync(
+    public async Task<(List<LogEntry> Entries, int TotalCount)> GetLogsAsync(
         string? level = null,
         string? keyword = null,
         int skip = 0,
         int take = 100,
         CancellationToken cancellationToken = default)
     {
-        return Task.Run(() =>
+        await _connectionLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var whereConditions = new List<string>();
-            var parameters = new List<SqliteParameter>();
-
-            // 按级别过滤
-            if (!string.IsNullOrWhiteSpace(level))
+            return await Task.Run(() =>
             {
-                whereConditions.Add("l.Level = @level");
-                parameters.Add(new SqliteParameter("@level", level));
-            }
+                var whereConditions = new List<string>();
+                var parameters = new List<SqliteParameter>();
 
-            // 按关键词过滤（使用 FTS5 全文搜索）
-            if (!string.IsNullOrWhiteSpace(keyword))
-            {
-                // FTS5 搜索语法：搜索所有字段
-                whereConditions.Add("l.Id IN (SELECT rowid FROM LogsFts WHERE LogsFts MATCH @keyword)");
-                // 转义特殊字符
-                var escapedKeyword = keyword.Replace("\"", "\"\"");
-                parameters.Add(new SqliteParameter("@keyword", escapedKeyword));
-            }
+                // 按级别过滤
+                if (!string.IsNullOrWhiteSpace(level))
+                {
+                    whereConditions.Add("l.Level = @level");
+                    parameters.Add(new SqliteParameter("@level", level));
+                }
 
-            var whereClause = whereConditions.Count > 0 
-                ? "WHERE " + string.Join(" AND ", whereConditions) 
-                : "";
+                // 按关键词过滤（使用 FTS5 全文搜索）
+                if (!string.IsNullOrWhiteSpace(keyword))
+                {
+                    // FTS5 搜索语法：搜索所有字段
+                    whereConditions.Add("l.Id IN (SELECT rowid FROM LogsFts WHERE LogsFts MATCH @keyword)");
+                    // 转义特殊字符
+                    var escapedKeyword = keyword.Replace("\"", "\"\"");
+                    parameters.Add(new SqliteParameter("@keyword", escapedKeyword));
+                }
 
-            // 获取总数
-            var countSql = $@"
+                var whereClause = whereConditions.Count > 0
+                    ? "WHERE " + string.Join(" AND ", whereConditions)
+                    : "";
+
+                // 获取总数
+                var countSql = $@"
                 SELECT COUNT(*) 
                 FROM Logs l
                 {whereClause}
             ";
 
-            int totalCount;
-            using (var countCommand = new SqliteCommand(countSql, _connection))
-            {
-                foreach (var param in parameters)
+                int totalCount;
+                using (var countCommand = new SqliteCommand(countSql, _connection))
                 {
-                    countCommand.Parameters.Add(param);
+                    foreach (var param in parameters)
+                    {
+                        countCommand.Parameters.Add(param);
+                    }
+                    totalCount = Convert.ToInt32(countCommand.ExecuteScalar());
                 }
-                totalCount = Convert.ToInt32(countCommand.ExecuteScalar());
-            }
 
-            // 查询数据（适配 Serilog.Sinks.SQLite 的表结构）
-            var querySql = $@"
+                // 查询数据（适配 Serilog.Sinks.SQLite 的表结构）
+                var querySql = $@"
                 SELECT 
                     l.TimeStamp,
                     l.Level,
@@ -159,41 +161,45 @@ public class SqliteLogViewService : ILogViewService, IDisposable
                 LIMIT @take OFFSET @skip
             ";
 
-            var entries = new List<LogEntry>();
-            using (var queryCommand = new SqliteCommand(querySql, _connection))
-            {
-                foreach (var param in parameters)
+                var entries = new List<LogEntry>();
+                using (var queryCommand = new SqliteCommand(querySql, _connection))
                 {
-                    queryCommand.Parameters.Add(param);
-                }
-                queryCommand.Parameters.Add(new SqliteParameter("@take", take));
-                queryCommand.Parameters.Add(new SqliteParameter("@skip", skip));
-
-                using var reader = queryCommand.ExecuteReader();
-                while (reader.Read())
-                {
-                    var timestamp = DateTime.Parse(reader.GetString(0));
-                    var level = reader.GetString(1);
-                    var properties = reader.IsDBNull(2) ? null : reader.GetString(2);
-                    var message = reader.GetString(3);
-                    var exception = reader.IsDBNull(4) ? null : reader.GetString(4);
-
-                    // 从 Properties JSON 中提取 SourceContext
-                    var source = ExtractSourceFromProperties(properties);
-
-                    entries.Add(new LogEntry
+                    foreach (var param in parameters)
                     {
-                        Timestamp = timestamp,
-                        Level = level,
-                        Source = source,
-                        Message = message,
-                        Exception = exception
-                    });
-                }
-            }
+                        queryCommand.Parameters.Add(param);
+                    }
+                    queryCommand.Parameters.Add(new SqliteParameter("@take", take));
+                    queryCommand.Parameters.Add(new SqliteParameter("@skip", skip));
 
-            return (entries, totalCount);
-        }, cancellationToken);
+                    using var reader = queryCommand.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        var rowTimestamp = DateTime.Parse(reader.GetString(0));
+                        var rowLevel = reader.GetString(1);
+                        var properties = reader.IsDBNull(2) ? null : reader.GetString(2);
+                        var message = reader.GetString(3);
+                        var exception = reader.IsDBNull(4) ? null : reader.GetString(4);
+
+                        var source = ExtractSourceFromProperties(properties);
+
+                        entries.Add(new LogEntry
+                        {
+                            Timestamp = rowTimestamp,
+                            Level = rowLevel,
+                            Source = source,
+                            Message = message,
+                            Exception = exception
+                        });
+                    }
+                }
+
+                return (entries, totalCount);
+            }, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _connectionLock.Release();
+        }
     }
 
     /// <summary>
@@ -201,7 +207,10 @@ public class SqliteLogViewService : ILogViewService, IDisposable
     /// </summary>
     public List<string> GetAvailableLevels()
     {
-        var sql = @"
+        _connectionLock.Wait();
+        try
+        {
+            var sql = @"
             SELECT DISTINCT Level 
             FROM Logs 
             ORDER BY 
@@ -216,21 +225,26 @@ public class SqliteLogViewService : ILogViewService, IDisposable
                 END
         ";
 
-        var levels = new List<string>();
-        using var command = new SqliteCommand(sql, _connection);
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
-        {
-            levels.Add(reader.GetString(0));
-        }
+            var levels = new List<string>();
+            using var command = new SqliteCommand(sql, _connection);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                levels.Add(reader.GetString(0));
+            }
 
-        // 如果没有找到任何级别，返回默认列表
-        if (levels.Count == 0)
-        {
-            return new List<string> { "Verbose", "Debug", "Information", "Warning", "Error", "Fatal" };
-        }
+            // 如果没有找到任何级别，返回默认列表
+            if (levels.Count == 0)
+            {
+                return new List<string> { "Verbose", "Debug", "Information", "Warning", "Error", "Fatal" };
+            }
 
-        return levels;
+            return levels;
+        }
+        finally
+        {
+            _connectionLock.Release();
+        }
     }
 
     /// <summary>

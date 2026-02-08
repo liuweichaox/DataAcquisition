@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using DataAcquisition.Application.Abstractions;
 
@@ -81,26 +81,26 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordCollectionLatency(string plcCode, string? channelCode, string measurement, double latencyMs)
     {
-        var tagList = new List<KeyValuePair<string, object?>>
+        var tags = new TagList
         {
-            new("plc_code", plcCode)
+            { "plc_code", plcCode },
+            { "measurement", measurement }
         };
         if (!string.IsNullOrEmpty(channelCode))
-            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
-        tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
-        _collectionLatencyHistogram.Record(latencyMs, tagList.ToArray());
+            tags.Add("channel_code", channelCode);
+        _collectionLatencyHistogram.Record(latencyMs, tags);
     }
 
     public void RecordCollectionRate(string plcCode, string? channelCode, string measurement, double pointsPerSecond)
     {
-        var tagList = new List<KeyValuePair<string, object?>>
+        var tags = new TagList
         {
-            new("plc_code", plcCode)
+            { "plc_code", plcCode },
+            { "measurement", measurement }
         };
         if (!string.IsNullOrEmpty(channelCode))
-            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
-        tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
-        _collectionRateHistogram.Record(pointsPerSecond, tagList.ToArray());
+            tags.Add("channel_code", channelCode);
+        _collectionRateHistogram.Record(pointsPerSecond, tags);
     }
 
     public void RecordQueueDepth(int depth)
@@ -115,11 +115,7 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordWriteLatency(string measurement, double latencyMs)
     {
-        var tags = new KeyValuePair<string, object?>[]
-        {
-            new("measurement", measurement)
-        };
-        _writeLatencyHistogram.Record(latencyMs, tags);
+        _writeLatencyHistogram.Record(latencyMs, new TagList { { "measurement", measurement } });
     }
 
     public void RecordBatchWriteEfficiency(int batchSize, double latencyMs)
@@ -133,33 +129,25 @@ public class MetricsCollector : IMetricsCollector
 
     public void RecordError(string plcCode, string? measurement = null, string? channelCode = null)
     {
-        var tagList = new List<KeyValuePair<string, object?>>
-        {
-            new("plc_code", plcCode)
-        };
+        var tags = new TagList { { "plc_code", plcCode } };
         if (!string.IsNullOrEmpty(channelCode))
-            tagList.Add(new KeyValuePair<string, object?>("channel_code", channelCode));
+            tags.Add("channel_code", channelCode);
         if (!string.IsNullOrEmpty(measurement))
-            tagList.Add(new KeyValuePair<string, object?>("measurement", measurement));
-        _errorCounter.Add(1, tagList.ToArray());
+            tags.Add("measurement", measurement);
+        _errorCounter.Add(1, tags);
     }
 
     public void RecordConnectionStatus(string plcCode, bool isConnected)
     {
-        var tags = new KeyValuePair<string, object?>[]
+        _connectionStatusCounter.Add(1, new TagList
         {
-            new("plc_code", plcCode),
-            new("status", isConnected ? "connected" : "disconnected")
-        };
-        _connectionStatusCounter.Add(1, tags);
+            { "plc_code", plcCode },
+            { "status", isConnected ? "connected" : "disconnected" }
+        });
     }
 
     public void RecordConnectionDuration(string plcCode, double durationSeconds)
     {
-        var tags = new KeyValuePair<string, object?>[]
-        {
-            new("plc_code", plcCode)
-        };
-        _connectionDurationHistogram.Record(durationSeconds, tags);
+        _connectionDurationHistogram.Record(durationSeconds, new TagList { { "plc_code", plcCode } });
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -8,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace DataAcquisition.Infrastructure.DeviceConfigs;
@@ -17,15 +19,17 @@ namespace DataAcquisition.Infrastructure.DeviceConfigs;
 /// </summary>
 public class DeviceConfigService : IDeviceConfigService, IDisposable
 {
-    private readonly Dictionary<string, DeviceConfig> _cachedConfigs = new();
+    private readonly ConcurrentDictionary<string, DeviceConfig> _cachedConfigs = new();
     private readonly string _configDirectory;
     private readonly int _configChangeDetectionDelayMs;
     private readonly JsonSerializerOptions _jsonOptions;
+    private readonly ILogger<DeviceConfigService> _logger;
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private FileSystemWatcher? _fileWatcher;
 
-    public DeviceConfigService(IOptions<AcquisitionOptions> acquisitionOptions)
+    public DeviceConfigService(IOptions<AcquisitionOptions> acquisitionOptions, ILogger<DeviceConfigService> logger)
     {
+        _logger = logger;
         _configChangeDetectionDelayMs = acquisitionOptions.Value.DeviceConfigService.ConfigChangeDetectionDelayMs;
         _configDirectory = Path.Combine(AppContext.BaseDirectory, "Configs");
         _jsonOptions = new JsonSerializerOptions
@@ -42,7 +46,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
 
     public async Task<List<DeviceConfig>> GetConfigs()
     {
-        if (_cachedConfigs.Count == 0) await LoadAllConfigsAsync().ConfigureAwait(false);
+        if (_cachedConfigs.IsEmpty) await LoadAllConfigsAsync().ConfigureAwait(false);
         return _cachedConfigs.Values.ToList();
     }
 
@@ -141,9 +145,15 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// </summary>
     private async void OnConfigFileChanged(object sender, FileSystemEventArgs e)
     {
-        // 延迟处理，避免文件正在写入时读取
-        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
-        await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
+        try
+        {
+            await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
+            await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理配置文件变更失败: {FilePath}", e.FullPath);
+        }
     }
 
     /// <summary>
@@ -152,7 +162,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private void OnConfigFileDeleted(object sender, FileSystemEventArgs e)
     {
         var fileName = Path.GetFileNameWithoutExtension(e.FullPath);
-        if (_cachedConfigs.Remove(fileName, out var oldConfig))
+        if (_cachedConfigs.TryRemove(fileName, out var oldConfig))
             ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
             {
                 ChangeType = ConfigChangeType.Removed,
@@ -166,18 +176,24 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// </summary>
     private async void OnConfigFileRenamed(object sender, RenamedEventArgs e)
     {
-        // 处理为删除旧文件，创建新文件
-        var oldFileName = Path.GetFileNameWithoutExtension(e.OldFullPath);
-        if (_cachedConfigs.Remove(oldFileName, out var oldConfig))
-            ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
-            {
-                ChangeType = ConfigChangeType.Removed,
-                PlcCode = oldConfig.PlcCode,
-                OldConfig = oldConfig
-            });
+        try
+        {
+            var oldFileName = Path.GetFileNameWithoutExtension(e.OldFullPath);
+            if (_cachedConfigs.TryRemove(oldFileName, out var oldConfig))
+                ConfigChanged?.Invoke(this, new ConfigChangedEventArgs
+                {
+                    ChangeType = ConfigChangeType.Removed,
+                    PlcCode = oldConfig.PlcCode,
+                    OldConfig = oldConfig
+                });
 
-        await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
-        await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
+            await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
+            await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理配置文件重命名失败: {FilePath}", e.FullPath);
+        }
     }
 
     /// <summary>
@@ -199,8 +215,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
 
             if (!validationResult.IsValid)
             {
-                // 配置验证失败，记录错误但不更新
-                Console.WriteLine($"配置验证失败 {fileName}: {string.Join(", ", validationResult.Errors)}");
+                _logger.LogWarning("配置验证失败 {FileName}: {Errors}", fileName, string.Join(", ", validationResult.Errors));
                 return;
             }
 
@@ -217,7 +232,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"重新加载配置失败 {filePath}: {ex.Message}");
+            _logger.LogError(ex, "重新加载配置失败 {FilePath}", filePath);
         }
         finally
         {
@@ -242,7 +257,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
 
                 if (!validationResult.IsValid)
                 {
-                    Console.WriteLine($"配置验证失败 {filePath}: {string.Join(", ", validationResult.Errors)}");
+                    _logger.LogWarning("配置验证失败 {FilePath}: {Errors}", filePath, string.Join(", ", validationResult.Errors));
                     continue;
                 }
 
@@ -251,7 +266,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"加载配置文件失败 {filePath}: {ex.Message}");
+                _logger.LogError(ex, "加载配置文件失败 {FilePath}", filePath);
             }
     }
 
