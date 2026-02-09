@@ -48,56 +48,84 @@ dotnet publish src/DataAcquisition.Central.Api -c Release -o ./publish/central-a
 
 ```bash
 cd src/DataAcquisition.Central.Web
-npm install
-npm run build
+pnpm install
+pnpm run build
 # Serve dist/ using nginx or static host
 ```
 
 ---
 
-## 4. Docker (Optional)
+## 4. Docker Deployment
 
-The repo doesn’t include Dockerfiles by default. You can create one as follows:
+The project provides two separate Docker Compose files that can be used independently:
 
-```dockerfile
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
-WORKDIR /app
-COPY ./publish/edge/ .
-ENTRYPOINT ["dotnet", "DataAcquisition.Edge.Agent.dll"]
+| File | Contents | Purpose |
+|------|----------|---------|
+| `docker-compose.tsdb.yml` | InfluxDB 2.7 | Time-series database |
+| `docker-compose.app.yml` | Central API + Central Web | Central application |
+
+> **Note**: Edge Agent needs direct access to PLC devices and always runs as a host process (see Section 3 above) — it is not containerized. Edge Agent auto-detects the local machine's real IP at startup and reports it to Central API, ensuring the containerized central services can callback to Edge Agent's diagnostic endpoints.
+
+### Start the time-series database
+
+```bash
+docker-compose -f docker-compose.tsdb.yml up -d
 ```
 
-```yaml
-version: "3.9"
-services:
-  edge-agent:
-    build: .
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./Data:/app/Data
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+### Start the central application
+
+```bash
+docker-compose -f docker-compose.app.yml up -d --build
+```
+
+### Start Edge Agent (host process)
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent
+# Or use published binary:
+# ./publish/edge/DataAcquisition.Edge.Agent
+```
+
+### Access URLs
+
+| Service | URL |
+|---------|-----|
+| Central Web | `http://localhost:3000` |
+| Central API | `http://localhost:8000` |
+| InfluxDB | `http://localhost:8086` |
+
+### Start everything
+
+```bash
+docker-compose -f docker-compose.tsdb.yml -f docker-compose.app.yml up -d
+```
+
+### Stop services
+
+```bash
+docker-compose -f docker-compose.app.yml down
+docker-compose -f docker-compose.tsdb.yml down
 ```
 
 ---
 
-## 5. Nginx Reverse Proxy
+## 5. Architecture Notes
 
-```nginx
-server {
-  listen 80;
-  server_name your.domain.com;
+Network topology in Docker deployment:
 
-  location /api/ {
-    proxy_pass http://central-api:8000/;
-  }
-
-  location / {
-    root /var/www/central-web;
-    try_files $uri /index.html;
-  }
-}
 ```
+Browser → Central Web (nginx, :3000)
+              ↓ /api/, /metrics, /health
+         Central API (:8000, Docker container)
+              ↓ proxy queries Edge diagnostic data
+         Edge Agent (:8001, host process) → PLC devices
+```
+
+The Central Web container has a built-in nginx that handles:
+- Serving frontend static files
+- Reverse proxying `/api/`, `/metrics`, `/health` to Central API
+
+If you need custom domains or HTTPS, add an external nginx/Caddy reverse proxy in front of Central Web.
 
 ---
 

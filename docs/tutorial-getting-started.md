@@ -14,9 +14,12 @@
 
 ### 端口占用提示
 
-- Central API 默认端口：`8000`
-- Central Web 默认端口：`3000`
-- InfluxDB 默认端口：`8086`
+| 服务 | 默认端口 | 说明 |
+|------|----------|------|
+| Edge Agent | `8001` | 边缘采集代理（供中心 API 回调查询日志/指标） |
+| Central API | `8000` | 中心 API 服务 |
+| Central Web | `3000` | 前端 Web 界面（开发模式） |
+| InfluxDB | `8086` | 时序数据库 |
 
 ### InfluxDB 安装选项
 
@@ -27,7 +30,7 @@
 #### 选项 B：Docker 部署（推荐快速测试）
 
 ```bash
-docker-compose up -d influxdb
+docker-compose -f docker-compose.tsdb.yml up -d influxdb
 ```
 
 详细说明见：[Docker InfluxDB 部署指南](docker-influxdb.md)
@@ -57,11 +60,12 @@ cd DataAcquisition
 
 ```json
 {
+  "Urls": "http://+:8001",
   "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token",
-    "Org": "your-org",
-    "Bucket": "plc_data"
+    "Org": "default",
+    "Bucket": "iot"
   },
   "Parquet": {
     "Directory": "./Data/parquet"
@@ -69,10 +73,13 @@ cd DataAcquisition
   "Edge": {
     "EnableCentralReporting": true,
     "CentralApiBaseUrl": "http://localhost:8000",
+    "EdgeId": "EDGE-001",
     "HeartbeatIntervalSeconds": 10
   }
 }
 ```
+
+> **说明**：`Urls` 使用 `http://+:8001` 监听所有网络接口，Edge Agent 启动时会自动检测本机 IP 并上报给 Central API，确保中心代理回调可达。
 
 ---
 
@@ -156,8 +163,8 @@ dotnet run --project src/DataAcquisition.Central.Api
 
 ```bash
 cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
+pnpm install
+pnpm run serve
 ```
 
 浏览器访问：`http://localhost:3000`

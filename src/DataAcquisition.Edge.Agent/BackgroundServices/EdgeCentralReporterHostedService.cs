@@ -70,6 +70,19 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
         var firstUrl = urls.Split(';', ',').FirstOrDefault()?.Trim();
         if (!string.IsNullOrWhiteSpace(firstUrl))
         {
+            // +/*/0.0.0.0 是 ASP.NET 通配符，不是合法 URI 主机名，需要提取 scheme 和 port 后替换
+            var needReplace = firstUrl.Contains("://+:") || firstUrl.Contains("://*:")
+                              || firstUrl.Contains("://0.0.0.0:") || firstUrl.Contains("://localhost:");
+            if (needReplace)
+            {
+                // 提取端口号（最后一个 : 之后的数字）
+                var lastColon = firstUrl.LastIndexOf(':');
+                var port = firstUrl[(lastColon + 1)..];
+                var scheme = firstUrl.StartsWith("https", StringComparison.OrdinalIgnoreCase) ? "https" : "http";
+
+                var realIp = GetLocalIpAddress() ?? "localhost";
+                firstUrl = $"{scheme}://{realIp}:{port}";
+            }
             _agentBaseUrl = firstUrl.TrimEnd('/');
         }
 
@@ -163,5 +176,27 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
             _lastError = ex.Message;
             _logger.LogWarning(ex, "中心心跳失败：{Message}", ex.Message);
         }
+    }
+
+    /// <summary>
+    ///     获取本机第一个可用的真实 IPv4 地址
+    /// </summary>
+    private static string? GetLocalIpAddress()
+    {
+        try
+        {
+            using var socket = new System.Net.Sockets.Socket(
+                System.Net.Sockets.AddressFamily.InterNetwork,
+                System.Net.Sockets.SocketType.Dgram, 0);
+            // 连接一个外部地址（不会真正发包），获取本机出口 IP
+            socket.Connect("8.8.8.8", 65530);
+            if (socket.LocalEndPoint is System.Net.IPEndPoint endPoint)
+                return endPoint.Address.ToString();
+        }
+        catch
+        {
+            // ignored
+        }
+        return null;
     }
 }

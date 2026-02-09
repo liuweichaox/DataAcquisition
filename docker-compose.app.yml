@@ -1,0 +1,25 @@
+services:
+  central-api:
+    build:
+      context: .
+      dockerfile: src/DataAcquisition.Central.Api/Dockerfile
+    container_name: dataacquisition-central-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Data:/app/Data # SQLite DB 持久化 (Data/central.db)
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - Urls=http://+:8000
+    restart: unless-stopped
+
+  central-web:
+    build:
+      context: src/DataAcquisition.Central.Web
+      dockerfile: Dockerfile
+    container_name: dataacquisition-central-web
+    ports:
+      - "3000:80"
+    depends_on:
+      - central-api
+    restart: unless-stopped

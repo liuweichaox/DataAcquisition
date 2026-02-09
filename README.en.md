@@ -276,24 +276,30 @@ Check out the [Getting Started Tutorial](docs/tutorial-getting-started.en.md), w
 - System startup and verification
 - Testing with PLC simulator
 
-### Method 2: Docker Quick Start (Recommended for Testing)
+### Method 2: Docker Deployment for Central Services
 
-Use Docker Compose to quickly deploy InfluxDB without manual database installation:
+Use Docker Compose to deploy Central API + Central Web (Edge Agent always runs directly on edge devices):
 
 ```bash
-# Start InfluxDB
-docker-compose up -d influxdb
+# 1. Start InfluxDB
+docker-compose -f docker-compose.tsdb.yml up -d
 
-# Initialize (visit http://localhost:8086)
-# Username: admin, Password: admin123
+# 2. Initialize InfluxDB (visit http://localhost:8086)
+#    Username: admin, Password: admin123
 
-# Update Token in appsettings.json
+# 3. Start Central services (Central API + Central Web)
+docker-compose -f docker-compose.app.yml up -d --build
 
-# Start Edge Agent
+# 4. Start Edge Agent (runs directly on host machine)
 dotnet run --project src/DataAcquisition.Edge.Agent
 ```
 
-Detailed guide: [Docker InfluxDB Deployment Guide](docs/docker-influxdb.en.md)
+Access after startup:
+- Central Web: `http://localhost:3000`
+- Central API: `http://localhost:8000`
+- InfluxDB: `http://localhost:8086`
+
+Detailed guide: [Deployment Tutorial](docs/tutorial-deployment.en.md) | [Docker InfluxDB Guide](docs/docker-influxdb.en.md)
 
 > **Tip**: If this is your first time using the system, we recommend following the steps in the [Getting Started Tutorial](docs/tutorial-getting-started.en.md). If you're already familiar with the system, you can directly check the [Configuration Tutorial](docs/tutorial-configuration.en.md) and [API Usage Examples](docs/api-usage.en.md).
 
@@ -337,8 +343,8 @@ dotnet run --project src/DataAcquisition.Edge.Agent
 dotnet run --project src/DataAcquisition.Central.Api
 
 cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
+pnpm install
+pnpm run serve
 ```
 
 4. **Observe Data Acquisition**:

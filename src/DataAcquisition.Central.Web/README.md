@@ -12,8 +12,8 @@ dotnet run --project src/DataAcquisition.Central.Api
 
 ```bash
 cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
+pnpm install
+pnpm run serve
 ```
 
 说明：

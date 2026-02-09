@@ -14,9 +14,12 @@ This guide walks you through environment setup, simulator, configuration, and ve
 
 ### Default Ports
 
-- Central API: `8000`
-- Central Web: `3000`
-- InfluxDB: `8086`
+| Service | Default Port | Description |
+|---------|-------------|-------------|
+| Edge Agent | `8001` | Edge collection agent (for Central API callback to query logs/metrics) |
+| Central API | `8000` | Central API service |
+| Central Web | `3000` | Frontend Web UI (dev mode) |
+| InfluxDB | `8086` | Time-series database |
 
 ### InfluxDB Installation Options
 
@@ -27,7 +30,7 @@ Download and install from [InfluxDB Official](https://www.influxdata.com/downloa
 #### Option B: Docker Deployment (Recommended for Quick Testing)
 
 ```bash
-docker-compose up -d influxdb
+docker-compose -f docker-compose.tsdb.yml up -d influxdb
 ```
 
 Detailed guide: [Docker InfluxDB Deployment Guide](docker-influxdb.en.md)
@@ -57,11 +60,12 @@ File: `src/DataAcquisition.Edge.Agent/appsettings.json`
 
 ```json
 {
+  "Urls": "http://+:8001",
   "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token",
-    "Org": "your-org",
-    "Bucket": "plc_data"
+    "Org": "default",
+    "Bucket": "iot"
   },
   "Parquet": {
     "Directory": "./Data/parquet"
@@ -69,14 +73,19 @@ File: `src/DataAcquisition.Edge.Agent/appsettings.json`
   "Edge": {
     "EnableCentralReporting": true,
     "CentralApiBaseUrl": "http://localhost:8000",
+    "EdgeId": "EDGE-001",
     "HeartbeatIntervalSeconds": 10
   }
 }
 ```
 
+> **Note**: `Urls` uses `http://+:8001` to listen on all network interfaces. Edge Agent will auto-detect the local IP at startup and report it to Central API, ensuring central proxy callbacks are reachable.
+
 ---
 
 ## 4. Start PLC Simulator
+
+The simulator replaces a real PLC and generates continuously changing data.
 
 ```bash
 cd src/DataAcquisition.Simulator
@@ -152,8 +161,8 @@ Verify:
 
 ```bash
 cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
+pnpm install
+pnpm run serve
 ```
 
 Open `http://localhost:3000`.

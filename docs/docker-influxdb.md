@@ -13,10 +13,10 @@
 cd DataAcquisition
 
 # 启动 InfluxDB 容器
-docker-compose up -d influxdb
+docker-compose -f docker-compose.tsdb.yml up -d influxdb
 
 # 查看容器状态
-docker-compose ps
+docker-compose -f docker-compose.tsdb.yml ps
 ```
 
 ### 2. 初始化 InfluxDB
@@ -38,7 +38,7 @@ docker-compose ps
 
 ```bash
 # 进入容器
-docker-compose exec influxdb bash
+docker-compose -f docker-compose.tsdb.yml exec influxdb bash
 
 # 使用 influx CLI 初始化
 influx setup \
@@ -83,26 +83,26 @@ dotnet run --project src/DataAcquisition.Central.Api
 ### 停止 InfluxDB
 
 ```bash
-docker-compose down influxdb
+docker-compose -f docker-compose.tsdb.yml down influxdb
 ```
 
 ### 停止并删除数据
 
 ```bash
-docker-compose down -v
+docker-compose -f docker-compose.tsdb.yml down -v
 ```
 
 ### 查看日志
 
 ```bash
-docker-compose logs -f influxdb
+docker-compose -f docker-compose.tsdb.yml logs -f influxdb
 ```
 
 ### 备份数据
 
 ```bash
 # 导出数据到文件
-docker-compose exec influxdb influx backup /var/lib/influxdb2/backup
+docker-compose -f docker-compose.tsdb.yml exec influxdb influx backup /var/lib/influxdb2/backup
 
 # 从本地复制出来
 docker cp influxdb:/var/lib/influxdb2/backup ./backup
@@ -128,7 +128,7 @@ docker cp influxdb:/var/lib/influxdb2/backup ./backup
 
 ```bash
 # 查看详细日志
-docker-compose logs influxdb
+docker-compose -f docker-compose.tsdb.yml logs influxdb
 
 # 检查端口是否被占用
 lsof -i :8086
@@ -138,10 +138,10 @@ lsof -i :8086
 
 ```bash
 # 确认容器正在运行
-docker-compose ps
+docker-compose -f docker-compose.tsdb.yml ps
 
 # 检查网络连接
-docker-compose exec influxdb curl -v http://localhost:8086/api/v2/ready
+docker-compose -f docker-compose.tsdb.yml exec influxdb curl -v http://localhost:8086/api/v2/ready
 ```
 
 ### Token 创建失败
@@ -152,7 +152,7 @@ docker-compose exec influxdb curl -v http://localhost:8086/api/v2/ready
 
 ## 扩展配置
 
-若需自定义 InfluxDB 配置，编辑 `docker-compose.yml` 中的 `environment` 字段或挂载自定义配置文件。
+若需自定义 InfluxDB 配置，编辑 `docker-compose.tsdb.yml` 中的 `environment` 字段或挂载自定义配置文件。
 
 ---
 

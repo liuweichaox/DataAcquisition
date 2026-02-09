@@ -202,8 +202,8 @@ netstat -ano | findstr :502
    dotnet run --project ./src/DataAcquisition.Central.Api/DataAcquisition.Central.Api.csproj
 
    cd ./src/DataAcquisition.Central.Web
-   npm install
-   npm run serve
+   pnpm install
+   pnpm run serve
    ```
 
    系统会自动连接到模拟器（127.0.0.1:502）并开始采集。

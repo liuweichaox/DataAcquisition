@@ -13,10 +13,10 @@ This guide explains how to quickly deploy and configure InfluxDB using Docker Co
 cd DataAcquisition
 
 # Start InfluxDB container
-docker-compose up -d influxdb
+docker-compose -f docker-compose.tsdb.yml up -d influxdb
 
 # Check container status
-docker-compose ps
+docker-compose -f docker-compose.tsdb.yml ps
 ```
 
 ### 2. Initialize InfluxDB
@@ -38,7 +38,7 @@ docker-compose ps
 
 ```bash
 # Enter container
-docker-compose exec influxdb bash
+docker-compose -f docker-compose.tsdb.yml exec influxdb bash
 
 # Use influx CLI to initialize
 influx setup \
@@ -83,26 +83,26 @@ dotnet run --project src/DataAcquisition.Central.Api
 ### Stop InfluxDB
 
 ```bash
-docker-compose down influxdb
+docker-compose -f docker-compose.tsdb.yml down influxdb
 ```
 
 ### Stop and Remove Data
 
 ```bash
-docker-compose down -v
+docker-compose -f docker-compose.tsdb.yml down -v
 ```
 
 ### View Logs
 
 ```bash
-docker-compose logs -f influxdb
+docker-compose -f docker-compose.tsdb.yml logs -f influxdb
 ```
 
 ### Backup Data
 
 ```bash
 # Export data to file
-docker-compose exec influxdb influx backup /var/lib/influxdb2/backup
+docker-compose -f docker-compose.tsdb.yml exec influxdb influx backup /var/lib/influxdb2/backup
 
 # Copy backup from container
 docker cp influxdb:/var/lib/influxdb2/backup ./backup
@@ -128,7 +128,7 @@ docker cp influxdb:/var/lib/influxdb2/backup ./backup
 
 ```bash
 # View detailed logs
-docker-compose logs influxdb
+docker-compose -f docker-compose.tsdb.yml logs influxdb
 
 # Check if port is in use
 lsof -i :8086
@@ -138,10 +138,10 @@ lsof -i :8086
 
 ```bash
 # Verify container is running
-docker-compose ps
+docker-compose -f docker-compose.tsdb.yml ps
 
 # Check network connectivity
-docker-compose exec influxdb curl -v http://localhost:8086/api/v2/ready
+docker-compose -f docker-compose.tsdb.yml exec influxdb curl -v http://localhost:8086/api/v2/ready
 ```
 
 ### Token Creation Failed
@@ -152,7 +152,7 @@ Re-enter Web UI or use CLI to regenerate token.
 
 ## Extended Configuration
 
-To customize InfluxDB configuration, edit the `environment` field in `docker-compose.yml` or mount a custom configuration file.
+To customize InfluxDB configuration, edit the `environment` field in `docker-compose.tsdb.yml` or mount a custom configuration file.
 
 ---
 

@@ -270,7 +270,7 @@ DataAcquisition/
 
 ## 🚀 快速开始
 
-### 方式一：本地部署（推荐新手）
+### 方式一：本地开发运行（推荐）
 
 请查看 [入门教程](docs/tutorial-getting-started.md)，该指南提供了从零开始的完整步骤，包括：
 
@@ -280,24 +280,30 @@ DataAcquisition/
 - 系统启动和验证
 - 使用 PLC 模拟器进行测试
 
-### 方式二：Docker 快速启动（推荐测试）
+### 方式二：Docker 部署中心服务
 
-使用 Docker Compose 快速部署 InfluxDB，无需手动安装数据库：
+使用 Docker Compose 部署 Central API + Central Web（Edge Agent 始终在边缘设备上通过进程直接运行）：
 
 ```bash
-# 启动 InfluxDB
-docker-compose up -d influxdb
+# 1. 启动 InfluxDB
+docker-compose -f docker-compose.tsdb.yml up -d
 
-# 初始化（访问 http://localhost:8086）
-# 用户名：admin，密码：admin123
+# 2. 初始化 InfluxDB（访问 http://localhost:8086）
+#    用户名：admin，密码：admin123
 
-# 更新 appsettings.json 中的 Token
+# 3. 启动中心应用（Central API + Central Web）
+docker-compose -f docker-compose.app.yml up -d --build
 
-# 启动 Edge Agent
+# 4. 启动 Edge Agent（宿主机直接运行）
 dotnet run --project src/DataAcquisition.Edge.Agent
 ```
 
-详细说明见：[Docker InfluxDB 部署指南](docs/docker-influxdb.md)
+启动后访问：
+- Central Web：`http://localhost:3000`
+- Central API：`http://localhost:8000`
+- InfluxDB：`http://localhost:8086`
+
+详细说明见：[部署教程](docs/tutorial-deployment.md) | [Docker InfluxDB 部署指南](docs/docker-influxdb.md)
 
 > **提示**: 如果你是第一次使用，建议按照 [入门教程](docs/tutorial-getting-started.md) 的步骤操作。如果你已经熟悉系统，可以直接查看 [配置教程](docs/tutorial-configuration.md) 和 [API 使用示例](docs/api-usage.md)。
 
@@ -341,8 +347,8 @@ dotnet run --project src/DataAcquisition.Edge.Agent
 dotnet run --project src/DataAcquisition.Central.Api
 
 cd src/DataAcquisition.Central.Web
-npm install
-npm run serve
+pnpm install
+pnpm run serve
 ```
 
 4. **观察数据采集**：

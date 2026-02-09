@@ -48,56 +48,84 @@ dotnet publish src/DataAcquisition.Central.Api -c Release -o ./publish/central-a
 
 ```bash
 cd src/DataAcquisition.Central.Web
-npm install
-npm run build
+pnpm install
+pnpm run build
 # 将 dist/ 部署到 nginx 或静态服务
 ```
 
 ---
 
-## 4. Docker（可选）
+## 4. Docker 容器化部署
 
-项目未内置 Dockerfile，你可以参考以下模板自行创建：
+项目提供两个独立的 Docker Compose 文件，可按需使用：
 
-```dockerfile
-FROM mcr.microsoft.com/dotnet/aspnet:10.0
-WORKDIR /app
-COPY ./publish/edge/ .
-ENTRYPOINT ["dotnet", "DataAcquisition.Edge.Agent.dll"]
+| 文件 | 内容 | 用途 |
+|------|------|------|
+| `docker-compose.tsdb.yml` | InfluxDB 2.7 | 时序数据库 |
+| `docker-compose.app.yml` | Central API + Central Web | 中心应用服务 |
+
+> **注意**：Edge Agent 需要直连 PLC 设备，始终通过进程直接运行（见上方第 3 节），不参与 Docker 部署。Edge Agent 启动时会自动检测本机真实 IP 并上报给 Central API，确保容器内的中心服务可以回调 Edge Agent 的诊断接口。
+
+### 启动时序数据库
+
+```bash
+docker-compose -f docker-compose.tsdb.yml up -d
 ```
 
-```yaml
-version: "3.9"
-services:
-  edge-agent:
-    build: .
-    ports:
-      - "9000:9000"
-    volumes:
-      - ./Data:/app/Data
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
+### 启动中心应用
+
+```bash
+docker-compose -f docker-compose.app.yml up -d --build
+```
+
+### 启动 Edge Agent（宿主机进程）
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent
+# 或使用 publish 后的二进制：
+# ./publish/edge/DataAcquisition.Edge.Agent
+```
+
+### 访问地址
+
+| 服务 | 地址 |
+|------|------|
+| Central Web | `http://localhost:3000` |
+| Central API | `http://localhost:8000` |
+| InfluxDB | `http://localhost:8086` |
+
+### 全部启动
+
+```bash
+docker-compose -f docker-compose.tsdb.yml -f docker-compose.app.yml up -d
+```
+
+### 停止服务
+
+```bash
+docker-compose -f docker-compose.app.yml down
+docker-compose -f docker-compose.tsdb.yml down
 ```
 
 ---
 
-## 5. Nginx 反向代理
+## 5. 架构说明
 
-```nginx
-server {
-  listen 80;
-  server_name your.domain.com;
+Docker 部署时的网络拓扑：
 
-  location /api/ {
-    proxy_pass http://central-api:8000/;
-  }
-
-  location / {
-    root /var/www/central-web;
-    try_files $uri /index.html;
-  }
-}
 ```
+浏览器 → Central Web (nginx, :3000)
+              ↓ /api/, /metrics, /health
+         Central API (:8000, Docker 容器)
+              ↓ 代理查询 Edge 诊断数据
+         Edge Agent (:8001, 宿主机进程) → PLC 设备
+```
+
+Central Web 容器内置 nginx，负责：
+- 提供前端静态文件
+- 反向代理 `/api/`、`/metrics`、`/health` 到 Central API
+
+如需自定义域名或 HTTPS，可在 Central Web 前再加一层外部 nginx/Caddy 反向代理。
 
 ---
 

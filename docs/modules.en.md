@@ -106,8 +106,8 @@ Configure InfluxDB connection information in `appsettings.json`:
   "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token-here",
-    "Bucket": "plc_data",
-    "Org": "your-org"
+    "Bucket": "iot",
+    "Org": "default"
   }
 }
 ```

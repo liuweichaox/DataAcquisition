@@ -171,11 +171,12 @@
 
 ```json
 {
+  "Urls": "http://+:8001",
   "InfluxDB": {
     "Url": "http://localhost:8086",
     "Token": "your-token",
-    "Org": "your-org",
-    "Bucket": "plc_data"
+    "Org": "default",
+    "Bucket": "iot"
   },
   "Parquet": {
     "Directory": "./Data/parquet"
@@ -183,6 +184,7 @@
   "Edge": {
     "EnableCentralReporting": true,
     "CentralApiBaseUrl": "http://localhost:8000",
+    "EdgeId": "EDGE-001",
     "HeartbeatIntervalSeconds": 10
   }
 }
