@@ -1,82 +1,139 @@
-# Development Tutorial: Extending Protocols and Storage
+# Development
 
-This guide is for developers who want to extend PLC protocols or storage backends.
+This guide is for developers who want to change the runtime, add drivers, or replace default implementations.
 
----
+If you only want to run the system, start with:
 
-## 1. Project Structure
+- [Getting Started](tutorial-getting-started.en.md)
+- [Configuration](tutorial-configuration.en.md)
 
-- Application: interfaces and abstractions
-- Domain: core models
-- Infrastructure: implementations (PLC clients, storage, queue)
-- Edge Agent: acquisition service
-- Central API/Web: centralized management
+## Where to Start Reading the Code
 
----
+Recommended order:
 
-## 2. Add a New PLC Protocol
+1. `src/DataAcquisition.Edge.Agent/Program.cs`
+2. `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
+3. `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+4. `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
+5. `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
-High-level steps:
+If you want the architectural picture first, read:
 
-1. Prefer inheriting `PlcClientServiceBase` if you need a new communication backend
-2. Implement `IPlcDriverProvider`
-3. Register the provider in DI
-4. Use the driver via its full `Driver` name in config
+- [Modules](modules.en.md)
+- [Design](design.en.md)
 
-Tips:
-- Leverage `HslCommunication` where possible
-- Follow the existing connection lifecycle and heartbeat strategy
-- Implement only the smaller capabilities your driver truly needs: `IPlcConnectionClient`, `IPlcDataAccessClient`, and `IPlcTypedWriteClient`
-- Keep `Host` / `Port` and `ProtocolOptions` contracts explicit and honest
-- Prefer implementing `IPlcDriverProvider` instead of adding hard-coded branches in the factory
+## Add a PLC Driver
 
----
+Do not extend the runtime by piling more `switch` branches into a factory.
 
-## 3. Extend Storage Backend
+The recommended path is:
 
-The project separates primary storage from WAL storage on purpose:
+1. implement a new `IPlcDriverProvider`
+2. reuse `PlcClientServiceBase` when it fits, or provide a new `IPlcClientService`
+3. register the provider in the host
+4. document the new `Driver` and provide an example config
+
+Follow these rules:
+
+- keep the `Driver` name stable and explicit
+- be honest about whether `Host` and `Port` are used
+- expose only real `ProtocolOptions`
+- do not silently accept unused configuration
+- do not leak driver-private logic into the upper acquisition flow
+
+## Extend Storage
+
+The project keeps primary storage and WAL separate on purpose.
+
+### Replace the Primary Store
+
+Implement:
 
 - `IDataStorageService`
-  - owns primary-store writes
-  - current core method: `SaveBatchAsync(List<DataMessage>)`
+
+The main entry point is:
+
+- `SaveBatchAsync(List<DataMessage>)`
+
+### Replace WAL
+
+Implement:
+
 - `IWalStorageService`
-  - owns the local WAL lifecycle
-  - must implement `WriteAsync` / `ReadAsync` / `DeleteAsync` / `MoveToRetryAsync` / `GetRetryFilesAsync` / `QuarantineInvalidAsync`
 
-Recommendations:
+The implementation must still model the WAL lifecycle:
 
-1. Replace the primary backend by implementing `IDataStorageService`
-2. Replace the WAL backend by implementing `IWalStorageService`
-3. Do not bypass `QueueService`, otherwise the WAL-first contract is broken
-4. Keep lifecycle semantics such as `pending/retry/invalid` so realtime writes and background replay do not fight each other
+- write
+- read
+- delete
+- move to `retry/`
+- enumerate replay files
+- quarantine poison messages
 
----
+When extending storage:
 
-## 4. Custom Data Processing
+- do not bypass `QueueService`
+- do not collapse the `pending/retry/invalid` lifecycle semantics
 
-- Use `EvalExpression` for unit conversion
-- Add validation or filtering before persistence
+## Change Acquisition Logic
 
----
+If you are changing runtime acquisition behavior, understand these boundaries first:
 
-## 5. Testing Recommendations
+- `HeartbeatMonitor` decides whether a PLC is readable
+- `ChannelCollector` owns channel-level orchestration
+- `ChannelMetricReader` reads fields
+- `MetricExpressionEvaluator` evaluates expressions
+- `AcquisitionStateManager` owns conditional recovery state
 
-- Unit tests for edge cases
-- Integration tests with Simulator
-- Performance tests for throughput/latency
+Do not merge:
 
----
+- low-level PLC reads
+- cycle semantics
+- storage persistence
 
-## 6. Contribution Workflow
+back into a single class.
 
-1. Fork the repo
-2. Create a branch
-3. Submit PR
+## Change the Configuration System
 
----
+The current configuration system is designed to be:
 
-Next:
+- JSON-based
+- hot-reload friendly
+- offline-validatable
+- explicit about driver contracts
 
-- [Contributing Guide](../CONTRIBUTING.en.md)
+If you extend it, try to preserve:
+
+- stable top-level fields
+- protocol-specific differences pushed into `ProtocolOptions`
+- validation rules that evolve together with documentation
+
+## Testing Expectations
+
+If you add new behavior, add at least one of:
+
+- unit tests
+- integration tests
+- configuration validation tests
+
+The highest-value coverage areas are:
+
+- driver configuration contracts
+- WAL behavior
+- recovery semantics
+
+## Before You Submit
+
+Before opening a PR, run at least:
+
+```bash
+dotnet build DataAcquisition.sln --no-restore
+dotnet test tests/DataAcquisition.Core.Tests/DataAcquisition.Core.Tests.csproj
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+## Related Docs
+
+- [Contributing](../CONTRIBUTING.en.md)
 - [Modules](modules.en.md)
 - [Design](design.en.md)

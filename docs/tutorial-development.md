@@ -1,82 +1,139 @@
-# 开发扩展教程：协议与存储扩展
+# 开发扩展
 
-本教程面向二次开发者，说明如何扩展 PLC 协议与存储后端。
+这份文档面向准备修改源码、增加驱动或替换默认实现的开发者。
 
----
+如果你只是想把系统跑起来，先看：
 
-## 1. 项目结构
+- [快速开始](tutorial-getting-started.md)
+- [配置](tutorial-configuration.md)
 
-- Application：接口定义与抽象
-- Domain：核心模型
-- Infrastructure：具体实现（PLC 客户端、存储、队列）
-- Edge Agent：采集服务
-- Central API/Web：集中管理
+## 从哪里开始读代码
 
----
+推荐阅读顺序：
 
-## 2. 添加新的 PLC 协议
+1. `src/DataAcquisition.Edge.Agent/Program.cs`
+2. `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
+3. `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+4. `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
+5. `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
-步骤概览：
+如果你想先理解模块边界，再看：
 
-1. 如需接入新的通讯库，优先继承 `PlcClientServiceBase`
-2. 实现 `IPlcDriverProvider`
-3. 在 DI 中注册新的 provider
-4. 通过完整 `Driver` 名称配置使用该驱动
+- [模块](modules.md)
+- [设计](design.md)
 
-建议：
-- 复用 `HslCommunication` 的协议实现
-- 保持连接生命周期与心跳检测一致
-- 只实现当前驱动真正需要的小能力：`IPlcConnectionClient`、`IPlcDataAccessClient`、`IPlcTypedWriteClient`
-- 对 `Host` / `Port` 和 `ProtocolOptions` 保持显式、诚实的配置契约
-- 默认优先实现为 `IPlcDriverProvider`，不要再引入新的硬编码工厂分支
+## 扩展 PLC 驱动
 
----
+新增驱动时，不应该改成“往工厂里继续堆 `switch`”。
 
-## 3. 扩展存储后端
+当前推荐扩展方式是：
 
-这个项目把“主存储”和 “WAL 存储”明确拆开：
+1. 实现新的 `IPlcDriverProvider`
+2. 视情况复用 `PlcClientServiceBase`，或提供新的 `IPlcClientService`
+3. 在宿主层注册 provider
+4. 为新的 `Driver` 写示例配置和文档
+
+实现时建议遵守这些约束：
+
+- `Driver` 名称稳定且完整
+- `Host` / `Port` 是否生效要明确
+- `ProtocolOptions` 只开放真实支持的键
+- 不要默默接受未使用的配置
+- 不要把驱动私有逻辑泄漏到上层采集流程
+
+## 扩展存储
+
+项目把主存储和 WAL 明确分开。
+
+### 替换主存储
+
+实现：
 
 - `IDataStorageService`
-  - 负责主存储写入
-  - 当前核心方法是 `SaveBatchAsync(List<DataMessage>)`
+
+当前主入口是：
+
+- `SaveBatchAsync(List<DataMessage>)`
+
+### 替换 WAL
+
+实现：
+
 - `IWalStorageService`
-  - 负责本地 WAL 生命周期
-  - 需要实现 `WriteAsync` / `ReadAsync` / `DeleteAsync` / `MoveToRetryAsync` / `GetRetryFilesAsync` / `QuarantineInvalidAsync`
 
-扩展建议：
+需要覆盖 WAL 生命周期，包括：
 
-1. 替换主存储时，只改 `IDataStorageService`
-2. 替换 WAL 时，只改 `IWalStorageService`
-3. 不要绕过 `QueueService` 直接写主存储，否则会破坏 WAL-first 语义
-4. 保留 `pending/retry/invalid` 这种状态边界，避免实时写入和后台重试打架
+- 写入
+- 读取
+- 删除
+- 移到 `retry/`
+- 列出待重放文件
+- 隔离坏消息
 
----
+扩展时要注意：
 
-## 4. 自定义数据处理
+- 不要绕过 `QueueService` 直接写主存储
+- 不要把 `pending/retry/invalid` 的状态语义做没了
 
-- 使用 `EvalExpression` 进行单位换算
-- 可在写入前增加校验与过滤逻辑
+## 修改采集逻辑
 
----
+如果你要调整采集行为，先理解这些边界：
 
-## 5. 测试建议
+- `HeartbeatMonitor` 决定当前 PLC 是否可采
+- `ChannelCollector` 负责通道级采集流程
+- `ChannelMetricReader` 负责字段读取
+- `MetricExpressionEvaluator` 负责表达式计算
+- `AcquisitionStateManager` 负责条件采集状态恢复
 
-- 单元测试：接口行为和边界情况
-- 集成测试：实际 PLC 或 Simulator
-- 性能测试：采集频率、写入延迟
+不要把：
 
----
+- PLC 底层读写细节
+- 业务周期判断
+- 存储写入逻辑
 
-## 6. 贡献流程
+重新揉回一个类里。
 
-1. Fork 项目
-2. 创建分支
-3. 提交 PR
+## 修改配置系统
 
----
+当前配置系统的设计目标是：
 
-下一步建议阅读：
+- JSON 文件可读
+- 可热更新
+- 可离线校验
+- 对驱动契约有显式约束
+
+如果你要继续扩展配置，建议优先保持：
+
+- 顶层字段稳定
+- 驱动差异收敛到 `ProtocolOptions`
+- 校验规则和文档同步演进
+
+## 测试建议
+
+如果你新增能力，至少补其中一种：
+
+- 单元测试
+- 集成测试
+- 配置校验测试
+
+优先级最高的是：
+
+- 驱动配置校验
+- WAL 行为
+- 恢复语义
+
+## 提交前建议
+
+在提交代码前，至少执行：
+
+```bash
+dotnet build DataAcquisition.sln --no-restore
+dotnet test tests/DataAcquisition.Core.Tests/DataAcquisition.Core.Tests.csproj
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+## 相关文档
 
 - [贡献指南](../CONTRIBUTING.md)
-- [模块文档](modules.md)
-- [设计理念](design.md)
+- [模块](modules.md)
+- [设计](design.md)
