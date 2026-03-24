@@ -1,109 +1,162 @@
-# Configuration Tutorial: Devices, Channels, and Modes
+# Configuration
 
-This guide explains device configs and application settings with examples and best practices.
+This document covers three layers of configuration:
 
----
+- device-level configuration: how to connect to a PLC
+- channel-level configuration: how to collect and shape data
+- app-level configuration: how to configure primary storage, WAL, and runtime behavior
 
-## 1. Config Locations
+## Config Locations
 
-- Device configs: `src/DataAcquisition.Edge.Agent/Configs/*.json`
-- App settings: `src/DataAcquisition.Edge.Agent/appsettings.json`
+- device configs: `src/DataAcquisition.Edge.Agent/Configs/*.json`
+- app settings: `src/DataAcquisition.Edge.Agent/appsettings.json`
 
----
+## 1. Device-Level Configuration
 
-## 2. Device Config Structure
+Minimal structure:
 
 ```json
 {
+  "SchemaVersion": 1,
   "IsEnabled": true,
   "PlcCode": "PLC01",
+  "Driver": "melsec-a1e",
   "Host": "192.168.1.100",
   "Port": 502,
-  "Type": "Mitsubishi",
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "PLC01C01",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 10,
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        }
-      ]
-    }
-  ]
+  "Channels": []
 }
 ```
 
-### Field Reference
+Field reference:
 
-#### Device Level (DeviceConfig)
+| Field | Required | Description |
+|------|:--------:|-------------|
+| `SchemaVersion` | ✅ | configuration structure version, currently fixed at `1` |
+| `IsEnabled` | ✅ | whether the device is enabled |
+| `PlcCode` | ✅ | unique device identifier |
+| `Driver` | ✅ | stable driver name such as `melsec-a1e`, `melsec-mc`, `siemens-s7` |
+| `Host` | ✅ | PLC endpoint host, accepts IPs and DNS hostnames |
+| `Port` | ✅ | PLC endpoint port |
+| `ProtocolOptions` | Optional | additional driver-specific parameters |
+| `HeartbeatMonitorRegister` | ✅ | heartbeat register |
+| `HeartbeatPollingInterval` | ✅ | heartbeat polling interval in milliseconds |
+| `Channels` | ✅ | configured channels |
 
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `IsEnabled` | `bool` | ✅ | Whether to enable data acquisition for this device |
-| `PlcCode` | `string` | ✅ | Unique PLC identifier |
-| `Host` | `string` | ✅ | PLC IP address |
-| `Port` | `ushort` | ✅ | Communication port (e.g., Modbus default 502) |
-| `Type` | `enum` | ✅ | PLC type: `Mitsubishi`, `Inovance`, `BeckhoffAds` |
-| `HeartbeatMonitorRegister` | `string` | ✅ | Heartbeat detection register address (e.g., `D100`) |
-| `HeartbeatPollingInterval` | `int` | ✅ | Heartbeat polling interval in milliseconds |
-| `Channels` | `array` | ✅ | List of acquisition channels (split by business or function) |
+Notes:
 
-#### Channel Level (Channel)
+- driver selection accepts full `Driver` names only
+- `ProtocolOptions` is not an unbounded bag; unsupported keys are rejected at runtime
+- documented camelCase forms such as `cpuType` and `slotNo` are also accepted
+- see [hsl-drivers.en.md](hsl-drivers.en.md) for the current driver catalog
+- JSON Schema: [../schemas/device-config.schema.json](../schemas/device-config.schema.json)
+- Example configs: [../examples/device-configs](../examples/device-configs)
 
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `ChannelCode` | `string` | ✅ | Unique channel identifier |
-| `Measurement` | `string` | ✅ | Time-series database table name (measurement) |
-| `EnableBatchRead` | `bool` | ✅ | Enable batch reading to read a contiguous register block in one request |
-| `BatchReadRegister` | `string` | Cond. | Starting register address for batch read (required when `EnableBatchRead=true`) |
-| `BatchReadLength` | `ushort` | Cond. | Number of registers to read in batch (word count) |
-| `BatchSize` | `int` | ✅ | Number of data points to buffer before flushing to the database |
-| `AcquisitionInterval` | `int` | ✅ | Acquisition interval in milliseconds; `0` for maximum frequency (no delay) |
-| `AcquisitionMode` | `enum` | ✅ | Acquisition mode: `Always` (continuous) or `Conditional` (trigger-based) |
-| `ConditionalAcquisition` | `object` | Cond. | Conditional acquisition config (required for `Conditional` mode) |
-| `Metrics` | `array` | Cond. | List of metrics to collect (required for `Always` mode) |
+Siemens example:
 
-#### Conditional Acquisition (ConditionalAcquisition)
+```json
+{
+  "Driver": "siemens-s7",
+  "Host": "192.168.1.20",
+  "Port": 102,
+  "ProtocolOptions": {
+    "plc": "S1200"
+  }
+}
+```
 
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `Register` | `string` | ✅ | Trigger register address |
-| `DataType` | `string` | ✅ | Data type of the trigger register |
-| `StartTriggerMode` | `enum` | ✅ | Start trigger: `RisingEdge` (value changes from 0 to non-zero) or `FallingEdge` (non-zero to 0) |
-| `EndTriggerMode` | `enum` | ✅ | End trigger: same options as above |
+Inovance example:
 
-#### Metric Level (Metric)
+```json
+{
+  "Driver": "inovance-tcp",
+  "Host": "192.168.1.30",
+  "Port": 502,
+  "ProtocolOptions": {
+    "series": "AM",
+    "station": "1"
+  }
+}
+```
 
-| Field | Type | Required | Description |
-|-------|------|:--------:|-------------|
-| `MetricLabel` | `string` | ✅ | Label to identify the metric |
-| `FieldName` | `string` | ✅ | Field name in the time-series database |
-| `Register` | `string` | ✅ | PLC register address (e.g., `D6000`) |
-| `Index` | `int` | ✅ | Byte offset within the batch read buffer |
-| `DataType` | `string` | ✅ | Data type: `short`, `ushort`, `int`, `uint`, `float`, `double`, `long`, `ulong`, `string` |
-| `EvalExpression` | `string` | ❌ | Value conversion expression (e.g., `value / 100.0`); raw value used if omitted |
-| `StringByteLength` | `int` | Cond. | String byte length (required when `DataType=string`) |
-| `Encoding` | `string` | Cond. | String encoding (used when `DataType=string`) |
+## 2. Channel-Level Configuration
 
----
+A device can contain multiple channels. Each channel usually maps to one business data stream or one measurement.
 
-## 3. Acquisition Modes
+Example:
 
-### Always (continuous)
+```json
+{
+  "Measurement": "sensor",
+  "ChannelCode": "PLC01C01",
+  "EnableBatchRead": true,
+  "BatchReadRegister": "D6000",
+  "BatchReadLength": 10,
+  "BatchSize": 10,
+  "AcquisitionInterval": 100,
+  "AcquisitionMode": "Always",
+  "Metrics": []
+}
+```
+
+Field reference:
+
+| Field | Required | Description |
+|------|:--------:|-------------|
+| `Measurement` | ✅ | primary measurement name |
+| `ChannelCode` | ✅ | unique channel identifier |
+| `EnableBatchRead` | ✅ | whether batch read is enabled |
+| `BatchReadRegister` | Conditional | batch read starting register |
+| `BatchReadLength` | Conditional | batch read length |
+| `BatchSize` | ✅ | queue aggregation size before flush |
+| `AcquisitionInterval` | ✅ | collection interval, `0` means no intentional delay |
+| `AcquisitionMode` | ✅ | `Always` or `Conditional` |
+| `ConditionalAcquisition` | Conditional | conditional acquisition configuration |
+| `Metrics` | Conditional | metric definitions |
+
+## 3. Metric Configuration
+
+Example:
+
+```json
+{
+  "MetricLabel": "temperature",
+  "FieldName": "temperature",
+  "Register": "D6000",
+  "Index": 0,
+  "DataType": "short",
+  "EvalExpression": "value / 100.0"
+}
+```
+
+Field reference:
+
+| Field | Required | Description |
+|------|:--------:|-------------|
+| `MetricLabel` | ✅ | display label |
+| `FieldName` | ✅ | stored field name |
+| `Register` | ✅ | PLC register |
+| `Index` | ✅ | offset inside the batch-read buffer |
+| `DataType` | ✅ | supported scalar type |
+| `EvalExpression` | Optional | numeric transform expression |
+| `StringByteLength` | Conditional | string byte length |
+| `Encoding` | Conditional | string encoding, prefer `utf-8` |
+
+Notes:
+
+- fixed-length string values are sanitized to remove trailing `\0`
+- expressions are applied only to numeric values
+
+## 4. Acquisition Modes
+
+### Always
+
+Good for continuous signals:
 
 ```json
 {
@@ -112,7 +165,9 @@ This guide explains device configs and application settings with examples and be
 }
 ```
 
-### Conditional (event-driven)
+### Conditional
+
+Good for cycles, state transitions, and event-driven capture:
 
 ```json
 {
@@ -126,11 +181,16 @@ This guide explains device configs and application settings with examples and be
 }
 ```
 
-Conditional mode emits Start/End events with CycleId.
+Conditional semantics:
 
----
+- formal cycle events are written as `Start` / `End`
+- recovery diagnostics are written to `<measurement>_diagnostic`
+- formal analytics should use only paired `Start` / `End`
+- timestamps are stored in UTC
 
-## 4. Batch Read
+## 5. Batch Read
+
+Prefer batch read when registers are contiguous:
 
 ```json
 {
@@ -140,24 +200,11 @@ Conditional mode emits Start/End events with CycleId.
 }
 ```
 
-- `Index` maps each field to the batch result position
+This reduces network round trips and single-read overhead.
 
----
+## 6. App-Level Configuration
 
-## 5. Data Transform
-
-```json
-{
-  "FieldName": "temperature",
-  "Register": "D6000",
-  "DataType": "short",
-  "EvalExpression": "value / 100.0"
-}
-```
-
----
-
-## 6. App Settings (appsettings.json)
+Core example:
 
 ```json
 {
@@ -171,6 +218,14 @@ Conditional mode emits Start/End events with CycleId.
   "Parquet": {
     "Directory": "./Data/parquet"
   },
+  "Acquisition": {
+    "DeviceConfigService": {
+      "ConfigDirectory": "Configs"
+    },
+    "StateStore": {
+      "DatabasePath": "Data/acquisition-state.db"
+    }
+  },
   "Edge": {
     "EnableCentralReporting": true,
     "CentralApiBaseUrl": "http://localhost:8000",
@@ -180,30 +235,25 @@ Conditional mode emits Start/End events with CycleId.
 }
 ```
 
----
+Important points:
 
-## 7. Hot Reload
+- `Parquet:Directory` is the WAL root and contains `pending/`, `retry/`, and `invalid/`
+- `Acquisition:DeviceConfigService:ConfigDirectory` controls the device config directory and is also used by offline validation by default
+- `Acquisition:StateStore:DatabasePath` stores active cycle recovery state
+- if you only want to validate the edge acquisition path first, disable `EnableCentralReporting`
 
-- Changes in `Configs/*.json` are auto-applied
-- Default debounce is 500ms
+## 7. Best Practices
 
----
+- use stable and readable `PlcCode` and `ChannelCode`
+- prefer batch read when registers are contiguous
+- tune `BatchSize` based on throughput vs latency
+- convert engineering units during acquisition rather than pushing raw dirty values downstream
+- for conditional acquisition, define the real business start/end edges first
+- validate configs before deployment with `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs`
+- use `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir <directory>` when validating a non-default directory
 
-## 8. Best Practices
+## Next
 
-- Consistent naming for PlcCode/ChannelCode
-- Prefer batch reads to reduce network RTT
-- Tune BatchSize to balance latency and throughput
-- Convert units at acquisition time
-
----
-
-## Troubleshooting
-
-- No data: verify host/port/registers
-- Conditional not triggered: validate register changes and trigger modes
-- InfluxDB empty: check token/org/bucket
-
----
-
-Next: [Deployment Tutorial](tutorial-deployment.en.md)
+- [Deployment Tutorial](tutorial-deployment.en.md)
+- [Driver Catalog](hsl-drivers.en.md)
+- [Design](design.en.md)

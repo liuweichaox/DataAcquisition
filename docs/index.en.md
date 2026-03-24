@@ -9,6 +9,7 @@ This index is the main entry for DataAcquisition documentation. It follows a cle
 ## Configuration
 
 - [Configuration Tutorial](tutorial-configuration.en.md)
+- [Device Config Schema](../schemas/device-config.schema.json)
 
 ## Deployment
 
@@ -27,6 +28,7 @@ This index is the main entry for DataAcquisition documentation. It follows a cle
 
 ## Architecture & Internals
 
+- [Driver Catalog](hsl-drivers.en.md)
 - [Core Modules](modules.en.md)
 - [Data Flow](data-flow.en.md)
 - [Design](design.en.md)
@@ -34,6 +36,7 @@ This index is the main entry for DataAcquisition documentation. It follows a cle
 ## Development
 
 - [Development Tutorial](tutorial-development.en.md)
+- [Contributing Guide](../CONTRIBUTING.en.md)
 
 ## Back
 

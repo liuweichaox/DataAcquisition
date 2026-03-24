@@ -3,8 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
@@ -22,7 +20,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     private readonly ConcurrentDictionary<string, DeviceConfig> _cachedConfigs = new();
     private readonly string _configDirectory;
     private readonly int _configChangeDetectionDelayMs;
-    private readonly JsonSerializerOptions _jsonOptions;
+    private readonly DeviceConfigFileLoader _fileLoader;
     private readonly ILogger<DeviceConfigService> _logger;
     private readonly SemaphoreSlim _reloadLock = new(1, 1);
     private FileSystemWatcher? _fileWatcher;
@@ -31,11 +29,8 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     {
         _logger = logger;
         _configChangeDetectionDelayMs = acquisitionOptions.Value.DeviceConfigService.ConfigChangeDetectionDelayMs;
-        _configDirectory = Path.Combine(AppContext.BaseDirectory, "Configs");
-        _jsonOptions = new JsonSerializerOptions
-        {
-            ReadCommentHandling = JsonCommentHandling.Skip
-        };
+        _configDirectory = DeviceConfigPathResolver.Resolve(acquisitionOptions.Value.DeviceConfigService.ConfigDirectory);
+        _fileLoader = new DeviceConfigFileLoader();
         InitializeFileWatcher();
     }
 
@@ -54,63 +49,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     ///     验证配置是否有效
     /// </summary>
     public Task<ConfigValidationResult> ValidateConfigAsync(DeviceConfig config)
-    {
-        var result = new ConfigValidationResult { IsValid = true };
-
-        // 验证设备编码
-        if (string.IsNullOrWhiteSpace(config.PlcCode))
-        {
-            result.IsValid = false;
-            result.Errors.Add("设备编码不能为空");
-        }
-
-        // 验证IP地址
-        if (string.IsNullOrWhiteSpace(config.Host))
-        {
-            result.IsValid = false;
-            result.Errors.Add("IP地址不能为空");
-        }
-        else if (!IPAddress.TryParse(config.Host, out _))
-        {
-            result.IsValid = false;
-            result.Errors.Add($"无效的IP地址: {config.Host}");
-        }
-
-        // 验证端口
-        if (config.Port == 0)
-        {
-            result.IsValid = false;
-            result.Errors.Add("端口不能为0");
-        }
-
-        // 验证心跳检测地址
-        if (string.IsNullOrWhiteSpace(config.HeartbeatMonitorRegister))
-        {
-            result.IsValid = false;
-            result.Errors.Add("心跳检测地址不能为空");
-        }
-
-        // 验证通道配置
-        if (config.Channels == null || config.Channels.Count == 0)
-        {
-            result.IsValid = false;
-            result.Errors.Add("至少需要配置一个采集通道");
-        }
-        else
-        {
-            for (var i = 0; i < config.Channels.Count; i++)
-            {
-                var channel = config.Channels[i];
-                if (string.IsNullOrWhiteSpace(channel.Measurement))
-                {
-                    result.IsValid = false;
-                    result.Errors.Add($"通道 {i + 1} 的测量值名称不能为空");
-                }
-            }
-        }
-
-        return Task.FromResult(result);
-    }
+        => Task.FromResult(DeviceConfigValidator.Validate(config));
 
     /// <summary>
     ///     释放资源
@@ -143,18 +82,8 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// <summary>
     ///     配置文件变更处理
     /// </summary>
-    private async void OnConfigFileChanged(object sender, FileSystemEventArgs e)
-    {
-        try
-        {
-            await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
-            await ReloadConfigAsync(e.FullPath).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "处理配置文件变更失败: {FilePath}", e.FullPath);
-        }
-    }
+    private void OnConfigFileChanged(object sender, FileSystemEventArgs e) =>
+        _ = HandleConfigFileChangedAsync(e.FullPath);
 
     /// <summary>
     ///     配置文件删除处理
@@ -174,7 +103,23 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
     /// <summary>
     ///     配置文件重命名处理
     /// </summary>
-    private async void OnConfigFileRenamed(object sender, RenamedEventArgs e)
+    private void OnConfigFileRenamed(object sender, RenamedEventArgs e) =>
+        _ = HandleConfigFileRenamedAsync(e);
+
+    private async Task HandleConfigFileChangedAsync(string filePath)
+    {
+        try
+        {
+            await Task.Delay(_configChangeDetectionDelayMs).ConfigureAwait(false);
+            await ReloadConfigAsync(filePath).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "处理配置文件变更失败: {FilePath}", filePath);
+        }
+    }
+
+    private async Task HandleConfigFileRenamedAsync(RenamedEventArgs e)
     {
         try
         {
@@ -210,12 +155,22 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
 
             if (!File.Exists(filePath)) return;
 
-            var newConfig = await LoadConfigAsync<DeviceConfig>(filePath).ConfigureAwait(false);
+            var newConfig = await _fileLoader.LoadAsync<DeviceConfig>(filePath).ConfigureAwait(false);
             var validationResult = await ValidateConfigAsync(newConfig).ConfigureAwait(false);
 
             if (!validationResult.IsValid)
             {
                 _logger.LogWarning("配置验证失败 {FileName}: {Errors}", fileName, string.Join(", ", validationResult.Errors));
+                return;
+            }
+
+            if (TryFindDuplicatePlcCode(fileName, newConfig.PlcCode, out var duplicateFileName))
+            {
+                _logger.LogWarning(
+                    "检测到重复 PlcCode，已拒绝加载配置: PlcCode={PlcCode}, File={FileName}, DuplicateFile={DuplicateFileName}",
+                    newConfig.PlcCode,
+                    fileName,
+                    duplicateFileName);
                 return;
             }
 
@@ -252,7 +207,7 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
         foreach (var filePath in jsonFiles)
             try
             {
-                var config = await LoadConfigAsync<DeviceConfig>(filePath).ConfigureAwait(false);
+                var config = await _fileLoader.LoadAsync<DeviceConfig>(filePath).ConfigureAwait(false);
                 var validationResult = await ValidateConfigAsync(config).ConfigureAwait(false);
 
                 if (!validationResult.IsValid)
@@ -262,6 +217,16 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
                 }
 
                 var fileName = Path.GetFileNameWithoutExtension(filePath);
+                if (TryFindDuplicatePlcCode(fileName, config.PlcCode, out var duplicateFileName))
+                {
+                    _logger.LogWarning(
+                        "检测到重复 PlcCode，已跳过配置文件: PlcCode={PlcCode}, File={FileName}, DuplicateFile={DuplicateFileName}",
+                        config.PlcCode,
+                        fileName,
+                        duplicateFileName);
+                    continue;
+                }
+
                 _cachedConfigs[fileName] = config;
             }
             catch (Exception ex)
@@ -270,16 +235,27 @@ public class DeviceConfigService : IDeviceConfigService, IDisposable
             }
     }
 
-    /// <summary>
-    ///     异步加载 JSON 配置文件
-    /// </summary>
-    /// <typeparam name="T">要反序列化的目标类型</typeparam>
-    /// <param name="filePath">JSON 文件路径</param>
-    /// <returns>反序列化后的对象</returns>
-    private async Task<T> LoadConfigAsync<T>(string filePath)
+    private bool TryFindDuplicatePlcCode(string fileName, string plcCode, out string duplicateFileName)
     {
-        await using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        var result = await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions);
-        return result ?? throw new InvalidOperationException($"无法反序列化配置文件: {filePath}");
+        if (string.IsNullOrWhiteSpace(plcCode))
+        {
+            duplicateFileName = string.Empty;
+            return false;
+        }
+
+        foreach (var cachedConfig in _cachedConfigs)
+        {
+            if (string.Equals(cachedConfig.Key, fileName, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (!string.Equals(cachedConfig.Value.PlcCode, plcCode, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            duplicateFileName = cachedConfig.Key;
+            return true;
+        }
+
+        duplicateFileName = string.Empty;
+        return false;
     }
 }

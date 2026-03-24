@@ -15,7 +15,7 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class HeartbeatMonitor : IHeartbeatMonitor
 {
-    private readonly ConcurrentDictionary<string, DateTime> _connectionStartTimes = new();
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _connectionStartTimes = new();
     private readonly ILogger<HeartbeatMonitor> _logger;
     private readonly IMetricsCollector? _metricsCollector;
     private readonly ConcurrentDictionary<string, bool> _plcConnectionHealth = new();
@@ -33,7 +33,7 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         _metricsCollector = metricsCollector;
     }
 
-    public async Task MonitorAsync(DeviceConfig config, IPlcClientService client, CancellationToken ct = default)
+    public async Task MonitorAsync(DeviceConfig config, IPlcTypedWriteClient client, CancellationToken ct = default)
     {
         var lastOk = false;
         ushort writeData = 0;
@@ -58,12 +58,12 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     // 从失败状态恢复时记录日志
                     if (!lastOk)
                     {
-                        _lastConnectedTimes[config.PlcCode] = DateTimeOffset.Now;
+                        _lastConnectedTimes[config.PlcCode] = DateTimeOffset.UtcNow;
                         _reconnectCounts.AddOrUpdate(config.PlcCode, 1, (_, c) => c + 1);
                         _logger.LogInformation("{PlcCode}-✓ Plc连接成功，心跳检测正常 (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PlcCode, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PlcCode, true);
-                        _connectionStartTimes[config.PlcCode] = DateTime.Now;
+                        _connectionStartTimes[config.PlcCode] = DateTimeOffset.UtcNow;
                     }
                 }
                 else
@@ -74,12 +74,13 @@ public class HeartbeatMonitor : IHeartbeatMonitor
                     // 从成功状态变为失败时记录日志
                     if (lastOk)
                     {
-                        _lastDisconnectedTimes[config.PlcCode] = DateTimeOffset.Now;
+                        _lastDisconnectedTimes[config.PlcCode] = DateTimeOffset.UtcNow;
                         _logger.LogWarning("{PlcCode}-✗ Plc连接失败: {Message} (地址: {Host}:{Port}, 寄存器: {Register})",
                             config.PlcCode, connect.Message, config.Host, config.Port, config.HeartbeatMonitorRegister);
                         _metricsCollector?.RecordConnectionStatus(config.PlcCode, false);
                         if (_connectionStartTimes.TryRemove(config.PlcCode, out var startTime))
-                            _metricsCollector?.RecordConnectionDuration(config.PlcCode, (DateTime.Now - startTime).TotalSeconds);
+                            _metricsCollector?.RecordConnectionDuration(config.PlcCode,
+                                (DateTimeOffset.UtcNow - startTime).TotalSeconds);
                     }
                 }
 
@@ -117,13 +118,13 @@ public class HeartbeatMonitor : IHeartbeatMonitor
         double? connectionDuration = null;
         if (isConnected && _connectionStartTimes.TryGetValue(plcCode, out var startTime))
         {
-            connectionDuration = (DateTime.Now - startTime).TotalSeconds;
+            connectionDuration = (DateTimeOffset.UtcNow - startTime).TotalSeconds;
         }
 
         double? disconnectedDuration = null;
         if (!isConnected && lastDisconnectedTime.HasValue)
         {
-            disconnectedDuration = (DateTimeOffset.Now - lastDisconnectedTime.Value).TotalSeconds;
+            disconnectedDuration = (DateTimeOffset.UtcNow - lastDisconnectedTime.Value).TotalSeconds;
         }
 
         return new PlcConnectionStatus

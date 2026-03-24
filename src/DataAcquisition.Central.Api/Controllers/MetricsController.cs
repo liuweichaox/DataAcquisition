@@ -33,7 +33,7 @@ public class MetricsController : ControllerBase
 
             return Ok(new
             {
-                timestamp = DateTime.Now,
+                timestamp = DateTimeOffset.UtcNow,
                 metrics
             });
         }

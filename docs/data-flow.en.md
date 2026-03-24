@@ -55,11 +55,12 @@ QueueService (Queue Aggregation)
          Write Failure → Move WAL File to retry folder → RetryWorker Retry
 ```
 
-## Data Consistency Guarantees
+## Data Consistency and Recoverability
 
-- **WAL-first Architecture**: All data is written to local Parquet files first, ensuring no data loss
-- **Atomic Operations**: Batch writes are either all successful or all failed
-- **Idempotency**: Retry mechanism ensures duplicate writes do not cause data duplication
+- **WAL-first architecture**: healthy messages are written to local Parquet WAL before primary storage is attempted
+- **Batch degradation**: if batch WAL persistence fails, the system degrades to per-message handling to preserve healthy messages
+- **Poison-message audit**: messages that still cannot enter WAL are quarantined under `invalid/`
+- **Retry replay**: files under `retry/` are replayed by the background worker to restore primary-store consistency
 
 > For performance optimization recommendations, please refer to [Performance Optimization Guide](performance.en.md)
 

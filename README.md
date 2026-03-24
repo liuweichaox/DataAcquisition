@@ -1,576 +1,199 @@
-# 🛰️ DataAcquisition - 工业级 PLC 数据采集系统
+# DataAcquisition
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Version](https://img.shields.io/badge/version-1.0.0-blue)]()
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)]()
 
 English: [README.en.md](README.en.md)
 
-## 📋 目录
+DataAcquisition 是一个面向工业现场的开源 PLC 数据采集运行时，重点解决三件事：
 
-- [📖 项目简介](#-项目简介)
-- [🎯 核心特性](#-核心特性)
-- [✨ 应用场景](#-应用场景)
-- [🏗️ 系统架构](#-系统架构)
-- [📁 项目结构](#-项目结构)
-- [🚀 快速开始](#-快速开始)
-- [📸 屏幕截图](#-屏幕截图)
-- [📚 教程导航](#-教程导航)
-- [📖 文档导航](#-文档导航)
-- [🤝 贡献指南](#-贡献指南)
-- [📄 开源协议](#-开源协议)
-- [🙏 致谢](#-致谢)
+- 稳定采集：多 PLC、多通道并行采集，支持持续采集与条件触发采集。
+- 本地可恢复：采用 WAL-first 链路，先写本地 Parquet，再写主存储。
+- 易扩展：PLC 驱动通过稳定的 `Driver` 名称配置，框架核心与具体通讯库解耦。
 
-## 📖 项目简介
+它更像一个可部署、可扩展的 edge runtime，而不是一个大而全的 MES/SCADA 平台。
 
-DataAcquisition 是一个基于 .NET 构建的工业级 PLC 数据采集系统。系统采用 **WAL-first（写前日志）架构**确保数据零丢失，支持 **Edge-Central 分布式架构**实现多车间集中管理。提供多 PLC 并行采集、条件触发采集、批量读取优化等高级功能，支持配置热更新和实时监控，开箱即用，运维友好。
+## 项目范围
 
-**技术栈：**
-- 运行时：.NET 10.0
-- 数据存储：InfluxDB 2.x（时序数据库）+ Parquet（本地 WAL）
-- 监控：Prometheus 指标 + Vue3 可视化界面
-- 架构：Edge-Central 分布式架构
+当前项目聚焦以下能力：
 
-### 🎯 核心特性
+- 车间侧 Edge Agent 采集 PLC 数据
+- InfluxDB 作为主时序存储，Parquet 作为本地 WAL
+- 条件采集周期管理与恢复诊断
+- 中心侧节点注册、心跳和诊断代理
+- Prometheus 指标与 Web 可视化面板
 
-#### 🔒 WAL-first 数据安全架构
+当前项目不追求：
 
-系统采用 **Write-Ahead Log (WAL) 优先** 的设计理念，确保工业数据零丢失：
+- 替代完整 SCADA / MES
+- 在核心模型里抽象所有 PLC 底层细节
+- 把所有驱动的全部私有参数都做成统一公共字段
 
-```
-数据采集 → Parquet WAL (本地) → InfluxDB (远程)
-              ↓ (失败保留)         ↓ (失败重试)
-         pending/ 目录         retry/ 目录
+## 架构概览
+
+核心数据链路：
+
+```text
+PLC -> ChannelCollector -> QueueService -> Parquet WAL -> InfluxDB
+                                   |               |
+                                   |               -> retry/
+                                   -> invalid/
 ```
 
-- **双重保险**：数据同时写入本地 Parquet 文件和 InfluxDB，任一失败都有备份
-- **自动重试**：后台 Worker 每 5 秒扫描 retry/ 目录，自动重传失败数据
-- **故障恢复**：即使网络中断、数据库宕机，数据也不会丢失
+部署拓扑：
 
-#### ⚡ 高性能采集优化
-
-| 特性 | 说明 |
-|------|------|
-| **批量读取** | 一次性读取连续寄存器块，大幅减少网络往返，显著提升采集速度 |
-| **并行采集** | 多 PLC、多通道异步并行采集，充分利用 I/O 并发 |
-| **条件触发** | 仅在关键事件发生时采集，避免无效数据写入 |
-| **智能聚合** | 按 BatchSize 聚合后批量写入，降低数据库写入频率 |
-
-#### 🎯 智能采集模式
-
-**Always 模式**（持续采集）
-- 适用场景：温度、压力、电流等需要持续监控的参数
-- 按固定间隔采集数据
-
-**Conditional 模式**（条件触发采集）
-- 适用场景：生产周期管理、设备状态变化记录
-- 支持 RisingEdge（上升沿触发）和 FallingEdge（下降沿触发）
-- 自动记录 Start/End 事件，通过 CycleId 关联完整生产周期
-
-#### 🌐 Edge-Central 分布式架构
-
-- **Edge Agent**：部署在车间侧，负责 PLC 数据采集和本地存储
-- **Central API**：中心服务，接收边缘节点注册、心跳和数据上报
-- **Central Web**：Vue3 可视化界面，实时展示系统状态和监控指标
-
-#### 🔄 配置热更新
-
-- 修改配置文件后自动重新加载（默认延迟 500ms）
-- 支持设备配置和应用配置热更新
-- 无需重启服务，不影响生产环境运行
-
-#### 📊 完整的监控体系
-
-- **Prometheus 指标**：采集延迟、队列深度、写入延迟、错误统计等
-- **可视化界面**：Vue3 + Element Plus，实时展示边缘节点列表和系统指标
-- **日志查询**：SQLite 日志存储，支持 API 查询和分页
-
-#### 🔀 多协议支持
-
-- Mitsubishi（三菱 PLC）
-- Inovance（汇川 PLC）
-- BeckhoffAds（倍福 PLC）
-- 支持通过实现 `IPlcClientService` 接口扩展新协议
-
-## ✨ 应用场景
-
-### 📦 制造业生产线数据采集
-
-**场景**：某汽车零部件生产线，需要实时采集 50+ 工位的设备状态、工艺参数和质量数据
-
-**解决方案**：
-- 每个工位部署 Edge Agent 采集 PLC 数据
-- 使用条件触发模式记录每个产品的完整生产过程
-- 通过 CycleId 关联产品从上料到下料的全部数据
-- Central Web 实时监控各工位状态和产量统计
-
-**效果**：
-- ✅ WAL-first 架构确保数据零丢失，满足质量追溯要求
-- ✅ 条件触发采集，仅记录有效生产数据，节省存储空间
-- ✅ 批量读取优化，降低采集延迟
-
-### 🏭 多车间集中监控
-
-**场景**：某制造企业有 5 个车间分布在不同地区，需要集中监控设备运行状态
-
-**解决方案**：
-- 每个车间部署 Edge Agent 采集本地设备数据
-- 所有 Edge Agent 向同一个 Central API 注册和上报心跳
-- Central Web 统一展示所有车间的设备状态和告警信息
-- 使用 Grafana 展示跨车间的生产统计和趋势分析
-
-**效果**：
-- ✅ 分布式部署，单点故障不影响其他车间
-- ✅ 集中管理，降低运维成本
-- ✅ 实时监控，快速定位问题
-
-### 🔧 设备预测性维护
-
-**场景**：某化工企业需要监控关键设备（压缩机、泵）的振动、温度、压力等参数，预测设备故障
-
-**解决方案**：
-- 配置 Always 模式持续采集振动、温度、压力等参数
-- 数据存储到 InfluxDB，保留 1 年历史数据
-- 使用 Grafana 配置告警规则（超过阈值自动告警）
-- 通过 Flux 查询分析历史趋势，建立预测模型
-
-**效果**：
-- ✅ 实时监控设备健康状态
-- ✅ 基于历史趋势分析，辅助设备维护决策
-- ✅ 降低计划外停机风险
-
-### 📊 生产数据追溯
-
-**场景**：某食品企业需要记录每批次产品的完整生产参数，满足质量追溯要求
-
-**解决方案**：
-- 使用条件触发模式，在批次开始时触发 Start 事件
-- 记录生产过程中的所有关键参数（温度、时间、添加量等）
-- 批次结束时触发 End 事件
-- 通过 CycleId 查询某批次产品的完整生产记录
-
-**效果**：
-- ✅ 完整记录每批次生产数据
-- ✅ 快速定位质量问题根因
-- ✅ 满足食品安全追溯要求
-
-## 🏗️ 系统架构
-
-### 分布式架构概览
-
-系统采用 **Edge-Central（边缘-中心）分布式架构**，支持多车间、多节点的集中式管理和监控：
-
-```
-                    ┌─────────────────────────────────────────┐
-                    │           Central Web (Vue3)            │
-                    │            可视化界面 / 监控面板           │
-                    └───────────────────┬─────────────────────┘
-                                        │ HTTP/API
-                    ┌───────────────────▼─────────────────────┐
-                    │         Central API                     │
-                    │  • 边缘节点注册/心跳管理                   │
-                    │  • 遥测数据接入                           │
-                    │  • 查询与管理接口                         │
-                    │  • Prometheus 指标聚合                   │
-                    └───────┬─────────────────────┬───────────┘
-                            │                     │
-              ┌─────────────┘                     └───────────┐
-              │                                               │
-    ┌─────────▼─────────┐                          ┌──────────▼────────┐
-    │   Edge Agent #1   │                          │   Edge Agent #N   │
-    │      (Node 1)     │                          │      (Node N)     │
-    └─────────┬─────────┘                          └─────────┬─────────┘
-              │                                              │
-              └──────────────────────────────────────────────┘
+```text
+Central Web -> Central API -> Edge Agent -> PLC
 ```
 
-### Edge Agent 内部架构
+设计重点：
 
-每个 Edge Agent 采用分层架构设计，各层职责清晰，确保数据零丢失：
+- WAL-first：先保留本地可恢复副本，再尝试主存储
+- UTC 时间语义：避免跨节点和时区歧义
+- 正式事件与诊断事件分离：`Start/End/Data` 与恢复诊断分不同 measurement
+- 驱动扩展点清晰：`IPlcDriverProvider` / `IPlcClientService`
 
-```
-┌────────────────────────────┐        ┌──────────────────────────┐
-│        PLC Device          │──────▶ │  Heartbeat Monitor Layer │
-└────────────────────────────┘        └──────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│   Data Acquisition Layer   │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│    Queue Service Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐
-│          Storage Layer     │
-└────────────────────────────┘
-                 │
-                 ▼
-┌────────────────────────────┐        ┌──────────────────────────────┐
-│      WAL Persistence       │──────▶ │ Time-Series Database Storage │
-└────────────────────────────┘        └──────────────────────────────┘
-                 │                                 │
-                 ▼                                 │  Write Failed
-┌────────────────────────────┐                     │
-│      Retry Worker          │◀────────────────────┘
-└────────────────────────────┘
-```
+更多设计说明见 [docs/design.md](docs/design.md) 和 [docs/data-flow.md](docs/data-flow.md)。
 
-### 核心数据流
+## 核心能力
 
-#### Edge Agent 内部流程
+- 多 PLC、多通道异步并行采集
+- `Always` / `Conditional` 两种采集模式
+- RisingEdge / FallingEdge 条件触发
+- 批量读取连续寄存器块
+- 热更新设备配置
+- WAL `pending/`、`retry/`、`invalid/` 生命周期
+- active cycle 本地持久化恢复
+- 中心化节点注册、心跳、指标和日志代理
 
-1. **数据采集阶段**：PLC 设备 → `ChannelCollector`（支持条件触发、批量读取优化）
-2. **数据聚合阶段**：`QueueService` 按配置的 `BatchSize` 批量聚合数据
-3. **数据持久化阶段**：
-   - **Parquet WAL**：立即写入本地 Parquet 文件（写前日志，确保零丢失）
-   - **InfluxDB**：同步写入时序数据库（主存储）
-4. **容错处理阶段**：写入成功后删除 WAL 文件；写入失败时保留 WAL 文件，由 `RetryWorker` 定期重试
-5. **数据上报阶段**：可选地将数据上报到 Central API（用于集中式管理和监控）
+## 驱动模型
 
-#### Edge-Central 交互流程
+项目对 PLC 驱动的设计目标是“配置简单、扩展明确”。
 
-1. **节点注册阶段**：Edge Agent 启动时自动向 Central API 注册节点信息（EdgeId、AgentBaseUrl、Hostname）
-2. **心跳上报阶段**：周期性发送心跳信息（默认间隔 10 秒），包含队列积压量、错误信息等状态
-3. **遥测数据上报阶段**：批量上报采集的时序数据到 Central API（可选功能）
-4. **监控查询阶段**：Central Web 前端通过 Central API 查询各边缘节点的状态、指标和日志
+默认方式：
 
-## 📁 项目结构
+- 使用 HslCommunication 作为默认通讯实现
+- 通过稳定的 `Driver` 名称配置协议
+- 例如：`melsec-a1e`、`melsec-mc`、`siemens-s7`
 
-```
-DataAcquisition/
-├── src/DataAcquisition.Application/     # 应用层 - 接口定义
-│   ├── Abstractions/               # 核心接口抽象
-│   └── PlcRuntime.cs              # PLC 运行时
-├── src/DataAcquisition.Contracts/       # 契约层 - 对外 DTO/协议模型
-├── src/DataAcquisition.Domain/         # 领域层 - 核心模型
-│   └── Models/                     # 数据模型
-├── src/DataAcquisition.Infrastructure/ # 基础设施层 - 实现
-│   ├── Clients/                    # PLC 客户端实现
-│   ├── DataAcquisitions/           # 数据采集服务
-│   ├── DataStorages/               # 数据存储服务
-│   └── Metrics/                    # 指标收集
-├── src/DataAcquisition.Edge.Agent/ # Edge Agent - 车间侧采集后台 + 指标 + 本地 API
-│   ├── Configs/                    # 设备配置文件
-│   └── Controllers/                # 管理 API 控制器
-├── src/DataAcquisition.Central.Api/ # Central API - 中心侧 API（边缘注册/心跳/数据接入、查询与管理）
-├── src/DataAcquisition.Central.Web/ # Central Web - 纯前端（Vue CLI / Vue3），通过 /api 访问 Central API
-├── src/DataAcquisition.Simulator/      # PLC 模拟器 - 用于测试
-│   ├── Simulator.cs               # 模拟器核心逻辑
-│   ├── Program.cs                 # 程序入口
-│   └── README.md                  # 模拟器文档
-└── DataAcquisition.sln             # 解决方案文件
-```
+标准配置字段：
 
-## 🚀 快速开始
+- `Driver`
+- `Host`
+- `Port`
+- `ProtocolOptions`
+- `Channels`
 
-### 方式一：本地开发运行（推荐）
+配置配套：
 
-请查看 [入门教程](docs/tutorial-getting-started.md)，该指南提供了从零开始的完整步骤，包括：
+- JSON Schema： [schemas/device-config.schema.json](schemas/device-config.schema.json)
+- 示例配置： [examples/device-configs](examples/device-configs)
+- 离线校验：`dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs`
+- 默认校验目录可通过 `Acquisition:DeviceConfigService:ConfigDirectory` 配置，也可用 `--config-dir` 临时覆盖
 
-- 环境要求和安装步骤
-- InfluxDB 本地安装或 Docker 部署
-- 设备配置文件创建
-- 系统启动和验证
-- 使用 PLC 模拟器进行测试
+扩展方式：
 
-### 方式二：Docker 部署中心服务
+- 框架核心只依赖 [IPlcDriverProvider](src/DataAcquisition.Application/Abstractions/IPlcDriverProvider.cs)
+- 自定义驱动不需要修改采集主链路
 
-使用 Docker Compose 部署 Central API + Central Web（Edge Agent 始终在边缘设备上通过进程直接运行）：
+驱动清单见 [docs/hsl-drivers.md](docs/hsl-drivers.md)。
+
+## 仓库结构
+
+- [src/DataAcquisition.Edge.Agent](src/DataAcquisition.Edge.Agent)  
+  车间侧采集进程，项目主入口。
+
+- [src/DataAcquisition.Infrastructure](src/DataAcquisition.Infrastructure)  
+  PLC 驱动、采集编排、WAL、主存储、日志和指标实现。
+
+- [src/DataAcquisition.Application](src/DataAcquisition.Application)  
+  应用层抽象与运行时契约。
+
+- [src/DataAcquisition.Domain](src/DataAcquisition.Domain)  
+  领域模型和配置模型。
+
+- [src/DataAcquisition.Central.Api](src/DataAcquisition.Central.Api)  
+  中心服务，负责边缘节点注册、心跳和诊断代理。
+
+- [src/DataAcquisition.Central.Web](src/DataAcquisition.Central.Web)  
+  Vue3 管理界面。
+
+- [tests/DataAcquisition.Core.Tests](tests/DataAcquisition.Core.Tests)  
+  当前核心测试项目。
+
+## 快速开始
+
+前置要求：
+
+- .NET 10 SDK
+- InfluxDB 2.x
+- Node.js 20+（仅 Central Web 需要）
+
+1. 构建项目
 
 ```bash
-# 1. 启动 InfluxDB
-docker-compose -f docker-compose.tsdb.yml up -d
-
-# 2. 初始化 InfluxDB（访问 http://localhost:8086）
-#    用户名：admin，密码：admin123
-
-# 3. 启动中心应用（Central API + Central Web）
-docker-compose -f docker-compose.app.yml up -d --build
-
-# 4. 启动 Edge Agent（宿主机直接运行）
-dotnet run --project src/DataAcquisition.Edge.Agent
+dotnet build DataAcquisition.sln
 ```
 
-启动后访问：
-- Central Web：`http://localhost:3000`
-- Central API：`http://localhost:8000`
-- InfluxDB：`http://localhost:8086`
-
-详细说明见：[部署教程](docs/tutorial-deployment.md) | [Docker InfluxDB 部署指南](docs/docker-influxdb.md)
-
-> **提示**: 如果你是第一次使用，建议按照 [入门教程](docs/tutorial-getting-started.md) 的步骤操作。如果你已经熟悉系统，可以直接查看 [配置教程](docs/tutorial-configuration.md) 和 [API 使用示例](docs/api-usage.md)。
-
-### 🧪 使用 PLC 模拟器进行测试
-
-项目提供了独立的 PLC 模拟器（`DataAcquisition.Simulator`），可以模拟三菱 PLC 的行为，用于测试数据采集功能，无需真实的 PLC 设备。
-
-#### 启动模拟器
+2. 启动 InfluxDB（示例）
 
 ```bash
-cd src/DataAcquisition.Simulator
-dotnet run
+docker compose -f docker-compose.tsdb.yml up -d
 ```
 
-#### 模拟器特性
+3. 检查或修改设备配置
 
-- ✅ 模拟三菱 PLC（MelsecA1EServer）
-- ✅ 自动更新心跳寄存器（D100）
-- ✅ 模拟 7 个传感器指标（温度、压力、电流、电压、光栅位置、伺服速度、生产序号）
-- ✅ 支持条件采集测试（生产序号触发）
-- ✅ 交互式命令控制（set/get/info/exit）
-- ✅ 实时数据显示
+- 示例配置： [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)
+- 应用配置： [src/DataAcquisition.Edge.Agent/appsettings.json](src/DataAcquisition.Edge.Agent/appsettings.json)
 
-#### 快速测试流程
-
-1. **启动模拟器**：
-
-```bash
-cd src/DataAcquisition.Simulator
-dotnet run
-```
-
-2. **配置测试设备**：
-
-   在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建 `TEST_PLC.json`（参考 `src/DataAcquisition.Simulator/README.md` 中的完整配置示例）
-
-3. **启动采集系统**：
+4. 启动 Edge Agent
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
+```
+
+只校验配置而不启动采集：
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+如果需要中心侧：
+
+```bash
 dotnet run --project src/DataAcquisition.Central.Api
-
-cd src/DataAcquisition.Central.Web
-pnpm install
-pnpm run serve
 ```
 
-4. **观察数据采集**：
-   - 访问 http://localhost:3000 查看中心 UI（Edges/Metrics/Logs）
-   - 访问 http://localhost:8000/metrics 查看中心 API 自身指标页面
-   - 检查 InfluxDB 中的 `sensor` 和 `production` measurement
+## 文档
 
-详细说明请参考：[src/DataAcquisition.Simulator/README.md](src/DataAcquisition.Simulator/README.md)
+主入口：
 
-## 📸 屏幕截图
+- [docs/index.md](docs/index.md)
 
-### Central Web 可视化界面
-
-> **注意**：以下为界面示意图，实际界面请参考系统运行后的效果
-
-**边缘节点列表**
-![edges.png](images/edges.png)
-
-**系统监控指标**
-![metrics.png](images/metrics.png)
-
-**日志列表**
-![logs.png](images/logs.png)
-
-### Prometheus 监控面板
-
-访问 `http://localhost:5000/metrics` 可以看到 Prometheus 格式的指标：
-
-```prometheus
-# HELP data_acquisition_collection_latency_ms 数据采集延迟(ms)
-# TYPE data_acquisition_collection_latency_ms gauge
-data_acquisition_collection_latency_ms{device="PLC01",channel="PLC01C01"} 12.5
-
-# HELP data_acquisition_queue_depth 队列深度
-# TYPE data_acquisition_queue_depth gauge
-data_acquisition_queue_depth{device="PLC01"} 45
-
-# HELP data_acquisition_errors_total 错误总数
-# TYPE data_acquisition_errors_total counter
-data_acquisition_errors_total{device="PLC01",type="connection"} 0
-```
-
-### InfluxDB 数据查询
-
-使用 Flux 查询某设备的温度数据：
-
-```flux
-from(bucket: "iot")
-  |> range(start: -1h)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> filter(fn: (r) => r["device_code"] == "PLC01")
-  |> filter(fn: (r) => r["_field"] == "temperature")
-  |> yield(name: "temperature")
-```
-
-## 📚 教程导航
-
-按“入门 → 配置 → 部署 → 查询 → 开发”的主线学习：
+推荐阅读顺序：
 
 - [入门教程](docs/tutorial-getting-started.md)
 - [配置教程](docs/tutorial-configuration.md)
 - [部署教程](docs/tutorial-deployment.md)
-- [数据查询教程](docs/tutorial-data-query.md)
+- [驱动清单](docs/hsl-drivers.md)
+- [设计说明](docs/design.md)
 - [开发扩展教程](docs/tutorial-development.md)
 
-完整索引见：[文档索引](docs/index.md)
+## 开发与验证
 
-## 📖 文档导航
-
-主入口与完整目录请使用：[文档索引](docs/index.md)
-
-根据你的使用场景，选择合适的文档阅读路径：
-
-### 新手入门
-
-如果你是第一次使用，建议按以下顺序阅读：
-
-1. **[入门教程](docs/tutorial-getting-started.md)** - 从零开始，快速上手
-   - 环境要求和安装步骤
-   - 系统配置和启动
-   - 使用 PLC 模拟器测试
-
-2. **[配置教程](docs/tutorial-configuration.md)** - 了解如何配置系统
-   - 设备配置文件详解
-   - 应用配置说明
-   - 配置示例和场景
-
-3. **[常见问题](docs/faq.md)** - 遇到问题时参考
-   - 常见问题与解答
-   - 故障排查指南
-   - 配置验证方法
-
-### 日常使用
-
-如果你已经熟悉系统，需要日常使用和维护：
-
-- **[API 使用示例](docs/api-usage.md)** - 查询数据与管理系统
-  - 指标数据查询
-  - PLC 连接状态查询
-  - 日志查询和管理
-
-- **[性能优化建议](docs/performance.md)** - 优化系统性能
-  - 采集参数调优
-  - 存储优化策略
-  - 系统资源优化
-
-### 深入了解
-
-如果你想深入理解系统架构和实现：
-
-- **[核心模块文档](docs/modules.md)** - 了解系统核心模块
-  - PLC 客户端实现
-  - 通道采集器
-  - 数据存储服务
-
-- **[数据处理流程](docs/data-flow.md)** - 了解数据流转过程
-   - 正常处理流程
-   - 异常处理机制
-   - 数据一致性保证
-
-- **[设计理念](docs/design.md)** - 了解系统设计思路
-   - WAL-first 架构
-   - 模块化设计
-   - 分布式架构
-
-## ⚙️ 配置说明
-
-详细的配置说明请参考：[配置教程](docs/tutorial-configuration.md)
-
-### 快速参考
-
-| 配置类型 | 位置 | 说明 |
-|---------|------|------|
-| 设备配置 | `src/DataAcquisition.Edge.Agent/Configs/*.json` | 每个 PLC 设备对应一个 JSON 配置文件 |
-| Edge Agent 配置 | `src/DataAcquisition.Edge.Agent/appsettings.json` | 应用层配置（数据库、API 等） |
-| 配置热更新 | 自动检测 | 支持配置文件修改后自动热加载，无需重启服务 |
-
-### 设备配置示例
-
-```json
-{
-  "IsEnabled": true,
-  "PlcCode": "PLC01",
-  "Host": "192.168.1.100",
-  "Port": 502,
-  "Type": "Mitsubishi",
-  "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "PLC01C01",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 10,
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        }
-      ]
-    }
-  ]
-}
-```
-
-> 完整的字段说明请参考：[配置教程 - 字段说明](docs/tutorial-configuration.md#字段说明)
-
-
-## 🤝 贡献指南
-
-我们欢迎各种形式的贡献！请参考以下步骤：
-
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
-
-### 开发环境设置
+常用命令：
 
 ```bash
-# 克隆项目
-git clone https://github.com/liuweichaox/DataAcquisition.git
-
-# 安装依赖
-dotnet restore
-
-# 运行测试
-dotnet test
-
-# 构建项目
-dotnet build
+dotnet build DataAcquisition.sln --no-restore
+dotnet test tests/DataAcquisition.Core.Tests/DataAcquisition.Core.Tests.csproj --no-build
 ```
 
-### 代码规范
+如果你要扩展 PLC 驱动，先读：
 
-- 遵循 .NET 编码规范
-- 使用有意义的命名
-- 添加必要的 XML 注释
-- 编写单元测试
+- [CONTRIBUTING.md](CONTRIBUTING.md)
+- [docs/tutorial-development.md](docs/tutorial-development.md)
 
-## 📄 开源许可证
+## 许可证
 
-本项目采用 MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
-
-## 🙏 致谢
-
-感谢以下开源项目：
-
-- [.NET](https://dotnet.microsoft.com/) - 强大的开发平台
-- [InfluxDB](https://www.influxdata.com/) - 高性能时序数据库
-- [Prometheus](https://prometheus.io/) - 监控系统
-- [Vue.js](https://vuejs.org/) - 渐进式 JavaScript 框架
-
----
-
-**如有问题或建议，请提交 [Issue](https://github.com/liuweichaox/DataAcquisition/issues) 或通过 Pull Request 贡献代码！**
+本项目使用 [MIT License](LICENSE)。

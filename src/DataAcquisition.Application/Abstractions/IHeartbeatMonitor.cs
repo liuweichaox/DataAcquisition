@@ -15,7 +15,7 @@ public interface IHeartbeatMonitor
     /// <param name="client">Plc 通讯客户端</param>
     /// <param name="ct">可选的取消标记</param>
     /// <returns>表示异步操作的任务。</returns>
-    Task MonitorAsync(DeviceConfig config, IPlcClientService client, CancellationToken ct = default);
+    Task MonitorAsync(DeviceConfig config, IPlcTypedWriteClient client, CancellationToken ct = default);
 
     /// <summary>
     ///     获取 Plc 连接状态。

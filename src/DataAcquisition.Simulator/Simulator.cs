@@ -16,6 +16,7 @@ public class SimulatorData
     public ushort LightBarrierPos { get; set; }
     public ushort ServoSpeed { get; set; }
     public ushort DeviceFlag { get; set; }
+    public string ProductCode { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
 }
 
@@ -29,6 +30,9 @@ public class Simulator : IDisposable
     private readonly MelsecA1EServer _server;
     private readonly DateTime _simulatorStartTime = DateTime.Now;
     private bool _isRunning;
+    private bool _isProducing;
+    private int _nextBatchNumber = 1;
+    private int _currentBatchNumber;
 
     public Simulator(int port, ILogger<Simulator>? logger = null)
     {
@@ -84,7 +88,7 @@ public class Simulator : IDisposable
             if (!_server.IsStarted) throw new InvalidOperationException($"服务器启动失败：在 {maxWaitTime}ms 内未能成功启动");
 
             // 初始化心跳寄存器
-            var writeResult = _server.Write("D100", (ushort)0);
+            var writeResult = _server.Write(SimRegisters.D100Heartbeat, (ushort)0);
             if (!writeResult.IsSuccess) _logger?.LogWarning("初始化心跳寄存器失败: {Message}", writeResult.Message);
 
             _isRunning = true;
@@ -124,32 +128,32 @@ public class Simulator : IDisposable
 
             // 心跳寄存器, 默认为0，等数据采集写入
             var heartbeatCounter = 0;
-            _server.Write("D100", (ushort)heartbeatCounter);
+            _server.Write(SimRegisters.D100Heartbeat, (ushort)heartbeatCounter);
 
             // 批量数据起始地址：D6000
             // 索引0: 温度 (200-300, 单位0.1°C，实际20-30°C)
             var temperature = (short)(2500 + Math.Sin(timeBase * 0.1) * 500);
-            _server.Write("D6000", (ushort)temperature);
+            _server.Write(SimRegisters.D6000Temperature, (ushort)temperature);
 
             // 索引2: 压力 (100-200, 单位0.1MPa，实际10-20MPa)
             var pressure = (short)(1500 + Math.Cos(timeBase * 0.15) * 500);
-            _server.Write("D6001", (ushort)pressure);
+            _server.Write(SimRegisters.D6001Pressure, (ushort)pressure);
 
             // 索引4: 电流 (0-500, 单位0.1A，实际0-50A)
             var current = (short)(250 + Math.Sin(timeBase * 0.2) * 250);
-            _server.Write("D6002", (ushort)current);
+            _server.Write(SimRegisters.D6002Current, (ushort)current);
 
             // 索引6: 电压 (3800-4200, 单位0.1V，实际380-420V)
             var voltage = (short)(4000 + Math.Cos(timeBase * 0.12) * 200);
-            _server.Write("D6003", (ushort)voltage);
+            _server.Write(SimRegisters.D6003Voltage, (ushort)voltage);
 
             // 索引8: 光栅位置 (0-1000, 单位mm)
             var lightBarrierPos = (short)(500 + Math.Sin(timeBase * 0.08) * 500);
-            _server.Write("D6004", (ushort)lightBarrierPos);
+            _server.Write(SimRegisters.D6004LightBarrier, (ushort)lightBarrierPos);
 
             // 索引10: 伺服速度 (0-3000, 单位rpm)
             var servoSpeed = (short)(1500 + Math.Cos(timeBase * 0.18) * 1500);
-            _server.Write("D6005", (ushort)servoSpeed);
+            _server.Write(SimRegisters.D6005ServoSpeed, (ushort)servoSpeed);
 
             // 索引12: 设备的生产状态，这个状态为0表示设备在休息，为1表示设备再生产中
             // 逻辑：每个设备休息5秒，持续生产10秒，然后休息5秒，再生产
@@ -160,7 +164,18 @@ public class Simulator : IDisposable
             // 如果在一个周期内的前5秒，显示0；后10秒显示1
             var deviceFlag = cycleSeconds < 5 ? 0 : 1;
 
-            _server.Write("D6006", (ushort)deviceFlag);
+            var wasProducing = _isProducing;
+            _isProducing = deviceFlag == 1;
+            if (_isProducing && !wasProducing)
+            {
+                _currentBatchNumber = _nextBatchNumber++;
+            }
+
+            _server.Write(SimRegisters.D6006DeviceFlag, (ushort)deviceFlag);
+
+            // 字符串寄存器: D6010。用于验证 string 读取链路。
+            var productCode = _isProducing ? $"BATCH-{_currentBatchNumber}" : string.Empty;
+            _server.Write(SimRegisters.D6010ProductCode, productCode);
 
             // 保存数据快照并输出
             var lastData = new SimulatorData
@@ -173,11 +188,12 @@ public class Simulator : IDisposable
                 LightBarrierPos = (ushort)lightBarrierPos,
                 ServoSpeed = (ushort)servoSpeed,
                 DeviceFlag = (ushort)deviceFlag,
+                ProductCode = productCode,
                 Timestamp = now
             };
 
             Console.WriteLine(
-                $"[{now:HH:mm:ss}] 心跳={lastData.Heartbeat} | 温度={lastData.Temperature,4} | 压力={lastData.Pressure,4} | 电流={lastData.Current,3} | 电压={lastData.Voltage,4} | 光栅={lastData.LightBarrierPos,4} | 伺服={lastData.ServoSpeed,4} | 生产状态={lastData.DeviceFlag}");
+                $"[{now:HH:mm:ss}] 心跳={lastData.Heartbeat} | 温度={lastData.Temperature,4} | 压力={lastData.Pressure,4} | 电流={lastData.Current,3} | 电压={lastData.Voltage,4} | 光栅={lastData.LightBarrierPos,4} | 伺服={lastData.ServoSpeed,4} | 生产状态={lastData.DeviceFlag} | 批次={lastData.ProductCode}");
         }
         catch (Exception ex)
         {

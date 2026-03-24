@@ -27,30 +27,32 @@ This page focuses on common questions and troubleshooting. Use the index for ful
 
 ## Q: What if data is lost?
 
-**A**: The system uses a WAL-first architecture. All data is first written to Parquet files, then to InfluxDB. WAL files are only deleted when both writes succeed, ensuring zero data loss.
+**A**: The system uses a WAL-first architecture. Healthy messages are written to Parquet first, then sent to InfluxDB. WAL files are deleted only after primary storage succeeds.
 
 If data loss is detected, you can:
 
 1. Check if there are unprocessed WAL files in the `Data/parquet/retry` directory (these are files that need retry due to write failures)
 2. Check logs to confirm the reason for write failures
-3. The system will automatically retry failed write operations
+3. Check the `Data/parquet/invalid` directory for quarantined poison messages
+4. The system will automatically retry failed write operations
 
-**Note**: The `Data/parquet` directory contains two subfolders:
-- `pending`: Newly created WAL files (exclusive to PersistBatchAsync)
-- `retry`: WAL files that need retry (exclusive to ParquetRetryWorker)
+**Note**: The `Data/parquet` directory contains three subfolders:
+- `pending`: WAL files freshly written by the realtime path and not yet finalized against primary storage
+- `retry`: WAL files waiting for background replay after a primary-storage failure
+- `invalid`: audit records for poison messages that could not be written into WAL
 
 ## Q: How to add a new PLC protocol?
 
-**A**: Requires modifying source code, implementing the `IPlcClientService` interface and registering in `PlcClientFactory`.
+**A**: In most cases you do not need to modify the core factory. Implement `IPlcClientService` and `IPlcDriverProvider`, then register the provider through DI.
 
 **Steps**:
 
 1. Create a new PLC client class implementing the `IPlcClientService` interface
-2. Add protocol type mapping in `PlcClientFactory`
-3. Add new protocol type to `PlcType` enum
-4. Use the new protocol type in device configuration
+2. Create a new `IPlcDriverProvider`
+3. Register the provider at startup
+4. Use the new driver through the `Driver` field in device configuration
 
-**Note**: This requires modifying source code and recompiling, recommended for users with development experience.
+**Note**: If you use the built-in Hsl driver catalog, configuration changes are usually enough and no core source change is required.
 
 ## Q: Do I need to restart after configuration changes?
 
@@ -89,9 +91,9 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 **Steps**:
 
-1. Create a new storage service class implementing the `IDataStorageService` or `IWalStorageService` interface
-2. Register the new storage service in `Program.cs`
-3. The system will use multiple storage backends simultaneously
+1. To replace the primary time-series backend, implement `IDataStorageService.SaveBatchAsync`
+2. To replace the WAL backend, implement `IWalStorageService`
+3. Register the replacement implementation in `Program.cs`
 
 **Note**: This requires modifying source code and recompiling, recommended for users with development experience.
 
@@ -169,7 +171,7 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 3. **Check Configuration Correctness**:
    - Confirm `Host` and `Port` parameters in device configuration file are correct
-   - Confirm `Type` parameter matches the actual PLC type (Mitsubishi, Inovance, BeckhoffAds)
+   - Confirm `Driver` uses a full protocol name listed in [hsl-drivers.en.md](./hsl-drivers.en.md)
    - Confirm `PlcCode` is not empty and unique
 
 4. **View Log Information**:
@@ -202,20 +204,17 @@ Visit the Central Web interface (http://localhost:3000) to view visualized monit
 
 ## Q: Which PLC protocols are supported?
 
-**A**: The following PLC protocols are currently supported:
+**A**: The built-in Hsl driver catalog is listed in [hsl-drivers.en.md](./hsl-drivers.en.md).
 
-- Mitsubishi
-- Inovance
-- BeckhoffAds
-
-Other protocols can be extended by implementing the `IPlcClientService` interface and registering in `PlcClientFactory`.
+- Each PLC protocol keeps one full `Driver` name only
+- Other protocols can be extended by implementing `IPlcDriverProvider`
 
 ## Q: What to do if configuration file format is incorrect?
 
 **A**: Configuration files must be valid JSON format. Common errors:
 
 1. **JSON Format Error**: Check for missing commas, unclosed quotes, etc.
-2. **Missing Required Fields**: Ensure required fields like `PlcCode`, `Host`, `Port`, `Type`, `Channels` exist
+2. **Missing Required Fields**: Ensure required fields like `PlcCode`, `Host`, `Port`, `Driver`, `Channels` exist
 3. **Field Type Error**: Ensure `Port` is a number, `IsEnabled` is a boolean, etc.
 
 **Verification Methods**:

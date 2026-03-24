@@ -1,170 +1,159 @@
-# 📊 Core Module Documentation
+# 📦 Core Modules
 
-This document introduces the core module design and usage of the DataAcquisition system.
+This document explains the current modules and responsibilities through the lens of the PLC acquisition runtime path.
 
-## Overview
+## Module Overview
 
-This page focuses on core modules and responsibilities. Use the index for full navigation.
+### 1. PLC Driver Layer
 
-## Table of Contents
+Location:
 
-- [PLC Client Implementations](#plc-client-implementations)
-- [ChannelCollector - Channel Collector](#channelcollector---channel-collector)
-- [InfluxDbDataStorageService - Data Storage Service](#influxdbdatastorageservice---data-storage-service)
-- [MetricsCollector - Metrics Collector](#metricscollector---metrics-collector)
-- [System Extensibility](#system-extensibility)
+- `src/DataAcquisition.Application/Abstractions/IPlcClientService.cs`
+- `src/DataAcquisition.Application/Abstractions/IPlcClientFactory.cs`
+- `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
+- `src/DataAcquisition.Infrastructure/Clients/HslPlcClientService.cs`
 
-## PLC Client Implementations
+Responsibilities:
 
-The system supports multiple PLC protocols, each with corresponding client implementations:
+- select PLC communication implementations through stable `Driver` names
+- keep upper layers decoupled from direct HslCommunication usage
+- validate and apply `ProtocolOptions`
 
-| Protocol     | Implementation Class          | Description                         |
-| ------------ | ----------------------------- | ----------------------------------- |
-| Mitsubishi   | `MitsubishiPlcClientService`  | Mitsubishi PLC communication client |
-| Inovance     | `InovancePlcClientService`    | Inovance PLC communication client   |
-| BeckhoffAds  | `BeckhoffAdsPlcClientService` | Beckhoff ADS protocol client        |
+Current default implementation:
 
-## ChannelCollector - Channel Collector
+- `HslStandardPlcDriverProvider`
+- `HslPlcClientService`
 
-`ChannelCollector` is the core acquisition component of the system, responsible for reading data from PLC.
+### 2. Acquisition Orchestration Layer
 
-### Features
+Location:
 
-- **Automatic Connection Management**: Automatically detects and handles PLC connection status, automatically reconnects after disconnection
-- **Multiple Acquisition Modes**: Supports continuous acquisition (Always) and conditional trigger acquisition (Conditional)
-- **Batch Read Optimization**: Supports batch reading of multiple consecutive registers to reduce network round trips and improve acquisition efficiency
-- **Thread Safety**: Ensures safe concurrent access to the same PLC device
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/HeartbeatMonitor.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/ChannelCollector.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/AcquisitionStateManager.cs`
 
-### Acquisition Mode Description
+Responsibilities:
 
-#### Always Mode (Continuous Acquisition)
+- start acquisition tasks per device and channel
+- manage PLC health and connectivity
+- run Always / Conditional acquisition
+- manage active cycles and recover them after restart
 
-Continuously acquires data at the configured `AcquisitionInterval` interval.
+This is the core of the PLC acquisition path.
 
-**Use Cases**:
-- Sensor data that needs continuous monitoring (temperature, pressure, etc.)
-- Data that needs fixed frequency acquisition
+### 3. Queue and Persistence Layer
 
-**Configuration Example**:
-```json
-{
-  "AcquisitionMode": "Always",
-  "AcquisitionInterval": 100,
-  "Metrics": [
-    {
-      "MetricLabel": "temperature",
-      "FieldName": "temperature",
-      "Register": "D6000",
-      "Index": 0,
-      "DataType": "short",
-      "EvalExpression": "value / 100.0"
-    }
-  ]
-}
-```
+Location:
 
-#### Conditional Mode (Conditional Trigger Acquisition)
+- `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+- `src/DataAcquisition.Infrastructure/DataStorages/ParquetFileStorageService.cs`
+- `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
-Triggers acquisition based on value changes of a specified register.
+Responsibilities:
 
-**Use Cases**:
-- Production cycle management (production start/end events)
-- Equipment status change recording
-- Conditionally triggered data acquisition
+- batch and aggregate data messages
+- write WAL first, then write primary storage
+- retry failed primary writes
+- quarantine poison messages into `invalid/`
 
-**Configuration Example**:
-```json
-{
-  "AcquisitionMode": "Conditional",
-  "ConditionalAcquisition": {
-    "Register": "D6006",
-    "DataType": "short",
-    "StartTriggerMode": "RisingEdge",
-    "EndTriggerMode": "FallingEdge"
-  },
-  "Metrics": null
-}
-```
+Key directories:
 
-## InfluxDbDataStorageService - Data Storage Service
+- `pending/`
+- `retry/`
+- `invalid/`
 
-`InfluxDbDataStorageService` is responsible for writing acquired data to InfluxDB time-series database.
+### 4. Configuration and Operability Layer
 
-### Features
+Location:
 
-- **Batch Writes**: Writes data in batches according to configured `BatchSize`, improving write efficiency
-- **Automatic Retry**: Automatically retains WAL files on write failures, automatically retried by background retry mechanism
-- **Performance Monitoring**: Automatically records write latency and batch efficiency metrics for performance analysis
-- **Data Safety**: Uses WAL-first architecture to ensure zero data loss
+- `src/DataAcquisition.Infrastructure/DeviceConfigs/DeviceConfigService.cs`
+- `src/DataAcquisition.Infrastructure/Metrics/*`
+- `src/DataAcquisition.Infrastructure/Logs/*`
 
-### Configuration
+Responsibilities:
 
-Configure InfluxDB connection information in `appsettings.json`:
+- device configuration loading and hot reload
+- Prometheus metrics
+- SQLite-backed log querying
 
-```json
-{
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token-here",
-    "Bucket": "iot",
-    "Org": "default"
-  }
-}
-```
+### 5. Host Layer
 
-**Configuration Items**:
-- `Url`: InfluxDB server address
-- `Token`: InfluxDB authentication token (recommended to use environment variables)
-- `Bucket`: Data storage bucket name
-- `Org`: InfluxDB organization name
+Location:
 
-## MetricsCollector - Metrics Collector
+- `src/DataAcquisition.Edge.Agent/Program.cs`
+- `src/DataAcquisition.Edge.Agent/BackgroundServices/*`
+- `src/DataAcquisition.Central.Api/*`
+- `src/DataAcquisition.Central.Web/*`
 
-The system has built-in complete monitoring metrics, exposed through Prometheus format.
+Responsibilities:
 
-### Acquisition Metrics
+- Edge Agent: acquisition host, background workers, local diagnostics API
+- Central API: registration, heartbeat, diagnostics proxy
+- Central Web: centralized status and metrics UI
 
-- **`data_acquisition_collection_latency_ms`** - Collection latency (time from PLC read to database write, milliseconds)
-- **`data_acquisition_collection_rate`** - Collection rate (data points per second, points/s)
+## Main Runtime Path
 
-### Queue Metrics
+### Always / Conditional Data Acquisition
 
-- **`data_acquisition_queue_depth`** - Queue depth (Channel pending reads + total accumulated pending messages)
-- **`data_acquisition_processing_latency_ms`** - Processing latency (queue processing delay, milliseconds)
+Main flow:
 
-### Storage Metrics
+1. `DataAcquisitionService` starts acquisition loops per device/channel
+2. `HeartbeatMonitor` checks whether PLC reads are allowed
+3. `ChannelCollector` reads values from PLC
+4. a `DataMessage` is created
+5. the message is sent to `QueueService`
+6. `QueueService` writes WAL first, then writes primary storage
 
-- **`data_acquisition_write_latency_ms`** - Write latency (database write delay, milliseconds)
-- **`data_acquisition_batch_write_efficiency`** - Batch write efficiency (batch size / write time, points/ms)
+### Conditional Recovery
 
-### Error and Connection Metrics
+Conditional acquisition additionally depends on:
 
-- **`data_acquisition_errors_total`** - Total errors (statistics by device/channel)
-- **`data_acquisition_connection_status_changes_total`** - Total connection status changes
-- **`data_acquisition_connection_duration_seconds`** - Connection duration (seconds)
+- `AcquisitionStateManager`
 
-## System Extensibility
+Current behavior:
 
-The system adopts interface abstraction design, supporting flexible extension:
+- active cycles are stored in memory and mirrored to SQLite
+- the first sample builds a baseline instead of faking a normal `Start/End`
+- restart diagnostics may emit `RecoveredStart` / `Interrupted`
+- recovery diagnostics are written to `<measurement>_diagnostic`
+- acquisition messages use UTC timestamps
 
-### Adding New PLC Protocols
+For formal cycle analytics, only paired `Start` / `End` should be treated as complete cycles.
 
-1. Implement the `IPlcClientService` interface
-2. Register the new protocol type in `PlcClientFactory`
-3. Use the new protocol type in device configuration
+## Main Extension Points
 
-### Adding New Storage Backends
+### Add a New PLC Driver
 
-1. Implement the `IDataStorageService` (TSDB) or `IWalStorageService` (WAL) interface
-2. Register the new storage service in `Program.cs`
-3. The system will use multiple storage backends simultaneously
+1. implement a new `IPlcDriverProvider`
+2. optionally add a new `IPlcClientService` implementation
+3. register the provider in `Program.cs`
+4. use the full `Driver` name in configuration
 
-For detailed extension methods, please refer to the relevant instructions in [FAQ](faq.en.md).
+### Replace the Primary Store
 
-## Next Steps
+1. implement `IDataStorageService`
+2. replace the default registration in the Edge Agent
 
-After understanding core modules, continue with:
+### Replace the WAL Backend
 
-- [Documentation Index](index.en.md)
+1. implement `IWalStorageService`
+2. keep lifecycle semantics such as `pending/retry/invalid`
+
+## Automated Tests
+
+Test project:
+
+- `tests/DataAcquisition.Core.Tests`
+
+Current high-value coverage focuses on:
+
+- driver configuration validation
+- active cycle persistence and recovery
+- WAL poison message isolation
+
+## Related Docs
+
+- [Architecture Design](design.en.md)
 - [Data Flow](data-flow.en.md)
-- [Design](design.en.md)
+- [Configuration Tutorial](tutorial-configuration.en.md)

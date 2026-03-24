@@ -2,15 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using NCalc;
 
 namespace DataAcquisition.Infrastructure.DataAcquisitions;
 
@@ -19,11 +16,11 @@ namespace DataAcquisition.Infrastructure.DataAcquisitions;
 /// </summary>
 public class ChannelCollector : IChannelCollector
 {
+    private const string DiagnosticMeasurementSuffix = "_diagnostic";
     private readonly int _connectionCheckRetryDelayMs;
     private readonly IHeartbeatMonitor _heartbeatMonitor;
     private readonly ILogger<ChannelCollector> _logger;
     private readonly IMetricsCollector? _metricsCollector;
-    private readonly IPlcClientLifecycleService _plcLifecycle;
     private readonly IQueueService _queue;
     private readonly IAcquisitionStateManager _stateManager;
     private readonly int _triggerWaitDelayMs;
@@ -36,7 +33,6 @@ public class ChannelCollector : IChannelCollector
     /// </summary>
     public ChannelCollector(
         IHeartbeatMonitor heartbeatMonitor,
-        IPlcClientLifecycleService plcLifecycle,
         ILogger<ChannelCollector> logger,
         IQueueService queue,
         IAcquisitionStateManager stateManager,
@@ -44,7 +40,6 @@ public class ChannelCollector : IChannelCollector
         IMetricsCollector? metricsCollector = null)
     {
         _heartbeatMonitor = heartbeatMonitor;
-        _plcLifecycle = plcLifecycle;
         _logger = logger;
         _queue = queue;
         _stateManager = stateManager;
@@ -59,7 +54,7 @@ public class ChannelCollector : IChannelCollector
     ///     按通道配置执行采集任务。支持 Always（持续）和 Conditional（边沿触发）两种模式。
     /// </summary>
     public async Task CollectAsync(DeviceConfig config, DataAcquisitionChannel dataAcquisitionChannel,
-        IPlcClientService client, CancellationToken ct = default)
+        IPlcDataAccessClient client, CancellationToken ct = default)
     {
         object? prevValue = null;
         while (!ct.IsCancellationRequested)
@@ -73,7 +68,7 @@ public class ChannelCollector : IChannelCollector
             }
 
             // 执行采集
-            var timestamp = DateTime.Now;
+            var timestamp = DateTimeOffset.UtcNow;
             if (dataAcquisitionChannel.AcquisitionMode == AcquisitionMode.Always)
                 await HandleUnconditionalCollectionAsync(config, dataAcquisitionChannel, client, timestamp, ct)
                     .ConfigureAwait(false);
@@ -89,8 +84,8 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleUnconditionalCollectionAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
-        DateTime timestamp,
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp,
         CancellationToken ct)
     {
         await HandleUnconditionalEventAsync(config.PlcCode, channel, client, timestamp).ConfigureAwait(false);
@@ -104,8 +99,8 @@ public class ChannelCollector : IChannelCollector
     private async Task<object?> HandleConditionalCollectionAsync(
         DeviceConfig config,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
-        DateTime timestamp,
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp,
         object? prevValue,
         CancellationToken ct)
     {
@@ -121,12 +116,21 @@ public class ChannelCollector : IChannelCollector
         }
 
         // 读取触发寄存器的值
-        var curr = await ReadPlcValueAsync(client, conditionalAcq.Register, conditionalAcq.DataType)
+        var curr = await PlcValueAccessor.ReadAsync(client, conditionalAcq.Register, conditionalAcq.DataType)
             .ConfigureAwait(false);
 
+        // 首次读取先做恢复判定，再建立基线，避免服务启动瞬间产生伪周期。
+        if (prevValue == null)
+        {
+            await HandleRecoveryOnFirstSampleAsync(config.PlcCode, channel, client, timestamp, curr)
+                .ConfigureAwait(false);
+            await Task.Delay(_triggerWaitDelayMs, ct).ConfigureAwait(false);
+            return curr;
+        }
+
         // 评估触发条件
-        var shouldStartTrigger = ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
-        var shouldEndTrigger = ShouldTrigger(conditionalAcq.EndTriggerMode, prevValue, curr);
+        var shouldStartTrigger = PlcValueAccessor.ShouldTrigger(conditionalAcq.StartTriggerMode, prevValue, curr);
+        var shouldEndTrigger = PlcValueAccessor.ShouldTrigger(conditionalAcq.EndTriggerMode, prevValue, curr);
 
         // 优先处理结束事件（如果同时触发，先结束当前周期，再开始新周期）
         if (shouldEndTrigger) await HandleEndEventAsync(config.PlcCode, channel, timestamp).ConfigureAwait(false);
@@ -144,14 +148,48 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleStartTriggerAsync(
         string plcCode,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
-        DateTime timestamp)
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp)
     {
         var sw = Stopwatch.StartNew();
         await HandleStartEventAsync(plcCode, channel, client, timestamp).ConfigureAwait(false);
         sw.Stop();
 
         RecordCollectionMetrics(plcCode, channel, sw.ElapsedMilliseconds);
+    }
+
+    private async Task HandleRecoveryOnFirstSampleAsync(
+        string plcCode,
+        DataAcquisitionChannel channel,
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp,
+        object? currentValue)
+    {
+        var activeCycle = _stateManager.GetActiveCycle(plcCode, channel.ChannelCode, channel.Measurement);
+        var isActive = PlcValueAccessor.IsTriggerActive(currentValue);
+
+        if (activeCycle != null && isActive)
+        {
+            await PublishRecoveryDiagnosticAsync(plcCode, channel, client, timestamp, activeCycle, DiagnosticEventType.RecoveredStart)
+                .ConfigureAwait(false);
+            return;
+        }
+
+        if (activeCycle != null && !isActive)
+        {
+            var interruptedCycle = _stateManager.EndCycle(plcCode, channel.ChannelCode, channel.Measurement);
+            if (interruptedCycle != null)
+                await PublishRecoveryDiagnosticAsync(plcCode, channel, client, timestamp, interruptedCycle, DiagnosticEventType.Interrupted)
+                    .ConfigureAwait(false);
+            return;
+        }
+
+        if (activeCycle == null && isActive)
+        {
+            var recoveredCycle = _stateManager.StartCycle(plcCode, channel.ChannelCode, channel.Measurement);
+            await PublishRecoveryDiagnosticAsync(plcCode, channel, client, timestamp, recoveredCycle, DiagnosticEventType.RecoveredStart)
+                .ConfigureAwait(false);
+        }
     }
 
     /// <summary>
@@ -165,7 +203,7 @@ public class ChannelCollector : IChannelCollector
             elapsedMilliseconds);
 
         var key = $"{plcCode}:{channel.ChannelCode}:{channel.Measurement}";
-        var now = DateTime.Now.Ticks;
+        var now = DateTimeOffset.UtcNow.Ticks;
         var updated = _rateStats.AddOrUpdate(key,
             _ => (1, now),
             (_, prev) =>
@@ -181,47 +219,12 @@ public class ChannelCollector : IChannelCollector
             });
     }
 
-    /// <summary>
-    ///     对数据消息执行表达式计算。会修改 dataMessage 中的数据值。
-    /// </summary>
-    private async Task EvaluateAsync(DataMessage dataMessage, List<Metric>? metrics)
-    {
-        if (metrics == null) return;
-
-        foreach (var kv in dataMessage.DataValues.ToList())
-        {
-            var originalValue = kv.Value;
-            if (!IsNumberType(originalValue)) continue;
-
-            var metric = metrics.SingleOrDefault(x => x.FieldName == kv.Key);
-            if (metric == null || originalValue is null) continue;
-
-            var evalExpression = metric.EvalExpression;
-            if (string.IsNullOrWhiteSpace(evalExpression)) continue;
-
-            try
-            {
-                var expression = new AsyncExpression(evalExpression)
-                {
-                    Parameters = { ["value"] = originalValue }
-                };
-                var evaluatedValue = await expression.EvaluateAsync().ConfigureAwait(false);
-                dataMessage.UpdateDataValue(kv.Key, evaluatedValue ?? 0, originalValue);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "表达式计算失败 [{Field}]: {Expression}", kv.Key, metric.EvalExpression);
-            }
-        }
-    }
-
-
     /// <summary>处理无条件采集事件：生成 CycleId → 读取数据 → 异步发布。</summary>
     private async Task HandleUnconditionalEventAsync(
         string plcCode,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
-        DateTime timestamp)
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp)
     {
         try
         {
@@ -229,11 +232,7 @@ public class ChannelCollector : IChannelCollector
             var dataMessage = DataMessage.Create(cycleId, channel.Measurement, plcCode, channel.ChannelCode,
                 EventType.Data, timestamp);
 
-            // 读取指标数据
-            await ReadMetricsAsync(client, channel, dataMessage).ConfigureAwait(false);
-
-            // 异步处理表达式计算并发布消息，不阻塞采集循环
-            _ = EvaluateAndPublishAsync(plcCode, channel, dataMessage);
+            await PopulateAndPublishAsync(plcCode, channel, client, dataMessage).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -247,8 +246,8 @@ public class ChannelCollector : IChannelCollector
     private async Task HandleStartEventAsync(
         string plcCode,
         DataAcquisitionChannel channel,
-        IPlcClientService client,
-        DateTime timestamp)
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp)
     {
         try
         {
@@ -258,12 +257,7 @@ public class ChannelCollector : IChannelCollector
                 channel.Measurement);
             var dataMessage = DataMessage.Create(cycle.CycleId, channel.Measurement, plcCode,
                 channel.ChannelCode, EventType.Start, timestamp);
-
-            // 读取指标数据
-            await ReadMetricsAsync(client, channel, dataMessage).ConfigureAwait(false);
-
-            // 异步处理表达式计算并发布消息，不阻塞采集循环
-            _ = EvaluateAndPublishAsync(plcCode, channel, dataMessage);
+            await PopulateAndPublishAsync(plcCode, channel, client, dataMessage).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -278,7 +272,7 @@ public class ChannelCollector : IChannelCollector
     /// </summary>
     private async Task HandleEndEventAsync(string plcCode,
         DataAcquisitionChannel channel,
-        DateTime timestamp)
+        DateTimeOffset timestamp)
     {
         try
         {
@@ -305,39 +299,47 @@ public class ChannelCollector : IChannelCollector
         }
     }
 
-    /// <summary>读取数据点。支持批量读取（地址连续）和单点读取。</summary>
-    private async Task ReadMetricsAsync(
-        IPlcClientService client,
+    private async Task PublishRecoveryDiagnosticAsync(
+        string plcCode,
         DataAcquisitionChannel channel,
+        IPlcDataAccessClient client,
+        DateTimeOffset timestamp,
+        AcquisitionCycle cycle,
+        DiagnosticEventType diagnosticType)
+    {
+        try
+        {
+            var dataMessage = DataMessage.CreateDiagnostic(
+                cycle.CycleId,
+                GetDiagnosticMeasurement(channel.Measurement),
+                plcCode,
+                channel.ChannelCode,
+                diagnosticType,
+                timestamp);
+
+            dataMessage.AddDataValue("source_measurement", channel.Measurement);
+            await PopulateAndPublishAsync(plcCode, channel, client, dataMessage).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _metricsCollector?.RecordError(plcCode, channel.ChannelCode, channel.Measurement);
+            _logger.LogError(ex,
+                "{PlcCode}-{ChannelCode}-{Measurement}:恢复诊断事件发布失败: {DiagnosticType}",
+                plcCode, channel.ChannelCode, channel.Measurement, diagnosticType);
+        }
+    }
+
+    private async Task PopulateAndPublishAsync(
+        string plcCode,
+        DataAcquisitionChannel channel,
+        IPlcDataAccessClient client,
         DataMessage dataMessage)
     {
-        if (channel.Metrics == null) return;
+        if (dataMessage.DiagnosticType.HasValue)
+            dataMessage.AddDataValue("source_measurement", channel.Measurement);
 
-        if (channel.EnableBatchRead)
-        {
-            var batchData = await client.ReadAsync(channel.BatchReadRegister, channel.BatchReadLength)
-                .ConfigureAwait(false);
-            var buffer = batchData.Content;
-            foreach (var metric in channel.Metrics)
-            {
-                var value = TransValue(client, buffer, metric.Index, metric.StringByteLength, metric.DataType,
-                    metric.Encoding);
-                dataMessage.AddDataValue(metric.FieldName, value);
-            }
-        }
-        else
-        {
-            foreach (var metric in channel.Metrics)
-            {
-                var value = await ReadPlcValueAsync(
-                    client,
-                    metric.Register,
-                    metric.DataType,
-                    metric.StringByteLength,
-                    metric.Encoding).ConfigureAwait(false);
-                dataMessage.AddDataValue(metric.FieldName, value);
-            }
-        }
+        await ChannelMetricReader.ReadAsync(client, channel, dataMessage, _logger).ConfigureAwait(false);
+        _ = EvaluateAndPublishAsync(plcCode, channel, dataMessage);
     }
 
     /// <summary>
@@ -348,7 +350,7 @@ public class ChannelCollector : IChannelCollector
     {
         try
         {
-            await EvaluateAsync(dataMessage, channel.Metrics).ConfigureAwait(false);
+            await MetricExpressionEvaluator.EvaluateAsync(dataMessage, channel.Metrics, _logger).ConfigureAwait(false);
             await _queue.PublishAsync(dataMessage).ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -359,84 +361,7 @@ public class ChannelCollector : IChannelCollector
         }
     }
 
-    /// <summary>
-    ///     判断对象是否为数值类型。
-    /// </summary>
-    private static bool IsNumberType(object? value)
-    {
-        return value is ushort or uint or ulong or short or int or long or float or double;
-    }
+    private static string GetDiagnosticMeasurement(string measurement) =>
+        $"{measurement}{DiagnosticMeasurementSuffix}";
 
-    /// <summary>
-    ///     读取指定寄存器的值。
-    /// </summary>
-    private static async Task<object> ReadPlcValueAsync(
-        IPlcClientService client,
-        string register,
-        string dataType,
-        int stringLength = 0,
-        string? encoding = null)
-    {
-        return dataType.ToLower() switch
-        {
-            "ushort" => await client.ReadUShortAsync(register).ConfigureAwait(false),
-            "uint" => await client.ReadUIntAsync(register).ConfigureAwait(false),
-            "ulong" => await client.ReadULongAsync(register).ConfigureAwait(false),
-            "short" => await client.ReadShortAsync(register).ConfigureAwait(false),
-            "int" => await client.ReadIntAsync(register).ConfigureAwait(false),
-            "long" => await client.ReadLongAsync(register).ConfigureAwait(false),
-            "float" => await client.ReadFloatAsync(register).ConfigureAwait(false),
-            "double" => await client.ReadDoubleAsync(register).ConfigureAwait(false),
-            "string" => await client
-                .ReadStringAsync(register, (ushort)stringLength, Encoding.GetEncoding(encoding ?? "UTF8"))
-                .ConfigureAwait(false),
-            "bool" => await client.ReadBoolAsync(register).ConfigureAwait(false),
-            _ => throw new NotSupportedException($"不支持的数据类型: {dataType}")
-        };
-    }
-
-    /// <summary>
-    ///     按数据类型转换缓冲区中的值。
-    /// </summary>
-    private static dynamic? TransValue(IPlcClientService client, byte[] buffer, int index, int length, string dataType,
-        string encoding)
-    {
-        return dataType.ToLower() switch
-        {
-            "ushort" => client.TransUShort(buffer, index),
-            "uint" => client.TransUInt(buffer, index),
-            "ulong" => client.TransULong(buffer, index),
-            "short" => client.TransShort(buffer, index),
-            "int" => client.TransInt(buffer, index),
-            "long" => client.TransLong(buffer, index),
-            "float" => client.TransFloat(buffer, index),
-            "double" => client.TransDouble(buffer, index),
-            "string" => client.TransString(buffer, index, length, Encoding.GetEncoding(encoding)),
-            "bool" => client.TransBool(buffer, index),
-            _ => null
-        };
-    }
-
-    /// <summary>
-    ///     判断是否应该触发采集。RisingEdge：从0变非0时触发开始；FallingEdge：从非0变0时触发结束。
-    ///     如果 mode 为 null 返回 false；首次读取（previousValue 或 currentValue 为 null）返回 true。
-    /// </summary>
-    private static bool ShouldTrigger(AcquisitionTrigger? mode, object? previousValue, object? currentValue)
-    {
-        // 如果 mode 为 null，不触发
-        if (!mode.HasValue) return false;
-
-        // 如果前一个值或当前值为null，默认触发（首次读取）
-        if (previousValue == null || currentValue == null) return true;
-
-        var prev = Convert.ToDecimal(previousValue);
-        var curr = Convert.ToDecimal(currentValue);
-
-        return mode.Value switch
-        {
-            AcquisitionTrigger.RisingEdge => prev < curr,
-            AcquisitionTrigger.FallingEdge => prev > curr,
-            _ => false
-        };
-    }
 }

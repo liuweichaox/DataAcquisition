@@ -69,16 +69,15 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 
     private static PointData ConvertToPoint(DataMessage msg)
     {
-        var utcTimestamp = msg.Timestamp.Kind == DateTimeKind.Utc
-            ? msg.Timestamp
-            : msg.Timestamp.ToUniversalTime();
-
         var point = PointData.Measurement(msg.Measurement)
-            .Timestamp(utcTimestamp, WritePrecision.Ns);
+            .Timestamp(msg.Timestamp.UtcDateTime, WritePrecision.Ns);
 
         if (!string.IsNullOrEmpty(msg.PlcCode)) point = point.Tag("plc_code", msg.PlcCode);
         if (!string.IsNullOrEmpty(msg.ChannelCode)) point = point.Tag("channel_code", msg.ChannelCode);
-        point = point.Tag("event_type", msg.EventType.ToString());
+        if (msg.EventType.HasValue)
+            point = point.Tag("event_type", msg.EventType.Value.ToString());
+        if (msg.DiagnosticType.HasValue)
+            point = point.Tag("diagnostic_type", msg.DiagnosticType.Value.ToString());
 
         if (!string.IsNullOrEmpty(msg.CycleId)) point = point.Field("cycle_id", msg.CycleId);
 
@@ -104,6 +103,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
 
     private static object ConvertToFieldValue(object? value)
     {
+        value = DataValueNormalizer.Normalize(value);
         if (value == null)
             return string.Empty;
 
@@ -123,6 +123,7 @@ public class InfluxDbDataStorageService : IDataStorageService, IDisposable
             double d => d,
             decimal dec => (double)dec,
             DateTime dt => dt.ToString("O"), // ISO 8601格式
+            DateTimeOffset dto => dto.ToString("O"),
             _ => value.ToString() ?? string.Empty
         };
     }

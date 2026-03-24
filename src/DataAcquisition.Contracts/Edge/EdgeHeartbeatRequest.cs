@@ -23,6 +23,5 @@ public sealed record EdgeHeartbeatRequest
     /// </summary>
     public string? LastError { get; init; }
 
-    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.Now;
+    public DateTimeOffset Timestamp { get; init; } = DateTimeOffset.UtcNow;
 }
-

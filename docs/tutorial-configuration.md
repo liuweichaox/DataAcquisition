@@ -1,111 +1,162 @@
-# 配置教程：设备、通道与采集模式
+# 配置教程
 
-本教程详解设备配置文件与应用配置，包含常见场景和最佳实践。
+本文档说明三个层次的配置：
 
----
+- 设备级配置：如何连接 PLC
+- 通道级配置：如何采集和组织数据
+- 应用级配置：如何设置主存储、WAL 和运行时行为
 
-## 1. 配置文件位置
+## 配置文件位置
 
 - 设备配置：`src/DataAcquisition.Edge.Agent/Configs/*.json`
 - 应用配置：`src/DataAcquisition.Edge.Agent/appsettings.json`
 
----
+## 1. 设备级配置
 
-## 2. 设备配置结构
+最小结构：
 
 ```json
 {
+  "SchemaVersion": 1,
   "IsEnabled": true,
   "PlcCode": "PLC01",
+  "Driver": "melsec-a1e",
   "Host": "192.168.1.100",
   "Port": 502,
-  "Type": "Mitsubishi",
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "PLC01C01",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 10,
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        }
-      ]
-    }
-  ]
+  "Channels": []
 }
 ```
 
-### 字段说明
+字段说明：
 
-#### 设备级（DeviceConfig）
+| 字段 | 必填 | 说明 |
+|------|:----:|------|
+| `SchemaVersion` | ✅ | 当前配置结构版本，当前固定为 `1` |
+| `IsEnabled` | ✅ | 是否启用该设备 |
+| `PlcCode` | ✅ | 设备唯一编码 |
+| `Driver` | ✅ | 稳定驱动名称，例如 `melsec-a1e`、`melsec-mc`、`siemens-s7` |
+| `Host` | ✅ | PLC 主机地址，支持 IP 或主机名 |
+| `Port` | ✅ | PLC 端口 |
+| `ProtocolOptions` | 可选 | 当前驱动支持的附加参数 |
+| `HeartbeatMonitorRegister` | ✅ | 心跳寄存器 |
+| `HeartbeatPollingInterval` | ✅ | 心跳轮询间隔，毫秒 |
+| `Channels` | ✅ | 通道列表 |
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `IsEnabled` | `bool` | ✅ | 是否启用该设备采集 |
-| `PlcCode` | `string` | ✅ | PLC 唯一编码，用于标识设备 |
-| `Host` | `string` | ✅ | PLC 的 IP 地址 |
-| `Port` | `ushort` | ✅ | 通信端口号（如 Modbus 默认 502） |
-| `Type` | `enum` | ✅ | PLC 类型：`Mitsubishi`、`Inovance`、`BeckhoffAds` |
-| `HeartbeatMonitorRegister` | `string` | ✅ | 心跳检测寄存器地址（如 `D100`） |
-| `HeartbeatPollingInterval` | `int` | ✅ | 心跳检测间隔，单位毫秒 |
-| `Channels` | `array` | ✅ | 采集通道列表（按业务或功能拆分） |
+注意：
 
-#### 通道级（Channel）
+- 驱动配置只接受完整 `Driver` 名称，不接受别名。
+- `ProtocolOptions` 不是自由字典。未被当前驱动声明支持的参数会在运行时被拒绝。
+- 文档中的驼峰写法如 `cpuType`、`slotNo` 会被兼容解析。
+- 当前驱动清单见 [hsl-drivers.md](hsl-drivers.md)。
+- JSON Schema 见 [../schemas/device-config.schema.json](../schemas/device-config.schema.json)。
+- 示例配置见 [../examples/device-configs](../examples/device-configs)。
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `ChannelCode` | `string` | ✅ | 通道唯一编码 |
-| `Measurement` | `string` | ✅ | 时序数据库中的表名（measurement） |
-| `EnableBatchRead` | `bool` | ✅ | 是否启用批量读取，`true` 时一次读取连续寄存器区块 |
-| `BatchReadRegister` | `string` | 条件 | 批量读取起始寄存器地址（`EnableBatchRead=true` 时必填） |
-| `BatchReadLength` | `ushort` | 条件 | 批量读取的寄存器长度（字数） |
-| `BatchSize` | `int` | ✅ | 批量写入数据库的条数，达到该数量后刷写一次 |
-| `AcquisitionInterval` | `int` | ✅ | 采集间隔（毫秒），`0` 表示最高频率（无延迟） |
-| `AcquisitionMode` | `enum` | ✅ | 采集模式：`Always`（持续采集）、`Conditional`（条件触发） |
-| `ConditionalAcquisition` | `object` | 条件 | 条件采集配置（`Conditional` 模式必填） |
-| `Metrics` | `array` | 条件 | 采集指标列表（`Always` 模式必填） |
+例如西门子：
 
-#### 条件采集配置（ConditionalAcquisition）
+```json
+{
+  "Driver": "siemens-s7",
+  "Host": "192.168.1.20",
+  "Port": 102,
+  "ProtocolOptions": {
+    "plc": "S1200"
+  }
+}
+```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `Register` | `string` | ✅ | 触发寄存器地址 |
-| `DataType` | `string` | ✅ | 触发寄存器的数据类型 |
-| `StartTriggerMode` | `enum` | ✅ | 开始触发模式：`RisingEdge`（值从 0 变非 0）、`FallingEdge`（值从非 0 变 0） |
-| `EndTriggerMode` | `enum` | ✅ | 结束触发模式：同上 |
+例如汇川：
 
-#### 指标级（Metric）
+```json
+{
+  "Driver": "inovance-tcp",
+  "Host": "192.168.1.30",
+  "Port": 502,
+  "ProtocolOptions": {
+    "series": "AM",
+    "station": "1"
+  }
+}
+```
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|:----:|------|
-| `MetricLabel` | `string` | ✅ | 指标标签，用于标识该指标 |
-| `FieldName` | `string` | ✅ | 时序数据库中的字段名 |
-| `Register` | `string` | ✅ | PLC 寄存器地址（如 `D6000`） |
-| `Index` | `int` | ✅ | 在批量读取缓冲区中的字节偏移位置 |
-| `DataType` | `string` | ✅ | 数据类型：`short`、`ushort`、`int`、`uint`、`float`、`double`、`long`、`ulong`、`string` |
-| `EvalExpression` | `string` | ❌ | 数值转换表达式（如 `value / 100.0`），为空则使用原始值 |
-| `StringByteLength` | `int` | 条件 | 字符串字节长度（`DataType=string` 时必填） |
-| `Encoding` | `string` | 条件 | 字符串编码（`DataType=string` 时使用） |
+## 2. 通道级配置
 
----
+一个设备可以配置多个通道，每个通道对应一类业务数据或一个 measurement。
 
-## 3. 采集模式
+示例：
 
-### Always（持续采集）
+```json
+{
+  "Measurement": "sensor",
+  "ChannelCode": "PLC01C01",
+  "EnableBatchRead": true,
+  "BatchReadRegister": "D6000",
+  "BatchReadLength": 10,
+  "BatchSize": 10,
+  "AcquisitionInterval": 100,
+  "AcquisitionMode": "Always",
+  "Metrics": []
+}
+```
 
-适用于连续信号：温度、压力、电流等。
+字段说明：
+
+| 字段 | 必填 | 说明 |
+|------|:----:|------|
+| `Measurement` | ✅ | 主 measurement 名称 |
+| `ChannelCode` | ✅ | 通道唯一编码 |
+| `EnableBatchRead` | ✅ | 是否批量读取 |
+| `BatchReadRegister` | 条件 | 批量读取起始地址 |
+| `BatchReadLength` | 条件 | 批量读取长度 |
+| `BatchSize` | ✅ | 队列聚合后单批写入大小 |
+| `AcquisitionInterval` | ✅ | 采集间隔，`0` 表示不主动延迟 |
+| `AcquisitionMode` | ✅ | `Always` 或 `Conditional` |
+| `ConditionalAcquisition` | 条件 | 条件采集配置 |
+| `Metrics` | 条件 | 指标列表 |
+
+## 3. 指标配置
+
+示例：
+
+```json
+{
+  "MetricLabel": "temperature",
+  "FieldName": "temperature",
+  "Register": "D6000",
+  "Index": 0,
+  "DataType": "short",
+  "EvalExpression": "value / 100.0"
+}
+```
+
+字段说明：
+
+| 字段 | 必填 | 说明 |
+|------|:----:|------|
+| `MetricLabel` | ✅ | 指标标签 |
+| `FieldName` | ✅ | 存储字段名 |
+| `Register` | ✅ | PLC 寄存器 |
+| `Index` | ✅ | 批量读取缓冲区内偏移 |
+| `DataType` | ✅ | 支持的标量类型 |
+| `EvalExpression` | 可选 | 数值表达式 |
+| `StringByteLength` | 条件 | 字符串字节长度 |
+| `Encoding` | 条件 | 字符串编码，建议 `utf-8` |
+
+注意：
+
+- 字符串型固定长度寄存器会自动去除尾部 `\0`
+- 表达式只对数值类型应用
+
+## 4. 采集模式
+
+### Always
+
+适合连续信号：
 
 ```json
 {
@@ -114,9 +165,9 @@
 }
 ```
 
-### Conditional（条件触发）
+### Conditional
 
-适用于事件驱动场景（生产周期、设备状态变化）。
+适合周期、状态切换或事件触发：
 
 ```json
 {
@@ -130,13 +181,16 @@
 }
 ```
 
-> Conditional 模式会写入 Start/End 事件，并通过 CycleId 关联完整周期数据。
+Conditional 模式的关键语义：
 
----
+- 正式周期事件写入 `Start` / `End`
+- 恢复诊断写入 `<measurement>_diagnostic`
+- 正式统计时只应使用成对的 `Start` / `End`
+- 采集时间统一使用 UTC
 
-## 4. 批量读取配置
+## 5. 批量读取
 
-启用批量读取以减少网络往返：
+如果寄存器连续，优先启用批量读取：
 
 ```json
 {
@@ -146,28 +200,11 @@
 }
 ```
 
-- `Index` 用于指定字段在批量返回中的位置
+这会减少网络往返和单点读取开销。
 
----
+## 6. 应用级配置
 
-## 5. 数据转换表达式
-
-可通过 `EvalExpression` 对原始值进行转换：
-
-```json
-{
-  "FieldName": "temperature",
-  "Register": "D6000",
-  "DataType": "short",
-  "EvalExpression": "value / 100.0"
-}
-```
-
----
-
-## 6. 应用配置（appsettings.json）
-
-核心配置示例：
+核心示例：
 
 ```json
 {
@@ -181,6 +218,14 @@
   "Parquet": {
     "Directory": "./Data/parquet"
   },
+ "Acquisition": {
+    "DeviceConfigService": {
+      "ConfigDirectory": "Configs"
+    },
+    "StateStore": {
+      "DatabasePath": "Data/acquisition-state.db"
+    }
+  },
   "Edge": {
     "EnableCentralReporting": true,
     "CentralApiBaseUrl": "http://localhost:8000",
@@ -190,30 +235,25 @@
 }
 ```
 
----
+关键点：
 
-## 7. 配置热更新
+- `Parquet:Directory` 是 WAL 根目录，内部包含 `pending/`、`retry/`、`invalid/`
+- `Acquisition:DeviceConfigService:ConfigDirectory` 控制设备配置目录，离线校验默认也读取这里
+- `Acquisition:StateStore:DatabasePath` 用于保存 active cycle 恢复状态
+- 如果当前只验证 Edge 主链路，可先关闭 `EnableCentralReporting`
 
-- 修改 `Configs/*.json` 会自动生效
-- 默认 500ms 延迟，避免频繁触发
+## 7. 最佳实践
 
----
+- 用稳定、可读的 `PlcCode` 和 `ChannelCode`
+- 有连续寄存器时优先使用批量读取
+- `BatchSize` 以吞吐和延迟之间的平衡为准
+- 在采集阶段完成单位换算，而不是把脏原始值留到下游
+- 对条件采集，先明确业务上真正需要的开始/结束边沿
+- 部署前先执行 `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs`
+- 需要校验其他目录时，可使用 `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir <目录>`
 
-## 8. 最佳实践
+## 下一步
 
-- **统一命名**：PlcCode、ChannelCode 建议按业务规范
-- **批量读取优先**：尽量将寄存器顺序连续化
-- **合理 BatchSize**：过小浪费资源，过大增加延迟
-- **数据转换**：在采集时完成单位换算
-
----
-
-## 常见问题
-
-- **采集不到数据**：检查 PLC 地址、端口、寄存器类型
-- **Conditional 不触发**：确认触发寄存器变化与触发模式
-- **InfluxDB 无数据**：检查 Token、Org、Bucket
-
----
-
-下一步请阅读：[部署教程](tutorial-deployment.md)
+- [部署教程](tutorial-deployment.md)
+- [驱动清单](hsl-drivers.md)
+- [设计说明](design.md)

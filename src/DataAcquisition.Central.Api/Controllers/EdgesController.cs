@@ -17,7 +17,7 @@ public class EdgesController(EdgeRegistry registry) : ControllerBase
     [HttpPost("register")]
     public IActionResult Register([FromBody] EdgeRegistrationRequest request)
     {
-        var now = DateTimeOffset.Now;
+        var now = DateTimeOffset.UtcNow;
         var state = registry.Upsert(request.EdgeId, request.AgentBaseUrl, request.Hostname, null, now);
         return Ok(new { state.EdgeId, state.AgentBaseUrl, state.Hostname, state.LastSeen });
     }
@@ -25,7 +25,7 @@ public class EdgesController(EdgeRegistry registry) : ControllerBase
     [HttpPost("heartbeat")]
     public IActionResult Heartbeat([FromBody] EdgeHeartbeatRequest request)
     {
-        var now = request.Timestamp == default ? DateTimeOffset.Now : request.Timestamp;
+        var now = request.Timestamp == default ? DateTimeOffset.UtcNow : request.Timestamp.ToUniversalTime();
         var state = registry.Heartbeat(request.EdgeId, request.AgentBaseUrl, request.BufferBacklog, request.LastError, now);
         return Ok(new { state.EdgeId, state.AgentBaseUrl, state.LastSeen, state.BufferBacklog, state.LastError });
     }

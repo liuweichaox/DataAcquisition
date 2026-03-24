@@ -44,7 +44,7 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
         return Ok(new
         {
             edgeId,
-            timestamp = DateTime.Now,
+            timestamp = DateTimeOffset.UtcNow,
             metrics
         });
     }
@@ -107,4 +107,3 @@ public sealed class EdgeDiagnosticsController(EdgeRegistry registry, IHttpClient
         return baseUrl;
     }
 }
-

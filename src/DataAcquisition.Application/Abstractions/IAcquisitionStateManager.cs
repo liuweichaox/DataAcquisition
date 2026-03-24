@@ -22,4 +22,9 @@ public interface IAcquisitionStateManager
     /// <param name="measurement">测量值名称（Measurement）</param>
     /// <returns>采集周期对象，如果不存在则返回null</returns>
     AcquisitionCycle? EndCycle(string plcCode, string channelCode, string measurement);
+
+    /// <summary>
+    ///     获取当前活跃采集周期。
+    /// </summary>
+    AcquisitionCycle? GetActiveCycle(string plcCode, string channelCode, string measurement);
 }

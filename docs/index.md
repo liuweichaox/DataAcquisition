@@ -9,6 +9,7 @@
 ## 配置
 
 - [配置教程](tutorial-configuration.md)
+- [设备配置 Schema](../schemas/device-config.schema.json)
 
 ## 部署
 
@@ -27,6 +28,7 @@
 
 ## 架构与实现
 
+- [驱动清单](hsl-drivers.md)
 - [核心模块文档](modules.md)
 - [数据处理流程](data-flow.md)
 - [设计理念](design.md)
@@ -34,6 +36,7 @@
 ## 开发扩展
 
 - [开发扩展教程](tutorial-development.md)
+- [贡献指南](../CONTRIBUTING.md)
 
 ## 返回
 

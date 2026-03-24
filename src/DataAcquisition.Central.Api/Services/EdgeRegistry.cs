@@ -45,7 +45,7 @@ public sealed class EdgeRegistry
                 AgentBaseUrl = reader.IsDBNull(1) ? null : reader.GetString(1),
                 Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
                 Version = reader.IsDBNull(3) ? null : reader.GetString(3),
-                LastSeen = ParseLocal(reader.IsDBNull(4) ? null : reader.GetString(4)),
+                LastSeen = ParseStoredTimestamp(reader.IsDBNull(4) ? null : reader.GetString(4)),
                 BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
                 LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
             });
@@ -191,16 +191,16 @@ public sealed class EdgeRegistry
             AgentBaseUrl = reader.IsDBNull(1) ? null : reader.GetString(1),
             Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
             Version = reader.IsDBNull(3) ? null : reader.GetString(3),
-            LastSeen = ParseLocal(reader.IsDBNull(4) ? null : reader.GetString(4)),
+            LastSeen = ParseStoredTimestamp(reader.IsDBNull(4) ? null : reader.GetString(4)),
             BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
             LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
         };
     }
 
-    private static DateTimeOffset ParseLocal(string? value)
+    private static DateTimeOffset ParseStoredTimestamp(string? value)
     {
-        if (string.IsNullOrWhiteSpace(value)) return DateTimeOffset.Now;
-        return DateTimeOffset.Parse(value);
+        if (string.IsNullOrWhiteSpace(value)) return DateTimeOffset.UtcNow;
+        return DateTimeOffset.Parse(value).ToUniversalTime();
     }
 
     public sealed class EdgeState
@@ -214,7 +214,7 @@ public sealed class EdgeRegistry
         public string? AgentBaseUrl { get; set; }
         public string? Hostname { get; set; }
         public string? Version { get; set; }
-        public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.Now;
+        public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.UtcNow;
         public long? BufferBacklog { get; set; }
         public string? LastError { get; set; }
     }
@@ -262,4 +262,3 @@ public sealed class EdgeRegistry
         return trimmed.EndsWith("/") ? trimmed.TrimEnd('/') : trimmed;
     }
 }
-

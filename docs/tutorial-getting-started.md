@@ -1,62 +1,42 @@
-# 入门教程：从零开始搭建 DataAcquisition
+# 入门教程
 
-本教程面向第一次使用的用户，按步骤完成环境准备、模拟器启动、采集配置和验证。
+本文档给出一条最短可运行路径：启动 InfluxDB，使用模拟器生成 PLC 数据，运行 Edge Agent，确认数据进入主存储和 WAL。
 
----
+## 前置条件
 
-## 1. 环境准备
+- .NET 10 SDK
+- InfluxDB 2.x
+- Node.js 20+，仅在使用 Central Web 时需要
 
-### 必需软件
+默认端口：
 
-- .NET SDK 10.0+
-- InfluxDB 2.x（本地安装或 Docker 部署，见下方说明）
-- Node.js 18+（仅在使用 Central Web 时需要）
+| 服务 | 端口 |
+|------|------|
+| Edge Agent | `8001` |
+| Central API | `8000` |
+| Central Web | `3000` |
+| InfluxDB | `8086` |
 
-### 端口占用提示
-
-| 服务 | 默认端口 | 说明 |
-|------|----------|------|
-| Edge Agent | `8001` | 边缘采集代理（供中心 API 回调查询日志/指标） |
-| Central API | `8000` | 中心 API 服务 |
-| Central Web | `3000` | 前端 Web 界面（开发模式） |
-| InfluxDB | `8086` | 时序数据库 |
-
-### InfluxDB 安装选项
-
-#### 选项 A：本地安装（完整功能）
-
-访问 [InfluxDB 官网](https://www.influxdata.com/downloads/) 下载并安装。
-
-#### 选项 B：Docker 部署（推荐快速测试）
-
-```bash
-docker-compose -f docker-compose.tsdb.yml up -d influxdb
-```
-
-详细说明见：[Docker InfluxDB 部署指南](docker-influxdb.md)
-
----
-
-## 2. 获取代码
+## 1. 获取代码
 
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 cd DataAcquisition
 ```
 
----
+## 2. 启动 InfluxDB
 
-## 3. 配置 InfluxDB
+推荐直接使用仓库内的 Compose 文件：
 
-在 InfluxDB 中创建：
+```bash
+docker compose -f docker-compose.tsdb.yml up -d
+```
 
-- Organization: `default`
-- Bucket: `iot`
-- Token: 任意生成
+更多说明见 [docker-influxdb.md](docker-influxdb.md)。
 
-将以下配置写入 Edge Agent 的配置文件：
+## 3. 配置 Edge Agent
 
-文件位置：`src/DataAcquisition.Edge.Agent/appsettings.json`
+编辑 [src/DataAcquisition.Edge.Agent/appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json)：
 
 ```json
 {
@@ -70,8 +50,13 @@ cd DataAcquisition
   "Parquet": {
     "Directory": "./Data/parquet"
   },
+  "Acquisition": {
+    "StateStore": {
+      "DatabasePath": "Data/acquisition-state.db"
+    }
+  },
   "Edge": {
-    "EnableCentralReporting": true,
+    "EnableCentralReporting": false,
     "CentralApiBaseUrl": "http://localhost:8000",
     "EdgeId": "EDGE-001",
     "HeartbeatIntervalSeconds": 10
@@ -79,34 +64,32 @@ cd DataAcquisition
 }
 ```
 
-> **说明**：`Urls` 使用 `http://+:8001` 监听所有网络接口，Edge Agent 启动时会自动检测本机 IP 并上报给 Central API，确保中心代理回调可达。
-
----
+如果当前只验证采集主链路，建议先把 `EnableCentralReporting` 设为 `false`，避免中心侧未启动时的注册重试噪音。
 
 ## 4. 启动 PLC 模拟器
 
-模拟器用于替代真实 PLC，生成连续变化的数据。
-
 ```bash
-cd src/DataAcquisition.Simulator
-dotnet run
+dotnet run --project src/DataAcquisition.Simulator
 ```
 
-启动后会持续输出寄存器数据。
+模拟器会持续输出寄存器变化，用于替代真实 PLC。
 
----
+## 5. 准备设备配置
 
-## 5. 配置设备文件
-
-在 `src/DataAcquisition.Edge.Agent/Configs/` 目录创建配置文件，例如 `TEST_PLC.json`：
+参考 [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)。最小示例：
 
 ```json
 {
+  "SchemaVersion": 1,
   "IsEnabled": true,
   "PlcCode": "PLC01",
+  "Driver": "melsec-a1e",
   "Host": "127.0.0.1",
   "Port": 502,
-  "Type": "Mitsubishi",
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 5000,
   "Channels": [
@@ -134,7 +117,8 @@ dotnet run
 }
 ```
 
----
+驱动名称只接受完整 `Driver` 名称。完整清单见 [hsl-drivers.md](hsl-drivers.md)。
+如果编辑器支持 JSON Schema，可以关联 [../schemas/device-config.schema.json](../schemas/device-config.schema.json)。
 
 ## 6. 启动 Edge Agent
 
@@ -142,38 +126,17 @@ dotnet run
 dotnet run --project src/DataAcquisition.Edge.Agent
 ```
 
-启动后，控制台会显示采集和写入日志。
+如果设备配置和 InfluxDB 正常，控制台会出现采集和写入日志。
 
----
-
-## 7. 启动 Central API
+只校验配置而不启动服务：
 
 ```bash
-dotnet run --project src/DataAcquisition.Central.Api
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-浏览器访问：
+## 7. 验证主存储
 
-- HealthCheck: `http://localhost:8000/health`
-- Metrics: `http://localhost:8000/metrics`
-
----
-
-## 8. 启动 Central Web
-
-```bash
-cd src/DataAcquisition.Central.Web
-pnpm install
-pnpm run serve
-```
-
-浏览器访问：`http://localhost:3000`
-
----
-
-## 9. 验证数据写入
-
-在 InfluxDB 中执行 Flux 查询：
+在 InfluxDB 中执行：
 
 ```flux
 from(bucket: "iot")
@@ -182,22 +145,43 @@ from(bucket: "iot")
   |> yield(name: "latest")
 ```
 
-如果有数据返回，说明采集和存储成功。
+如果能看到数据，说明主链路已经跑通。
 
----
+## 8. 验证 WAL
 
-## 10. 验证 WAL 机制
+停止 InfluxDB 后继续运行 Edge Agent，观察：
 
-断开 InfluxDB 后观察：
+- `pending/` 可能短暂出现新文件
+- 主存储持续失败时，文件会转入 `retry/`
+- 如果出现无法写入 WAL 的坏消息，会进入 `invalid/`
 
-- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/` 出现 Parquet 文件
-- InfluxDB 恢复后文件自动转移并清理
+默认目录：
 
----
+- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/`
+- `src/DataAcquisition.Edge.Agent/Data/parquet/retry/`
+- `src/DataAcquisition.Edge.Agent/Data/parquet/invalid/`
+
+## 9. 可选：启动中心侧
+
+Central 侧不是主采集链路，建议在 Edge 单独跑通后再启用。
+
+启动 Central API：
+
+```bash
+dotnet run --project src/DataAcquisition.Central.Api
+```
+
+启动 Central Web：
+
+```bash
+cd src/DataAcquisition.Central.Web
+pnpm install
+pnpm run serve
+```
 
 ## 下一步
 
-- 阅读 [配置教程](tutorial-configuration.md)
-- 学习 [数据查询教程](tutorial-data-query.md)
-- 了解 [部署教程](tutorial-deployment.md)
-- 查看 [开发扩展教程](tutorial-development.md)
+- [配置教程](tutorial-configuration.md)
+- [部署教程](tutorial-deployment.md)
+- [设计说明](design.md)
+- [开发扩展教程](tutorial-development.md)

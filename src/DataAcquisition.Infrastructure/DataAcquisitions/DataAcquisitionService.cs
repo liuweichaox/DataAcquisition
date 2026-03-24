@@ -45,29 +45,29 @@ public class DataAcquisitionService : IDataAcquisitionService
 
     public async Task StartCollectionTasks()
     {
-        var dataAcquisitionConfigs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
-        foreach (var config in dataAcquisitionConfigs.Where(config => config.IsEnabled)) StartCollectionTask(config);
+        var configs = await _deviceConfigService.GetConfigs().ConfigureAwait(false);
+        foreach (var config in configs.Where(static config => config.IsEnabled))
+            TryStartCollectionTask(config);
     }
 
     public async Task StopCollectionTasks()
     {
         try
         {
-            // 先取消所有任务
-            foreach (var kvp in _runtimes)
+            foreach (var runtime in _runtimes.Values)
             {
-                try { await kvp.Value.Cts.CancelAsync().ConfigureAwait(false); }
-                catch (Exception ex) { _logger.LogError(ex, "取消采集任务失败: {Message}", ex.Message); }
+                try
+                {
+                    await runtime.Cts.CancelAsync().ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "取消采集任务失败: {Message}", ex.Message);
+                }
             }
 
-            // 等待所有任务完成并释放 CTS
-            foreach (var kvp in _runtimes)
-            {
-                try { await kvp.Value.Running.ConfigureAwait(false); }
-                catch (OperationCanceledException) { /* 预期的取消 */ }
-                catch (Exception ex) { _logger.LogError(ex, "等待任务完成失败: {Message}", ex.Message); }
-                finally { kvp.Value.Cts.Dispose(); }
-            }
+            foreach (var runtime in _runtimes.Values)
+                await AwaitRuntimeCompletionAsync(runtime).ConfigureAwait(false);
 
             await _plcLifecycle.CloseAllAsync().ConfigureAwait(false);
             await _queue.DisposeAsync().ConfigureAwait(false);
@@ -91,21 +91,7 @@ public class DataAcquisitionService : IDataAcquisitionService
             };
 
         var client = _plcLifecycle.GetOrCreateClient(config);
-        return dataType switch
-        {
-            "ushort" => await client.WriteUShortAsync(address, Convert.ToUInt16(value)).ConfigureAwait(false),
-            "uint" => await client.WriteUIntAsync(address, Convert.ToUInt32(value)).ConfigureAwait(false),
-            "ulong" => await client.WriteULongAsync(address, Convert.ToUInt64(value)).ConfigureAwait(false),
-            "short" => await client.WriteShortAsync(address, Convert.ToInt16(value)).ConfigureAwait(false),
-            "int" => await client.WriteIntAsync(address, Convert.ToInt32(value)).ConfigureAwait(false),
-            "long" => await client.WriteLongAsync(address, Convert.ToInt64(value)).ConfigureAwait(false),
-            "float" => await client.WriteFloatAsync(address, Convert.ToSingle(value)).ConfigureAwait(false),
-            "double" => await client.WriteDoubleAsync(address, Convert.ToDouble(value)).ConfigureAwait(false),
-            "string" => await client.WriteStringAsync(address, Convert.ToString(value) ?? string.Empty)
-                .ConfigureAwait(false),
-            "bool" => await client.WriteBoolAsync(address, Convert.ToBoolean(value)).ConfigureAwait(false),
-            _ => new PlcWriteResult { IsSuccess = false, Message = $"不支持的数据类型: {dataType}" }
-        };
+        return await PlcWriteDispatcher.WriteAsync(client, address, value, dataType).ConfigureAwait(false);
     }
 
     public IReadOnlyCollection<PlcConnectionStatus> GetPlcConnections()
@@ -126,9 +112,8 @@ public class DataAcquisitionService : IDataAcquisitionService
     }
 
     /// <summary>启动单个采集任务，已存在则跳过。</summary>
-    private void StartCollectionTask(DeviceConfig config)
+    private void TryStartCollectionTask(DeviceConfig config)
     {
-        // 前置校验
         if (string.IsNullOrWhiteSpace(config.PlcCode))
         {
             _logger.LogError("启动采集任务失败：设备编码为空");
@@ -141,39 +126,23 @@ public class DataAcquisitionService : IDataAcquisitionService
             return;
         }
 
-        // 任务已存在则跳过
         if (_runtimes.ContainsKey(config.PlcCode))
             return;
 
-        var cts = new CancellationTokenSource();
-        var ct = cts.Token;
-        var client = _plcLifecycle.GetOrCreateClient(config);
-
-        var tasks = new List<Task>(config.Channels.Count + 1)
-        {
-            _heartbeatMonitor.MonitorAsync(config, client, ct)
-        };
-        foreach (var channel in config.Channels)
-            tasks.Add(_channelCollector.CollectAsync(config, channel, client, ct));
-
-        var running = Task.WhenAll(tasks);
-        _ = running.ContinueWith(t =>
-        {
-            var ex = t.Exception?.Flatten().InnerException;
-            if (ex != null)
-                _logger.LogError(ex, "{PlcCode}-采集任务异常: {Message}", config.PlcCode, ex.Message);
-        }, TaskContinuationOptions.OnlyOnFaulted);
-
-        var runtime = new PlcRuntime(cts, running);
-        // 原子性写入；如果并发竞争失败（极少见），释放 cts
+        var runtime = CreateRuntime(config);
         if (!_runtimes.TryAdd(config.PlcCode, runtime))
         {
-            cts.Dispose();
+            runtime.Cts.Dispose();
         }
     }
 
-    /// <summary>配置变更事件处理。async void 中异常必须完全捕获。</summary>
-    private async void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
+    /// <summary>配置变更事件处理。事件回调只负责分发，真正逻辑在异步方法中执行。</summary>
+    private void OnConfigChanged(object? sender, ConfigChangedEventArgs e)
+    {
+        _ = HandleConfigChangedAsync(e);
+    }
+
+    private async Task HandleConfigChangedAsync(ConfigChangedEventArgs e)
     {
         try
         {
@@ -183,17 +152,18 @@ public class DataAcquisitionService : IDataAcquisitionService
                     if (e.NewConfig is { IsEnabled: true })
                     {
                         _logger.LogInformation("检测到新设备配置: {PlcCode}，启动采集任务", e.PlcCode);
-                        StartCollectionTask(e.NewConfig);
+                        TryStartCollectionTask(e.NewConfig);
                     }
 
                     break;
 
                 case ConfigChangeType.Updated:
-                    if (e.OldConfig != null) await StopCollectionTaskAsync(e.OldConfig.PlcCode).ConfigureAwait(false);
+                    if (e.OldConfig != null)
+                        await StopCollectionTaskAsync(e.OldConfig.PlcCode).ConfigureAwait(false);
                     if (e.NewConfig is { IsEnabled: true })
                     {
                         _logger.LogInformation("设备配置已更新: {PlcCode}，重启采集任务", e.PlcCode);
-                        StartCollectionTask(e.NewConfig);
+                        TryStartCollectionTask(e.NewConfig);
                     }
 
                     break;
@@ -210,7 +180,6 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
         catch (Exception ex)
         {
-            // async void 方法中的异常必须完全捕获，否则可能导致应用程序崩溃
             try
             {
                 _logger.LogError(ex, "处理配置变更失败: {Message}", ex.Message);
@@ -223,6 +192,39 @@ public class DataAcquisitionService : IDataAcquisitionService
         }
     }
 
+    private PlcRuntime CreateRuntime(DeviceConfig config)
+    {
+        var cts = new CancellationTokenSource();
+        var tasks = BuildRuntimeTasks(config, cts.Token);
+        var running = Task.WhenAll(tasks);
+        ObserveRuntimeFault(config.PlcCode, running);
+        return new PlcRuntime(cts, running);
+    }
+
+    private List<Task> BuildRuntimeTasks(DeviceConfig config, CancellationToken cancellationToken)
+    {
+        var client = _plcLifecycle.GetOrCreateClient(config);
+        var tasks = new List<Task>(config.Channels.Count + 1)
+        {
+            _heartbeatMonitor.MonitorAsync(config, client, cancellationToken)
+        };
+
+        foreach (var channel in config.Channels)
+            tasks.Add(_channelCollector.CollectAsync(config, channel, client, cancellationToken));
+
+        return tasks;
+    }
+
+    private void ObserveRuntimeFault(string plcCode, Task runningTask)
+    {
+        _ = runningTask.ContinueWith(task =>
+        {
+            var ex = task.Exception?.Flatten().InnerException;
+            if (ex != null)
+                _logger.LogError(ex, "{PlcCode}-采集任务异常: {Message}", plcCode, ex.Message);
+        }, TaskContinuationOptions.OnlyOnFaulted);
+    }
+
     private async Task StopCollectionTaskAsync(string plcCode)
     {
         if (!_runtimes.TryRemove(plcCode, out var runtime)) return;
@@ -230,25 +232,32 @@ public class DataAcquisitionService : IDataAcquisitionService
         try
         {
             await runtime.Cts.CancelAsync().ConfigureAwait(false);
-            try
-            {
-                await runtime.Running.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // 预期的取消异常，忽略
-            }
-            finally
-            {
-                runtime.Cts.Dispose();
-            }
-
-            // 关闭并清理 Plc 客户端与锁
+            await AwaitRuntimeCompletionAsync(runtime).ConfigureAwait(false);
             await _plcLifecycle.CloseAsync(plcCode).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "停止采集任务失败 {PlcCode}: {Message}", plcCode, ex.Message);
+        }
+    }
+
+    private async Task AwaitRuntimeCompletionAsync(PlcRuntime runtime)
+    {
+        try
+        {
+            await runtime.Running.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            // 预期的取消异常，忽略
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "等待采集任务完成失败: {Message}", ex.Message);
+        }
+        finally
+        {
+            runtime.Cts.Dispose();
         }
     }
 }

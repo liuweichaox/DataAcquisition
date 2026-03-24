@@ -1,4 +1,4 @@
-// Central API（中心侧）：提供中心 API（边缘注册/心跳/数据接入、查询与管理）。
+// Central API（中心侧）：提供中心 API（边缘注册/心跳、诊断代理、查询与管理）。
 
 using DataAcquisition.Central.Api.HealthChecks;
 using Serilog;

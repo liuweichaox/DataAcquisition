@@ -1,130 +1,186 @@
-# 🏆 Design Philosophy
+# Design
 
-This document explains the core design philosophy and architectural principles of the DataAcquisition system.
+This document explains the project’s core positioning, architectural boundaries, and intentional trade-offs.
 
-## Overview
+## Project Positioning
 
-This page focuses on design principles and architectural decisions. Use the index for full navigation.
+DataAcquisition is not designed as a “central industrial platform”.  
+Its core is an industrial PLC data acquisition runtime.
 
-## Table of Contents
+The project prioritizes:
 
-- [WAL-first Architecture](#wal-first-architecture)
-- [Modular Design](#modular-design)
-- [Operations-Friendly](#operations-friendly)
-- [Edge-Central Distributed Architecture](#edge-central-distributed-architecture)
-- [Security](#security)
+- reliable PLC connectivity
+- correct register acquisition
+- recoverable local persistence first
+- primary storage after local durability
+- auditable behavior across restart, network loss, and primary-store failure
 
-## WAL-first Architecture
+Because of that, the Edge Agent is the main product. Central API and Central Web are supporting control-plane and diagnostics components.
 
-The core design principle is "data safety first". All collected data is immediately written to local Parquet files as write-ahead logs, then asynchronously written to InfluxDB. This ensures data is never lost, even in cases of network failures or storage service unavailability.
+## Core Principles
 
-### Core Principles
+## 1. Acquisition First
 
-- **Data First**: Data safety is the highest priority
-- **Local Persistence**: All data must be written to local storage first
-- **Asynchronous Writes**: Primary storage writes use asynchronous methods, not blocking acquisition
-- **Automatic Recovery**: System automatically retries failed write operations
+The Edge Agent must be able to run without Central API and still provide:
 
-### Implementation Approach
+- PLC connection management
+- channel acquisition
+- WAL persistence
+- primary storage writes
+- retry behavior
 
-1. **Dual Write Strategy**: Data is written to both Parquet WAL and InfluxDB simultaneously
-2. **Atomic Operations**: WAL files are only deleted when both writes succeed
-3. **Retry Mechanism**: WAL files are retained on write failures, with periodic retries
-4. **Zero Loss Guarantee**: Ensures data is never lost under any circumstances
+The central side is responsible for:
 
-## Modular Design
+- node registration and heartbeat
+- edge metrics and log proxying
+- centralized diagnostics and visualization
 
-The system adopts a clear layered architecture with interface abstractions, supporting flexible extension and replacement. New PLC protocols, storage backends, and data processing logic can be quickly integrated by implementing the corresponding interfaces.
+The central side is not part of the primary acquisition path.
 
-### Layered Architecture
+## 2. WAL Before Primary Storage
 
-```
-┌─────────────────────────────────────┐
-│     Application Layer               │  ← Interface definitions
-├─────────────────────────────────────┤
-│     Domain Layer                    │  ← Domain models
-├─────────────────────────────────────┤
-│     Infrastructure Layer            │  ← Concrete implementations
-└─────────────────────────────────────┘
-```
+The main data path is:
 
-### Interface Abstractions
+`PLC -> ChannelCollector -> QueueService -> WAL -> TSDB`
 
-- **IPlcClientService**: PLC client service interface
-- **IDataStorageService**: Data storage service interface (TSDB, e.g. InfluxDB)
-- **IWalStorageService**: WAL storage service interface (e.g. Parquet)
-- **IChannelCollector**: Channel collector interface
-- **IQueueService**: Queue service interface
-- **IMetricsCollector**: Metrics collector interface
+WAL is the safety boundary, not an optional side effect.
 
-### Extensibility
+The WAL lifecycle is modeled explicitly:
 
-- **Plugin-based**: New features can be quickly integrated by implementing interfaces
-- **Replaceable**: Core components can be replaced with other implementations
-- **Loosely Coupled**: Modules interact through interfaces, reducing coupling
+- `pending/`: newly written, not yet finalized against primary storage
+- `retry/`: primary storage failed, waiting for replay
+- `invalid/`: poison messages that could not be written into WAL
 
-## Operations-Friendly
+The goal is not to make unrealistic “absolute zero-loss” promises. The goal is to make failures understandable and recoverable:
 
-Built-in comprehensive monitoring metrics and visualization interface, support for configuration hot updates, and detailed logging significantly reduce operational complexity.
+- healthy messages are persisted locally first
+- primary storage failures are replayable
+- poison messages do not block healthy batches
+- failure behavior is explicit and auditable
 
-### Monitoring Capabilities
+## 3. Explicit Runtime Contracts
 
-- **Prometheus Metrics**: Complete system metrics exposure
-- **Visualization Interface**: Vue3 frontend interface for intuitive system status display
-- **Logging System**: SQLite log database supporting query and analysis
-- **Health Checks**: Built-in health check endpoints
+The framework separates runtime contracts from default implementations:
 
-### Maintainability
+- `IPlcDriverProvider`
+- `IPlcClientService`
+- `IPlcConnectionClient`
+- `IPlcDataAccessClient`
+- `IPlcTypedWriteClient`
+- `IDataStorageService`
+- `IWalStorageService`
+- `IQueueService`
+- `IChannelCollector`
+- `IAcquisitionStateManager`
 
-- **Configuration Hot Updates**: Apply new configurations without restart
-- **Detailed Logging**: Record key operations and error information
-- **Error Tracking**: Complete error stack traces and context information
-- **Comprehensive Documentation**: Detailed configuration and usage documentation
+This means:
 
-### Easy Deployment
+- HslCommunication is the default PLC implementation, not an architectural requirement
+- InfluxDB is the default primary store, not the only possible one
+- Parquet is the default WAL implementation, not a hard framework dependency
 
-- **Containerization Support**: Supports Docker deployment
-- **Environment Variables**: Supports configuration via environment variables
-- **Multi-platform**: Supports Windows, Linux, macOS
-- **Clear Dependencies**: Clear dependency relationships and requirements
+## 4. Restart Recovery Is a Feature
 
-## Edge-Central Distributed Architecture
+Industrial collectors must assume that processes restart.
 
-The system adopts an Edge-Central distributed architecture, supporting centralized management of multiple workshops and nodes.
+Current recovery behavior:
 
-### Architectural Advantages
+- active cycles are stored in memory and mirrored to SQLite
+- the first conditional sample only establishes baseline state and does not fake `Start/End`
+- restart recovery may emit diagnostics when needed
+- recovery diagnostics go to `<measurement>_diagnostic` so they do not pollute the formal cycle measurement
 
-- **Distributed Deployment**: Edge Agents can be distributed across multiple workshops
-- **Centralized Management**: Central API provides unified management and monitoring of all nodes
-- **High Availability**: Failure of a single node does not affect other nodes
-- **Scalability**: Easy to add new Edge Agent nodes
+## 5. Honest Configuration Contracts
 
-### Data Flow
+Configuration is intentionally small and explicit.
 
-1. **Local Acquisition**: Edge Agent acquires PLC data locally
-2. **Local Storage**: Data is stored locally first (Parquet WAL)
-3. **Remote Reporting**: Optionally report data to Central API
-4. **Centralized Monitoring**: Central Web provides unified monitoring of all nodes
+Stable public fields:
 
-> For detailed performance optimization recommendations and best practices, please refer to [Performance Optimization Guide](performance.en.md)
+- `Driver`
+- `Host`
+- `Port`
+- `ProtocolOptions`
+- `Channels`
 
-## Security
+Rules:
 
-The system adopts the following security measures:
+- drivers accept stable full names only
+- `Host` and `Port` are public endpoint contracts and must not be silently ignored
+- `ProtocolOptions` expose only options actually supported by the current driver
+- unsupported `ProtocolOptions` are rejected at runtime
 
-- **InfluxDB Token Authentication**: The system authenticates with InfluxDB through Token, configured in `appsettings.json`. It is recommended to use environment variables to manage sensitive information
-- **CORS Configuration**: Supports configuration of allowed frontend origins to prevent cross-origin attacks
-- **Environment Variable Configuration**: Supports managing sensitive configuration information (such as Token) through environment variables to avoid storing in plain text in configuration files
+## Runtime Structure
 
-**Security Recommendations**:
-- Production environments should use environment variables to manage sensitive information such as InfluxDB Token
-- It is recommended to configure firewall rules at the network level to restrict API access
-- It is recommended to use a reverse proxy (such as Nginx) to configure HTTPS in production environments
+### Edge Main Path
 
-## Next Steps
+1. `DeviceConfigService`
+   - loads configs and handles hot reload
+2. `PlcClientLifecycleService`
+   - creates and manages PLC clients from `Driver`
+3. `HeartbeatMonitor`
+   - tracks connection health
+4. `ChannelCollector`
+   - runs `Always` and `Conditional` acquisition
+5. `QueueService`
+   - batches messages and drives persistence
+6. `QueueBatchPersister`
+   - executes the WAL-first persistence path
+7. `ParquetRetryWorker`
+   - replays files in `retry/`
+8. `InfluxDbDataStorageService`
+   - default primary store
 
-After understanding the design philosophy, continue with:
+### Central Side
 
-- [Documentation Index](index.en.md)
+The Central API belongs to the control and diagnostics plane:
+
+- `EdgeRegistry`: registration and heartbeat state
+- `EdgeDiagnosticsController`: log and metrics proxying
+- `MetricsController`: central metrics observation
+
+## PLC Driver Design
+
+The driver layer is one of the most important open-source extension points in the project.
+
+Current model:
+
+- configuration uses stable `Driver` names
+- the default catalog is provided by `HslStandardPlcDriverProvider`
+- the framework core does not depend directly on Hsl-specific types
+- third parties can integrate other protocol stacks through new `IPlcDriverProvider` implementations
+- driver implementations can reuse `PlcClientServiceBase` instead of building a large client implementation from scratch
+
+This gives:
+
+- regular users a configuration-first experience for common PLCs
+- advanced users a clear extension point for custom drivers
+
+## Intentionally Simple Areas
+
+The project deliberately avoids over-engineering in a few places:
+
+- the Hsl driver catalog remains a single-file registry
+- `ProtocolOptions` is not a heavy metadata framework
+- recovery diagnostics move to a sibling measurement rather than a separate event bus
+
+These are intentional trade-offs to keep the project:
+
+- easy to adopt
+- easy to read
+- easy to extend
+- easy to maintain
+
+## Recommended Evolution
+
+If the project keeps moving toward a more mature open-source shape, the suggested order is:
+
+1. add more automated tests around the main acquisition path
+2. extend `ProtocolOptions` for the most important drivers
+3. keep tightening the boundary between formal cycle analytics and recovery diagnostics in docs and query examples
+4. add more real example configurations and troubleshooting guides
+
+## Related Docs
+
 - [Data Flow](data-flow.en.md)
 - [Core Modules](modules.en.md)
+- [Driver Catalog](hsl-drivers.en.md)

@@ -1,9 +1,14 @@
 {
+  "SchemaVersion": 1,
   "IsEnabled": true,
   "PlcCode": "TEST_PLC",
+  "Driver": "melsec-a1e",
   "Host": "127.0.0.1",
   "Port": 502,
-  "Type": "Mitsubishi",
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 2000,
   "Channels": [
@@ -12,7 +17,7 @@
       "ChannelCode": "CH01",
       "EnableBatchRead": true,
       "BatchReadRegister": "D6000",
-      "BatchReadLength": 14,
+      "BatchReadLength": 18,
       "BatchSize": 10,
       "AcquisitionInterval": 1000,
       "AcquisitionMode": "Always",
@@ -70,6 +75,15 @@
           "Register": "D6006",
           "Index": 12,
           "DataType": "short"
+        },
+        {
+          "MetricLabel": "productCode",
+          "FieldName": "productCode",
+          "Register": "D6010",
+          "Index": 20,
+          "DataType": "string",
+          "StringByteLength": 16,
+          "Encoding": "utf-8"
         }
       ]
     },

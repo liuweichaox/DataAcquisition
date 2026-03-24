@@ -7,16 +7,6 @@ namespace DataAcquisition.Simulator;
 
 internal class Program
 {
-    // 寄存器地址常量
-    private const string D100_HEARTBEAT = "D100";
-    private const string D6000_TEMPERATURE = "D6000";
-    private const string D6001_PRESSURE = "D6001";
-    private const string D6002_CURRENT = "D6002";
-    private const string D6003_VOLTAGE = "D6003";
-    private const string D6004_LIGHT_BARRIER = "D6004";
-    private const string D6005_SERVO_SPEED = "D6005";
-    private const string D6006_DEVICE_FLAG = "D6006";
-
     private static async Task Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
@@ -82,14 +72,15 @@ internal class Program
         Console.WriteLine();
         Console.WriteLine("支持的寄存器范围: D0-D9999");
         Console.WriteLine("测试寄存器（自动更新）:");
-        Console.WriteLine("  D100  - 心跳寄存器");
-        Console.WriteLine("  传感器数据（批量读取起始地址 D6000）:");
-        Console.WriteLine("    D6000 (索引0) - 温度 (200-300, 单位0.1°C)");
-        Console.WriteLine("    D6001 (索引2) - 压力 (100-200, 单位0.1MPa)");
-        Console.WriteLine("    D6002 (索引4) - 电流 (0-500, 单位0.1A)");
-        Console.WriteLine("    D6003 (索引6) - 电压 (3800-4200, 单位0.1V)");
-        Console.WriteLine("    D6004 (索引8) - 光栅位置 (0-1000, 单位mm)");
-        Console.WriteLine("    D6005 (索引10) - 伺服速度 (0-3000, 单位rpm)");
-        Console.WriteLine("    D6006 (索引12) - 设备的生产状态 (0=休息 1=生产中)");
+        Console.WriteLine($"  {SimRegisters.D100Heartbeat} - 心跳寄存器");
+        Console.WriteLine($"  传感器数据（批量读取起始地址 {SimRegisters.D6000Temperature}）:");
+        Console.WriteLine($"    {SimRegisters.D6000Temperature} (索引0) - 温度 (200-300, 单位0.1°C)");
+        Console.WriteLine($"    {SimRegisters.D6001Pressure} (索引2) - 压力 (100-200, 单位0.1MPa)");
+        Console.WriteLine($"    {SimRegisters.D6002Current} (索引4) - 电流 (0-500, 单位0.1A)");
+        Console.WriteLine($"    {SimRegisters.D6003Voltage} (索引6) - 电压 (3800-4200, 单位0.1V)");
+        Console.WriteLine($"    {SimRegisters.D6004LightBarrier} (索引8) - 光栅位置 (0-1000, 单位mm)");
+        Console.WriteLine($"    {SimRegisters.D6005ServoSpeed} (索引10) - 伺服速度 (0-3000, 单位rpm)");
+        Console.WriteLine($"    {SimRegisters.D6006DeviceFlag} (索引12) - 设备的生产状态 (0=休息 1=生产中)");
+        Console.WriteLine($"    {SimRegisters.D6010ProductCode} - 字符串模拟值（示例：BATCH-001，需 string 读取）");
     }
 }

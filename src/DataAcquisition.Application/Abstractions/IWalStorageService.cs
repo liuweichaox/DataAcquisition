@@ -22,4 +22,7 @@ public interface IWalStorageService
 
     /// <summary>获取所有待重试的 WAL 文件。</summary>
     Task<List<string>> GetRetryFilesAsync();
+
+    /// <summary>将无法写入 WAL 的坏消息隔离到本地审计目录。</summary>
+    Task QuarantineInvalidAsync(DataMessage message, string reason);
 }

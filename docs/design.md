@@ -1,130 +1,185 @@
-# 🏆 设计理念
+# 设计说明
 
-本文档说明 DataAcquisition 系统的核心设计理念和架构原则。
+本文档说明 DataAcquisition 的核心定位、边界和架构取舍。
 
-## 概览
+## 项目定位
 
-本页聚焦系统设计理念与架构原则。完整导航见索引页。
+DataAcquisition 的核心不是“中心平台”，而是一个面向工业现场的 PLC 数据采集运行时。
 
-## 目录
+项目优先解决：
 
-- [WAL-first 架构](#wal-first-架构)
-- [模块化设计](#模块化设计)
-- [运维友好](#运维友好)
-- [Edge-Central 分布式架构](#edge-central-分布式架构)
-- [安全性](#安全性)
+- 稳定连接 PLC
+- 正确采集寄存器数据
+- 先在本地保留可恢复副本
+- 再把数据写入主存储
+- 在重启、断网或主存储失败时保持行为可恢复、可审计
 
-## WAL-first 架构
+因此，Edge Agent 是主产品；Central API / Central Web 是辅助控制面和诊断面。
 
-系统核心设计理念是"数据安全第一"。所有数据采集后立即写入本地 Parquet 文件作为预写日志，然后再异步写入 InfluxDB。这种设计确保即使在网络故障、存储服务不可用等异常情况下，数据也不会丢失。
+## 核心原则
 
-### 核心原则
+## 1. Acquisition First
 
-- **数据优先**: 数据安全是最高优先级
-- **本地持久化**: 所有数据必须先写入本地
-- **异步写入**: 主存储写入采用异步方式，不阻塞采集
-- **自动恢复**: 系统自动重试失败的写入操作
+Edge Agent 必须在没有 Central API 的情况下独立运行，至少完成：
 
-### 实现方式
+- PLC 连接管理
+- 通道采集
+- WAL 持久化
+- 主存储写入
+- 失败重试
 
-1. **双写策略**: 数据同时写入 Parquet WAL 和 InfluxDB
-2. **原子操作**: 只有两者都成功才删除 WAL 文件
-3. **重试机制**: 写入失败时保留 WAL 文件，定期重试
-4. **零丢失保证**: 确保数据在任何情况下都不会丢失
+Central 侧负责：
 
-## 模块化设计
+- 节点注册与心跳
+- Edge 指标与日志代理
+- 集中诊断与可视化
 
-系统采用清晰的分层架构，各模块通过接口抽象，支持灵活扩展和替换。新的 PLC 协议、存储后端、数据处理逻辑都可以通过实现相应接口快速集成。
+Central 不属于主采集链路。
 
-### 分层架构
+## 2. WAL Before Primary Storage
 
-```
-┌─────────────────────────────────────┐
-│     Application Layer               │  ← 接口定义
-├─────────────────────────────────────┤
-│     Domain Layer                    │  ← 领域模型
-├─────────────────────────────────────┤
-│     Infrastructure Layer            │  ← 具体实现
-└─────────────────────────────────────┘
-```
+核心数据路径：
 
-### 接口抽象
+`PLC -> ChannelCollector -> QueueService -> WAL -> TSDB`
 
-- **IPlcClientService**: PLC 客户端服务接口
-- **IDataStorageService**: 数据存储服务接口（TSDB，如 InfluxDB）
-- **IWalStorageService**: WAL 存储服务接口（如 Parquet）
-- **IChannelCollector**: 通道采集器接口
-- **IQueueService**: 队列服务接口
-- **IMetricsCollector**: 指标收集器接口
+WAL 是安全边界，不是附属能力。
 
-### 扩展性
+WAL 生命周期分为：
 
-- **插件化**: 新功能可以通过实现接口快速集成
-- **可替换**: 核心组件可以替换为其他实现
-- **松耦合**: 模块之间通过接口交互，降低耦合度
+- `pending/`：刚写入，尚未完成主存储判定
+- `retry/`：主存储失败，等待后台回放
+- `invalid/`：无法写入 WAL 的坏消息审计目录
 
-## 运维友好
+设计目标不是“承诺绝对不丢任何数据”，而是在真实故障场景下尽量做到：
 
-内置完整的监控指标和可视化界面，支持配置热更新，提供详细的日志记录，大大降低了运维复杂度。
+- 正常消息先落本地
+- 主存储失败可重试
+- 坏消息不拖死整批
+- 故障行为可解释
 
-### 监控能力
+## 3. Explicit Runtime Contracts
 
-- **Prometheus 指标**: 完整的系统指标暴露
-- **可视化界面**: Vue3 前端界面，直观展示系统状态
-- **日志系统**: SQLite 日志数据库，支持查询和分析
-- **健康检查**: 内置健康检查端点
+框架通过接口将运行时契约与默认实现分离：
 
-### 可维护性
+- `IPlcDriverProvider`
+- `IPlcClientService`
+- `IPlcConnectionClient`
+- `IPlcDataAccessClient`
+- `IPlcTypedWriteClient`
+- `IDataStorageService`
+- `IWalStorageService`
+- `IQueueService`
+- `IChannelCollector`
+- `IAcquisitionStateManager`
 
-- **配置热更新**: 无需重启即可应用新配置
-- **详细日志**: 记录关键操作和错误信息
-- **错误追踪**: 完整的错误堆栈和上下文信息
-- **文档完善**: 详细的配置和使用文档
+这意味着：
 
-### 部署便捷
+- HslCommunication 是默认 PLC 实现，但不是架构前提
+- InfluxDB 是默认主存储，但不是唯一主存储
+- Parquet 是默认 WAL 实现，但框架本身不绑定具体文件格式
 
-- **容器化支持**: 支持 Docker 部署
-- **环境变量**: 支持通过环境变量配置
-- **多平台**: 支持 Windows、Linux、macOS
-- **依赖明确**: 清晰的依赖关系和要求
+## 4. Restart Recovery Is a Feature
 
-## Edge-Central 分布式架构
+工业采集系统不能假设进程永不重启。
 
-系统采用 Edge-Central 分布式架构，支持多车间、多节点的集中式管理。
+当前恢复设计：
 
-### 架构优势
+- active cycle 以内存 + SQLite 方式保存
+- 条件采集首拍只建立基线，不伪造 `Start/End`
+- 重启后如有需要会写入恢复诊断事件
+- 恢复诊断进入 `<measurement>_diagnostic`，不污染正式周期 measurement
 
-- **分布式部署**: Edge Agent 可以分布式部署在各个车间
-- **集中管理**: Central API 统一管理和监控所有节点
-- **高可用性**: 单个节点故障不影响其他节点
-- **可扩展性**: 易于添加新的 Edge Agent 节点
+## 5. Honest Configuration Contracts
 
-### 数据流转
+配置设计追求“小而稳定”，不追求一个虚假的“大一统模型”。
 
-1. **本地采集**: Edge Agent 在本地采集 PLC 数据
-2. **本地存储**: 数据先存储在本地（Parquet WAL）
-3. **远程上报**: 可选地上报数据到 Central API
-4. **集中监控**: Central Web 统一监控所有节点
+公共字段：
 
-> 关于性能优化的详细建议和最佳实践，请参考 [性能优化文档](performance.md)
+- `Driver`
+- `Host`
+- `Port`
+- `ProtocolOptions`
+- `Channels`
 
-## 安全性
+原则：
 
-系统在安全性方面采用以下措施：
+- 驱动只接受稳定完整名称
+- `Host` / `Port` 是公共契约，驱动不能静默忽略
+- `ProtocolOptions` 只开放当前驱动真实支持的参数
+- 未声明的 `ProtocolOptions` 在运行时直接拒绝
 
-- **InfluxDB Token 认证**: 系统通过 Token 与 InfluxDB 进行身份验证，Token 配置在 `appsettings.json` 中，建议使用环境变量管理敏感信息
-- **CORS 配置**: 支持配置允许的前端来源，防止跨域攻击
-- **环境变量配置**: 支持通过环境变量管理敏感配置信息（如 Token），避免在配置文件中明文存储
+## 运行时结构
 
-**安全建议**：
-- 生产环境建议使用环境变量管理 InfluxDB Token 等敏感信息
-- 建议在网络层面配置防火墙规则，限制 API 访问
-- 建议在生产环境使用反向代理（如 Nginx）配置 HTTPS
+### Edge 主链路
 
-## 下一步
+1. `DeviceConfigService`
+   - 加载配置并处理热更新
+2. `PlcClientLifecycleService`
+   - 按 `Driver` 创建和管理 PLC 客户端
+3. `HeartbeatMonitor`
+   - 跟踪连接健康状态
+4. `ChannelCollector`
+   - 执行 `Always` / `Conditional` 采集
+5. `QueueService`
+   - 聚合批次并驱动持久化
+6. `QueueBatchPersister`
+   - 执行 WAL-first 持久化链
+7. `ParquetRetryWorker`
+   - 回放 `retry/` 中的 WAL
+8. `InfluxDbDataStorageService`
+   - 默认主存储
 
-了解设计理念后，建议：
+### Central 侧
 
-- [文档索引](index.md)
-- [数据处理流程](data-flow.md)
-- [核心模块文档](modules.md)
+Central API 属于控制面和诊断面：
+
+- `EdgeRegistry`：注册和心跳状态
+- `EdgeDiagnosticsController`：日志和指标代理
+- `MetricsController`：中心指标观察
+
+## PLC 驱动设计
+
+驱动层是最重要的开源扩展点之一。
+
+当前设计：
+
+- 配置使用稳定 `Driver` 名称
+- 默认目录由 `HslStandardPlcDriverProvider` 提供
+- 框架核心不直接依赖 Hsl 类型
+- 第三方可以通过实现新的 `IPlcDriverProvider` 接入其他协议栈
+- 驱动实现可复用 `PlcClientServiceBase`，不需要从零实现一个过大的接口
+
+这使得：
+
+- 普通用户可以直接通过配置接入常见 PLC
+- 高级用户可以替换默认驱动实现
+
+## 有意保留的简单性
+
+当前项目没有刻意做成“过度工程”：
+
+- Hsl 驱动目录仍然保持单文件注册表
+- `ProtocolOptions` 不是重量级元数据系统
+- 恢复诊断只拆到 sibling measurement，而不是再造一个复杂事件总线
+
+这些都是刻意取舍，目的是保持：
+
+- 好上手
+- 好读
+- 好扩展
+- 好维护
+
+## 当前演进方向
+
+如果继续向更成熟的开源项目推进，优先级建议是：
+
+1. 增加主链路自动化测试
+2. 补主流驱动的 `ProtocolOptions`
+3. 继续收紧查询和文档里对正式周期与恢复诊断的边界
+4. 增加更多示例配置与故障排查文档
+
+## 相关阅读
+
+- [数据流](data-flow.md)
+- [核心模块](modules.md)
+- [驱动清单](hsl-drivers.md)

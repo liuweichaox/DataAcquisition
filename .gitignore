@@ -75,6 +75,14 @@ StyleCopReport.xml
 # Frontend
 node_modules/
 src/DataAcquisition.Central.Web/ClientApp/dist/
+src/DataAcquisition.Central.Web/dist/
+
+# Local runtime data
+Data/*.db
+Data/*.db-*
+src/DataAcquisition.Edge.Agent/Data/
+src/DataAcquisition.Edge.Agent/Logs/
+src/DataAcquisition.Central.Api/Logs/
 
 # Files built by Visual Studio
 *_i.c

@@ -18,26 +18,37 @@
 
 步骤概览：
 
-1. 实现 `IPlcClientService`
-2. 在工厂类注册新实现
-3. 添加新的 `PlcType` 枚举值
-4. 编写连接、读取、写入逻辑
+1. 如需接入新的通讯库，优先继承 `PlcClientServiceBase`
+2. 实现 `IPlcDriverProvider`
+3. 在 DI 中注册新的 provider
+4. 通过完整 `Driver` 名称配置使用该驱动
 
 建议：
 - 复用 `HslCommunication` 的协议实现
 - 保持连接生命周期与心跳检测一致
+- 只实现当前驱动真正需要的小能力：`IPlcConnectionClient`、`IPlcDataAccessClient`、`IPlcTypedWriteClient`
+- 对 `Host` / `Port` 和 `ProtocolOptions` 保持显式、诚实的配置契约
+- 默认优先实现为 `IPlcDriverProvider`，不要再引入新的硬编码工厂分支
 
 ---
 
 ## 3. 扩展存储后端
 
-实现 `IDataStorageService`：
+这个项目把“主存储”和 “WAL 存储”明确拆开：
 
-- `WriteAsync`：批量写入
-- `InitializeAsync`：初始化连接
-- `Dispose`：释放资源
+- `IDataStorageService`
+  - 负责主存储写入
+  - 当前核心方法是 `SaveBatchAsync(List<DataMessage>)`
+- `IWalStorageService`
+  - 负责本地 WAL 生命周期
+  - 需要实现 `WriteAsync` / `ReadAsync` / `DeleteAsync` / `MoveToRetryAsync` / `GetRetryFilesAsync` / `QuarantineInvalidAsync`
 
-可选方向：TimescaleDB、Kafka、S3 等。
+扩展建议：
+
+1. 替换主存储时，只改 `IDataStorageService`
+2. 替换 WAL 时，只改 `IWalStorageService`
+3. 不要绕过 `QueueService` 直接写主存储，否则会破坏 WAL-first 语义
+4. 保留 `pending/retry/invalid` 这种状态边界，避免实时写入和后台重试打架
 
 ---
 
@@ -64,4 +75,8 @@
 
 ---
 
-下一步建议阅读：[模块文档](modules.md) 和 [设计理念](design.md)
+下一步建议阅读：
+
+- [贡献指南](../CONTRIBUTING.md)
+- [模块文档](modules.md)
+- [设计理念](design.md)

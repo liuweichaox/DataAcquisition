@@ -1,170 +1,159 @@
-# 📊 核心模块文档
+# 📦 核心模块
 
-本文档介绍 DataAcquisition 系统的核心模块设计和使用方法。
+本文档按“PLC 数据采集主线”介绍当前项目的核心模块和职责划分。
 
-## 概览
+## 模块总览
 
-本页聚焦核心模块与职责划分。完整导航见索引页。
+### 1. PLC 驱动层
 
-## 目录
+位置：
 
-- [PLC 客户端实现](#plc-客户端实现)
-- [ChannelCollector - 通道采集器](#channelcollector---通道采集器)
-- [InfluxDbDataStorageService - 数据存储服务](#influxdbdatastorageservice---数据存储服务)
-- [MetricsCollector - 指标收集器](#metricscollector---指标收集器)
-- [系统扩展](#系统扩展)
+- `src/DataAcquisition.Application/Abstractions/IPlcClientService.cs`
+- `src/DataAcquisition.Application/Abstractions/IPlcClientFactory.cs`
+- `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
+- `src/DataAcquisition.Infrastructure/Clients/HslPlcClientService.cs`
 
-## PLC 客户端实现
+职责：
 
-系统支持多种 PLC 协议，每个协议都有对应的客户端实现：
+- 用稳定 `Driver` 名称选择 PLC 通讯实现
+- 屏蔽上层对 HslCommunication 的直接依赖
+- 校验并应用 `ProtocolOptions`
 
-| 协议         | 实现类                        | 描述                  |
-| ------------ | ----------------------------- | --------------------- |
-| Mitsubishi   | `MitsubishiPlcClientService`  | 三菱 PLC 通信客户端   |
-| Inovance     | `InovancePlcClientService`    | 汇川 PLC 通信客户端   |
-| BeckhoffAds  | `BeckhoffAdsPlcClientService` | 倍福 ADS 协议客户端   |
+当前默认实现：
 
-## ChannelCollector - 通道采集器
+- `HslStandardPlcDriverProvider`
+- `HslPlcClientService`
 
-`ChannelCollector` 是系统的核心采集组件，负责从 PLC 读取数据。
+### 2. 采集编排层
 
-### 功能特性
+位置：
 
-- **自动连接管理**: 自动检测和处理 PLC 连接状态，断开后自动重连
-- **多种采集模式**: 支持持续采集（Always）和条件触发采集（Conditional）
-- **批量读取优化**: 支持批量读取多个连续寄存器，减少网络往返，提高采集效率
-- **线程安全**: 确保同一 PLC 设备的并发访问安全
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/HeartbeatMonitor.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/ChannelCollector.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/AcquisitionStateManager.cs`
 
-### 采集模式说明
+职责：
 
-#### Always 模式（持续采集）
+- 按设备和通道启动采集任务
+- 管理 PLC 连接健康状态
+- 执行 Always / Conditional 采集
+- 管理 active cycle，并在重启后恢复状态
 
-按配置的 `AcquisitionInterval` 间隔持续采集数据。
+这里是整个 PLC 采集主线的核心。
 
-**适用场景**：
-- 需要持续监控的传感器数据（温度、压力等）
-- 需要固定频率采集的数据
+### 3. 队列与持久化层
 
-**配置示例**：
-```json
-{
-  "AcquisitionMode": "Always",
-  "AcquisitionInterval": 100,
-  "Metrics": [
-    {
-      "MetricLabel": "temperature",
-      "FieldName": "temperature",
-      "Register": "D6000",
-      "Index": 0,
-      "DataType": "short",
-      "EvalExpression": "value / 100.0"
-    }
-  ]
-}
-```
+位置：
 
-#### Conditional 模式（条件触发采集）
+- `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+- `src/DataAcquisition.Infrastructure/DataStorages/ParquetFileStorageService.cs`
+- `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
-根据指定寄存器的值变化触发采集。
+职责：
 
-**适用场景**：
-- 生产周期管理（生产开始/结束事件）
-- 设备状态变化记录
-- 按条件触发的数据采集
+- 批量聚合数据消息
+- 先写 WAL，再写主存储
+- 对主存储失败进行重试
+- 对无法写入 WAL 的坏消息做 `invalid/` 隔离
 
-**配置示例**：
-```json
-{
-  "AcquisitionMode": "Conditional",
-  "ConditionalAcquisition": {
-    "Register": "D6006",
-    "DataType": "short",
-    "StartTriggerMode": "RisingEdge",
-    "EndTriggerMode": "FallingEdge"
-  },
-  "Metrics": null
-}
-```
+关键目录：
 
-## InfluxDbDataStorageService - 数据存储服务
+- `pending/`
+- `retry/`
+- `invalid/`
 
-`InfluxDbDataStorageService` 负责将采集的数据写入 InfluxDB 时序数据库。
+### 4. 配置与运维层
 
-### 功能特性
+位置：
 
-- **批量写入**: 按配置的 `BatchSize` 批量写入数据，提高写入效率
-- **自动重试**: 写入失败时自动保留 WAL 文件，由后台重试机制自动重试
-- **性能监控**: 自动记录写入延迟和批量效率指标，便于性能分析
-- **数据安全**: 采用 WAL-first 架构，确保数据零丢失
+- `src/DataAcquisition.Infrastructure/DeviceConfigs/DeviceConfigService.cs`
+- `src/DataAcquisition.Infrastructure/Metrics/*`
+- `src/DataAcquisition.Infrastructure/Logs/*`
 
-### 配置说明
+职责：
 
-在 `appsettings.json` 中配置 InfluxDB 连接信息：
+- 设备配置加载与热更新
+- Prometheus 指标
+- SQLite 日志查询
 
-```json
-{
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token-here",
-    "Bucket": "iot",
-    "Org": "default"
-  }
-}
-```
+### 5. 宿主层
 
-**配置项说明**：
-- `Url`: InfluxDB 服务器地址
-- `Token`: InfluxDB 认证令牌（建议使用环境变量管理）
-- `Bucket`: 数据存储桶名称
-- `Org`: InfluxDB 组织名称
+位置：
 
-## MetricsCollector - 指标收集器
+- `src/DataAcquisition.Edge.Agent/Program.cs`
+- `src/DataAcquisition.Edge.Agent/BackgroundServices/*`
+- `src/DataAcquisition.Central.Api/*`
+- `src/DataAcquisition.Central.Web/*`
 
-系统内置完整的监控指标，通过 Prometheus 格式暴露。
+职责：
 
-### 采集指标
+- Edge Agent：采集宿主、后台 Worker、本地诊断 API
+- Central API：节点注册、心跳、诊断代理
+- Central Web：集中查看状态和指标
 
-- **`data_acquisition_collection_latency_ms`** - 采集延迟（从 PLC 读取到写入数据库的时间，毫秒）
-- **`data_acquisition_collection_rate`** - 采集频率（每秒采集的数据点数，points/s）
+## 关键运行链路
 
-### 队列指标
+### Always / Conditional 数据采集
 
-- **`data_acquisition_queue_depth`** - 队列深度（Channel 待读取 + 批量积累的待处理消息总数）
-- **`data_acquisition_processing_latency_ms`** - 处理延迟（队列处理延迟，毫秒）
+主流程：
 
-### 存储指标
+1. `DataAcquisitionService` 启动每个设备/通道的采集循环
+2. `HeartbeatMonitor` 判断 PLC 是否可采
+3. `ChannelCollector` 从 PLC 读取数据
+4. 生成 `DataMessage`
+5. 交给 `QueueService`
+6. `QueueService` 先写 WAL，再写主存储
 
-- **`data_acquisition_write_latency_ms`** - 写入延迟（数据库写入延迟，毫秒）
-- **`data_acquisition_batch_write_efficiency`** - 批量写入效率（批量大小/写入耗时，points/ms）
+### 条件采集恢复
 
-### 错误与连接指标
+条件采集额外依赖：
 
-- **`data_acquisition_errors_total`** - 错误总数（按设备/通道统计）
-- **`data_acquisition_connection_status_changes_total`** - 连接状态变化总数
-- **`data_acquisition_connection_duration_seconds`** - 连接持续时间（秒）
+- `AcquisitionStateManager`
 
-## 系统扩展
+当前行为：
 
-系统采用接口抽象设计，支持灵活的扩展：
+- active cycle 同时保存在内存和 SQLite
+- 首拍只建立基线，不伪造正常 `Start/End`
+- 必要时写入 `RecoveredStart` / `Interrupted`
+- 恢复诊断写入 `<measurement>_diagnostic`
+- 采集消息统一使用 UTC 时间戳
 
-### 添加新的 PLC 协议
+正式周期统计时，应只把成对的 `Start` / `End` 视为完整周期。
 
-1. 实现 `IPlcClientService` 接口
-2. 在 `PlcClientFactory` 中注册新的协议类型
-3. 在设备配置中使用新的协议类型
+## 当前最重要的扩展点
 
-### 添加新的存储后端
+### 扩展新的 PLC 驱动
 
-1. 实现 `IDataStorageService`（TSDB）或 `IWalStorageService`（WAL）接口
-2. 在 `Program.cs` 中注册新的存储服务
-3. 系统会同时使用多个存储后端
+1. 实现新的 `IPlcDriverProvider`
+2. 如果需要，增加新的 `IPlcClientService` 实现
+3. 在 `Program.cs` 中注册 provider
+4. 在配置中使用完整 `Driver` 名称
 
-详细的扩展方法请参考 [FAQ](faq.md) 中的相关说明。
+### 替换主存储
 
-## 下一步
+1. 实现 `IDataStorageService`
+2. 在 Edge Agent 中替换默认注册
 
-了解核心模块后，建议继续学习：
+### 替换 WAL
 
-- [文档索引](index.md)
-- [数据处理流程](data-flow.md)
-- [设计理念](design.md)
+1. 实现 `IWalStorageService`
+2. 确保保留 `pending/retry/invalid` 这类状态语义
+
+## 自动化测试
+
+测试项目位置：
+
+- `tests/DataAcquisition.Core.Tests`
+
+当前优先覆盖的行为：
+
+- 驱动配置校验
+- active cycle 持久化恢复
+- WAL 坏消息隔离
+
+## 相关阅读
+
+- [架构设计](design.md)
+- [数据流](data-flow.md)
+- [配置教程](tutorial-configuration.md)

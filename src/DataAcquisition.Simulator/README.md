@@ -6,8 +6,7 @@
 
 - ✅ 模拟三菱 PLC（MelsecMcServer）
 - ✅ 自动数据更新（心跳、6 个传感器指标、生产序号）
-- ✅ 交互式命令控制
-- ✅ 实时数据显示
+- ✅ 控制台实时输出当前模拟数据
 - ✅ 支持条件采集测试（生产序号触发）
 
 ## 快速开始
@@ -51,18 +50,11 @@ netstat -ano | findstr :502
 
 如果端口没有在监听，检查程序日志中的错误信息。
 
-### 交互式命令
-
-- `set <地址> <值>` - 设置寄存器值（例如: `set D6000 123`）
-- `get <地址>` - 读取寄存器值（例如: `get D6000`）
-- `info` - 显示当前测试寄存器状态
-- `exit` - 退出程序
-
 ### 自动更新的寄存器
 
 #### 心跳寄存器
 
-- **D100** - 心跳寄存器（自动递增，0-65535 循环）
+- **D100** - 心跳寄存器（默认写入 `0`，用于验证采集链路可写）
 
 #### 传感器数据（批量读取起始地址：D6000）
 
@@ -75,6 +67,11 @@ netstat -ano | findstr :502
 | D6004 | 8  | 光栅位置 | 0-1000        | mm     | 正弦波动               |
 | D6005 | 10 | 伺服速度 | 0-3000        | rpm    | 余弦波动               |
 | D6006 | 12 | 生产序号 | 0, 1, 2, 3... | -      | 特殊逻辑见下文            |
+
+#### 字符串测试寄存器
+
+- **D6010** - 批次号字符串（示例：`BATCH-001`，每个生产周期递增）
+- 用于验证 `DataType=string` 的读取能力
 
 #### 生产序号特殊逻辑
 
@@ -103,9 +100,9 @@ netstat -ano | findstr :502
 {
   "IsEnabled": true,
   "PlcCode": "TEST_PLC",
+  "Driver": "melsec-a1e",
   "Host": "127.0.0.1",
   "Port": 502,
-  "Type": "Mitsubishi",
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 2000,
   "Channels": [
@@ -125,7 +122,8 @@ netstat -ano | findstr :502
         { "MetricLabel": "voltage", "FieldName": "voltage", "Register": "D6003", "Index": 6, "DataType": "short", "EvalExpression": "value / 10.0" },
         { "MetricLabel": "lightBarrierPosition", "FieldName": "lightBarrierPosition", "Register": "D6004", "Index": 8, "DataType": "short" },
         { "MetricLabel": "servoSpeed", "FieldName": "servoSpeed", "Register": "D6005", "Index": 10, "DataType": "short" },
-        { "MetricLabel": "productionSerial", "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" }
+        { "MetricLabel": "productionSerial", "FieldName": "productionSerial", "Register": "D6006", "Index": 12, "DataType": "short" },
+        { "MetricLabel": "productCode", "FieldName": "productCode", "Register": "D6010", "DataType": "string", "StringByteLength": 16, "Encoding": "utf-8" }
       ]
     },
     {
@@ -182,7 +180,10 @@ netstat -ano | findstr :502
     - **End 事件**：当生产序号从非 0 变为 0 时
 - 数据保存到 InfluxDB 的 `production` measurement
 - 每个生产周期生成唯一的 `cycle_id`（GUID）
-- 事件类型通过 `event_type` 字段标识（Start/End）
+- 事件类型通过 `event_type` 字段标识（正常情况下为 `Start` / `End`）
+- 如果服务在生产周期中间重启，系统还可能写入 `RecoveredStart` / `Interrupted` 作为恢复诊断事件
+- 恢复诊断事件会写入 `production_diagnostic` measurement
+- 正式周期统计应只使用成对的 `Start` / `End`
 
 ## 测试流程
 

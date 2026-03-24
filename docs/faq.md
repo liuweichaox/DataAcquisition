@@ -27,30 +27,32 @@
 
 ## Q: 数据丢失怎么办？
 
-**A**: 系统采用 WAL-first 架构，所有数据先写入 Parquet 文件，再写入 InfluxDB。只有两者都成功才会删除 WAL 文件，确保数据零丢失。
+**A**: 系统采用 WAL-first 架构，健康消息会先写入 Parquet 文件，再写入 InfluxDB。只有主存储成功后，才会删除对应的 WAL 文件。
 
 如果发现数据丢失，可以：
 
 1. 检查 `Data/parquet/retry` 目录下是否有未处理的 WAL 文件（这些是写入失败需要重试的文件）
 2. 查看日志确认写入失败原因
-3. 系统会自动重试失败的写入操作
+3. 检查 `Data/parquet/invalid` 目录是否存在被隔离的坏消息
+4. 系统会自动重试失败的写入操作
 
-**注意**：`Data/parquet` 目录下包含两个子文件夹：
-- `pending`：新创建的 WAL 文件（PersistBatchAsync 专属）
-- `retry`：需要重试的 WAL 文件（ParquetRetryWorker 专属）
+**注意**：`Data/parquet` 目录下包含三个子文件夹：
+- `pending`：实时写入流程刚落盘、尚未完成主存储判定的 WAL 文件
+- `retry`：主存储失败后等待后台 Worker 重试的 WAL 文件
+- `invalid`：无法写入 WAL 的坏消息审计记录
 
 ## Q: 如何添加新的 PLC 协议？
 
-**A**: 需要修改源代码，实现 `IPlcClientService` 接口并在 `PlcClientFactory` 中注册。
+**A**: 默认情况下无需修改核心工厂。你可以实现 `IPlcClientService` 和 `IPlcDriverProvider`，然后通过依赖注入注册新的驱动提供者。
 
 **步骤**：
 
 1. 创建新的 PLC 客户端类，实现 `IPlcClientService` 接口
-2. 在 `PlcClientFactory` 中添加协议类型映射
-3. 在 `PlcType` 枚举中添加新的协议类型
-4. 在设备配置中使用新的协议类型
+2. 创建新的 `IPlcDriverProvider`
+3. 在启动时注册 provider
+4. 在设备配置中通过 `Driver` 使用新的驱动
 
-**注意**：这需要修改源代码并重新编译，建议有开发经验的用户进行。
+**注意**：如果只是使用内置的 Hsl 驱动目录，通常只需要修改配置，不需要修改源代码。
 
 ## Q: 配置修改后需要重启吗？
 
@@ -89,9 +91,9 @@ curl http://localhost:8000/api/metrics-data
 
 **步骤**：
 
-1. 创建新的存储服务类，实现 `IDataStorageService` 或 `IWalStorageService` 接口
-2. 在 `Program.cs` 中注册新的存储服务
-3. 系统会同时使用多个存储后端
+1. 如果要替换主时序存储，实现 `IDataStorageService.SaveBatchAsync`
+2. 如果要替换 WAL 后端，实现 `IWalStorageService`
+3. 在 `Program.cs` 中注册对应实现并替换默认实现
 
 **注意**：这需要修改源代码并重新编译，建议有开发经验的用户进行。
 
@@ -169,7 +171,7 @@ curl http://localhost:8000/api/metrics-data
 
 3. **检查配置正确性**:
    - 确认设备配置文件中的 `Host`、`Port` 参数正确
-   - 确认 `Type` 参数与实际的 PLC 类型匹配（Mitsubishi、Inovance、BeckhoffAds）
+   - 确认 `Driver` 使用的是完整协议名称，并且在 [hsl-drivers.md](./hsl-drivers.md) 支持列表中
    - 确认 `PlcCode` 不为空且唯一
 
 4. **查看日志信息**:
@@ -202,20 +204,17 @@ curl http://localhost:8000/api/metrics-data
 
 ## Q: 支持哪些 PLC 协议？
 
-**A**: 目前支持以下 PLC 协议：
+**A**: 默认内置的 Hsl 驱动清单见 [hsl-drivers.md](./hsl-drivers.md)。
 
-- Mitsubishi（三菱）
-- Inovance（汇川）
-- BeckhoffAds（倍福）
-
-其他协议可以通过实现 `IPlcClientService` 接口并在 `PlcClientFactory` 中注册来扩展支持。
+- 每个 PLC 协议只保留一个完整 `Driver` 名称
+- 其他协议可以通过实现 `IPlcDriverProvider` 扩展支持
 
 ## Q: 配置文件格式错误怎么办？
 
 **A**: 配置文件必须是有效的 JSON 格式。常见错误：
 
 1. **JSON 格式错误**: 检查是否有缺少逗号、引号未闭合等问题
-2. **必填字段缺失**: 确保 `PlcCode`、`Host`、`Port`、`Type`、`Channels` 等必填字段存在
+2. **必填字段缺失**: 确保 `PlcCode`、`Host`、`Port`、`Driver`、`Channels` 等必填字段存在
 3. **字段类型错误**: 确保 `Port` 是数字，`IsEnabled` 是布尔值等
 
 **验证方法**：

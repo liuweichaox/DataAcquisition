@@ -1,62 +1,42 @@
-# Getting Started Tutorial: From Zero to Running
+# Getting Started
 
-This guide walks you through environment setup, simulator, configuration, and verification.
+This guide follows the shortest working path: start InfluxDB, generate PLC data with the simulator, run the Edge Agent, and verify both primary storage and WAL behavior.
 
----
+## Prerequisites
 
-## 1. Prerequisites
+- .NET 10 SDK
+- InfluxDB 2.x
+- Node.js 20+ only if you want to run Central Web
 
-### Required Software
+Default ports:
 
-- .NET SDK 10.0+
-- InfluxDB 2.x (local installation or Docker deployment, see options below)
-- Node.js 18+ (only needed for Central Web)
+| Service | Port |
+|---------|------|
+| Edge Agent | `8001` |
+| Central API | `8000` |
+| Central Web | `3000` |
+| InfluxDB | `8086` |
 
-### Default Ports
-
-| Service | Default Port | Description |
-|---------|-------------|-------------|
-| Edge Agent | `8001` | Edge collection agent (for Central API callback to query logs/metrics) |
-| Central API | `8000` | Central API service |
-| Central Web | `3000` | Frontend Web UI (dev mode) |
-| InfluxDB | `8086` | Time-series database |
-
-### InfluxDB Installation Options
-
-#### Option A: Local Installation (Full Features)
-
-Download and install from [InfluxDB Official](https://www.influxdata.com/downloads/).
-
-#### Option B: Docker Deployment (Recommended for Quick Testing)
-
-```bash
-docker-compose -f docker-compose.tsdb.yml up -d influxdb
-```
-
-Detailed guide: [Docker InfluxDB Deployment Guide](docker-influxdb.en.md)
-
----
-
-## 2. Get the Code
+## 1. Clone the Repository
 
 ```bash
 git clone https://github.com/liuweichaox/DataAcquisition.git
 cd DataAcquisition
 ```
 
----
+## 2. Start InfluxDB
 
-## 3. Configure InfluxDB
+The fastest path is the Compose file already included in the repository:
 
-Create in InfluxDB:
+```bash
+docker compose -f docker-compose.tsdb.yml up -d
+```
 
-- Organization: `default`
-- Bucket: `iot`
-- Token: generate one
+See [docker-influxdb.en.md](docker-influxdb.en.md) for more detail.
 
-Update Edge Agent config:
+## 3. Configure the Edge Agent
 
-File: `src/DataAcquisition.Edge.Agent/appsettings.json`
+Edit [src/DataAcquisition.Edge.Agent/appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json):
 
 ```json
 {
@@ -70,8 +50,13 @@ File: `src/DataAcquisition.Edge.Agent/appsettings.json`
   "Parquet": {
     "Directory": "./Data/parquet"
   },
+  "Acquisition": {
+    "StateStore": {
+      "DatabasePath": "Data/acquisition-state.db"
+    }
+  },
   "Edge": {
-    "EnableCentralReporting": true,
+    "EnableCentralReporting": false,
     "CentralApiBaseUrl": "http://localhost:8000",
     "EdgeId": "EDGE-001",
     "HeartbeatIntervalSeconds": 10
@@ -79,34 +64,32 @@ File: `src/DataAcquisition.Edge.Agent/appsettings.json`
 }
 ```
 
-> **Note**: `Urls` uses `http://+:8001` to listen on all network interfaces. Edge Agent will auto-detect the local IP at startup and report it to Central API, ensuring central proxy callbacks are reachable.
+If you are only validating the acquisition path, keep `EnableCentralReporting` set to `false` first so central registration noise does not distract from edge-side troubleshooting.
 
----
-
-## 4. Start PLC Simulator
-
-The simulator replaces a real PLC and generates continuously changing data.
+## 4. Start the PLC Simulator
 
 ```bash
-cd src/DataAcquisition.Simulator
-dotnet run
+dotnet run --project src/DataAcquisition.Simulator
 ```
 
-The simulator prints register data continuously.
+The simulator prints changing register values and can be used instead of a real PLC during development.
 
----
+## 5. Prepare a Device Config
 
-## 5. Create Device Config
-
-Create `TEST_PLC.json` in `src/DataAcquisition.Edge.Agent/Configs/`:
+Use [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json) as reference. Minimal example:
 
 ```json
 {
+  "SchemaVersion": 1,
   "IsEnabled": true,
   "PlcCode": "PLC01",
+  "Driver": "melsec-a1e",
   "Host": "127.0.0.1",
   "Port": 502,
-  "Type": "Mitsubishi",
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
   "HeartbeatMonitorRegister": "D100",
   "HeartbeatPollingInterval": 5000,
   "Channels": [
@@ -134,44 +117,26 @@ Create `TEST_PLC.json` in `src/DataAcquisition.Edge.Agent/Configs/`:
 }
 ```
 
----
+Driver selection accepts full `Driver` names only. See [hsl-drivers.en.md](hsl-drivers.en.md) for the catalog.
+If your editor supports JSON Schema, point it to [../schemas/device-config.schema.json](../schemas/device-config.schema.json).
 
-## 6. Run Edge Agent
+## 6. Run the Edge Agent
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent
 ```
 
----
+If the device config and InfluxDB are correct, the console should show acquisition and storage activity.
 
-## 7. Run Central API
-
-```bash
-dotnet run --project src/DataAcquisition.Central.Api
-```
-
-Verify:
-
-- Health: `http://localhost:8000/health`
-- Metrics: `http://localhost:8000/metrics`
-
----
-
-## 8. Run Central Web
+Validate configs without starting the runtime:
 
 ```bash
-cd src/DataAcquisition.Central.Web
-pnpm install
-pnpm run serve
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-Open `http://localhost:3000`.
+## 7. Verify Primary Storage
 
----
-
-## 9. Verify Data
-
-Use Flux query:
+Run this Flux query in InfluxDB:
 
 ```flux
 from(bucket: "iot")
@@ -180,20 +145,43 @@ from(bucket: "iot")
   |> yield(name: "latest")
 ```
 
----
+If rows are returned, the main acquisition path is working.
 
-## 10. Verify WAL
+## 8. Verify WAL Behavior
 
-Stop InfluxDB and observe:
+Stop InfluxDB while keeping the Edge Agent running. Then observe:
 
-- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/` has WAL files
-- After DB recovery, files are retried and cleaned
+- new files may appear briefly under `pending/`
+- if the primary store keeps failing, files are moved into `retry/`
+- poison messages that cannot be written to WAL are quarantined into `invalid/`
 
----
+Default paths:
 
-## Next Steps
+- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/`
+- `src/DataAcquisition.Edge.Agent/Data/parquet/retry/`
+- `src/DataAcquisition.Edge.Agent/Data/parquet/invalid/`
+
+## 9. Optional: Start the Central Side
+
+The central side is not part of the main acquisition path. It is usually better to validate Edge first.
+
+Run Central API:
+
+```bash
+dotnet run --project src/DataAcquisition.Central.Api
+```
+
+Run Central Web:
+
+```bash
+cd src/DataAcquisition.Central.Web
+pnpm install
+pnpm run serve
+```
+
+## Next
 
 - [Configuration Tutorial](tutorial-configuration.en.md)
-- [Data Query Tutorial](tutorial-data-query.en.md)
 - [Deployment Tutorial](tutorial-deployment.en.md)
+- [Design](design.en.md)
 - [Development Tutorial](tutorial-development.en.md)

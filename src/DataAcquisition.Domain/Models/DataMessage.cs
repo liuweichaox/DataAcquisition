@@ -29,22 +29,27 @@ public class DataMessage
     public required string ChannelCode { get; init; }
 
     /// <summary>
-    ///     事件类型：start（开始事件）、end（结束事件）、data（普通数据点）[Field]
+    ///     正式业务事件类型：start、end、data。[Field]
     /// </summary>
-    public EventType EventType { get; private init; }
+    public EventType? EventType { get; private init; }
+
+    /// <summary>
+    ///     诊断事件类型，仅用于恢复/异常审计，不参与正式周期口径。[Field]
+    /// </summary>
+    public DiagnosticEventType? DiagnosticType { get; private init; }
 
     /// <summary>
     ///     数据值字典，存储所有采集的数据点值[Field]
     /// </summary>
-    public ConcurrentDictionary<string, dynamic?> DataValues { get; } = new();
+    public ConcurrentDictionary<string, object?> DataValues { get; } = new();
 
     /// <summary>
     ///     时间戳[Time]
     /// </summary>
-    public DateTime Timestamp { get; private set; }
+    public DateTimeOffset Timestamp { get; private set; }
 
     public static DataMessage Create(string cycleId, string measurement, string plcCode, string channelCode,
-        EventType eventType, DateTime timestamp)
+        EventType eventType, DateTimeOffset timestamp)
     {
         return new DataMessage
         {
@@ -57,15 +62,36 @@ public class DataMessage
         };
     }
 
-
-    public bool AddDataValue(string key, dynamic? value)
+    public static DataMessage CreateDiagnostic(
+        string cycleId,
+        string measurement,
+        string plcCode,
+        string channelCode,
+        DiagnosticEventType diagnosticType,
+        DateTimeOffset timestamp)
     {
-        return DataValues.TryAdd(key, value);
+        return new DataMessage
+        {
+            CycleId = cycleId,
+            Measurement = measurement,
+            PlcCode = plcCode,
+            ChannelCode = channelCode,
+            DiagnosticType = diagnosticType,
+            Timestamp = timestamp
+        };
     }
 
-    public bool UpdateDataValue(string key, dynamic? newValue, dynamic? originalValue)
+    public bool AddDataValue(string key, object? value)
     {
-        return DataValues.TryUpdate(key, newValue, originalValue);
+        return DataValues.TryAdd(key, DataValueNormalizer.Normalize(value));
+    }
+
+    public bool UpdateDataValue(string key, object? newValue, object? originalValue)
+    {
+        return DataValues.TryUpdate(
+            key,
+            DataValueNormalizer.Normalize(newValue),
+            DataValueNormalizer.Normalize(originalValue));
     }
 }
 
@@ -74,4 +100,10 @@ public enum EventType
     Start,
     End,
     Data
+}
+
+public enum DiagnosticEventType
+{
+    RecoveredStart,
+    Interrupted
 }

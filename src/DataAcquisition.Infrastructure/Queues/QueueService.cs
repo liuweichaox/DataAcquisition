@@ -19,14 +19,13 @@ namespace DataAcquisition.Infrastructure.Queues;
 public class QueueService : IQueueService
 {
     private readonly object _batchLock = new();
-    private readonly ConcurrentDictionary<string, int> _batchSizeCache = new();
     private readonly Channel<DataMessage> _channel = Channel.CreateUnbounded<DataMessage>();
     private readonly ConcurrentDictionary<string, List<DataMessage>> _dataBatchMap = new();
-    private readonly IDeviceConfigService _deviceConfigService;
+    private readonly BatchSizeResolver _batchSizeResolver;
+    private readonly QueueBatchPersister _batchPersister;
     private readonly TimeSpan _flushInterval;
     private readonly Timer? _flushTimer;
-    private readonly IDataStorageService _primaryStorage;
-    private readonly IWalStorageService _walStorage;
+    private readonly SemaphoreSlim _flushSemaphore = new(1, 1);
     private readonly ILogger<QueueService> _logger;
     private readonly IMetricsCollector? _metricsCollector;
 
@@ -38,11 +37,10 @@ public class QueueService : IQueueService
         IDeviceConfigService deviceConfigService,
         IMetricsCollector? metricsCollector = null)
     {
-        _walStorage = walStorage;
-        _primaryStorage = primaryStorage;
         _logger = logger;
         _metricsCollector = metricsCollector;
-        _deviceConfigService = deviceConfigService;
+        _batchSizeResolver = new BatchSizeResolver(deviceConfigService, logger);
+        _batchPersister = new QueueBatchPersister(walStorage, primaryStorage, logger, metricsCollector);
 
         var options = acquisitionOptions.Value.QueueService;
         _flushInterval = TimeSpan.FromSeconds(options.FlushIntervalSeconds);
@@ -77,79 +75,31 @@ public class QueueService : IQueueService
         _flushTimer?.Dispose();
         _channel.Writer.TryComplete();
 
-        // 刷新积压的批次数据，避免丢失
-        List<KeyValuePair<string, List<DataMessage>>> remaining;
-        lock (_batchLock)
+        await _flushSemaphore.WaitAsync().ConfigureAwait(false);
+        try
         {
-            remaining = _dataBatchMap
-                .Where(kvp => kvp.Value.Count > 0)
-                .Select(kvp => new KeyValuePair<string, List<DataMessage>>(kvp.Key, [.. kvp.Value]))
-                .ToList();
-            _dataBatchMap.Clear();
+            var remaining = TakePendingBatches(clearAll: true);
+            foreach (var batch in remaining)
+            {
+                var persisted = await _batchPersister.PersistAsync(batch.Measurement, batch.Messages).ConfigureAwait(false);
+                if (!persisted)
+                    _logger.LogCritical(
+                        "服务释放期间 WAL 持久化失败，内存批次未能落盘: {BatchKey}, Count={Count}",
+                        batch.BatchKey,
+                        batch.Messages.Count);
+            }
         }
-
-        foreach (var batch in remaining)
+        finally
         {
-            var measurement = batch.Key.Split(':').LastOrDefault() ?? batch.Key;
-            await PersistBatchAsync(measurement, batch.Value).ConfigureAwait(false);
+            _flushSemaphore.Release();
+            _flushSemaphore.Dispose();
         }
     }
 
     /// <summary>定时刷新未达 BatchSize 的积压批次。</summary>
-    private async void FlushBatches(object? state)
+    private void FlushBatches(object? state)
     {
-        try
-        {
-            List<KeyValuePair<string, List<DataMessage>>> batchesToFlush;
-            lock (_batchLock)
-            {
-                batchesToFlush = _dataBatchMap
-                    .Where(kvp => kvp.Value.Count > 0)
-                    .Select(kvp => new KeyValuePair<string, List<DataMessage>>(kvp.Key, [.. kvp.Value]))
-                    .ToList();
-                foreach (var kvp in batchesToFlush)
-                    _dataBatchMap[kvp.Key].Clear();
-            }
-
-            foreach (var batch in batchesToFlush)
-            {
-                var measurement = batch.Key.Split(':').LastOrDefault() ?? batch.Key;
-                await PersistBatchAsync(measurement, batch.Value).ConfigureAwait(false);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "定时刷新批次失败: {Message}", ex.Message);
-        }
-    }
-
-    /// <summary>
-    ///     WAL-first 持久化：先写 WAL 保证数据安全，再写主存储。
-    ///     主存储成功则删除 WAL；失败则将 WAL 移入重试队列。
-    /// </summary>
-    private async Task PersistBatchAsync(string measurement, List<DataMessage> messages)
-    {
-        try
-        {
-            var walPath = await _walStorage.WriteAsync(messages).ConfigureAwait(false);
-            var success = await _primaryStorage.SaveBatchAsync(messages).ConfigureAwait(false);
-
-            if (success && !string.IsNullOrEmpty(walPath))
-            {
-                await _walStorage.DeleteAsync(walPath).ConfigureAwait(false);
-            }
-            else if (!string.IsNullOrEmpty(walPath))
-            {
-                await _walStorage.MoveToRetryAsync(walPath).ConfigureAwait(false);
-                var first = messages.FirstOrDefault();
-                _metricsCollector?.RecordError(first?.PlcCode ?? "unknown", measurement, first?.ChannelCode);
-                _logger.LogWarning("主存储写入失败，WAL 已移入重试队列: {WalPath}", walPath);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "WAL 持久化失败 {Measurement}: {Message}", measurement, ex.Message);
-        }
+        _ = FlushPendingBatchesAsync();
     }
 
     private int GetTotalQueueDepth()
@@ -160,26 +110,7 @@ public class QueueService : IQueueService
     }
 
     private int GetBatchSize(string? plcCode, string? channelCode, string measurement)
-    {
-        var cacheKey = $"{plcCode ?? "unknown"}:{channelCode ?? "unknown"}:{measurement}";
-
-        return _batchSizeCache.GetOrAdd(cacheKey, _ =>
-        {
-            try
-            {
-                var configs = _deviceConfigService.GetConfigs().GetAwaiter().GetResult();
-                var channel = configs
-                    .FirstOrDefault(c => c.PlcCode == plcCode)
-                    ?.Channels?.FirstOrDefault(ch => ch.ChannelCode == channelCode && ch.Measurement == measurement);
-                return channel?.BatchSize > 0 ? channel.BatchSize : 1;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "获取 BatchSize 配置失败，使用默认值 1: {CacheKey}", cacheKey);
-                return 1;
-            }
-        });
-    }
+        => _batchSizeResolver.GetBatchSize(plcCode, channelCode, measurement);
 
     /// <summary>
     ///     按 plcCode:channelCode:measurement 批量聚合，达到 BatchSize 后 WAL-first 持久化。
@@ -190,19 +121,89 @@ public class QueueService : IQueueService
         var batchKey = $"{msg.PlcCode ?? "unknown"}:{msg.ChannelCode ?? "unknown"}:{msg.Measurement}";
         var batchSize = GetBatchSize(msg.PlcCode, msg.ChannelCode, msg.Measurement);
 
-        List<DataMessage>? batchToSave = null;
+        PendingBatch? batchToSave = null;
         lock (_batchLock)
         {
             var batch = _dataBatchMap.GetOrAdd(batchKey, _ => new List<DataMessage>());
             batch.Add(msg);
             if (batchSize <= 1 || batch.Count >= batchSize)
             {
-                batchToSave = [.. batch];
-                batch.Clear();
+                batchToSave = new PendingBatch(batchKey, msg.Measurement, [.. batch]);
+                _dataBatchMap.TryRemove(batchKey, out _);
             }
         }
 
         if (batchToSave != null)
-            await PersistBatchAsync(msg.Measurement, batchToSave).ConfigureAwait(false);
+        {
+            var persisted = await _batchPersister.PersistAsync(batchToSave.Measurement, batchToSave.Messages)
+                .ConfigureAwait(false);
+            if (!persisted)
+                RequeueBatch(batchToSave.BatchKey, batchToSave.Messages);
+        }
+    }
+
+    private List<PendingBatch> TakePendingBatches(bool clearAll)
+    {
+        lock (_batchLock)
+        {
+            var batches = _dataBatchMap
+                .Where(kvp => kvp.Value.Count > 0)
+                .Select(kvp => new PendingBatch(kvp.Key, GetMeasurementFromBatchKey(kvp.Key), [.. kvp.Value]))
+                .ToList();
+
+            if (clearAll)
+            {
+                foreach (var batch in batches)
+                    _dataBatchMap.TryRemove(batch.BatchKey, out _);
+            }
+
+            return batches;
+        }
+    }
+
+    private void RequeueBatch(string batchKey, List<DataMessage> messages)
+    {
+        if (messages.Count == 0)
+            return;
+
+        lock (_batchLock)
+        {
+            var batch = _dataBatchMap.GetOrAdd(batchKey, _ => new List<DataMessage>());
+            batch.InsertRange(0, messages);
+        }
+
+        _logger.LogWarning("WAL 写入失败，批次已回补到内存队列: {BatchKey}, Count={Count}", batchKey, messages.Count);
+    }
+
+    private static string GetMeasurementFromBatchKey(string batchKey) =>
+        batchKey.Split(':').LastOrDefault() ?? batchKey;
+
+    private async Task FlushPendingBatchesAsync()
+    {
+        if (!await _flushSemaphore.WaitAsync(0).ConfigureAwait(false))
+        {
+            _logger.LogDebug("上一轮定时刷新仍在执行，跳过本轮 Flush。");
+            return;
+        }
+
+        try
+        {
+            var batchesToFlush = TakePendingBatches(clearAll: true);
+            foreach (var batch in batchesToFlush)
+            {
+                var persisted = await _batchPersister.PersistAsync(batch.Measurement, batch.Messages)
+                    .ConfigureAwait(false);
+                if (!persisted)
+                    RequeueBatch(batch.BatchKey, batch.Messages);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "定时刷新批次失败: {Message}", ex.Message);
+        }
+        finally
+        {
+            _flushSemaphore.Release();
+        }
     }
 }

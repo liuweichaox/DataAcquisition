@@ -16,6 +16,10 @@ using Prometheus;
 using Serilog;
 using Serilog.Events;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
+
+var validateConfigsOnly = HasOption(args, "--validate-configs");
+var configDirectoryOverride = GetOptionValue(args, "--config-dir");
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,6 +42,8 @@ builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(DataA
 builder.Services.AddSingleton<IMetricsCollector, MetricsCollector>();
 builder.Services.AddSingleton<MetricsBridge>();
 builder.Services.AddSingleton<IDeviceConfigService, DeviceConfigService>();
+builder.Services.AddSingleton<DeviceConfigValidationRunner>();
+builder.Services.AddSingleton<IPlcDriverProvider, HslStandardPlcDriverProvider>();
 builder.Services.AddSingleton<IPlcClientFactory, PlcClientFactory>();
 builder.Services.AddSingleton<IPlcClientLifecycleService, PlcClientLifecycleService>();
 builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>();
@@ -82,6 +88,33 @@ Log.Logger = new LoggerConfiguration()
 builder.Host.UseSerilog();
 
 var app = builder.Build();
+
+if (validateConfigsOnly)
+{
+    var validationRunner = app.Services.GetRequiredService<DeviceConfigValidationRunner>();
+    var acquisitionOptions = app.Services.GetRequiredService<IOptions<AcquisitionOptions>>().Value;
+    var configDirectory = string.IsNullOrWhiteSpace(configDirectoryOverride)
+        ? DeviceConfigPathResolver.Resolve(acquisitionOptions.DeviceConfigService.ConfigDirectory)
+        : Path.GetFullPath(configDirectoryOverride);
+
+    var summary = await validationRunner.ValidateDirectoryAsync(configDirectory).ConfigureAwait(false);
+    Log.Logger.Information("配置校验目录: {ConfigDirectory}", summary.Directory);
+
+    foreach (var file in summary.Files)
+    {
+        if (file.IsValid)
+        {
+            Log.Logger.Information("  [OK] {FilePath} ({PlcCode})", file.FilePath, file.PlcCode ?? "unknown");
+            continue;
+        }
+
+        Log.Logger.Error("  [ERROR] {FilePath}", file.FilePath);
+        foreach (var error in file.Errors)
+            Log.Logger.Error("    - {Error}", error);
+    }
+
+    return summary.IsValid ? 0 : 1;
+}
 
 app.UseRouting();
 
@@ -133,4 +166,21 @@ Log.Logger.Information("    > Logs:          {0}/api/logs", baseAddress);
 Log.Logger.Information("    > Log Levels:    {0}/api/logs/levels", baseAddress);
 Log.Logger.Information("==================================================================");
 
-app.Run();
+await app.RunAsync().ConfigureAwait(false);
+return 0;
+
+static bool HasOption(string[] args, string option)
+{
+    return args.Any(arg => string.Equals(arg, option, StringComparison.OrdinalIgnoreCase));
+}
+
+static string? GetOptionValue(string[] args, string option)
+{
+    for (var i = 0; i < args.Length - 1; i++)
+    {
+        if (string.Equals(args[i], option, StringComparison.OrdinalIgnoreCase))
+            return args[i + 1];
+    }
+
+    return null;
+}
