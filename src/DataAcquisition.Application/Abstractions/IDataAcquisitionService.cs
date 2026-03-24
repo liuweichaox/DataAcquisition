@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -7,7 +8,7 @@ namespace DataAcquisition.Application.Abstractions;
 /// <summary>
 ///     定义数据采集操作的接口规范。
 /// </summary>
-public interface IDataAcquisitionService
+public interface IDataAcquisitionService : IDisposable
 {
     /// <summary>
     ///     开始采集任务。

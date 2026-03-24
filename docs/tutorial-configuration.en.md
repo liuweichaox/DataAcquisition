@@ -1,19 +1,41 @@
 # Configuration
 
-This document covers three layers of configuration:
+The goal of the configuration model is not to hide every protocol difference behind one universal schema.
 
-- device-level configuration: how to connect to a PLC
-- channel-level configuration: how to collect and shape data
-- app-level configuration: how to configure primary storage, WAL, and runtime behavior
+Instead, the model is designed to be:
 
-## Config Locations
+- stable at the top level
+- explicit about driver selection
+- extensible through `ProtocolOptions`
+- validated before runtime
 
-- device configs: `src/DataAcquisition.Edge.Agent/Configs/*.json`
-- app settings: `src/DataAcquisition.Edge.Agent/appsettings.json`
+## Where Config Lives
 
-## 1. Device-Level Configuration
+Default device config directory:
 
-Minimal structure:
+- [src/DataAcquisition.Edge.Agent/Configs](../src/DataAcquisition.Edge.Agent/Configs)
+
+Application settings:
+
+- [src/DataAcquisition.Edge.Agent/appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json)
+
+Offline validation:
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+JSON Schema:
+
+- [../schemas/device-config.schema.json](../schemas/device-config.schema.json)
+
+Example configs:
+
+- [../examples/device-configs](../examples/device-configs)
+
+## 1. Device Configuration Structure
+
+Minimal example:
 
 ```json
 {
@@ -21,7 +43,7 @@ Minimal structure:
   "IsEnabled": true,
   "PlcCode": "PLC01",
   "Driver": "melsec-a1e",
-  "Host": "192.168.1.100",
+  "Host": "127.0.0.1",
   "Port": 502,
   "ProtocolOptions": {
     "connect-timeout-ms": "5000",
@@ -37,56 +59,26 @@ Field reference:
 
 | Field | Required | Description |
 |------|:--------:|-------------|
-| `SchemaVersion` | ✅ | configuration structure version, currently fixed at `1` |
+| `SchemaVersion` | ✅ | config schema version, currently fixed at `1` |
 | `IsEnabled` | ✅ | whether the device is enabled |
-| `PlcCode` | ✅ | unique device identifier |
-| `Driver` | ✅ | stable driver name such as `melsec-a1e`, `melsec-mc`, `siemens-s7` |
+| `PlcCode` | ✅ | unique device identifier, must not be duplicated across files |
+| `Driver` | ✅ | stable driver name such as `melsec-a1e` or `siemens-s7` |
 | `Host` | ✅ | PLC endpoint host, accepts IPs and DNS hostnames |
 | `Port` | ✅ | PLC endpoint port |
-| `ProtocolOptions` | Optional | additional driver-specific parameters |
+| `ProtocolOptions` | Optional | driver-specific parameters |
 | `HeartbeatMonitorRegister` | ✅ | heartbeat register |
 | `HeartbeatPollingInterval` | ✅ | heartbeat polling interval in milliseconds |
-| `Channels` | ✅ | configured channels |
+| `Channels` | ✅ | channel list |
 
-Notes:
+Rules:
 
-- driver selection accepts full `Driver` names only
-- `ProtocolOptions` is not an unbounded bag; unsupported keys are rejected at runtime
-- documented camelCase forms such as `cpuType` and `slotNo` are also accepted
-- see [hsl-drivers.en.md](hsl-drivers.en.md) for the current driver catalog
-- JSON Schema: [../schemas/device-config.schema.json](../schemas/device-config.schema.json)
-- Example configs: [../examples/device-configs](../examples/device-configs)
+- `Driver` accepts full names only
+- `ProtocolOptions` is not an unrestricted bag; unsupported keys are rejected
+- `PlcCode` must be unique inside the config directory
 
-Siemens example:
+## 2. Channel Configuration
 
-```json
-{
-  "Driver": "siemens-s7",
-  "Host": "192.168.1.20",
-  "Port": 102,
-  "ProtocolOptions": {
-    "plc": "S1200"
-  }
-}
-```
-
-Inovance example:
-
-```json
-{
-  "Driver": "inovance-tcp",
-  "Host": "192.168.1.30",
-  "Port": 502,
-  "ProtocolOptions": {
-    "series": "AM",
-    "station": "1"
-  }
-}
-```
-
-## 2. Channel-Level Configuration
-
-A device can contain multiple channels. Each channel usually maps to one business data stream or one measurement.
+A device can contain multiple channels. Each channel usually maps to one measurement.
 
 Example:
 
@@ -108,16 +100,16 @@ Field reference:
 
 | Field | Required | Description |
 |------|:--------:|-------------|
-| `Measurement` | ✅ | primary measurement name |
-| `ChannelCode` | ✅ | unique channel identifier |
+| `Measurement` | ✅ | target measurement name |
+| `ChannelCode` | ✅ | channel identifier |
 | `EnableBatchRead` | ✅ | whether batch read is enabled |
 | `BatchReadRegister` | Conditional | batch read starting register |
 | `BatchReadLength` | Conditional | batch read length |
-| `BatchSize` | ✅ | queue aggregation size before flush |
-| `AcquisitionInterval` | ✅ | collection interval, `0` means no intentional delay |
+| `BatchSize` | ✅ | queue aggregation size |
+| `AcquisitionInterval` | ✅ | collection interval in milliseconds |
 | `AcquisitionMode` | ✅ | `Always` or `Conditional` |
-| `ConditionalAcquisition` | Conditional | conditional acquisition configuration |
-| `Metrics` | Conditional | metric definitions |
+| `ConditionalAcquisition` | Conditional | trigger configuration |
+| `Metrics` | Conditional | metric list |
 
 ## 3. Metric Configuration
 
@@ -138,25 +130,25 @@ Field reference:
 
 | Field | Required | Description |
 |------|:--------:|-------------|
-| `MetricLabel` | ✅ | display label |
+| `MetricLabel` | ✅ | human-readable label |
 | `FieldName` | ✅ | stored field name |
-| `Register` | ✅ | PLC register |
-| `Index` | ✅ | offset inside the batch-read buffer |
-| `DataType` | ✅ | supported scalar type |
-| `EvalExpression` | Optional | numeric transform expression |
+| `Register` | ✅ | PLC address |
+| `Index` | ✅ | offset inside a batch-read buffer |
+| `DataType` | ✅ | data type |
+| `EvalExpression` | Optional | transform expression |
 | `StringByteLength` | Conditional | string byte length |
 | `Encoding` | Conditional | string encoding, prefer `utf-8` |
 
 Notes:
 
-- fixed-length string values are sanitized to remove trailing `\0`
-- expressions are applied only to numeric values
+- fixed-length strings are sanitized to remove trailing `\0`
+- expressions apply only to numeric values
 
 ## 4. Acquisition Modes
 
 ### Always
 
-Good for continuous signals:
+Use for continuous signals:
 
 ```json
 {
@@ -167,7 +159,7 @@ Good for continuous signals:
 
 ### Conditional
 
-Good for cycles, state transitions, and event-driven capture:
+Use for cycle boundaries and event-driven capture:
 
 ```json
 {
@@ -183,77 +175,59 @@ Good for cycles, state transitions, and event-driven capture:
 
 Conditional semantics:
 
-- formal cycle events are written as `Start` / `End`
+- formal business events are written as `Start` / `End`
 - recovery diagnostics are written to `<measurement>_diagnostic`
-- formal analytics should use only paired `Start` / `End`
-- timestamps are stored in UTC
+- formal analytics should be based only on paired `Start` / `End`
 
-## 5. Batch Read
+## 5. `ProtocolOptions`
 
-Prefer batch read when registers are contiguous:
+`ProtocolOptions` is the driver-specific extension area.
+
+Common keys:
+
+- `connect-timeout-ms`
+- `receive-timeout-ms`
+
+Some drivers add their own keys, for example:
+
+- `siemens-s7` uses `plc`
+- `inovance-tcp` uses `series` and `station`
+- `lsis-fast-enet` uses `cpu-type` and `slot-no`
+
+Full details:
+
+- [hsl-drivers.en.md](hsl-drivers.en.md)
+
+## 6. Config Directory
+
+The default device config directory comes from app settings:
 
 ```json
 {
-  "EnableBatchRead": true,
-  "BatchReadRegister": "D6000",
-  "BatchReadLength": 10
-}
-```
-
-This reduces network round trips and single-read overhead.
-
-## 6. App-Level Configuration
-
-Core example:
-
-```json
-{
-  "Urls": "http://+:8001",
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token",
-    "Org": "default",
-    "Bucket": "iot"
-  },
-  "Parquet": {
-    "Directory": "./Data/parquet"
-  },
   "Acquisition": {
     "DeviceConfigService": {
       "ConfigDirectory": "Configs"
-    },
-    "StateStore": {
-      "DatabasePath": "Data/acquisition-state.db"
     }
-  },
-  "Edge": {
-    "EnableCentralReporting": true,
-    "CentralApiBaseUrl": "http://localhost:8000",
-    "EdgeId": "EDGE-001",
-    "HeartbeatIntervalSeconds": 10
   }
 }
 ```
 
-Important points:
+Rules:
 
-- `Parquet:Directory` is the WAL root and contains `pending/`, `retry/`, and `invalid/`
-- `Acquisition:DeviceConfigService:ConfigDirectory` controls the device config directory and is also used by offline validation by default
-- `Acquisition:StateStore:DatabasePath` stores active cycle recovery state
-- if you only want to validate the edge acquisition path first, disable `EnableCentralReporting`
+- relative paths are resolved from the application base directory
+- offline validation uses the same directory by default
+- `--config-dir` can override it temporarily
 
 ## 7. Best Practices
 
-- use stable and readable `PlcCode` and `ChannelCode`
-- prefer batch read when registers are contiguous
-- tune `BatchSize` based on throughput vs latency
-- convert engineering units during acquisition rather than pushing raw dirty values downstream
-- for conditional acquisition, define the real business start/end edges first
-- validate configs before deployment with `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs`
-- use `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir <directory>` when validating a non-default directory
+- use stable, searchable `PlcCode` and `ChannelCode` values
+- prefer batch reads for contiguous registers
+- do basic unit conversion during acquisition, not downstream
+- validate configs before deployment
+- do not push private unsupported driver parameters into `ProtocolOptions`
 
 ## Next
 
-- [Deployment Tutorial](tutorial-deployment.en.md)
+- [Getting Started](tutorial-getting-started.en.md)
 - [Driver Catalog](hsl-drivers.en.md)
-- [Design](design.en.md)
+- [Deployment](tutorial-deployment.en.md)

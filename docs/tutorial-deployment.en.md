@@ -1,157 +1,243 @@
-# Deployment Tutorial: From Dev to Production
+# Deployment
 
-This guide covers recommended production deployment and optional containerization.
+This document explains how to run DataAcquisition as a long-running, recoverable, observable PLC data collection system.
 
----
+The deployment model is intentionally simple:
 
-## 1. Deployment Topology
+- `Edge Agent` is the required runtime
+- `InfluxDB` is the default primary store
+- `Parquet WAL` must stay on the local edge node
+- `Central API / Central Web` are optional control-plane components
 
-### Single Workshop
-- 1 Edge Agent
-- Optional Central API/Web for monitoring
+## Recommended Topologies
 
-### Multi-Workshop
-- Edge Agent per workshop
-- Central API + Web in the core site
+### Single Node
 
----
+Suitable for local validation, labs, or one production line:
 
-## 2. Runtime Requirements
+- 1 `Edge Agent`
+- 1 `InfluxDB`
+- optional `Central API / Central Web`
 
-- .NET 10.0 Runtime
-- InfluxDB 2.x
-- Node.js (Central Web only)
+### Multi Node
 
-Use a service manager:
-- Linux: systemd
-- Windows: Windows Service
+Suitable for multiple workshops, lines, or factories:
 
----
+- one `Edge Agent` per collection node
+- local `WAL` and local state store on every edge node
+- one shared `Central API / Central Web`
+- centralized or site-specific `InfluxDB`
 
-## 3. Process Deployment (Recommended)
+The core rule is:
+
+- the edge node must be in the PLC-reachable network
+- WAL must not depend on the central service or a remote shared directory
+
+## Runtime Components
 
 ### Edge Agent
 
+Responsibilities:
+
+- load device configuration
+- connect to PLCs
+- run Always / Conditional acquisition
+- write WAL first, then write primary storage
+- expose local health, metrics, logs, and diagnostics
+
+### InfluxDB
+
+Responsibilities:
+
+- act as the default primary time-series store
+
+### Central API / Central Web
+
+Responsibilities:
+
+- show node status
+- show heartbeats
+- aggregate metrics
+- proxy edge diagnostics
+
+Important:
+
+- the central plane is optional
+- the collection path must continue even when Central is unavailable
+
+## Recommended Release Model
+
+Use published binaries in production. Do not treat `dotnet run` as the primary production model.
+
+### Publish Edge Agent
+
 ```bash
 dotnet publish src/DataAcquisition.Edge.Agent -c Release -o ./publish/edge
+```
+
+Start it:
+
+```bash
 ./publish/edge/DataAcquisition.Edge.Agent
 ```
 
-### Central API
+### Publish Central API
 
 ```bash
 dotnet publish src/DataAcquisition.Central.Api -c Release -o ./publish/central-api
+```
+
+Start it:
+
+```bash
 ./publish/central-api/DataAcquisition.Central.Api
 ```
 
-### Central Web
+### Build Central Web
 
 ```bash
 cd src/DataAcquisition.Central.Web
 pnpm install
 pnpm run build
-# Serve dist/ using nginx or static host
 ```
 
----
+Serve the generated `dist/` folder using nginx or another static host.
 
-## 4. Docker Deployment
+## Containerization Boundary
 
-The project provides two separate Docker Compose files that can be used independently:
+The repository-level Compose files are mainly intended for:
 
-| File | Contents | Purpose |
-|------|----------|---------|
-| `docker-compose.tsdb.yml` | InfluxDB 2.7 | Time-series database |
-| `docker-compose.app.yml` | Central API + Central Web | Central application |
+- `InfluxDB`
+- `Central API`
+- `Central Web`
 
-> **Note**: Edge Agent needs direct access to PLC devices and always runs as a host process (see Section 3 above) — it is not containerized. Edge Agent auto-detects the local machine's real IP at startup and reports it to Central API, ensuring the containerized central services can callback to Edge Agent's diagnostic endpoints.
+Do not present `Edge Agent` containerization as the default path.
 
-### Start the time-series database
+The reason is practical:
+
+- Edge must reach the real PLC network reliably
+- field deployments often involve real NICs, VLANs, routes, and firewalls
+- a host process is easier to troubleshoot than a containerized edge runtime
+
+The recommended rule is:
+
+- central components can be containerized
+- `InfluxDB` can be containerized
+- `Edge Agent` should usually run as a host process
+
+## Runtime Data Directories
+
+The important deployment artifact is not the binary folder. It is the runtime data directory.
+
+The default locations to watch are:
+
+- `Data/parquet/pending`
+- `Data/parquet/retry`
+- `Data/parquet/invalid`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
+
+Meaning:
+
+- `pending/`: WAL files just written by the real-time path and not yet finalized against primary storage
+- `retry/`: WAL files waiting for replay after primary storage failure
+- `invalid/`: poison-message quarantine
+- `logs.db`: local log database
+- `acquisition-state.db`: active cycle recovery state
+
+If you only watch `pending/`, you will miss the real failure signal. The long-term indicators are:
+
+- whether `retry/` keeps growing
+- whether `invalid/` starts receiving files
+
+## Pre-Production Configuration Checklist
+
+At minimum, verify these settings.
+
+### Application Level
+
+- `Urls`
+- `InfluxDB:*`
+- `Parquet:Directory`
+- `Acquisition:DeviceConfigService:ConfigDirectory`
+- `Acquisition:StateStore:DatabasePath`
+- `Edge:EnableCentralReporting`
+- `Edge:CentralApiBaseUrl`
+
+### Device Level
+
+- `PlcCode`
+- `Driver`
+- `Host`
+- `Port`
+- `ProtocolOptions`
+- `Channels`
+
+Before you go live, run:
 
 ```bash
-docker-compose -f docker-compose.tsdb.yml up -d
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-### Start the central application
+That is part of the normal deployment path, not an optional trick.
+
+## Post-Deployment Checks
+
+After the system starts, verify these first.
+
+### 1. Process State
+
+- `Edge Agent` is running
+- `InfluxDB` is reachable
+
+### 2. Health Endpoint
 
 ```bash
-docker-compose -f docker-compose.app.yml up -d --build
+curl http://localhost:8001/health
 ```
 
-### Start Edge Agent (host process)
+### 3. Metrics Endpoint
 
 ```bash
-dotnet run --project src/DataAcquisition.Edge.Agent
-# Or use published binary:
-# ./publish/edge/DataAcquisition.Edge.Agent
+curl http://localhost:8001/metrics
 ```
 
-### Access URLs
+### 4. WAL State
 
-| Service | URL |
-|---------|-----|
-| Central Web | `http://localhost:3000` |
-| Central API | `http://localhost:8000` |
-| InfluxDB | `http://localhost:8086` |
+Watch:
 
-### Start everything
+- whether `retry/` keeps growing
+- whether `invalid/` receives files
 
-```bash
-docker-compose -f docker-compose.tsdb.yml -f docker-compose.app.yml up -d
-```
+### 5. Primary Storage
 
-### Stop services
+Confirm that measurements are being written into InfluxDB.
 
-```bash
-docker-compose -f docker-compose.app.yml down
-docker-compose -f docker-compose.tsdb.yml down
-```
+## Backup Strategy
 
----
+Back up at least two categories of data.
 
-## 5. Architecture Notes
+### Runtime Data
 
-Network topology in Docker deployment:
+- `Data/parquet/`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
 
-```
-Browser → Central Web (nginx, :3000)
-              ↓ /api/, /metrics, /health
-         Central API (:8000, Docker container)
-              ↓ proxy queries Edge diagnostic data
-         Edge Agent (:8001, host process) → PLC devices
-```
+### Primary Storage
 
-The Central Web container has a built-in nginx that handles:
-- Serving frontend static files
-- Reverse proxying `/api/`, `/metrics`, `/health` to Central API
+- InfluxDB bucket data
 
-If you need custom domains or HTTPS, add an external nginx/Caddy reverse proxy in front of Central Web.
+If strong recovery matters, do not place WAL on an unreliable shared temp path.
 
----
+## Operational Advice
 
-## 6. Monitoring & Logs
+- run `Edge Agent` under `systemd`, Windows Service, or another service manager
+- keep WAL on reliable local disk
+- treat Central and Edge as separate operational surfaces
+- first make `Edge -> WAL -> InfluxDB` healthy, then add the central plane
 
-- Prometheus: `/metrics`
-- Health checks: `/health`
-- Recommended: Grafana dashboards and alerting
+## Next
 
----
-
-## 7. Backup & Recovery
-
-- Backup InfluxDB buckets regularly
-- Backup `Data/` WAL files
-- Use snapshots or object storage
-
----
-
-## 8. Security Notes
-
-- Keep Central API in internal network
-- Use HTTPS
-- Provide tokens via environment variables
-- Follow least-privilege
-
----
-
-Next: [Data Query Tutorial](tutorial-data-query.en.md)
+- [Getting Started](tutorial-getting-started.en.md)
+- [Configuration](tutorial-configuration.en.md)
+- [Driver Catalog](hsl-drivers.en.md)

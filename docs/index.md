@@ -1,43 +1,59 @@
-# 文档索引
+# 文档首页
 
-本索引是 DataAcquisition 的主入口文档。按“入门 → 配置 → 部署 → 查询 → 开发 → 参考”的路径组织，避免重复与跳转噪音。
+这套文档围绕一个目标组织：让你把一个 PLC 数据采集节点真正跑起来，并且知道它的边界、配置方式和扩展方式。
 
-## 入门
+## 先读什么
 
-- [入门教程](tutorial-getting-started.md)
+如果你是第一次接触这个项目，按下面顺序读：
 
-## 配置
+1. [快速开始](tutorial-getting-started.md)
+2. [配置说明](tutorial-configuration.md)
+3. [驱动目录](hsl-drivers.md)
+4. [部署说明](tutorial-deployment.md)
 
-- [配置教程](tutorial-configuration.md)
-- [设备配置 Schema](../schemas/device-config.schema.json)
+## 按角色阅读
 
-## 部署
+### 我只想先跑起来
 
-- [部署教程](tutorial-deployment.md)
-- [Docker InfluxDB 快速部署](docker-influxdb.md)
+- [快速开始](tutorial-getting-started.md)
+- [配置说明](tutorial-configuration.md)
 
-## 数据查询
+### 我要接真实 PLC
 
-- [数据查询教程](tutorial-data-query.md)
-
-## API 与运维
-
-- [API 使用示例](api-usage.md)
-- [性能优化建议](performance.md)
+- [配置说明](tutorial-configuration.md)
+- [驱动目录](hsl-drivers.md)
 - [常见问题](faq.md)
 
-## 架构与实现
+### 我要部署到现场
 
-- [驱动清单](hsl-drivers.md)
-- [核心模块文档](modules.md)
-- [数据处理流程](data-flow.md)
-- [设计理念](design.md)
+- [部署说明](tutorial-deployment.md)
+- [数据流](data-flow.md)
+- [常见问题](faq.md)
 
-## 开发扩展
+### 我要理解设计
 
-- [开发扩展教程](tutorial-development.md)
+- [设计说明](design.md)
+- [模块划分](modules.md)
+- [数据流](data-flow.md)
+
+### 我要扩展项目
+
+- [开发扩展](tutorial-development.md)
 - [贡献指南](../CONTRIBUTING.md)
 
-## 返回
+## 参考文档
 
-- 返回 [README](../README.md)
+- [API 使用](api-usage.md)
+- [数据查询](tutorial-data-query.md)
+- [性能说明](performance.md)
+- [Docker 启动 InfluxDB](docker-influxdb.md)
+
+## 设计约定
+
+在阅读和使用这个项目时，可以先记住这几个约定：
+
+- `Edge Agent` 是主产品，`Central` 是辅助控制面
+- 主链路是 `PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage`
+- 驱动通过稳定的 `Driver` 名称选择
+- 配置先校验，再运行
+- 正式业务事件和恢复诊断事件分开写入

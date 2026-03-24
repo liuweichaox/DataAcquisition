@@ -2,43 +2,42 @@
 
 [![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://dotnet.microsoft.com/)
 
 中文: [README.md](README.md)
 
-DataAcquisition is an open-source PLC data acquisition runtime for industrial edge environments. It focuses on three things:
+DataAcquisition is an open-source PLC data acquisition runtime for industrial edge environments.
 
-- reliable collection across multiple PLCs and channels
-- local recoverability through a WAL-first pipeline
-- clean extensibility through stable driver names and explicit provider contracts
+Its core job is intentionally narrow:
 
-It is intentionally closer to a deployable edge runtime than a full MES/SCADA platform.
+- read data from PLCs reliably
+- persist locally before writing to primary storage
+- make acquisition jobs easy to configure and operate
 
-## Scope
+This repository is designed as a deployable edge runtime, not as a full MES or SCADA platform.
 
-The current project focuses on:
+## What It Is For
 
-- shop-floor Edge Agent collection
-- InfluxDB as primary time-series storage and Parquet as local WAL
-- conditional cycle tracking and recovery diagnostics
-- central edge registration, heartbeat, and diagnostics proxying
-- Prometheus metrics and a Web dashboard
+- shop-floor PLC data acquisition
+- local WAL buffering and retry on edge nodes
+- writing time-series data into InfluxDB
+- condition-triggered cycle acquisition
+- operating multiple PLCs with explicit configuration and diagnostics
 
-The project does not try to:
+## What It Is Not For
 
-- replace a complete SCADA or MES stack
-- abstract every PLC vendor detail into one universal model
-- expose every private driver parameter as a global configuration field
+- replacing a full MES / SCADA stack
+- hiding every vendor-specific detail behind one universal model
+- exposing every private driver setting as a global configuration field
 
 ## Architecture
 
-Core data path:
+Main data path:
 
 ```text
-PLC -> ChannelCollector -> QueueService -> Parquet WAL -> InfluxDB
-                                   |               |
-                                   |               -> retry/
-                                   -> invalid/
+PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage
+                           |               |
+                           |               -> retry/
+                           -> invalid/
 ```
 
 Deployment topology:
@@ -47,80 +46,12 @@ Deployment topology:
 Central Web -> Central API -> Edge Agent -> PLC
 ```
 
-Design highlights:
+Design priorities:
 
-- WAL-first durability
-- UTC time semantics across nodes
-- separation between formal business events and diagnostic recovery events
-- clear extension points through `IPlcDriverProvider` and `IPlcClientService`
-
-See [docs/design.en.md](docs/design.en.md) and [docs/data-flow.en.md](docs/data-flow.en.md) for more detail.
-
-## Core Capabilities
-
-- async parallel collection across multiple PLCs and channels
-- `Always` and `Conditional` acquisition modes
-- RisingEdge / FallingEdge trigger handling
-- contiguous register batch reads
-- hot reload for device configuration
-- WAL lifecycle with `pending/`, `retry/`, and `invalid/`
-- local persistence for active cycle recovery
-- central registration, heartbeat, metrics, and log proxying
-
-## Driver Model
-
-The driver model is designed to stay simple for operators and explicit for developers.
-
-Default behavior:
-
-- HslCommunication is the built-in communication implementation
-- protocols are selected by stable `Driver` names
-- examples: `melsec-a1e`, `melsec-mc`, `siemens-s7`
-
-Standard configuration fields:
-
-- `Driver`
-- `Host`
-- `Port`
-- `ProtocolOptions`
-- `Channels`
-
-Configuration assets:
-
-- JSON Schema: [schemas/device-config.schema.json](schemas/device-config.schema.json)
-- Example configs: [examples/device-configs](examples/device-configs)
-- Offline validation: `dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs`
-- the default validation directory comes from `Acquisition:DeviceConfigService:ConfigDirectory` and can be overridden with `--config-dir`
-
-Extension model:
-
-- the runtime core depends only on [IPlcDriverProvider](src/DataAcquisition.Application/Abstractions/IPlcDriverProvider.cs)
-- custom drivers can be added without changing the acquisition pipeline
-
-Driver catalog: [docs/hsl-drivers.en.md](docs/hsl-drivers.en.md)
-
-## Repository Layout
-
-- [src/DataAcquisition.Edge.Agent](src/DataAcquisition.Edge.Agent)  
-  edge runtime and main executable
-
-- [src/DataAcquisition.Infrastructure](src/DataAcquisition.Infrastructure)  
-  PLC drivers, acquisition orchestration, WAL, storage, logging, and metrics
-
-- [src/DataAcquisition.Application](src/DataAcquisition.Application)  
-  application-layer abstractions and runtime contracts
-
-- [src/DataAcquisition.Domain](src/DataAcquisition.Domain)  
-  domain and configuration models
-
-- [src/DataAcquisition.Central.Api](src/DataAcquisition.Central.Api)  
-  central service for edge registration, heartbeat, and diagnostics proxying
-
-- [src/DataAcquisition.Central.Web](src/DataAcquisition.Central.Web)  
-  Vue3 monitoring UI
-
-- [tests/DataAcquisition.Core.Tests](tests/DataAcquisition.Core.Tests)  
-  current core test project
+- `Edge First`: the Edge Agent is the main product, Central is optional support
+- `WAL First`: local recoverability comes before primary storage success
+- `Driver + Provider`: simple protocol selection with explicit extension points
+- `UTC`: acquisition timestamps use UTC semantics across nodes
 
 ## Quick Start
 
@@ -128,7 +59,7 @@ Prerequisites:
 
 - .NET 10 SDK
 - InfluxDB 2.x
-- Node.js 20+ for Central Web only
+- Docker, if you want to use the provided compose file for InfluxDB
 
 1. Build the solution
 
@@ -142,43 +73,122 @@ dotnet build DataAcquisition.sln
 docker compose -f docker-compose.tsdb.yml up -d
 ```
 
-3. Review or edit device configuration
+3. Review configuration
 
 - sample device config: [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)
-- app config: [src/DataAcquisition.Edge.Agent/appsettings.json](src/DataAcquisition.Edge.Agent/appsettings.json)
+- example configs: [examples/device-configs](examples/device-configs)
+- JSON Schema: [schemas/device-config.schema.json](schemas/device-config.schema.json)
 
-4. Start the Edge Agent
-
-```bash
-dotnet run --project src/DataAcquisition.Edge.Agent
-```
-
-Validate configuration without starting acquisition:
+4. Validate configs offline
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-If you also need the central service:
+To validate another directory:
 
 ```bash
-dotnet run --project src/DataAcquisition.Central.Api
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir ./examples/device-configs
 ```
+
+5. Start the Edge Agent
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent
+```
+
+For local development, you can also run the simulator:
+
+```bash
+dotnet run --project src/DataAcquisition.Simulator
+```
+
+## Configuration Model
+
+Device configuration uses JSON.
+
+Minimal structure:
+
+```json
+{
+  "SchemaVersion": 1,
+  "IsEnabled": true,
+  "PlcCode": "PLC01",
+  "Driver": "melsec-a1e",
+  "Host": "127.0.0.1",
+  "Port": 502,
+  "ProtocolOptions": {
+    "connect-timeout-ms": "5000",
+    "receive-timeout-ms": "5000"
+  },
+  "HeartbeatMonitorRegister": "D100",
+  "HeartbeatPollingInterval": 5000,
+  "Channels": []
+}
+```
+
+Configuration rules:
+
+- `Driver` accepts stable full names only
+- `Host` accepts IPs and DNS hostnames
+- `ProtocolOptions` must match the selected driver
+- the default config directory comes from `Acquisition:DeviceConfigService:ConfigDirectory`
+
+Full details: [docs/tutorial-configuration.en.md](docs/tutorial-configuration.en.md)
+
+## Driver Model
+
+The default built-in driver implementation uses HslCommunication, but the runtime core does not depend on Hsl-specific types.
+
+Built-in drivers are selected by stable `Driver` names such as:
+
+- `melsec-a1e`
+- `melsec-mc`
+- `siemens-s7`
+- `omron-fins`
+- `inovance-tcp`
+- `beckhoff-ads`
+
+See [docs/hsl-drivers.en.md](docs/hsl-drivers.en.md) for the current catalog and protocol options.
+
+If you want to add your own PLC driver, start here:
+
+- [IPlcDriverProvider](src/DataAcquisition.Application/Abstractions/IPlcDriverProvider.cs)
+- [IPlcClientService](src/DataAcquisition.Application/Abstractions/IPlcClientService.cs)
+- [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
 
 ## Documentation
 
-Primary entry:
+Documentation home:
 
 - [docs/index.en.md](docs/index.en.md)
 
-Recommended path:
+Suggested reading path:
 
 - [Getting Started](docs/tutorial-getting-started.en.md)
 - [Configuration](docs/tutorial-configuration.en.md)
-- [Deployment](docs/tutorial-deployment.en.md)
 - [Driver Catalog](docs/hsl-drivers.en.md)
+- [Deployment](docs/tutorial-deployment.en.md)
 - [Design](docs/design.en.md)
 - [Development](docs/tutorial-development.en.md)
+- [FAQ](docs/faq.en.md)
+
+## Repository Layout
+
+- [src/DataAcquisition.Edge.Agent](src/DataAcquisition.Edge.Agent)
+  main edge runtime
+- [src/DataAcquisition.Infrastructure](src/DataAcquisition.Infrastructure)
+  acquisition, drivers, WAL, storage, logging, and metrics
+- [src/DataAcquisition.Application](src/DataAcquisition.Application)
+  abstractions and runtime contracts
+- [src/DataAcquisition.Domain](src/DataAcquisition.Domain)
+  domain and configuration models
+- [src/DataAcquisition.Central.Api](src/DataAcquisition.Central.Api)
+  central API
+- [src/DataAcquisition.Central.Web](src/DataAcquisition.Central.Web)
+  central web UI
+- [tests/DataAcquisition.Core.Tests](tests/DataAcquisition.Core.Tests)
+  core tests
 
 ## Development
 
@@ -186,13 +196,9 @@ Useful commands:
 
 ```bash
 dotnet build DataAcquisition.sln --no-restore
-dotnet test tests/DataAcquisition.Core.Tests/DataAcquisition.Core.Tests.csproj --no-build
+dotnet test tests/DataAcquisition.Core.Tests/DataAcquisition.Core.Tests.csproj
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
-
-If you want to extend PLC drivers, start with:
-
-- [CONTRIBUTING.en.md](CONTRIBUTING.en.md)
-- [docs/tutorial-development.en.md](docs/tutorial-development.en.md)
 
 ## License
 

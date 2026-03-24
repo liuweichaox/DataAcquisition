@@ -1,300 +1,246 @@
-# ❓ Frequently Asked Questions (FAQ)
+# FAQ
 
-This document collects common questions and answers about the DataAcquisition system.
+This FAQ answers recurring questions without repeating the full tutorials.
 
-## Overview
-
-This page focuses on common questions and troubleshooting. Use the index for full navigation.
-
-## Table of Contents
-
-- [What if data is lost?](#q-what-if-data-is-lost)
-- [How to add a new PLC protocol?](#q-how-to-add-a-new-plc-protocol)
-- [Do I need to restart after configuration changes?](#q-do-i-need-to-restart-after-configuration-changes)
-- [Where to view monitoring metrics?](#q-where-to-view-monitoring-metrics)
-- [How to extend storage backend?](#q-how-to-extend-storage-backend)
-- [How to adjust acquisition frequency?](#q-how-to-adjust-acquisition-frequency)
-- [How to configure conditional acquisition?](#q-how-to-configure-conditional-acquisition)
-- [How to troubleshoot connection issues?](#q-how-to-troubleshoot-connection-issues)
-- [What to do if there are too many WAL files?](#q-what-to-do-if-there-are-too-many-wal-files)
-- [How to deploy to production environment?](#q-how-to-deploy-to-production-environment)
-- [Which PLC protocols are supported?](#q-which-plc-protocols-are-supported)
-- [What to do if configuration file format is incorrect?](#q-what-to-do-if-configuration-file-format-is-incorrect)
-- [What to do if acquisition tasks don't start?](#q-what-to-do-if-acquisition-tasks-dont-start)
-- [How to verify configuration is correct?](#q-how-to-verify-configuration-is-correct)
-- [What happens if batch read configuration is incorrect?](#q-what-happens-if-batch-read-configuration-is-incorrect)
-- [How to check if the system is running normally?](#q-how-to-check-if-the-system-is-running-normally)
-
-## Q: What if data is lost?
-
-**A**: The system uses a WAL-first architecture. Healthy messages are written to Parquet first, then sent to InfluxDB. WAL files are deleted only after primary storage succeeds.
-
-If data loss is detected, you can:
-
-1. Check if there are unprocessed WAL files in the `Data/parquet/retry` directory (these are files that need retry due to write failures)
-2. Check logs to confirm the reason for write failures
-3. Check the `Data/parquet/invalid` directory for quarantined poison messages
-4. The system will automatically retry failed write operations
-
-**Note**: The `Data/parquet` directory contains three subfolders:
-- `pending`: WAL files freshly written by the realtime path and not yet finalized against primary storage
-- `retry`: WAL files waiting for background replay after a primary-storage failure
-- `invalid`: audit records for poison messages that could not be written into WAL
-
-## Q: How to add a new PLC protocol?
-
-**A**: In most cases you do not need to modify the core factory. Implement `IPlcClientService` and `IPlcDriverProvider`, then register the provider through DI.
-
-**Steps**:
-
-1. Create a new PLC client class implementing the `IPlcClientService` interface
-2. Create a new `IPlcDriverProvider`
-3. Register the provider at startup
-4. Use the new driver through the `Driver` field in device configuration
-
-**Note**: If you use the built-in Hsl driver catalog, configuration changes are usually enough and no core source change is required.
-
-## Q: Do I need to restart after configuration changes?
-
-**A**: No. The system uses FileSystemWatcher to monitor configuration file changes, supporting hot updates.
-
-After configuration file changes, the system will automatically:
-
-1. Detect configuration file changes
-2. Validate configuration format
-3. Reload configuration
-4. Apply new configuration (no service restart required)
-
-## Q: Where to view monitoring metrics?
-
-**A**: Visit http://localhost:8000/metrics to view the visualization interface or get Prometheus format metrics, or http://localhost:8000/api/metrics-data to get JSON format metrics data (recommended).
-
-### Prometheus Format
-
-```bash
-curl http://localhost:8000/metrics
-```
-
-### JSON Format
-
-```bash
-curl http://localhost:8000/api/metrics-data
-```
-
-### Web Interface
-
-Visit the Central Web interface (http://localhost:3000) to view visualized monitoring metrics.
-
-## Q: How to extend storage backend?
-
-**A**: Requires modifying source code, implementing the `IDataStorageService` (TSDB) or `IWalStorageService` (WAL) interface and registering in `Program.cs`.
-
-**Steps**:
-
-1. To replace the primary time-series backend, implement `IDataStorageService.SaveBatchAsync`
-2. To replace the WAL backend, implement `IWalStorageService`
-3. Register the replacement implementation in `Program.cs`
-
-**Note**: This requires modifying source code and recompiling, recommended for users with development experience.
-
-## Q: How to adjust acquisition frequency?
-
-**A**: Modify the `AcquisitionInterval` parameter in the device configuration file (unit: milliseconds).
-
-```json
-{
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "CH01",
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "BatchSize": 10,
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short"
-        }
-      ]
-    }
-  ]
-}
-```
-
-## Q: How to configure conditional acquisition?
-
-**A**: Set `AcquisitionMode` to `Conditional` in the channel configuration and configure the `ConditionalAcquisition` object.
-
-```json
-{
-  "Channels": [
-    {
-      "Measurement": "production",
-      "ChannelCode": "CH01",
-      "EnableBatchRead": false,
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "BatchSize": 1,
-      "AcquisitionInterval": 0,
-      "AcquisitionMode": "Conditional",
-      "ConditionalAcquisition": {
-        "Register": "D210",
-        "DataType": "short",
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      },
-      "Metrics": null
-    }
-  ]
-}
-```
-
-## Q: How to troubleshoot connection issues?
-
-**A**: Follow these steps:
-
-1. **Check PLC Connection Status**:
-   ```bash
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-   View the returned connection status information
-
-2. **Check Network Connectivity**:
-   ```bash
-   ping <PLC_IP_ADDRESS>
-   telnet <PLC_IP_ADDRESS> <PORT>
-   ```
-   Confirm that Edge Agent can access the PLC's IP and port
-
-3. **Check Configuration Correctness**:
-   - Confirm `Host` and `Port` parameters in device configuration file are correct
-   - Confirm `Driver` uses a full protocol name listed in [hsl-drivers.en.md](./hsl-drivers.en.md)
-   - Confirm `PlcCode` is not empty and unique
-
-4. **View Log Information**:
-   ```bash
-   curl "http://localhost:8001/api/logs?level=Error&page=1&pageSize=10"
-   ```
-   View error logs to identify specific issues
-
-## Q: What to do if there are too many WAL files?
-
-**A**: Too many WAL files usually indicates InfluxDB write failures. Solutions:
-
-1. Check the number of files in `Data/parquet/retry` directory (these are files that need retry)
-2. Check InfluxDB connection and configuration
-3. Check logs to confirm the reason for write failures
-4. After fixing the issue, the system will automatically process accumulated WAL files
-5. If manual cleanup is needed, first confirm that data has been written to InfluxDB
-
-**Note**: Under normal circumstances, the `pending` folder should be empty (files are deleted immediately after successful write), only the `retry` folder will have files.
-
-## Q: How to deploy to production environment?
-
-**A**: Recommended steps:
-
-1. **Configure Production Parameters**: Modify configuration in `appsettings.json`
-2. **Set Environment Variables**: Use environment variables to manage sensitive information (such as Token)
-3. **Configure Log Level**: Production environment is recommended to use Warning level
-4. **Enable Monitoring**: Configure Prometheus monitoring and alerts
-5. **Backup Strategy**: Configure backup strategies for WAL files and databases
-
-## Q: Which PLC protocols are supported?
-
-**A**: The built-in Hsl driver catalog is listed in [hsl-drivers.en.md](./hsl-drivers.en.md).
-
-- Each PLC protocol keeps one full `Driver` name only
-- Other protocols can be extended by implementing `IPlcDriverProvider`
-
-## Q: What to do if configuration file format is incorrect?
-
-**A**: Configuration files must be valid JSON format. Common errors:
-
-1. **JSON Format Error**: Check for missing commas, unclosed quotes, etc.
-2. **Missing Required Fields**: Ensure required fields like `PlcCode`, `Host`, `Port`, `Driver`, `Channels` exist
-3. **Field Type Error**: Ensure `Port` is a number, `IsEnabled` is a boolean, etc.
-
-**Verification Methods**:
-- Use JSON validation tools (such as online JSON validators) to check format
-- Check configuration loading error messages in logs
-- The system validates configuration at startup, errors are recorded in logs
-
-## Q: What to do if acquisition tasks don't start?
-
-**A**: Check the following:
-
-1. **Is Device Enabled**: Confirm `IsEnabled` is `true` in configuration file
-2. **Are There Acquisition Channels**: Confirm `Channels` array is not empty
-3. **View Startup Logs**: Check logs for "启动采集任务失败" (Failed to start acquisition task) error messages
-4. **Check Configuration Path**: Confirm configuration file is in `Configs/` directory and filename ends with `.json`
-
-**Common Errors**:
-- "设备编码为空" (Device code is empty): Check if `PlcCode` is configured
-- "没有配置采集通道" (No acquisition channels configured): Check if `Channels` array is empty
-
-## Q: How to verify configuration is correct?
-
-**A**: You can verify in the following ways:
-
-1. **View System Logs**: After starting Edge Agent, check logs for configuration loading errors
-2. **Check Connection Status**:
-   ```bash
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-   If configuration is correct, you should see device connection status
-
-3. **Check Metrics Data**:
-   ```bash
-   curl http://localhost:8000/api/metrics-data
-   ```
-   If acquisition has started, you should see acquisition-related metrics
-
-4. **Use Configuration Example**: Refer to `TEST_PLC.json` in the project as a configuration template
-
-## Q: What happens if batch read configuration is incorrect?
-
-**A**: Incorrect batch read configuration may cause:
-
-1. **Data Read Errors**: If `BatchReadLength` is set too small, may not read all data points
-2. **Index Errors**: If `Index` in `Metrics` is configured incorrectly, may read wrong data
-3. **Performance Degradation**: If batch read should be used but not enabled, will cause multiple network requests, degrading performance
-
-**Configuration Recommendations**:
-- If data points are consecutive, recommend enabling `EnableBatchRead` and correctly configuring `BatchReadRegister` and `BatchReadLength`
-- `Index` should correspond to the position of data points in batch read results (note byte count occupied by data types)
-- If unsure, first disable batch read and read registers one by one for testing
-
-## Q: How to check if the system is running normally?
-
-**A**: You can check in the following ways:
-
-1. **Check Service Status**:
-   ```bash
-   # Central API
-   curl http://localhost:8000/health
-
-   # Edge Agent
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-
-2. **View Monitoring Metrics**:
-   ```bash
-   curl http://localhost:8000/api/metrics-data
-   ```
-   Focus on the following metrics:
-   - `data_acquisition_collection_rate`: Collection rate, should be greater than 0
-   - `data_acquisition_errors_total`: Total errors, should be 0 or very few
-   - `data_acquisition_connection_duration_seconds`: Connection duration
-
-3. **View Web Interface**: Visit http://localhost:3000 to view visualized system status
-
-4. **Check Logs**: Check for error logs, normal operation should mainly have Information level logs
-
-## Next steps
+If you are new to the project, start with:
 
 - [Documentation Index](index.en.md)
-- [API Usage Examples](api-usage.en.md)
-- [Getting Started Tutorial](tutorial-getting-started.en.md)
+- [Getting Started](tutorial-getting-started.en.md)
+- [Configuration](tutorial-configuration.en.md)
+
+## Project Scope
+
+### What is DataAcquisition
+
+It is a PLC data collection runtime.
+
+It is responsible for:
+
+- reading values from PLCs
+- producing normalized acquisition messages
+- writing local WAL first
+- writing primary storage second
+- exposing local diagnostics
+
+### What DataAcquisition is not
+
+It is not:
+
+- a PLC programming tool
+- a SCADA system
+- an MES
+- a time-series database
+
+The central UI is an auxiliary control plane, not the acquisition path itself.
+
+## Configuration and Drivers
+
+### Which driver name should I use
+
+Use the exact `Driver` names listed in the [driver catalog](hsl-drivers.en.md).
+
+Do not rely on old aliases, abbreviations, or guessed names.
+
+### Why does configuration validation fail
+
+Common reasons:
+
+- invalid JSON
+- missing required fields
+- empty `PlcCode`
+- duplicated `PlcCode` across files
+- `Driver` not found in the built-in catalog
+- unsupported keys in `ProtocolOptions`
+
+Run this first:
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+### Do I need to restart after editing config
+
+Usually no.
+
+The device configuration directory is watched for file changes, and valid configuration updates are reloaded automatically.
+
+The important condition is:
+
+- the new configuration must pass validation first
+
+### How do I add a new PLC protocol
+
+If the built-in catalog does not cover your protocol, add a provider.
+
+Recommended extension path:
+
+1. implement a new `IPlcDriverProvider`
+2. reuse `PlcClientServiceBase` or provide your own `IPlcClientService`
+3. register the provider at startup
+4. document the new `Driver` and provide a config example
+
+If you only use the built-in Hsl drivers, no core change is usually required.
+
+## Acquisition and Storage
+
+### Why write WAL first
+
+Because primary storage may fail, and edge collection cannot depend on InfluxDB being immediately available.
+
+WAL-first means:
+
+- persist data locally first
+- attempt primary storage next
+- replay later if primary storage failed
+
+### What is the difference between `pending`, `retry`, and `invalid`
+
+- `pending/`: WAL files just written and not yet finalized against primary storage
+- `retry/`: WAL files waiting for replay after primary storage failure
+- `invalid/`: poison messages that could not be written to WAL
+
+These are not redundant folders. They describe lifecycle state and separate the real-time path from the replay path.
+
+### Why are there many WAL files
+
+Usually because primary storage is failing or unreachable.
+
+Check in this order:
+
+1. whether `retry/` keeps growing
+2. whether InfluxDB is reachable
+3. the Edge logs for storage failures
+4. `InfluxDB:Url`, bucket, org, and token
+
+### What does it mean if `invalid/` contains files
+
+It means some messages are poison messages and cannot be serialized into WAL.
+
+They have been isolated and will not keep blocking healthy messages.
+
+The right response is:
+
+- inspect the related log entry
+- locate the bad field or configuration
+- fix the source of the poison message
+
+### Does InfluxDB downtime stop collection
+
+It should stop primary storage writes, but it should not immediately stop the collection path itself.
+
+Expected behavior:
+
+- new data still goes to local WAL
+- `retry/` accumulates
+- replay catches up after InfluxDB recovers
+
+If InfluxDB is down and WAL is not being written either, that is a failure, not expected behavior.
+
+## Cycle Collection
+
+### Does the first conditional sample trigger a fake edge
+
+No.
+
+Current behavior:
+
+- the first sample builds a baseline
+- initialization is not treated as a real edge event
+
+### Why do I see `RecoveredStart` or `Interrupted`
+
+These are recovery diagnostics emitted when the process restarts or resumes during an active cycle.
+
+They should not be used as the formal business definition of a complete cycle.
+
+For formal cycle analytics, still use paired `Start` / `End`.
+
+### Why store active cycle state at all
+
+Because conditional acquisition needs restart-time context recovery.
+
+The active cycle is mirrored to:
+
+- memory
+- `Data/acquisition-state.db`
+
+The purpose is not to invent missing cycles. It is to preserve recovery context for an in-progress cycle.
+
+## Operations and Troubleshooting
+
+### How do I know the system is healthy
+
+Start with:
+
+```bash
+curl http://localhost:8001/health
+curl http://localhost:8001/metrics
+```
+
+Then verify:
+
+- whether `retry/` keeps growing
+- whether `invalid/` receives files
+- whether InfluxDB is receiving measurements
+
+### Why is host-process deployment recommended for Edge
+
+Because PLC networking problems are usually real network problems:
+
+- NIC selection
+- routes
+- VLANs
+- firewalls
+- device reachability
+
+That is easier to troubleshoot with a host process than with a containerized edge runtime.
+
+Central components and InfluxDB are better containerization candidates.
+
+### What happens if Central is down
+
+If Central is unavailable:
+
+- registration and heartbeat reporting fail
+- the central UI is unavailable
+
+But the collection path should continue running.
+
+## Extension and Development
+
+### How do I replace the primary store
+
+Implement `IDataStorageService` and replace the default registration in the host.
+
+### How do I replace WAL
+
+Implement `IWalStorageService` and preserve explicit lifecycle semantics.
+
+At minimum, WAL should still model:
+
+- newly written files
+- replay-pending files
+- poison-message quarantine
+
+### Why does the project use JSON configuration
+
+Because the goal here is:
+
+- simple
+- readable
+- hot-reload friendly
+- easy to validate and bind in .NET
+
+What matters more than switching to YAML or TOML is:
+
+- a stable config contract
+- validation
+- examples
+- good error messages
+
+## Related Docs
+
+- [Configuration](tutorial-configuration.en.md)
+- [Deployment](tutorial-deployment.en.md)
+- [Driver Catalog](hsl-drivers.en.md)
+- [Design](design.en.md)

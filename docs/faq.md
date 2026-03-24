@@ -1,300 +1,246 @@
-# ❓ 常见问题 (FAQ)
+# 常见问题
 
-本文档收集了 DataAcquisition 系统的常见问题和解答。
+这份 FAQ 只回答高频问题，不重复教程内容。
 
-## 概览
+如果你是第一次接触项目，先看：
 
-本页聚焦常见问题与排查方法。完整文档入口见索引页。
+- [文档首页](index.md)
+- [快速开始](tutorial-getting-started.md)
+- [配置](tutorial-configuration.md)
 
-## 目录
+## 项目定位
 
-- [数据丢失怎么办？](#q-数据丢失怎么办)
-- [如何添加新的 PLC 协议？](#q-如何添加新的-plc-协议)
-- [配置修改后需要重启吗？](#q-配置修改后需要重启吗)
-- [监控指标在哪里查看？](#q-监控指标在哪里查看)
-- [如何扩展存储后端？](#q-如何扩展存储后端)
-- [如何调整采集频率？](#q-如何调整采集频率)
-- [条件采集如何配置？](#q-条件采集如何配置)
-- [如何排查连接问题？](#q-如何排查连接问题)
-- [WAL 文件过多怎么办？](#q-wal-文件过多怎么办)
-- [如何部署到生产环境？](#q-如何部署到生产环境)
-- [支持哪些 PLC 协议？](#q-支持哪些-plc-协议)
-- [配置文件格式错误怎么办？](#q-配置文件格式错误怎么办)
-- [采集任务没有启动怎么办？](#q-采集任务没有启动怎么办)
-- [如何验证配置是否正确？](#q-如何验证配置是否正确)
-- [批量读取配置不正确会怎样？](#q-批量读取配置不正确会怎样)
-- [如何查看系统是否正常运行？](#q-如何查看系统是否正常运行)
+### DataAcquisition 是什么
 
-## Q: 数据丢失怎么办？
+它是一个 PLC 数据采集运行时。
 
-**A**: 系统采用 WAL-first 架构，健康消息会先写入 Parquet 文件，再写入 InfluxDB。只有主存储成功后，才会删除对应的 WAL 文件。
+它负责：
 
-如果发现数据丢失，可以：
+- 从 PLC 读取数据
+- 生成统一的采集消息
+- 先写本地 WAL
+- 再写主存储
+- 暴露本地诊断接口
 
-1. 检查 `Data/parquet/retry` 目录下是否有未处理的 WAL 文件（这些是写入失败需要重试的文件）
-2. 查看日志确认写入失败原因
-3. 检查 `Data/parquet/invalid` 目录是否存在被隔离的坏消息
-4. 系统会自动重试失败的写入操作
+### DataAcquisition 不是什么
 
-**注意**：`Data/parquet` 目录下包含三个子文件夹：
-- `pending`：实时写入流程刚落盘、尚未完成主存储判定的 WAL 文件
-- `retry`：主存储失败后等待后台 Worker 重试的 WAL 文件
-- `invalid`：无法写入 WAL 的坏消息审计记录
+它不是：
 
-## Q: 如何添加新的 PLC 协议？
+- PLC 编程工具
+- SCADA 系统
+- MES
+- 历史数据库本身
 
-**A**: 默认情况下无需修改核心工厂。你可以实现 `IPlcClientService` 和 `IPlcDriverProvider`，然后通过依赖注入注册新的驱动提供者。
+中心侧页面是辅助控制面，不是采集主链路本身。
 
-**步骤**：
+## 配置与驱动
 
-1. 创建新的 PLC 客户端类，实现 `IPlcClientService` 接口
-2. 创建新的 `IPlcDriverProvider`
+### 我应该使用哪个驱动名
+
+使用 [驱动目录](hsl-drivers.md) 中列出的完整 `Driver` 名称。
+
+不要使用旧式别名、缩写或自己猜的名称。
+
+### 为什么配置校验失败
+
+常见原因：
+
+- JSON 格式不合法
+- 缺少必填字段
+- `PlcCode` 为空
+- `PlcCode` 在多个配置文件中重复
+- `Driver` 不在内置目录里
+- `ProtocolOptions` 包含当前驱动不支持的键
+
+建议先执行：
+
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
+```
+
+### 修改配置后需要重启吗
+
+通常不需要。
+
+设备配置目录由文件监视器监听，配置变更后会自动重新加载。
+
+但有一个前提：
+
+- 新配置必须先通过校验
+
+### 如何添加新的 PLC 协议
+
+如果内置目录里没有你要的协议，需要新增 provider。
+
+推荐扩展方式：
+
+1. 实现新的 `IPlcDriverProvider`
+2. 复用 `PlcClientServiceBase` 或提供自己的 `IPlcClientService`
 3. 在启动时注册 provider
-4. 在设备配置中通过 `Driver` 使用新的驱动
+4. 为新的 `Driver` 写文档和示例配置
 
-**注意**：如果只是使用内置的 Hsl 驱动目录，通常只需要修改配置，不需要修改源代码。
+如果只是使用内置 Hsl 驱动，通常不需要改核心代码。
 
-## Q: 配置修改后需要重启吗？
+## 采集与存储
 
-**A**: 不需要。系统使用 FileSystemWatcher 监控配置文件变化，支持热更新。
+### 为什么要先写 WAL
 
-配置文件修改后，系统会自动：
+因为主存储可能失败，边缘采集不能直接依赖 InfluxDB 的即时可用性。
 
-1. 检测配置文件变化
-2. 验证配置格式
-3. 重新加载配置
-4. 应用新配置（无需重启服务）
+WAL-first 的意义是：
 
-## Q: 监控指标在哪里查看？
+- 先把数据安全地落到本地磁盘
+- 再尝试写主存储
+- 主存储失败后仍可以重放
 
-**A**: 访问 http://localhost:8000/metrics 查看可视化界面或获取 Prometheus 原始格式指标，或 http://localhost:8000/api/metrics-data 获取 JSON 格式指标数据（推荐）。
+### `pending`、`retry`、`invalid` 有什么区别
 
-### Prometheus 格式
+- `pending/`：刚写入的 WAL，尚未完成主存储判定
+- `retry/`：主存储失败后等待后台重放
+- `invalid/`：无法写入 WAL 的坏消息
+
+这三个目录不是重复设计，而是明确区分文件生命周期和线程职责。
+
+### WAL 文件很多，说明什么
+
+通常说明主存储写入失败或持续不可达。
+
+排查顺序：
+
+1. 看 `retry/` 是否持续增长
+2. 检查 InfluxDB 是否可访问
+3. 查看 Edge 日志中的写入错误
+4. 确认配置的 `InfluxDB:Url`、bucket、org、token 正确
+
+### `invalid/` 里有文件说明什么
+
+说明存在坏消息，系统无法把它写进 WAL。
+
+这类消息已经被隔离，不会继续阻塞正常消息。
+
+应该做的事是：
+
+- 查看对应错误日志
+- 找到产生坏消息的字段或配置
+- 修复源头，而不是直接忽略
+
+### InfluxDB 挂了会不会影响采集
+
+会影响主存储写入，但不应立即影响采集主链路。
+
+正常预期是：
+
+- 新数据继续写本地 WAL
+- `retry/` 堆积
+- InfluxDB 恢复后由后台重放
+
+如果 InfluxDB 不可用时连 WAL 也没写进去，那就是异常，不是预期行为。
+
+## 周期采集
+
+### 条件采集的第一次读取会不会误触发
+
+不会。
+
+当前行为是：
+
+- 首拍只建立基线
+- 不会把初始化状态当成真实边沿
+
+### 为什么会看到 `RecoveredStart` 或 `Interrupted`
+
+这代表系统在周期进行中发生过重启或恢复。
+
+它们是恢复诊断事件，不应直接当作正式业务周期统计口径。
+
+正式周期统计时，仍应以成对的 `Start` / `End` 为准。
+
+### 为什么还要保存 active cycle 状态
+
+因为条件采集在进程重启后需要恢复上下文。
+
+当前 active cycle 会同时保存在：
+
+- 内存
+- `Data/acquisition-state.db`
+
+这不是为了“补造周期”，而是为了让系统知道重启前是否存在未结束周期。
+
+## 运行与排障
+
+### 怎么确认系统是否在正常运行
+
+至少检查这几项：
 
 ```bash
-curl http://localhost:8000/metrics
+curl http://localhost:8001/health
+curl http://localhost:8001/metrics
 ```
 
-### JSON 格式
+再检查：
 
-```bash
-curl http://localhost:8000/api/metrics-data
-```
+- `retry/` 是否持续增长
+- `invalid/` 是否出现文件
+- InfluxDB 是否有 measurement 写入
 
-### Web 界面
+### 为什么推荐 Edge 用宿主机进程部署
 
-访问 Central Web 界面（http://localhost:3000）查看可视化的监控指标。
+因为现场 PLC 网络通常比 Web 服务更接近真实网络环境问题。
 
-## Q: 如何扩展存储后端？
+宿主机进程部署更容易定位：
 
-**A**: 需要修改源代码，实现 `IDataStorageService`（TSDB）或 `IWalStorageService`（WAL）接口并在 `Program.cs` 中注册。
+- 网卡选择
+- 路由
+- VLAN
+- 防火墙
+- PLC 可达性
 
-**步骤**：
+中心组件和 InfluxDB 更适合容器化。
 
-1. 如果要替换主时序存储，实现 `IDataStorageService.SaveBatchAsync`
-2. 如果要替换 WAL 后端，实现 `IWalStorageService`
-3. 在 `Program.cs` 中注册对应实现并替换默认实现
+### 中心服务挂了会怎样
 
-**注意**：这需要修改源代码并重新编译，建议有开发经验的用户进行。
+中心侧不可用时：
 
-## Q: 如何调整采集频率？
+- 节点注册和心跳上报会失败
+- 中心页面不可用
 
-**A**: 在设备配置文件中修改 `AcquisitionInterval` 参数（单位：毫秒）。
+但这不应该成为采集主链路的停止条件。
 
-```json
-{
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "CH01",
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "BatchSize": 10,
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short"
-        }
-      ]
-    }
-  ]
-}
-```
+## 扩展与开发
 
-## Q: 条件采集如何配置？
+### 如何替换主存储
 
-**A**: 在通道配置中设置 `AcquisitionMode` 为 `Conditional`，并配置 `ConditionalAcquisition` 对象。
+实现 `IDataStorageService`，然后在宿主层替换默认注册。
 
-```json
-{
-  "Channels": [
-    {
-      "Measurement": "production",
-      "ChannelCode": "CH01",
-      "EnableBatchRead": false,
-      "BatchReadRegister": null,
-      "BatchReadLength": 0,
-      "BatchSize": 1,
-      "AcquisitionInterval": 0,
-      "AcquisitionMode": "Conditional",
-      "ConditionalAcquisition": {
-        "Register": "D210",
-        "DataType": "short",
-        "StartTriggerMode": "RisingEdge",
-        "EndTriggerMode": "FallingEdge"
-      },
-      "Metrics": null
-    }
-  ]
-}
-```
+### 如何替换 WAL
 
-## Q: 如何排查连接问题？
+实现 `IWalStorageService`，并保留清晰的生命周期语义。
 
-**A**: 按以下步骤排查：
+至少要能表达：
 
-1. **检查 PLC 连接状态**:
-   ```bash
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-   查看返回的连接状态信息
+- 新写入
+- 等待重放
+- 坏消息隔离
 
-2. **检查网络连通性**:
-   ```bash
-   ping <PLC_IP地址>
-   telnet <PLC_IP地址> <端口>
-   ```
-   确认 Edge Agent 能够访问 PLC 的 IP 和端口
+### 为什么项目继续使用 JSON 配置
 
-3. **检查配置正确性**:
-   - 确认设备配置文件中的 `Host`、`Port` 参数正确
-   - 确认 `Driver` 使用的是完整协议名称，并且在 [hsl-drivers.md](./hsl-drivers.md) 支持列表中
-   - 确认 `PlcCode` 不为空且唯一
+因为这里的目标是：
 
-4. **查看日志信息**:
-   ```bash
-   curl "http://localhost:8001/api/logs?level=Error&page=1&pageSize=10"
-   ```
-   查看错误日志，定位具体问题
+- 简单
+- 可读
+- 易于热更新
+- 易于在 .NET 环境中校验和绑定
 
-## Q: WAL 文件过多怎么办？
+比“换成 YAML/TOML”更重要的是：
 
-**A**: WAL 文件过多通常表示 InfluxDB 写入失败。解决方案：
+- 有稳定的配置契约
+- 有校验
+- 有示例
+- 有清晰错误提示
 
-1. 检查 `Data/parquet/retry` 目录下的文件数量（这些是需要重试的文件）
-2. 检查 InfluxDB 连接和配置
-3. 查看日志确认写入失败原因
-4. 修复问题后，系统会自动处理积压的 WAL 文件
-5. 如需手动清理，先确认数据已写入 InfluxDB
+## 相关文档
 
-**注意**：正常情况下，`pending` 文件夹应该是空的（文件写入成功后立即删除），只有 `retry` 文件夹中会有文件。
-
-## Q: 如何部署到生产环境？
-
-**A**: 建议步骤：
-
-1. **配置生产参数**: 修改 `appsettings.json` 中的配置
-2. **设置环境变量**: 使用环境变量管理敏感信息（如 Token）
-3. **配置日志级别**: 生产环境建议使用 Warning 级别
-4. **启用监控**: 配置 Prometheus 监控和告警
-5. **备份策略**: 配置 WAL 文件和数据库的备份策略
-
-## Q: 支持哪些 PLC 协议？
-
-**A**: 默认内置的 Hsl 驱动清单见 [hsl-drivers.md](./hsl-drivers.md)。
-
-- 每个 PLC 协议只保留一个完整 `Driver` 名称
-- 其他协议可以通过实现 `IPlcDriverProvider` 扩展支持
-
-## Q: 配置文件格式错误怎么办？
-
-**A**: 配置文件必须是有效的 JSON 格式。常见错误：
-
-1. **JSON 格式错误**: 检查是否有缺少逗号、引号未闭合等问题
-2. **必填字段缺失**: 确保 `PlcCode`、`Host`、`Port`、`Driver`、`Channels` 等必填字段存在
-3. **字段类型错误**: 确保 `Port` 是数字，`IsEnabled` 是布尔值等
-
-**验证方法**：
-- 使用 JSON 验证工具（如在线 JSON 验证器）检查格式
-- 查看日志中的配置加载错误信息
-- 系统会在启动时验证配置，错误会记录在日志中
-
-## Q: 采集任务没有启动怎么办？
-
-**A**: 检查以下几点：
-
-1. **设备是否启用**: 确认配置文件中 `IsEnabled` 为 `true`
-2. **是否有采集通道**: 确认 `Channels` 数组不为空
-3. **查看启动日志**: 检查日志中是否有 "启动采集任务失败" 的错误信息
-4. **检查配置路径**: 确认配置文件在 `Configs/` 目录下，且文件名以 `.json` 结尾
-
-**常见错误**：
-- "设备编码为空"：检查 `PlcCode` 是否配置
-- "没有配置采集通道"：检查 `Channels` 数组是否为空
-
-## Q: 如何验证配置是否正确？
-
-**A**: 可以通过以下方式验证：
-
-1. **查看系统日志**: 启动 Edge Agent 后，查看日志中是否有配置加载错误
-2. **检查连接状态**:
-   ```bash
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-   如果配置正确，应该能看到设备连接状态
-
-3. **检查指标数据**:
-   ```bash
-   curl http://localhost:8000/api/metrics-data
-   ```
-   如果开始采集，应该能看到采集相关的指标
-
-4. **使用配置示例**: 参考项目中的 `TEST_PLC.json` 作为配置模板
-
-## Q: 批量读取配置不正确会怎样？
-
-**A**: 批量读取配置错误可能导致：
-
-1. **数据读取错误**: 如果 `BatchReadLength` 设置过小，可能无法读取所有数据点
-2. **索引错误**: 如果 `Metrics` 中的 `Index` 配置不正确，可能导致读取到错误的数据
-3. **性能下降**: 如果应该使用批量读取但没有启用，会导致多次网络请求，性能下降
-
-**配置建议**：
-- 如果数据点连续，建议启用 `EnableBatchRead` 并正确配置 `BatchReadRegister` 和 `BatchReadLength`
-- `Index` 应该与数据点在批量读取结果中的位置对应（注意数据类型占用的字节数）
-- 如果不确定，可以先禁用批量读取，逐个读取寄存器进行测试
-
-## Q: 如何查看系统是否正常运行？
-
-**A**: 可以通过以下方式检查：
-
-1. **检查服务状态**:
-   ```bash
-   # Central API
-   curl http://localhost:8000/health
-
-   # Edge Agent
-   curl http://localhost:8001/api/DataAcquisition/plc-connections
-   ```
-
-2. **查看监控指标**:
-   ```bash
-   curl http://localhost:8000/api/metrics-data
-   ```
-   关注以下指标：
-   - `data_acquisition_collection_rate`: 采集频率，应该大于 0
-   - `data_acquisition_errors_total`: 错误总数，应该为 0 或很少
-   - `data_acquisition_connection_duration_seconds`: 连接持续时间
-
-3. **查看 Web 界面**: 访问 http://localhost:3000 查看可视化的系统状态
-
-4. **检查日志**: 查看是否有错误日志，正常运行时应该主要是 Information 级别的日志
-
-## 下一步
-
-- [文档索引](index.md)
-- [API 使用示例](api-usage.md)
-- [入门教程](tutorial-getting-started.md)
+- [配置](tutorial-configuration.md)
+- [部署](tutorial-deployment.md)
+- [驱动目录](hsl-drivers.md)
+- [设计](design.md)

@@ -1,100 +1,86 @@
 # Design
 
-This document explains the project’s core positioning, architectural boundaries, and intentional trade-offs.
+This document explains the core design decisions of the project, not file-by-file implementation details.
 
-## Project Positioning
+## 1. Product Boundary
 
-DataAcquisition is not designed as a “central industrial platform”.  
-Its core is an industrial PLC data acquisition runtime.
+The main product in this repository is the `Edge Agent`.
 
-The project prioritizes:
+That means the project primarily solves:
 
-- reliable PLC connectivity
-- correct register acquisition
-- recoverable local persistence first
-- primary storage after local durability
-- auditable behavior across restart, network loss, and primary-store failure
+- how to connect to PLCs
+- how to collect data
+- how to persist locally before remote success
+- how to recover when primary storage fails
 
-Because of that, the Edge Agent is the main product. Central API and Central Web are supporting control-plane and diagnostics components.
+`Central API` and `Central Web` are support components used for:
 
-## Core Principles
+- edge registration
+- heartbeat and status inspection
+- metrics and log proxying
 
-## 1. Acquisition First
+They are not required to keep the acquisition path working.
 
-The Edge Agent must be able to run without Central API and still provide:
+## 2. Main Data Path
 
-- PLC connection management
-- channel acquisition
-- WAL persistence
-- primary storage writes
-- retry behavior
+The runtime path is:
 
-The central side is responsible for:
+```text
+PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage
+```
 
-- node registration and heartbeat
-- edge metrics and log proxying
-- centralized diagnostics and visualization
+Meaning:
 
-The central side is not part of the primary acquisition path.
+1. `Collector`
+   reads data from PLCs according to device and channel configuration.
 
-## 2. WAL Before Primary Storage
+2. `Queue`
+   handles batching, flushes, and in-memory requeue on failure.
 
-The main data path is:
+3. `Parquet WAL`
+   is the local recoverable copy.
 
-`PLC -> ChannelCollector -> QueueService -> WAL -> TSDB`
+4. `Primary Storage`
+   is currently InfluxDB by default.
 
-WAL is the safety boundary, not an optional side effect.
+When primary storage fails:
 
-The WAL lifecycle is modeled explicitly:
+- WAL files are moved into `retry/`
+- a background worker retries them later
 
-- `pending/`: newly written, not yet finalized against primary storage
-- `retry/`: primary storage failed, waiting for replay
-- `invalid/`: poison messages that could not be written into WAL
+When a message itself cannot be written into WAL:
 
-The goal is not to make unrealistic “absolute zero-loss” promises. The goal is to make failures understandable and recoverable:
+- the single poisoned message goes into `invalid/`
+- healthy messages in the batch keep moving
 
-- healthy messages are persisted locally first
-- primary storage failures are replayable
-- poison messages do not block healthy batches
-- failure behavior is explicit and auditable
+## 3. Why WAL-first
 
-## 3. Explicit Runtime Contracts
+Primary storage failure is a normal edge scenario, not an exceptional one.
 
-The framework separates runtime contracts from default implementations:
+Examples:
 
-- `IPlcDriverProvider`
-- `IPlcClientService`
-- `IPlcConnectionClient`
-- `IPlcDataAccessClient`
-- `IPlcTypedWriteClient`
-- `IDataStorageService`
-- `IWalStorageService`
-- `IQueueService`
-- `IChannelCollector`
-- `IAcquisitionStateManager`
+- InfluxDB is down
+- the network is temporarily unavailable
+- the configured endpoint is wrong
 
-This means:
+If the runtime writes directly to primary storage, the edge node loses data in exactly these scenarios.  
+That is why the runtime uses:
 
-- HslCommunication is the default PLC implementation, not an architectural requirement
-- InfluxDB is the default primary store, not the only possible one
-- Parquet is the default WAL implementation, not a hard framework dependency
+- local WAL first
+- primary storage second
 
-## 4. Restart Recovery Is a Feature
+## 4. Configuration Model
 
-Industrial collectors must assume that processes restart.
+The project uses JSON device configuration instead of a database-backed config center.
 
-Current recovery behavior:
+Reasons:
 
-- active cycles are stored in memory and mirrored to SQLite
-- the first conditional sample only establishes baseline state and does not fake `Start/End`
-- restart recovery may emit diagnostics when needed
-- recovery diagnostics go to `<measurement>_diagnostic` so they do not pollute the formal cycle measurement
+- easier edge deployment
+- simple file-based operations
+- natural integration with the .NET configuration model
+- better fit for industrial single-node operations
 
-## 5. Honest Configuration Contracts
-
-Configuration is intentionally small and explicit.
-
-Stable public fields:
+The core config fields are:
 
 - `Driver`
 - `Host`
@@ -102,85 +88,110 @@ Stable public fields:
 - `ProtocolOptions`
 - `Channels`
 
-Rules:
+The design rule is:
 
-- drivers accept stable full names only
-- `Host` and `Port` are public endpoint contracts and must not be silently ignored
-- `ProtocolOptions` expose only options actually supported by the current driver
-- unsupported `ProtocolOptions` are rejected at runtime
+- keep top-level fields stable
+- push protocol-specific differences into `ProtocolOptions`
+- validate configs before runtime
 
-## Runtime Structure
+## 5. Driver Model
 
-### Edge Main Path
+Drivers are selected through stable `Driver` names such as:
 
-1. `DeviceConfigService`
-   - loads configs and handles hot reload
-2. `PlcClientLifecycleService`
-   - creates and manages PLC clients from `Driver`
-3. `HeartbeatMonitor`
-   - tracks connection health
-4. `ChannelCollector`
-   - runs `Always` and `Conditional` acquisition
-5. `QueueService`
-   - batches messages and drives persistence
-6. `QueueBatchPersister`
-   - executes the WAL-first persistence path
-7. `ParquetRetryWorker`
-   - replays files in `retry/`
-8. `InfluxDbDataStorageService`
-   - default primary store
+- `melsec-a1e`
+- `melsec-mc`
+- `siemens-s7`
 
-### Central Side
+The runtime core does not depend directly on a specific PLC library.  
+Instead, it depends on:
 
-The Central API belongs to the control and diagnostics plane:
+- `IPlcDriverProvider`
+- `IPlcClientService`
 
-- `EdgeRegistry`: registration and heartbeat state
-- `EdgeDiagnosticsController`: log and metrics proxying
-- `MetricsController`: central metrics observation
+The current built-in implementation uses HslCommunication, but that is a default implementation choice, not an architectural requirement.
 
-## PLC Driver Design
+## 6. Acquisition Modes
 
-The driver layer is one of the most important open-source extension points in the project.
+The runtime supports two acquisition modes.
 
-Current model:
+### Always
 
-- configuration uses stable `Driver` names
-- the default catalog is provided by `HslStandardPlcDriverProvider`
-- the framework core does not depend directly on Hsl-specific types
-- third parties can integrate other protocol stacks through new `IPlcDriverProvider` implementations
-- driver implementations can reuse `PlcClientServiceBase` instead of building a large client implementation from scratch
+For continuous signals and real-time values.
 
-This gives:
+### Conditional
 
-- regular users a configuration-first experience for common PLCs
-- advanced users a clear extension point for custom drivers
+For cycle boundaries, steps, and edge-triggered events.
 
-## Intentionally Simple Areas
+In conditional mode:
 
-The project deliberately avoids over-engineering in a few places:
+- formal business events are written as `Start` / `End`
+- recovery diagnostics are written to `<measurement>_diagnostic`
 
-- the Hsl driver catalog remains a single-file registry
-- `ProtocolOptions` is not a heavy metadata framework
-- recovery diagnostics move to a sibling measurement rather than a separate event bus
+This keeps recovery semantics out of formal cycle analytics.
 
-These are intentional trade-offs to keep the project:
+## 7. Time Semantics
 
-- easy to adopt
-- easy to read
-- easy to extend
-- easy to maintain
+The runtime uses UTC timestamps internally.
 
-## Recommended Evolution
+Why:
 
-If the project keeps moving toward a more mature open-source shape, the suggested order is:
+- multiple edge nodes can be compared on one timeline
+- WAL replay and retry have one unambiguous time meaning
+- local timezone and DST issues do not leak into storage semantics
 
-1. add more automated tests around the main acquisition path
-2. extend `ProtocolOptions` for the most important drivers
-3. keep tightening the boundary between formal cycle analytics and recovery diagnostics in docs and query examples
-4. add more real example configurations and troubleshooting guides
+If local display time is needed, it should be handled in the UI or query layer.
 
-## Related Docs
+## 8. State Recovery
 
-- [Data Flow](data-flow.en.md)
-- [Core Modules](modules.en.md)
-- [Driver Catalog](hsl-drivers.en.md)
+Conditional acquisition depends not only on the current register value but also on the current active cycle state.
+
+To survive process restarts, active cycle state is stored as:
+
+- in-memory hot state
+- SQLite-backed local recovery state
+
+This allows the runtime to recover context and emit recovery diagnostics instead of silently forgetting state.
+
+## 9. Layering
+
+The current layering is:
+
+- `Domain`
+  domain, message, and configuration models
+- `Application`
+  runtime abstractions and contracts
+- `Infrastructure`
+  drivers, acquisition, storage, WAL, logging, and metrics
+- `Edge.Agent`
+  main runtime entry
+- `Central.Api` / `Central.Web`
+  optional central support components
+
+The goal is not academic purity.  
+The goal is:
+
+- keep default implementations inside Infrastructure
+- keep extension points stable in Application
+- keep runtime entry points simple
+
+## 10. Design Principles
+
+The current architecture is built around these principles:
+
+- `Edge First`
+- `WAL First`
+- `Configuration Before Runtime`
+- `Explicit Driver Contracts`
+- `Formal Events Separate From Diagnostics`
+
+These principles matter more than whether one class is split into three files.
+
+## 11. Current Direction
+
+The architecture is already stable enough.  
+The next valuable improvements are:
+
+1. more real-world example configs
+2. more end-to-end tests
+3. fuller `ProtocolOptions` support for the most common drivers
+4. stronger troubleshooting and operations docs

@@ -1,43 +1,59 @@
-# Documentation Index
+# Documentation Home
 
-This index is the main entry for DataAcquisition documentation. It follows a clear path: Getting Started → Configuration → Deployment → Querying → Development → Reference.
+These docs are organized around one goal: help you run a real PLC acquisition node and understand its boundaries, configuration model, and extension points.
 
-## Getting Started
+## Start Here
 
-- [Getting Started Tutorial](tutorial-getting-started.en.md)
+If this is your first time with the project, read in this order:
 
-## Configuration
+1. [Getting Started](tutorial-getting-started.en.md)
+2. [Configuration](tutorial-configuration.en.md)
+3. [Driver Catalog](hsl-drivers.en.md)
+4. [Deployment](tutorial-deployment.en.md)
 
-- [Configuration Tutorial](tutorial-configuration.en.md)
-- [Device Config Schema](../schemas/device-config.schema.json)
+## Read by Goal
 
-## Deployment
+### I just want it running
 
-- [Deployment Tutorial](tutorial-deployment.en.md)
-- [Docker InfluxDB Quick Deployment](docker-influxdb.en.md)
+- [Getting Started](tutorial-getting-started.en.md)
+- [Configuration](tutorial-configuration.en.md)
 
-## Data Querying
+### I want to connect a real PLC
 
-- [Data Query Tutorial](tutorial-data-query.en.md)
-
-## API & Operations
-
-- [API Usage Examples](api-usage.en.md)
-- [Performance Recommendations](performance.en.md)
+- [Configuration](tutorial-configuration.en.md)
+- [Driver Catalog](hsl-drivers.en.md)
 - [FAQ](faq.en.md)
 
-## Architecture & Internals
+### I want to deploy edge nodes
 
-- [Driver Catalog](hsl-drivers.en.md)
-- [Core Modules](modules.en.md)
+- [Deployment](tutorial-deployment.en.md)
 - [Data Flow](data-flow.en.md)
+- [FAQ](faq.en.md)
+
+### I want to understand the design
+
 - [Design](design.en.md)
+- [Modules](modules.en.md)
+- [Data Flow](data-flow.en.md)
 
-## Development
+### I want to extend the project
 
-- [Development Tutorial](tutorial-development.en.md)
-- [Contributing Guide](../CONTRIBUTING.en.md)
+- [Development](tutorial-development.en.md)
+- [Contributing](../CONTRIBUTING.en.md)
 
-## Back
+## Reference Docs
 
-- Back to [README](../README.en.md)
+- [API Usage](api-usage.en.md)
+- [Data Query](tutorial-data-query.en.md)
+- [Performance](performance.en.md)
+- [Docker InfluxDB Setup](docker-influxdb.en.md)
+
+## Project Conventions
+
+Before going deeper, keep these conventions in mind:
+
+- the `Edge Agent` is the main product; `Central` is optional support
+- the main path is `PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage`
+- drivers are selected by stable `Driver` names
+- configs should be validated before runtime
+- formal business events and recovery diagnostics are stored separately

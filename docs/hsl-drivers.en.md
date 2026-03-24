@@ -1,48 +1,125 @@
-# Hsl Driver Catalog
+# Driver Catalog
 
-This project uses `HslStandardPlcDriverProvider` as the default HslCommunication driver catalog. Configuration uses full `Driver` names only; protocol aliases are not provided.
+The current built-in driver catalog is provided by [HslStandardPlcDriverProvider.cs](../src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs).
 
-## Example
+This document does two things:
+
+- list the stable `Driver` names supported by the runtime
+- document which `ProtocolOptions` are currently supported per driver
+
+## Usage Rules
+
+Select a protocol through `Driver` in the device config:
 
 ```json
 {
-  "PlcCode": "PLC01",
-  "Driver": "melsec-mc",
-  "Host": "192.168.1.100",
-  "Port": 6000,
+  "Driver": "siemens-s7",
+  "Host": "192.168.1.20",
+  "Port": 102,
   "ProtocolOptions": {
-    "station": "0"
+    "plc": "S1200"
   }
 }
 ```
 
-## Driver List
+Rules:
 
-- `allen-bradley-connected-cip`
-- `allen-bradley-micro-cip`
-- `allen-bradley-net`
-- `allen-bradley-pccc`
-- `allen-bradley-slc`
-- `beckhoff-ads`
-- `delta-serial-ascii-over-tcp`
-- `delta-serial-over-tcp`
-- `delta-tcp`
-- `fatek-program`
-- `freedom-tcp`
-- `freedom-udp`
-- `fuji-command-setting-type`
-- `fuji-spb`
-- `fuji-sph`
-- `ge-srtp`
-- `inovance-serial-over-tcp`
-- `inovance-tcp`
-- `keyence-mc`
-- `keyence-mc-ascii`
-- `keyence-nano-serial-over-tcp`
-- `lsis-cnet-over-tcp`
-- `lsis-fast-enet`
-- `megmeet-serial-over-tcp`
-- `megmeet-tcp`
+- full driver names only
+- no aliases
+- `ProtocolOptions` must match what the selected driver declares
+
+## Common `ProtocolOptions`
+
+All built-in drivers support:
+
+- `connect-timeout-ms`
+- `receive-timeout-ms`
+
+CamelCase variants are also accepted internally, for example:
+
+- `cpuType`
+- `slotNo`
+
+## Additional Protocol Options
+
+If a driver is not listed below, it currently supports only the common timeout options.
+
+### Siemens
+
+#### `siemens-s7`
+
+- `plc`
+  Example values: `S1200`, `S1500`, `S200Smart`
+
+### Inovance
+
+#### `inovance-tcp`
+
+- `series`
+- `station`
+
+#### `inovance-serial-over-tcp`
+
+- `series`
+- `station`
+
+### XINJE
+
+#### `xinje-tcp`
+
+- `series`
+- `station`
+
+#### `xinje-serial-over-tcp`
+
+- `series`
+- `station`
+
+#### `xinje-internal`
+
+- `station`
+
+### Delta
+
+#### `delta-tcp`
+
+- `station`
+
+#### `delta-serial-over-tcp`
+
+- `station`
+
+#### `delta-serial-ascii-over-tcp`
+
+- `station`
+
+### LSIS
+
+#### `lsis-fast-enet`
+
+- `cpu-type`
+- `slot-no`
+
+### Panasonic
+
+#### `panasonic-mewtocol`
+
+- `station`
+
+### MegMeet
+
+#### `megmeet-tcp`
+
+- `station`
+
+#### `megmeet-serial-over-tcp`
+
+- `station`
+
+## Built-In Drivers
+
+### Mitsubishi / Melsec
+
 - `melsec-a1e`
 - `melsec-a1e-ascii`
 - `melsec-a3c`
@@ -54,82 +131,104 @@ This project uses `HslStandardPlcDriverProvider` as the default HslCommunication
 - `melsec-mc-ascii-udp`
 - `melsec-mc-udp`
 - `melsec-mcr`
+
+### Siemens
+
+- `siemens-fetch-write`
+- `siemens-ppi-over-tcp`
+- `siemens-s7`
+
+### Omron
+
 - `omron-cip`
 - `omron-connected-cip`
 - `omron-fins`
 - `omron-hostlink`
 - `omron-hostlink-cmode`
-- `panasonic-mc`
-- `panasonic-mewtocol`
-- `siemens-fetch-write`
-- `siemens-ppi-over-tcp`
-- `siemens-s7`
-- `toyota-toyopuc`
-- `turck-reader`
-- `vigor-serial-over-tcp`
+
+### Allen-Bradley
+
+- `allen-bradley-connected-cip`
+- `allen-bradley-micro-cip`
+- `allen-bradley-net`
+- `allen-bradley-pccc`
+- `allen-bradley-slc`
+
+### Beckhoff
+
+- `beckhoff-ads`
+
+### Inovance
+
+- `inovance-serial-over-tcp`
+- `inovance-tcp`
+
+### XINJE
+
 - `xinje-internal`
 - `xinje-serial-over-tcp`
 - `xinje-tcp`
+
+### Delta
+
+- `delta-serial-ascii-over-tcp`
+- `delta-serial-over-tcp`
+- `delta-tcp`
+
+### Keyence
+
+- `keyence-mc`
+- `keyence-mc-ascii`
+- `keyence-nano-serial-over-tcp`
+
+### LSIS
+
+- `lsis-cnet-over-tcp`
+- `lsis-fast-enet`
+
+### Panasonic
+
+- `panasonic-mc`
+- `panasonic-mewtocol`
+
+### MegMeet
+
+- `megmeet-serial-over-tcp`
+- `megmeet-tcp`
+
+### Other built-in drivers
+
+- `fatek-program`
+- `freedom-tcp`
+- `freedom-udp`
+- `fuji-command-setting-type`
+- `fuji-spb`
+- `fuji-sph`
+- `ge-srtp`
+- `toyota-toyopuc`
+- `turck-reader`
+- `vigor-serial-over-tcp`
 - `yamatake-digitron-cpl-over-tcp`
 - `yaskawa-memobus-tcp`
 - `yaskawa-memobus-udp`
 - `yokogawa-link`
 
-## ProtocolOptions
+## Examples
 
-Different Hsl drivers may require extra parameters via `ProtocolOptions`. The officially supported and documented options are:
+Example config directory:
 
-- `station`
-- `series`
-- `plc`
-- `cpuType`
-- `slotNo`
-- `connect-timeout-ms`
-- `receive-timeout-ms`
+- [../examples/device-configs](../examples/device-configs)
 
-CamelCase forms such as `cpuType` and `slotNo` are accepted and normalized internally.
+You can validate your own directory with:
 
-`ProtocolOptions` that are not listed for the current driver are rejected at runtime with a clear error message.
-
-The drivers with documented official options and examples are:
-
-| Driver | Supported ProtocolOptions |
-|------|------|
-| `beckhoff-ads` | none |
-| `inovance-tcp` | `series`, `station` |
-| `melsec-a1e` | none |
-| `melsec-mc` | none |
-| `omron-fins` | none |
-| `siemens-s7` | `plc` |
-
-Siemens example:
-
-```json
-{
-  "Driver": "siemens-s7",
-  "Host": "192.168.1.20",
-  "ProtocolOptions": {
-    "plc": "S1200"
-  }
-}
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir ./examples/device-configs
 ```
 
-Inovance example:
+## Extending Drivers
 
-```json
-{
-  "Driver": "inovance-tcp",
-  "Host": "192.168.1.30",
-  "Port": 502,
-  "ProtocolOptions": {
-    "station": "1",
-    "series": "AM"
-  }
-}
-```
+If the built-in catalog is not enough, start here:
 
-## Design Notes
-
-- Hsl is the default driver mechanism, not the only one
-- The framework core only depends on `IPlcClientService` and `IPlcDriverProvider`
-- Users who do not want Hsl can register their own provider
+- [IPlcDriverProvider](../src/DataAcquisition.Application/Abstractions/IPlcDriverProvider.cs)
+- [IPlcClientService](../src/DataAcquisition.Application/Abstractions/IPlcClientService.cs)
+- [../CONTRIBUTING.en.md](../CONTRIBUTING.en.md)

@@ -1,99 +1,88 @@
 # 设计说明
 
-本文档说明 DataAcquisition 的核心定位、边界和架构取舍。
+这份文档说明项目的核心设计取舍，而不是逐文件罗列实现细节。
 
-## 项目定位
+## 1. 产品边界
 
-DataAcquisition 的核心不是“中心平台”，而是一个面向工业现场的 PLC 数据采集运行时。
+DataAcquisition 的核心产品是 `Edge Agent`。
 
-项目优先解决：
+也就是说，项目首先解决的是：
 
-- 稳定连接 PLC
-- 正确采集寄存器数据
-- 先在本地保留可恢复副本
-- 再把数据写入主存储
-- 在重启、断网或主存储失败时保持行为可恢复、可审计
+- PLC 怎么连
+- 数据怎么采
+- 本地怎么兜底
+- 主存储失败后怎么恢复
 
-因此，Edge Agent 是主产品；Central API / Central Web 是辅助控制面和诊断面。
+中心侧 `Central API` / `Central Web` 是辅助控制面，用于：
 
-## 核心原则
+- 节点注册
+- 心跳和状态查看
+- 指标与日志代理
 
-## 1. Acquisition First
+它不是采集主链路的前置依赖。
 
-Edge Agent 必须在没有 Central API 的情况下独立运行，至少完成：
+## 2. 主数据链路
 
-- PLC 连接管理
-- 通道采集
-- WAL 持久化
-- 主存储写入
-- 失败重试
+运行时主链路如下：
 
-Central 侧负责：
+```text
+PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage
+```
 
-- 节点注册与心跳
-- Edge 指标与日志代理
-- 集中诊断与可视化
+详细含义：
 
-Central 不属于主采集链路。
+1. `Collector`
+   按设备配置和通道配置从 PLC 读取数据。
 
-## 2. WAL Before Primary Storage
+2. `Queue`
+   负责消息聚合、批量刷写和失败回补。
 
-核心数据路径：
+3. `Parquet WAL`
+   本地可恢复副本。先写本地，再尝试主存储。
 
-`PLC -> ChannelCollector -> QueueService -> WAL -> TSDB`
+4. `Primary Storage`
+   当前默认实现是 InfluxDB。
 
-WAL 是安全边界，不是附属能力。
+如果主存储失败：
 
-WAL 生命周期分为：
+- WAL 文件移动到 `retry/`
+- 后台重试任务继续补偿写入
 
-- `pending/`：刚写入，尚未完成主存储判定
-- `retry/`：主存储失败，等待后台回放
-- `invalid/`：无法写入 WAL 的坏消息审计目录
+如果某条消息本身写不进 WAL：
 
-设计目标不是“承诺绝对不丢任何数据”，而是在真实故障场景下尽量做到：
+- 单条隔离到 `invalid/`
+- 不拖死整批健康消息
 
-- 正常消息先落本地
-- 主存储失败可重试
-- 坏消息不拖死整批
-- 故障行为可解释
+## 3. 为什么采用 WAL-first
 
-## 3. Explicit Runtime Contracts
+工业现场里，主存储失败是常态之一，不是例外。
 
-框架通过接口将运行时契约与默认实现分离：
+例如：
 
-- `IPlcDriverProvider`
-- `IPlcClientService`
-- `IPlcConnectionClient`
-- `IPlcDataAccessClient`
-- `IPlcTypedWriteClient`
-- `IDataStorageService`
-- `IWalStorageService`
-- `IQueueService`
-- `IChannelCollector`
-- `IAcquisitionStateManager`
+- InfluxDB 未启动
+- 网络短暂断开
+- 目标端口不可达
 
-这意味着：
+如果采集链路直接写主存储，边缘节点会在这类场景下直接丢数。  
+因此项目采用：
 
-- HslCommunication 是默认 PLC 实现，但不是架构前提
-- InfluxDB 是默认主存储，但不是唯一主存储
-- Parquet 是默认 WAL 实现，但框架本身不绑定具体文件格式
+- 先写本地 WAL
+- 再写主存储
 
-## 4. Restart Recovery Is a Feature
+这样主存储失败时，边缘节点仍然保留可恢复副本。
 
-工业采集系统不能假设进程永不重启。
+## 4. 配置模型
 
-当前恢复设计：
+项目使用 JSON 设备配置，而不是数据库配置中心。
 
-- active cycle 以内存 + SQLite 方式保存
-- 条件采集首拍只建立基线，不伪造 `Start/End`
-- 重启后如有需要会写入恢复诊断事件
-- 恢复诊断进入 `<measurement>_diagnostic`，不污染正式周期 measurement
+原因：
 
-## 5. Honest Configuration Contracts
+- 边缘节点部署简单
+- 文件易于版本管理
+- 与 .NET 配置系统天然兼容
+- 更适合工业现场单机运维
 
-配置设计追求“小而稳定”，不追求一个虚假的“大一统模型”。
-
-公共字段：
+配置结构的核心字段是：
 
 - `Driver`
 - `Host`
@@ -101,85 +90,112 @@ WAL 生命周期分为：
 - `ProtocolOptions`
 - `Channels`
 
-原则：
+设计原则：
 
-- 驱动只接受稳定完整名称
-- `Host` / `Port` 是公共契约，驱动不能静默忽略
-- `ProtocolOptions` 只开放当前驱动真实支持的参数
-- 未声明的 `ProtocolOptions` 在运行时直接拒绝
+- 顶层字段保持稳定
+- 协议差异下沉到 `ProtocolOptions`
+- 配置先校验，再运行
 
-## 运行时结构
+## 5. 驱动模型
 
-### Edge 主链路
+驱动选择使用稳定的 `Driver` 名称，例如：
 
-1. `DeviceConfigService`
-   - 加载配置并处理热更新
-2. `PlcClientLifecycleService`
-   - 按 `Driver` 创建和管理 PLC 客户端
-3. `HeartbeatMonitor`
-   - 跟踪连接健康状态
-4. `ChannelCollector`
-   - 执行 `Always` / `Conditional` 采集
-5. `QueueService`
-   - 聚合批次并驱动持久化
-6. `QueueBatchPersister`
-   - 执行 WAL-first 持久化链
-7. `ParquetRetryWorker`
-   - 回放 `retry/` 中的 WAL
-8. `InfluxDbDataStorageService`
-   - 默认主存储
+- `melsec-a1e`
+- `melsec-mc`
+- `siemens-s7`
 
-### Central 侧
+框架核心不直接依赖具体 PLC 库，而是通过：
 
-Central API 属于控制面和诊断面：
+- `IPlcDriverProvider`
+- `IPlcClientService`
 
-- `EdgeRegistry`：注册和心跳状态
-- `EdgeDiagnosticsController`：日志和指标代理
-- `MetricsController`：中心指标观察
+建立协议扩展点。
 
-## PLC 驱动设计
+默认内置实现当前基于 HslCommunication，但这只是默认实现，不是架构前提。
 
-驱动层是最重要的开源扩展点之一。
+## 6. 采集模式
 
-当前设计：
+项目支持两种采集模式：
 
-- 配置使用稳定 `Driver` 名称
-- 默认目录由 `HslStandardPlcDriverProvider` 提供
-- 框架核心不直接依赖 Hsl 类型
-- 第三方可以通过实现新的 `IPlcDriverProvider` 接入其他协议栈
-- 驱动实现可复用 `PlcClientServiceBase`，不需要从零实现一个过大的接口
+### Always
 
-这使得：
+适合连续量、状态量、实时信号。
 
-- 普通用户可以直接通过配置接入常见 PLC
-- 高级用户可以替换默认驱动实现
+### Conditional
 
-## 有意保留的简单性
+适合周期、工步、事件边沿。
 
-当前项目没有刻意做成“过度工程”：
+Conditional 模式下：
 
-- Hsl 驱动目录仍然保持单文件注册表
-- `ProtocolOptions` 不是重量级元数据系统
-- 恢复诊断只拆到 sibling measurement，而不是再造一个复杂事件总线
+- 正式业务事件写入 `Start` / `End`
+- 恢复诊断写入 `<measurement>_diagnostic`
 
-这些都是刻意取舍，目的是保持：
+这样可以避免恢复语义污染正式周期统计。
 
-- 好上手
-- 好读
-- 好扩展
-- 好维护
+## 7. 时间语义
 
-## 当前演进方向
+系统内部统一使用 UTC 时间。
 
-如果继续向更成熟的开源项目推进，优先级建议是：
+原因：
 
-1. 增加主链路自动化测试
-2. 补主流驱动的 `ProtocolOptions`
-3. 继续收紧查询和文档里对正式周期与恢复诊断的边界
-4. 增加更多示例配置与故障排查文档
+- 多 Edge 节点时间可比较
+- WAL 回放和重试有唯一时间语义
+- 避免本地时区和夏令时歧义
 
-## 相关阅读
+展示层如果需要本地时间，应在 UI 或查询层再做转换。
 
-- [数据流](data-flow.md)
-- [核心模块](modules.md)
-- [驱动清单](hsl-drivers.md)
+## 8. 状态恢复
+
+条件采集不仅依赖当前寄存器值，也依赖 active cycle 状态。
+
+为了应对进程重启，项目将 active cycle 做成：
+
+- 内存热状态
+- SQLite 本地恢复镜像
+
+因此服务重启后：
+
+- 不会完全丢失 active cycle 上下文
+- 能写出恢复诊断事件
+
+## 9. 代码分层
+
+当前采用的分层是：
+
+- `Domain`
+  领域模型、消息模型、配置模型
+- `Application`
+  运行时抽象和契约
+- `Infrastructure`
+  驱动、采集、存储、WAL、日志、指标实现
+- `Edge.Agent`
+  主运行时入口
+- `Central.Api` / `Central.Web`
+  中心侧辅助组件
+
+设计目标不是“纯学术分层”，而是：
+
+- 让默认实现集中在 Infrastructure
+- 让扩展点稳定留在 Application
+- 让部署入口保持简单
+
+## 10. 设计原则
+
+这个项目目前坚持的原则是：
+
+- `Edge First`
+- `WAL First`
+- `Configuration Before Runtime`
+- `Explicit Driver Contracts`
+- `Formal Events Separate From Diagnostics`
+
+这些原则比“某个类拆成几个文件”更重要。
+
+## 11. 当前演进方向
+
+当前架构已经稳定，后续优化优先级主要是：
+
+1. 增加更多真实驱动示例配置
+2. 增加更多端到端测试
+3. 继续完善主流驱动的 `ProtocolOptions`
+4. 强化故障排查和运维文档

@@ -1,177 +1,142 @@
-# 入门教程
+# 快速开始
 
-本文档给出一条最短可运行路径：启动 InfluxDB，使用模拟器生成 PLC 数据，运行 Edge Agent，确认数据进入主存储和 WAL。
+这份教程的目标很简单：让你在本地把一个 Edge Agent 跑起来，并确认它能读取配置、启动采集主链路并写入主存储。
 
-## 前置条件
+## 前置要求
 
 - .NET 10 SDK
+- Docker
 - InfluxDB 2.x
-- Node.js 20+，仅在使用 Central Web 时需要
 
-默认端口：
+如果你只是想先验证配置，不需要先准备 PLC。
 
-| 服务 | 端口 |
-|------|------|
-| Edge Agent | `8001` |
-| Central API | `8000` |
-| Central Web | `3000` |
-| InfluxDB | `8086` |
+## 第一步：构建项目
 
-## 1. 获取代码
+在仓库根目录执行：
 
 ```bash
-git clone https://github.com/liuweichaox/DataAcquisition.git
-cd DataAcquisition
+dotnet build DataAcquisition.sln
 ```
 
-## 2. 启动 InfluxDB
+## 第二步：启动 InfluxDB
 
-推荐直接使用仓库内的 Compose 文件：
+项目附带了一个简单的 compose 文件：
 
 ```bash
 docker compose -f docker-compose.tsdb.yml up -d
 ```
 
-更多说明见 [docker-influxdb.md](docker-influxdb.md)。
+如果你已经有自己的 InfluxDB，只需要确认 [appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json) 里的 `InfluxDB` 配置正确即可。
 
-## 3. 配置 Edge Agent
+## 第三步：检查设备配置
 
-编辑 [src/DataAcquisition.Edge.Agent/appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json)：
+默认设备配置目录是：
 
-```json
-{
-  "Urls": "http://+:8001",
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token",
-    "Org": "default",
-    "Bucket": "iot"
-  },
-  "Parquet": {
-    "Directory": "./Data/parquet"
-  },
-  "Acquisition": {
-    "StateStore": {
-      "DatabasePath": "Data/acquisition-state.db"
-    }
-  },
-  "Edge": {
-    "EnableCentralReporting": false,
-    "CentralApiBaseUrl": "http://localhost:8000",
-    "EdgeId": "EDGE-001",
-    "HeartbeatIntervalSeconds": 10
-  }
-}
-```
+- [src/DataAcquisition.Edge.Agent/Configs](../src/DataAcquisition.Edge.Agent/Configs)
 
-如果当前只验证采集主链路，建议先把 `EnableCentralReporting` 设为 `false`，避免中心侧未启动时的注册重试噪音。
+仓库里已经带了一个本地联调示例：
 
-## 4. 启动 PLC 模拟器
+- [TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)
 
-```bash
-dotnet run --project src/DataAcquisition.Simulator
-```
+你也可以参考：
 
-模拟器会持续输出寄存器变化，用于替代真实 PLC。
+- [examples/device-configs](../examples/device-configs)
+- [device-config.schema.json](../schemas/device-config.schema.json)
 
-## 5. 准备设备配置
+## 第四步：离线校验配置
 
-参考 [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)。最小示例：
-
-```json
-{
-  "SchemaVersion": 1,
-  "IsEnabled": true,
-  "PlcCode": "PLC01",
-  "Driver": "melsec-a1e",
-  "Host": "127.0.0.1",
-  "Port": 502,
-  "ProtocolOptions": {
-    "connect-timeout-ms": "5000",
-    "receive-timeout-ms": "5000"
-  },
-  "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "PLC01C01",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 10,
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        }
-      ]
-    }
-  ]
-}
-```
-
-驱动名称只接受完整 `Driver` 名称。完整清单见 [hsl-drivers.md](hsl-drivers.md)。
-如果编辑器支持 JSON Schema，可以关联 [../schemas/device-config.schema.json](../schemas/device-config.schema.json)。
-
-## 6. 启动 Edge Agent
-
-```bash
-dotnet run --project src/DataAcquisition.Edge.Agent
-```
-
-如果设备配置和 InfluxDB 正常，控制台会出现采集和写入日志。
-
-只校验配置而不启动服务：
+先确认配置本身是合法的：
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-## 7. 验证主存储
+如果你要校验其他目录：
 
-在 InfluxDB 中执行：
-
-```flux
-from(bucket: "iot")
-  |> range(start: -10m)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> yield(name: "latest")
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir ./examples/device-configs
 ```
 
-如果能看到数据，说明主链路已经跑通。
+校验通过后，你应该能看到类似输出：
 
-## 8. 验证 WAL
+```text
+[OK] .../TEST_PLC.json (TEST_PLC)
+```
 
-停止 InfluxDB 后继续运行 Edge Agent，观察：
+## 第五步：启动 Edge Agent
 
-- `pending/` 可能短暂出现新文件
-- 主存储持续失败时，文件会转入 `retry/`
-- 如果出现无法写入 WAL 的坏消息，会进入 `invalid/`
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent
+```
 
-默认目录：
+默认端口来自 [appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json) 中的 `Urls`，默认是：
 
-- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/`
-- `src/DataAcquisition.Edge.Agent/Data/parquet/retry/`
-- `src/DataAcquisition.Edge.Agent/Data/parquet/invalid/`
+- `http://localhost:8001`
 
-## 9. 可选：启动中心侧
+启动后常用端点：
 
-Central 侧不是主采集链路，建议在 Edge 单独跑通后再启用。
+- `/health`
+- `/metrics`
+- `/api/logs`
+- `/api/DataAcquisition/plc-connections`
 
-启动 Central API：
+## 可选：启动 PLC 模拟器
+
+如果你想在本地做闭环联调，可以启动模拟器：
+
+```bash
+dotnet run --project src/DataAcquisition.Simulator
+```
+
+模拟器默认监听 `502` 端口，并输出当前寄存器变化。详细说明见：
+
+- [src/DataAcquisition.Simulator/README.md](../src/DataAcquisition.Simulator/README.md)
+
+## 如何确认系统在工作
+
+你可以从这几个角度确认：
+
+### 1. Agent 存活
+
+```bash
+curl http://localhost:8001/health
+```
+
+### 2. 配置被成功加载
+
+Agent 启动日志里应能看到配置校验成功和 PLC/通道启动相关信息。
+
+### 3. WAL 目录创建成功
+
+默认 WAL 根目录：
+
+- `src/DataAcquisition.Edge.Agent/bin/Debug/net10.0/Data/parquet`
+
+内部状态目录：
+
+- `pending/`
+- `retry/`
+- `invalid/`
+
+说明：
+
+- `pending/` 是新写入 WAL 的中间态
+- `retry/` 是主存储失败后的待补偿文件
+- `invalid/` 是无法写入 WAL 的坏消息审计区
+
+### 4. InfluxDB 有数据写入
+
+如果 InfluxDB 可达，WAL 文件会很快被删除，不会长期堆积在 `retry/`。
+
+## 可选：启动中心侧
+
+中心侧不是采集主链路的前置条件，但如果你要看注册、心跳和 Web 界面，可以继续启动：
 
 ```bash
 dotnet run --project src/DataAcquisition.Central.Api
 ```
 
-启动 Central Web：
+如果要运行 Web：
 
 ```bash
 cd src/DataAcquisition.Central.Web
@@ -179,9 +144,30 @@ pnpm install
 pnpm run serve
 ```
 
+## 常见问题
+
+### 配置校验失败
+
+优先检查：
+
+- `Driver` 是否为完整稳定名称
+- `ProtocolOptions` 是否包含当前驱动不支持的键
+- `PlcCode` 是否在多个文件中重复
+
+### WAL 一直进 retry
+
+这通常说明主存储不可达，例如 InfluxDB 地址不对或服务未启动。
+
+### 本地模拟器能连，现场 PLC 不能连
+
+优先检查：
+
+- `Host` 和 `Port`
+- 现场网络连通性
+- 驱动选择是否正确
+
 ## 下一步
 
-- [配置教程](tutorial-configuration.md)
-- [部署教程](tutorial-deployment.md)
-- [设计说明](design.md)
-- [开发扩展教程](tutorial-development.md)
+- [配置说明](tutorial-configuration.md)
+- [驱动目录](hsl-drivers.md)
+- [部署说明](tutorial-deployment.md)

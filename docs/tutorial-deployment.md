@@ -1,157 +1,243 @@
-# 部署教程：从开发到生产
+# 部署
 
-本教程提供生产环境部署建议与可选容器化方案。
+这份文档只回答一个问题：如何把 DataAcquisition 部署成一个长期运行、可恢复、可观察的 PLC 数据采集系统。
 
----
+DataAcquisition 的推荐部署原则很简单：
 
-## 1. 部署架构建议
+- `Edge Agent` 是采集主程序，必须部署在靠近 PLC 的节点
+- `InfluxDB` 是默认主存储
+- `Parquet WAL` 必须保留在边缘节点本地磁盘
+- `Central API / Central Web` 是可选的中心控制面，不是采集前提
 
-### 单车间部署
-- 1 个 Edge Agent
-- 可选 Central API/Web（用于监控）
+## 推荐拓扑
 
-### 多车间部署
-- 每车间部署 Edge Agent
-- 中心部署 Central API + Central Web
+### 单节点
 
----
+适合本地验证、实验室、单条产线：
 
-## 2. 运行时准备
+- 1 个 `Edge Agent`
+- 1 个 `InfluxDB`
+- 可选 1 套 `Central API / Central Web`
 
-- .NET 10.0 Runtime
-- InfluxDB 2.x
-- Node.js（仅 Central Web）
+### 多节点
 
-建议使用服务管理器：
-- Linux：systemd
-- Windows：Windows Service
+适合多车间、多产线或多工厂：
 
----
+- 每个采集节点部署自己的 `Edge Agent`
+- 每个采集节点保留自己的 `WAL` 和本地状态库
+- 中心侧部署统一的 `Central API / Central Web`
+- `InfluxDB` 可以集中部署，也可以按站点拆分
 
-## 3. 进程级部署（推荐）
+核心约束是：
+
+- `Edge Agent` 必须在 PLC 可达的网络里
+- `WAL` 不能依赖中心服务或远程共享目录
+
+## 运行时组件
 
 ### Edge Agent
 
+职责：
+
+- 加载设备配置
+- 建立 PLC 连接
+- 执行 Always / Conditional 采集
+- 先写 WAL，再写主存储
+- 暴露本地健康、日志、指标和诊断接口
+
+### InfluxDB
+
+职责：
+
+- 作为默认时序主存储
+
+### Central API / Central Web
+
+职责：
+
+- 展示节点状态
+- 查看心跳
+- 聚合指标
+- 代理边缘诊断接口
+
+注意：
+
+- 中心侧不可用时，采集主链路仍应继续运行
+- 中心侧不是 WAL 或恢复机制的一部分
+
+## 推荐发布方式
+
+生产环境推荐使用 `dotnet publish` 后的二进制部署，而不是直接在生产环境执行 `dotnet run`。
+
+### 发布 Edge Agent
+
 ```bash
 dotnet publish src/DataAcquisition.Edge.Agent -c Release -o ./publish/edge
+```
+
+启动：
+
+```bash
 ./publish/edge/DataAcquisition.Edge.Agent
 ```
 
-### Central API
+### 发布 Central API
 
 ```bash
 dotnet publish src/DataAcquisition.Central.Api -c Release -o ./publish/central-api
+```
+
+启动：
+
+```bash
 ./publish/central-api/DataAcquisition.Central.Api
 ```
 
-### Central Web
+### 构建 Central Web
 
 ```bash
 cd src/DataAcquisition.Central.Web
 pnpm install
 pnpm run build
-# 将 dist/ 部署到 nginx 或静态服务
 ```
 
----
+构建输出在 `dist/`，应由 nginx 或其他静态文件服务托管。
 
-## 4. Docker 容器化部署
+## 容器化边界
 
-项目提供两个独立的 Docker Compose 文件，可按需使用：
+仓库里的 Compose 文件主要用于：
 
-| 文件 | 内容 | 用途 |
-|------|------|------|
-| `docker-compose.tsdb.yml` | InfluxDB 2.7 | 时序数据库 |
-| `docker-compose.app.yml` | Central API + Central Web | 中心应用服务 |
+- `InfluxDB`
+- `Central API`
+- `Central Web`
 
-> **注意**：Edge Agent 需要直连 PLC 设备，始终通过进程直接运行（见上方第 3 节），不参与 Docker 部署。Edge Agent 启动时会自动检测本机真实 IP 并上报给 Central API，确保容器内的中心服务可以回调 Edge Agent 的诊断接口。
+不建议把 `Edge Agent` 作为默认容器化部署模型写进主路径。
 
-### 启动时序数据库
+原因不是“不能容器化”，而是：
+
+- Edge 需要稳定访问 PLC 网络
+- 现场通常涉及真实网卡、VLAN、路由和防火墙
+- 宿主机进程部署更容易排查网络问题
+
+因此推荐策略是：
+
+- 中心组件可以容器化
+- `InfluxDB` 可以容器化
+- `Edge Agent` 优先作为宿主机进程部署
+
+## 运行数据目录
+
+生产环境最重要的不是发布目录，而是运行数据目录。
+
+默认需要重点关注：
+
+- `Data/parquet/pending`
+- `Data/parquet/retry`
+- `Data/parquet/invalid`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
+
+含义：
+
+- `pending/`：WAL 刚落盘、尚未完成主存储判定
+- `retry/`：主存储失败后等待后台重放
+- `invalid/`：坏消息隔离区
+- `logs.db`：本地日志存储
+- `acquisition-state.db`：条件采集的 active cycle 状态库
+
+如果你在生产环境只盯 `pending/`，很容易误判。真正需要长期关注的是：
+
+- `retry/` 是否持续增长
+- `invalid/` 是否出现文件
+
+## 上线前配置检查
+
+至少确认这些配置：
+
+### 应用级
+
+- `Urls`
+- `InfluxDB:*`
+- `Parquet:Directory`
+- `Acquisition:DeviceConfigService:ConfigDirectory`
+- `Acquisition:StateStore:DatabasePath`
+- `Edge:EnableCentralReporting`
+- `Edge:CentralApiBaseUrl`
+
+### 设备级
+
+- `PlcCode`
+- `Driver`
+- `Host`
+- `Port`
+- `ProtocolOptions`
+- `Channels`
+
+上线前建议执行：
 
 ```bash
-docker-compose -f docker-compose.tsdb.yml up -d
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-### 启动中心应用
+这是推荐流程的一部分，不是可选技巧。
+
+## 上线后检查
+
+系统启动后，先做这些检查。
+
+### 1. 进程状态
+
+- `Edge Agent` 是否在运行
+- `InfluxDB` 是否可访问
+
+### 2. 健康接口
 
 ```bash
-docker-compose -f docker-compose.app.yml up -d --build
+curl http://localhost:8001/health
 ```
 
-### 启动 Edge Agent（宿主机进程）
+### 3. 指标接口
 
 ```bash
-dotnet run --project src/DataAcquisition.Edge.Agent
-# 或使用 publish 后的二进制：
-# ./publish/edge/DataAcquisition.Edge.Agent
+curl http://localhost:8001/metrics
 ```
 
-### 访问地址
+### 4. WAL 状态
 
-| 服务 | 地址 |
-|------|------|
-| Central Web | `http://localhost:3000` |
-| Central API | `http://localhost:8000` |
-| InfluxDB | `http://localhost:8086` |
+重点检查：
 
-### 全部启动
+- `retry/` 是否持续增长
+- `invalid/` 是否出现新文件
 
-```bash
-docker-compose -f docker-compose.tsdb.yml -f docker-compose.app.yml up -d
-```
+### 5. 主存储写入
 
-### 停止服务
+确认 InfluxDB 中已经有对应 measurement。
 
-```bash
-docker-compose -f docker-compose.app.yml down
-docker-compose -f docker-compose.tsdb.yml down
-```
+## 备份策略
 
----
+至少备份两类数据。
 
-## 5. 架构说明
+### 运行数据
 
-Docker 部署时的网络拓扑：
+- `Data/parquet/`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
 
-```
-浏览器 → Central Web (nginx, :3000)
-              ↓ /api/, /metrics, /health
-         Central API (:8000, Docker 容器)
-              ↓ 代理查询 Edge 诊断数据
-         Edge Agent (:8001, 宿主机进程) → PLC 设备
-```
+### 主存储
 
-Central Web 容器内置 nginx，负责：
-- 提供前端静态文件
-- 反向代理 `/api/`、`/metrics`、`/health` 到 Central API
+- InfluxDB bucket 数据
 
-如需自定义域名或 HTTPS，可在 Central Web 前再加一层外部 nginx/Caddy 反向代理。
+如果场景要求强恢复能力，WAL 所在目录不应和系统临时目录混用。
 
----
+## 运维建议
 
-## 6. 监控与日志
+- 使用 `systemd`、Windows Service 或其他服务管理器托管 `Edge Agent`
+- 把 `WAL` 放在本地可靠磁盘，不要放到不稳定网络盘
+- 把中心服务和采集服务看作两个独立运行面
+- 先保证 `Edge -> WAL -> InfluxDB` 正常，再考虑中心可视化
 
-- Prometheus 指标：`/metrics`
-- 健康检查：`/health`
-- 建议接入 Grafana 和告警规则
+## 下一步
 
----
-
-## 7. 备份与恢复
-
-- InfluxDB 定期备份 Bucket
-- 备份 `Data/` 下的 Parquet WAL 文件
-- 建议使用定期快照或对象存储
-
----
-
-## 8. 安全建议
-
-- Central API 建议部署在内网
-- 使用 HTTPS
-- Token/密码通过环境变量注入
-- 最小权限原则
-
----
-
-下一步阅读：[数据查询教程](tutorial-data-query.md)
+- [快速开始](tutorial-getting-started.md)
+- [配置](tutorial-configuration.md)
+- [驱动目录](hsl-drivers.md)

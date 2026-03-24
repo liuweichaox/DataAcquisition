@@ -1,159 +1,246 @@
-# 📦 Core Modules
+# Modules
 
-This document explains the current modules and responsibilities through the lens of the PLC acquisition runtime path.
+This document does not try to list every file. It explains the main runtime surfaces and the module boundaries of the project.
 
-## Module Overview
+The primary product is `Edge Agent`.  
+Everything else should be understood around that collection path.
 
-### 1. PLC Driver Layer
+## Module View
+
+### Domain
 
 Location:
 
+- `src/DataAcquisition.Domain`
+
+Responsibilities:
+
+- define configuration models
+- define acquisition messages
+- define controlled value normalization rules
+- define core models that do not depend on specific libraries
+
+This layer should not know about Hsl, InfluxDB, SQLite, or ASP.NET.
+
+### Application
+
+Location:
+
+- `src/DataAcquisition.Application`
+
+Responsibilities:
+
+- define runtime abstractions
+- define PLC driver interfaces
+- define storage contracts
+- define configuration, queue, and acquisition contracts
+
+This layer answers:
+
+- what capabilities the system needs
+- not how those capabilities are implemented
+
+### Infrastructure
+
+Location:
+
+- `src/DataAcquisition.Infrastructure`
+
+Responsibilities:
+
+- provide default implementations
+- wrap Hsl drivers
+- wrap InfluxDB
+- wrap Parquet WAL
+- wrap SQLite logs and recovery state
+- implement config hot reload, metrics, and diagnostics
+
+This is the largest implementation layer, but it should not define the upper-level abstractions.
+
+### Edge Agent
+
+Location:
+
+- `src/DataAcquisition.Edge.Agent`
+
+Responsibilities:
+
+- bootstrap the runtime
+- register default implementations
+- host background workers
+- expose local health, metrics, logs, and diagnostics
+
+If you only care about what the project actually does, start here.
+
+### Central API / Central Web
+
+Location:
+
+- `src/DataAcquisition.Central.Api`
+- `src/DataAcquisition.Central.Web`
+
+Responsibilities:
+
+- provide centralized visibility
+- show heartbeats, metrics, and diagnostic proxies
+
+These are part of the control plane, not the collection path itself.
+
+### Tests
+
+Location:
+
+- `tests/DataAcquisition.Core.Tests`
+
+Responsibilities:
+
+- validate driver config contracts
+- validate WAL behavior
+- validate recovery logic
+- validate configuration rules
+
+## Main Runtime Path
+
+The core runtime path is intentionally fixed:
+
+1. `Edge Agent` starts
+2. device configs are loaded
+3. PLC drivers are created
+4. heartbeat and acquisition tasks start
+5. `DataMessage` instances are produced
+6. messages enter `QueueService`
+7. `Parquet WAL` is written first
+8. `InfluxDB` is written second
+9. failed primary writes move into `retry/`
+
+This path is the baseline for judging whether module boundaries make sense.
+
+## Key Modules
+
+### PLC Driver Layer
+
+Key files:
+
+- `src/DataAcquisition.Application/Abstractions/IPlcDriverProvider.cs`
 - `src/DataAcquisition.Application/Abstractions/IPlcClientService.cs`
-- `src/DataAcquisition.Application/Abstractions/IPlcClientFactory.cs`
+- `src/DataAcquisition.Infrastructure/Clients/PlcClientFactory.cs`
 - `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
 - `src/DataAcquisition.Infrastructure/Clients/HslPlcClientService.cs`
 
 Responsibilities:
 
-- select PLC communication implementations through stable `Driver` names
-- keep upper layers decoupled from direct HslCommunication usage
-- validate and apply `ProtocolOptions`
+- select concrete PLC implementations using stable `Driver` names
+- keep upper layers decoupled from Hsl
+- parse and apply driver-specific configuration
 
-Current default implementation:
+The important design decision here is:
 
-- `HslStandardPlcDriverProvider`
-- `HslPlcClientService`
+- the framework is not coupled to a PLC type enum
+- Hsl is the default implementation, not the architectural foundation
 
-### 2. Acquisition Orchestration Layer
+### Acquisition Orchestration Layer
 
-Location:
+Key files:
 
 - `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
 - `src/DataAcquisition.Infrastructure/DataAcquisitions/HeartbeatMonitor.cs`
 - `src/DataAcquisition.Infrastructure/DataAcquisitions/ChannelCollector.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/ChannelMetricReader.cs`
+- `src/DataAcquisition.Infrastructure/DataAcquisitions/MetricExpressionEvaluator.cs`
 - `src/DataAcquisition.Infrastructure/DataAcquisitions/AcquisitionStateManager.cs`
 
 Responsibilities:
 
-- start acquisition tasks per device and channel
-- manage PLC health and connectivity
+- start and manage acquisition tasks
+- decide whether a device is readable
 - run Always / Conditional acquisition
-- manage active cycles and recover them after restart
+- read fields, evaluate expressions, and produce events
+- recover active cycle state for conditional acquisition
 
-This is the core of the PLC acquisition path.
+### Queue and Storage Layer
 
-### 3. Queue and Persistence Layer
-
-Location:
+Key files:
 
 - `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+- `src/DataAcquisition.Infrastructure/Queues/QueueBatchPersister.cs`
 - `src/DataAcquisition.Infrastructure/DataStorages/ParquetFileStorageService.cs`
+- `src/DataAcquisition.Infrastructure/DataStorages/ParquetDataMessageSerializer.cs`
 - `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
 Responsibilities:
 
-- batch and aggregate data messages
-- write WAL first, then write primary storage
-- retry failed primary writes
-- quarantine poison messages into `invalid/`
+- batch messages
+- write WAL first, primary storage second
+- replay failed data
+- quarantine poison messages
 
-Key directories:
+This is the most important safety boundary in the system.
 
-- `pending/`
-- `retry/`
-- `invalid/`
+### Configuration and Operability Layer
 
-### 4. Configuration and Operability Layer
-
-Location:
+Key files:
 
 - `src/DataAcquisition.Infrastructure/DeviceConfigs/DeviceConfigService.cs`
-- `src/DataAcquisition.Infrastructure/Metrics/*`
+- `src/DataAcquisition.Infrastructure/DeviceConfigs/DeviceConfigValidator.cs`
+- `src/DataAcquisition.Infrastructure/DeviceConfigs/DeviceConfigFileLoader.cs`
 - `src/DataAcquisition.Infrastructure/Logs/*`
+- `src/DataAcquisition.Infrastructure/Metrics/*`
 
 Responsibilities:
 
-- device configuration loading and hot reload
-- Prometheus metrics
-- SQLite-backed log querying
+- read and validate JSON configuration
+- monitor the config directory and hot-reload it
+- provide Prometheus metrics
+- provide local log querying
 
-### 5. Host Layer
+## Boundary Rules
 
-Location:
+If I were maintaining this as a long-lived open source project, I would keep these rules:
 
-- `src/DataAcquisition.Edge.Agent/Program.cs`
-- `src/DataAcquisition.Edge.Agent/BackgroundServices/*`
-- `src/DataAcquisition.Central.Api/*`
-- `src/DataAcquisition.Central.Web/*`
+- `Domain` does not depend on infrastructure libraries
+- `Application` defines contracts only
+- `Infrastructure` implements, but does not define upper-level business rules
+- `Edge Agent` stays the primary product
+- documentation only promises capabilities that are actually supported
 
-Responsibilities:
-
-- Edge Agent: acquisition host, background workers, local diagnostics API
-- Central API: registration, heartbeat, diagnostics proxy
-- Central Web: centralized status and metrics UI
-
-## Main Runtime Path
-
-### Always / Conditional Data Acquisition
-
-Main flow:
-
-1. `DataAcquisitionService` starts acquisition loops per device/channel
-2. `HeartbeatMonitor` checks whether PLC reads are allowed
-3. `ChannelCollector` reads values from PLC
-4. a `DataMessage` is created
-5. the message is sent to `QueueService`
-6. `QueueService` writes WAL first, then writes primary storage
-
-### Conditional Recovery
-
-Conditional acquisition additionally depends on:
-
-- `AcquisitionStateManager`
-
-Current behavior:
-
-- active cycles are stored in memory and mirrored to SQLite
-- the first sample builds a baseline instead of faking a normal `Start/End`
-- restart diagnostics may emit `RecoveredStart` / `Interrupted`
-- recovery diagnostics are written to `<measurement>_diagnostic`
-- acquisition messages use UTC timestamps
-
-For formal cycle analytics, only paired `Start` / `End` should be treated as complete cycles.
-
-## Main Extension Points
+## Extension Points
 
 ### Add a New PLC Driver
 
+Path:
+
 1. implement a new `IPlcDriverProvider`
-2. optionally add a new `IPlcClientService` implementation
-3. register the provider in `Program.cs`
-4. use the full `Driver` name in configuration
+2. provide a new `IPlcClientService` if needed
+3. register it in the host
+4. document the full `Driver` name and provide a config example
 
 ### Replace the Primary Store
 
-1. implement `IDataStorageService`
-2. replace the default registration in the Edge Agent
+Path:
 
-### Replace the WAL Backend
+1. implement `IDataStorageService`
+2. replace the default host registration
+
+### Replace WAL
+
+Path:
 
 1. implement `IWalStorageService`
-2. keep lifecycle semantics such as `pending/retry/invalid`
+2. preserve explicit lifecycle semantics
 
-## Automated Tests
+## Recommended Reading Order
 
-Test project:
+If you want to understand the codebase quickly, read in this order:
 
-- `tests/DataAcquisition.Core.Tests`
-
-Current high-value coverage focuses on:
-
-- driver configuration validation
-- active cycle persistence and recovery
-- WAL poison message isolation
+1. `README.md`
+2. `docs/design.md`
+3. `src/DataAcquisition.Edge.Agent/Program.cs`
+4. `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
+5. `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
+6. `src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs`
 
 ## Related Docs
 
-- [Architecture Design](design.en.md)
-- [Data Flow](data-flow.en.md)
-- [Configuration Tutorial](tutorial-configuration.en.md)
+- [Design](design.en.md)
+- [Configuration](tutorial-configuration.en.md)
+- [Deployment](tutorial-deployment.en.md)

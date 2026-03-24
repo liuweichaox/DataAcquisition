@@ -1,177 +1,142 @@
 # Getting Started
 
-This guide follows the shortest working path: start InfluxDB, generate PLC data with the simulator, run the Edge Agent, and verify both primary storage and WAL behavior.
+The goal of this guide is simple: run a local Edge Agent, validate device configuration, and confirm the main acquisition pipeline can start and write to primary storage.
 
 ## Prerequisites
 
 - .NET 10 SDK
+- Docker
 - InfluxDB 2.x
-- Node.js 20+ only if you want to run Central Web
 
-Default ports:
+If you only want to validate configuration first, you do not need a real PLC yet.
 
-| Service | Port |
-|---------|------|
-| Edge Agent | `8001` |
-| Central API | `8000` |
-| Central Web | `3000` |
-| InfluxDB | `8086` |
+## Step 1: Build the Solution
 
-## 1. Clone the Repository
+From the repository root:
 
 ```bash
-git clone https://github.com/liuweichaox/DataAcquisition.git
-cd DataAcquisition
+dotnet build DataAcquisition.sln
 ```
 
-## 2. Start InfluxDB
+## Step 2: Start InfluxDB
 
-The fastest path is the Compose file already included in the repository:
+The repository includes a simple compose file:
 
 ```bash
 docker compose -f docker-compose.tsdb.yml up -d
 ```
 
-See [docker-influxdb.en.md](docker-influxdb.en.md) for more detail.
+If you already have your own InfluxDB instance, just make sure the `InfluxDB` section in [appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json) points to the right endpoint.
 
-## 3. Configure the Edge Agent
+## Step 3: Review Device Configuration
 
-Edit [src/DataAcquisition.Edge.Agent/appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json):
+The default device config directory is:
 
-```json
-{
-  "Urls": "http://+:8001",
-  "InfluxDB": {
-    "Url": "http://localhost:8086",
-    "Token": "your-token",
-    "Org": "default",
-    "Bucket": "iot"
-  },
-  "Parquet": {
-    "Directory": "./Data/parquet"
-  },
-  "Acquisition": {
-    "StateStore": {
-      "DatabasePath": "Data/acquisition-state.db"
-    }
-  },
-  "Edge": {
-    "EnableCentralReporting": false,
-    "CentralApiBaseUrl": "http://localhost:8000",
-    "EdgeId": "EDGE-001",
-    "HeartbeatIntervalSeconds": 10
-  }
-}
-```
+- [src/DataAcquisition.Edge.Agent/Configs](../src/DataAcquisition.Edge.Agent/Configs)
 
-If you are only validating the acquisition path, keep `EnableCentralReporting` set to `false` first so central registration noise does not distract from edge-side troubleshooting.
+The repository already includes a local development sample:
 
-## 4. Start the PLC Simulator
+- [TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json)
 
-```bash
-dotnet run --project src/DataAcquisition.Simulator
-```
+You can also use:
 
-The simulator prints changing register values and can be used instead of a real PLC during development.
+- [examples/device-configs](../examples/device-configs)
+- [device-config.schema.json](../schemas/device-config.schema.json)
 
-## 5. Prepare a Device Config
+## Step 4: Validate Configuration Offline
 
-Use [src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json](../src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json) as reference. Minimal example:
-
-```json
-{
-  "SchemaVersion": 1,
-  "IsEnabled": true,
-  "PlcCode": "PLC01",
-  "Driver": "melsec-a1e",
-  "Host": "127.0.0.1",
-  "Port": 502,
-  "ProtocolOptions": {
-    "connect-timeout-ms": "5000",
-    "receive-timeout-ms": "5000"
-  },
-  "HeartbeatMonitorRegister": "D100",
-  "HeartbeatPollingInterval": 5000,
-  "Channels": [
-    {
-      "Measurement": "sensor",
-      "ChannelCode": "PLC01C01",
-      "EnableBatchRead": true,
-      "BatchReadRegister": "D6000",
-      "BatchReadLength": 10,
-      "BatchSize": 10,
-      "AcquisitionInterval": 100,
-      "AcquisitionMode": "Always",
-      "Metrics": [
-        {
-          "MetricLabel": "temperature",
-          "FieldName": "temperature",
-          "Register": "D6000",
-          "Index": 0,
-          "DataType": "short",
-          "EvalExpression": "value / 100.0"
-        }
-      ]
-    }
-  ]
-}
-```
-
-Driver selection accepts full `Driver` names only. See [hsl-drivers.en.md](hsl-drivers.en.md) for the catalog.
-If your editor supports JSON Schema, point it to [../schemas/device-config.schema.json](../schemas/device-config.schema.json).
-
-## 6. Run the Edge Agent
-
-```bash
-dotnet run --project src/DataAcquisition.Edge.Agent
-```
-
-If the device config and InfluxDB are correct, the console should show acquisition and storage activity.
-
-Validate configs without starting the runtime:
+Validate configs before starting the runtime:
 
 ```bash
 dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs
 ```
 
-## 7. Verify Primary Storage
+To validate another directory:
 
-Run this Flux query in InfluxDB:
-
-```flux
-from(bucket: "iot")
-  |> range(start: -10m)
-  |> filter(fn: (r) => r["_measurement"] == "sensor")
-  |> yield(name: "latest")
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent -- --validate-configs --config-dir ./examples/device-configs
 ```
 
-If rows are returned, the main acquisition path is working.
+On success, you should see output like:
 
-## 8. Verify WAL Behavior
+```text
+[OK] .../TEST_PLC.json (TEST_PLC)
+```
 
-Stop InfluxDB while keeping the Edge Agent running. Then observe:
+## Step 5: Start the Edge Agent
 
-- new files may appear briefly under `pending/`
-- if the primary store keeps failing, files are moved into `retry/`
-- poison messages that cannot be written to WAL are quarantined into `invalid/`
+```bash
+dotnet run --project src/DataAcquisition.Edge.Agent
+```
 
-Default paths:
+The default URL comes from [appsettings.json](../src/DataAcquisition.Edge.Agent/appsettings.json):
 
-- `src/DataAcquisition.Edge.Agent/Data/parquet/pending/`
-- `src/DataAcquisition.Edge.Agent/Data/parquet/retry/`
-- `src/DataAcquisition.Edge.Agent/Data/parquet/invalid/`
+- `http://localhost:8001`
 
-## 9. Optional: Start the Central Side
+Useful endpoints after startup:
 
-The central side is not part of the main acquisition path. It is usually better to validate Edge first.
+- `/health`
+- `/metrics`
+- `/api/logs`
+- `/api/DataAcquisition/plc-connections`
 
-Run Central API:
+## Optional: Start the PLC Simulator
+
+For a local closed-loop workflow, start the simulator:
+
+```bash
+dotnet run --project src/DataAcquisition.Simulator
+```
+
+The simulator listens on port `502` by default and prints changing registers to the console. Details:
+
+- [src/DataAcquisition.Simulator/README.md](../src/DataAcquisition.Simulator/README.md)
+
+## How to Verify It Is Working
+
+You can verify the system from four angles.
+
+### 1. Agent liveness
+
+```bash
+curl http://localhost:8001/health
+```
+
+### 2. Config loading
+
+Startup logs should show successful config validation and runtime startup for PLCs/channels.
+
+### 3. WAL directories
+
+Default WAL root:
+
+- `src/DataAcquisition.Edge.Agent/bin/Debug/net10.0/Data/parquet`
+
+Internal state directories:
+
+- `pending/`
+- `retry/`
+- `invalid/`
+
+Meaning:
+
+- `pending/` is the transient state for newly written WAL files
+- `retry/` contains files that failed primary storage writes
+- `invalid/` contains poisoned messages that could not be written to WAL
+
+### 4. InfluxDB writes
+
+If InfluxDB is reachable, WAL files should be consumed quickly instead of accumulating under `retry/`.
+
+## Optional: Start Central Components
+
+Central services are not required for the acquisition path itself, but you can run them for registration, heartbeat, and UI:
 
 ```bash
 dotnet run --project src/DataAcquisition.Central.Api
 ```
 
-Run Central Web:
+To run the web UI:
 
 ```bash
 cd src/DataAcquisition.Central.Web
@@ -179,9 +144,30 @@ pnpm install
 pnpm run serve
 ```
 
+## Common Problems
+
+### Config validation fails
+
+Check:
+
+- whether `Driver` is a full stable driver name
+- whether `ProtocolOptions` contains keys unsupported by that driver
+- whether `PlcCode` is duplicated across files
+
+### WAL files keep moving into `retry`
+
+This usually means primary storage is unavailable, for example an incorrect InfluxDB endpoint or a stopped service.
+
+### The simulator works, but the real PLC does not
+
+Check:
+
+- `Host` and `Port`
+- network connectivity
+- whether the selected driver matches the real device/protocol
+
 ## Next
 
-- [Configuration Tutorial](tutorial-configuration.en.md)
-- [Deployment Tutorial](tutorial-deployment.en.md)
-- [Design](design.en.md)
-- [Development Tutorial](tutorial-development.en.md)
+- [Configuration](tutorial-configuration.en.md)
+- [Driver Catalog](hsl-drivers.en.md)
+- [Deployment](tutorial-deployment.en.md)
