@@ -1,13 +1,13 @@
 # 配置说明
 
-本项目的配置目标不是“把所有协议差异揉成一个万能模型”，而是：
+本文说明 DataAcquisition 的配置模型、字段约束和目录规则。配置设计遵循以下原则：
 
 - 顶层结构稳定
 - 驱动选择明确
 - 驱动私有差异放进 `ProtocolOptions`
 - 配置先校验，再运行
 
-## 配置文件在哪里
+## 配置入口
 
 设备配置默认目录：
 
@@ -31,7 +31,7 @@ JSON Schema：
 
 - [../examples/device-configs](../examples/device-configs)
 
-## 1. 设备配置结构
+## 设备配置结构
 
 最小示例：
 
@@ -74,7 +74,7 @@ JSON Schema：
 - `ProtocolOptions` 不是自由字典，未声明支持的键会被拒绝
 - `PlcCode` 在配置目录内必须唯一
 
-## 2. 通道配置
+## 通道配置
 
 一个设备下可以配置多个通道。每个通道通常对应一个 measurement。
 
@@ -98,7 +98,7 @@ JSON Schema：
 
 | 字段 | 必填 | 说明 |
 |------|:----:|------|
-| `Measurement` | ✅ | 写入主存储的 measurement |
+| `Measurement` | ✅ | 写入存储的 measurement |
 | `ChannelCode` | ✅ | 通道编码 |
 | `EnableBatchRead` | ✅ | 是否启用批量读取 |
 | `BatchReadRegister` | 条件 | 批量读取起始地址 |
@@ -109,7 +109,7 @@ JSON Schema：
 | `ConditionalAcquisition` | 条件 | 条件采集配置 |
 | `Metrics` | 条件 | 指标列表 |
 
-## 3. 指标配置
+## 指标配置
 
 示例：
 
@@ -142,7 +142,7 @@ JSON Schema：
 - 固定长度字符串会自动去除尾部 `\0`
 - 表达式仅对数值类型生效
 
-## 4. 采集模式
+## 采集模式
 
 ### Always
 
@@ -177,7 +177,7 @@ Conditional 模式语义：
 - 恢复诊断写入 `<measurement>_diagnostic`
 - 正式统计只应基于成对的 `Start` / `End`
 
-## 5. `ProtocolOptions`
+## `ProtocolOptions` 说明
 
 `ProtocolOptions` 是驱动的附加参数区。
 
@@ -196,7 +196,7 @@ Conditional 模式语义：
 
 - [hsl-drivers.md](hsl-drivers.md)
 
-## 6. 配置目录
+## 配置目录
 
 默认设备配置目录来自应用配置：
 
@@ -216,7 +216,7 @@ Conditional 模式语义：
 - 离线校验默认使用同一个目录
 - 可用 `--config-dir` 临时覆盖
 
-## 7. 最佳实践
+## 配置建议
 
 - `PlcCode`、`ChannelCode` 使用稳定、可读、可搜索的命名
 - 连续寄存器优先批量读取
@@ -224,7 +224,7 @@ Conditional 模式语义：
 - 在上线前先执行配置校验
 - 不要把驱动不支持的私有参数硬塞进 `ProtocolOptions`
 
-## 下一步
+## 相关文档
 
 - [快速开始](tutorial-getting-started.md)
 - [驱动目录](hsl-drivers.md)

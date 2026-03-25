@@ -1,13 +1,13 @@
 # Development
 
-This guide is for developers who want to change the runtime, add drivers, or replace default implementations.
+This guide is intended for developers who want to modify the runtime, add drivers, or replace default implementations. It summarizes code entry points, extension boundaries, and pre-submission checks.
 
 If you only want to run the system, start with:
 
 - [Getting Started](tutorial-getting-started.en.md)
 - [Configuration](tutorial-configuration.en.md)
 
-## Where to Start Reading the Code
+## Code Reading Entry Points
 
 Recommended order:
 
@@ -43,9 +43,9 @@ Follow these rules:
 
 ## Extend Storage
 
-The project keeps primary storage and WAL separate on purpose.
+The current runtime batches messages in memory and writes them directly to storage.
 
-### Replace the Primary Store
+### Replace the Storage Backend
 
 Implement:
 
@@ -55,25 +55,21 @@ The main entry point is:
 
 - `SaveBatchAsync(List<DataMessage>)`
 
-### Replace WAL
-
-Implement:
-
-- `IWalStorageService`
-
-The implementation must still model the WAL lifecycle:
-
-- write
-- read
-- delete
-- move to `retry/`
-- enumerate replay files
-- quarantine poison messages
-
 When extending storage:
 
 - do not bypass `QueueService`
-- do not collapse the `pending/retry/invalid` lifecycle semantics
+- define your success-return contract clearly
+- update docs and tests together when failure behavior changes
+
+### Adjust Queue Semantics
+
+If you change `QueueService`, make the following decisions explicit:
+
+- how batch boundaries are defined
+- whether later batches continue after a failed batch
+- how failures surface through logs and metrics
+
+Do not hide runtime failure semantics inside implementation details.
 
 ## Change Acquisition Logic
 
@@ -119,10 +115,10 @@ If you add new behavior, add at least one of:
 The highest-value coverage areas are:
 
 - driver configuration contracts
-- WAL behavior
-- recovery semantics
+- queue batching and failure behavior
+- conditional acquisition recovery semantics
 
-## Before You Submit
+## Pre-Submission Checklist
 
 Before opening a PR, run at least:
 

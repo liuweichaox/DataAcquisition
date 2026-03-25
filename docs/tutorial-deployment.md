@@ -1,15 +1,15 @@
 # 部署
 
-这份文档只回答一个问题：如何把 DataAcquisition 部署成一个长期运行、可恢复、可观察的 PLC 数据采集系统。
+本文说明如何将 DataAcquisition 部署为一个长期运行、可观测、以实时采集为优先的 PLC 数据采集系统。
 
-DataAcquisition 的推荐部署原则很简单：
+推荐部署原则如下：
 
 - `Edge Agent` 是采集主程序，必须部署在靠近 PLC 的节点
-- `InfluxDB` 是默认主存储
-- `Parquet WAL` 必须保留在边缘节点本地磁盘
+- `InfluxDB` 是默认 TSDB 实现
+- 本地状态只保留日志与条件采集状态，不引入 WAL 或后台回放目录
 - `Central API / Central Web` 是可选的中心控制面，不是采集前提
 
-## 推荐拓扑
+## 推荐部署拓扑
 
 ### 单节点
 
@@ -24,14 +24,14 @@ DataAcquisition 的推荐部署原则很简单：
 适合多车间、多产线或多工厂：
 
 - 每个采集节点部署自己的 `Edge Agent`
-- 每个采集节点保留自己的 `WAL` 和本地状态库
+- 每个采集节点保留自己的日志和条件采集状态库
 - 中心侧部署统一的 `Central API / Central Web`
 - `InfluxDB` 可以集中部署，也可以按站点拆分
 
 核心约束是：
 
 - `Edge Agent` 必须在 PLC 可达的网络里
-- `WAL` 不能依赖中心服务或远程共享目录
+- TSDB 可达性比中心侧可达性更关键
 
 ## 运行时组件
 
@@ -42,14 +42,14 @@ DataAcquisition 的推荐部署原则很简单：
 - 加载设备配置
 - 建立 PLC 连接
 - 执行 Always / Conditional 采集
-- 先写 WAL，再写主存储
+- 按批次直接写 InfluxDB
 - 暴露本地健康、日志、指标和诊断接口
 
 ### InfluxDB
 
 职责：
 
-- 作为默认时序主存储
+- 作为默认时序存储实现
 
 ### Central API / Central Web
 
@@ -63,7 +63,7 @@ DataAcquisition 的推荐部署原则很简单：
 注意：
 
 - 中心侧不可用时，采集主链路仍应继续运行
-- 中心侧不是 WAL 或恢复机制的一部分
+- 中心侧不是存储成功语义的一部分
 
 ## 推荐发布方式
 
@@ -127,28 +127,17 @@ pnpm run build
 
 ## 运行数据目录
 
-生产环境最重要的不是发布目录，而是运行数据目录。
+生产环境需要重点关注：
 
-默认需要重点关注：
-
-- `Data/parquet/pending`
-- `Data/parquet/retry`
-- `Data/parquet/invalid`
 - `Data/logs.db`
 - `Data/acquisition-state.db`
 
 含义：
 
-- `pending/`：WAL 刚落盘、尚未完成主存储判定
-- `retry/`：主存储失败后等待后台重放
-- `invalid/`：坏消息隔离区
 - `logs.db`：本地日志存储
 - `acquisition-state.db`：条件采集的 active cycle 状态库
 
-如果你在生产环境只盯 `pending/`，很容易误判。真正需要长期关注的是：
-
-- `retry/` 是否持续增长
-- `invalid/` 是否出现文件
+这里不保存原始采集数据的本地补偿副本。
 
 ## 上线前配置检查
 
@@ -158,7 +147,6 @@ pnpm run build
 
 - `Urls`
 - `InfluxDB:*`
-- `Parquet:Directory`
 - `Acquisition:DeviceConfigService:ConfigDirectory`
 - `Acquisition:StateStore:DatabasePath`
 - `Edge:EnableCentralReporting`
@@ -202,41 +190,41 @@ curl http://localhost:8001/health
 curl http://localhost:8001/metrics
 ```
 
-### 4. WAL 状态
+### 4. 日志状态
 
 重点检查：
 
-- `retry/` 是否持续增长
-- `invalid/` 是否出现新文件
+- 是否出现 PLC 连接错误
+- 是否出现 TSDB 写入失败
+- 配置变更是否被正确加载
 
-### 5. 主存储写入
+### 5. 存储写入
 
 确认 InfluxDB 中已经有对应 measurement。
 
 ## 备份策略
 
-至少备份两类数据。
+如需保留诊断和条件采集上下文，至少备份这两类数据：
 
-### 运行数据
+### 本地运行状态
 
-- `Data/parquet/`
 - `Data/logs.db`
 - `Data/acquisition-state.db`
 
-### 主存储
+### 存储
 
 - InfluxDB bucket 数据
 
-如果场景要求强恢复能力，WAL 所在目录不应和系统临时目录混用。
+项目当前不依赖本地原始数据补偿目录，因此备份策略应以 InfluxDB 为主。
 
 ## 运维建议
 
 - 使用 `systemd`、Windows Service 或其他服务管理器托管 `Edge Agent`
-- 把 `WAL` 放在本地可靠磁盘，不要放到不稳定网络盘
 - 把中心服务和采集服务看作两个独立运行面
-- 先保证 `Edge -> WAL -> InfluxDB` 正常，再考虑中心可视化
+- 先保证 `Edge -> InfluxDB` 正常，再考虑中心可视化
+- 如果 TSDB 写入失败，应把它视为需要立即处理的运行告警，而不是等待后台补写
 
-## 下一步
+## 相关文档
 
 - [快速开始](tutorial-getting-started.md)
 - [配置](tutorial-configuration.md)

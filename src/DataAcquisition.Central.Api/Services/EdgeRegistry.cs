@@ -31,7 +31,7 @@ public sealed class EdgeRegistry
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-                          SELECT edge_id, agent_base_url, hostname, version, last_seen_utc, buffer_backlog, last_error
+                          SELECT edge_id, agent_base_url, hostname, version, last_seen_utc, last_error
                           FROM edges
                           ORDER BY last_seen_utc DESC;
                           """;
@@ -46,8 +46,7 @@ public sealed class EdgeRegistry
                 Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
                 Version = reader.IsDBNull(3) ? null : reader.GetString(3),
                 LastSeen = ParseStoredTimestamp(reader.IsDBNull(4) ? null : reader.GetString(4)),
-                BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
-                LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
+                LastError = reader.IsDBNull(5) ? null : reader.GetString(5)
             });
         }
 
@@ -65,8 +64,8 @@ public sealed class EdgeRegistry
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-                          INSERT INTO edges(edge_id, agent_base_url, hostname, version, last_seen_utc, buffer_backlog, last_error)
-                          VALUES ($edge_id, $agent_base_url, $hostname, $version, $last_seen_utc, NULL, NULL)
+                          INSERT INTO edges(edge_id, agent_base_url, hostname, version, last_seen_utc, last_error)
+                          VALUES ($edge_id, $agent_base_url, $hostname, $version, $last_seen_utc, NULL)
                           ON CONFLICT(edge_id) DO UPDATE SET
                             agent_base_url = COALESCE(excluded.agent_base_url, edges.agent_base_url),
                             hostname      = COALESCE(excluded.hostname, edges.hostname),
@@ -89,23 +88,21 @@ public sealed class EdgeRegistry
         };
     }
 
-    public EdgeState Heartbeat(string edgeId, string? agentBaseUrl, long? backlog, string? lastError, DateTimeOffset now)
+    public EdgeState Heartbeat(string edgeId, string? agentBaseUrl, string? lastError, DateTimeOffset now)
     {
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-                          INSERT INTO edges(edge_id, agent_base_url, hostname, version, last_seen_utc, buffer_backlog, last_error)
-                          VALUES ($edge_id, $agent_base_url, NULL, NULL, $last_seen_utc, $buffer_backlog, $last_error)
+                          INSERT INTO edges(edge_id, agent_base_url, hostname, version, last_seen_utc, last_error)
+                          VALUES ($edge_id, $agent_base_url, NULL, NULL, $last_seen_utc, $last_error)
                           ON CONFLICT(edge_id) DO UPDATE SET
                             last_seen_utc  = excluded.last_seen_utc,
                             agent_base_url = COALESCE(excluded.agent_base_url, edges.agent_base_url),
-                            buffer_backlog = excluded.buffer_backlog,
                             last_error     = excluded.last_error;
                           """;
         cmd.Parameters.AddWithValue("$edge_id", edgeId);
         cmd.Parameters.AddWithValue("$agent_base_url", (object?)NormalizeBaseUrl(agentBaseUrl) ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$last_seen_utc", now.ToString("O"));
-        cmd.Parameters.AddWithValue("$buffer_backlog", (object?)backlog ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$last_error", (object?)lastError ?? DBNull.Value);
         cmd.ExecuteNonQuery();
 
@@ -113,7 +110,6 @@ public sealed class EdgeRegistry
         {
             AgentBaseUrl = agentBaseUrl,
             LastSeen = now,
-            BufferBacklog = backlog,
             LastError = lastError
         };
     }
@@ -131,45 +127,24 @@ public sealed class EdgeRegistry
     private void EnsureSchema()
     {
         using var conn = Open();
-        // v0->v1 迁移：移除 workshop_id，仅保留 edge_id 维度。
-        if (HasWorkshopIdColumn(conn))
+        var columns = GetColumns(conn);
+
+        if (columns.Count == 0)
         {
-            using var migrate = conn.CreateCommand();
-            migrate.CommandText = """
-                                  CREATE TABLE IF NOT EXISTS edges_v2 (
-                                    edge_id        TEXT PRIMARY KEY,
-                                    agent_base_url TEXT NULL,
-                                    hostname       TEXT NULL,
-                                    version        TEXT NULL,
-                                    last_seen_utc  TEXT NOT NULL,
-                                    buffer_backlog INTEGER NULL,
-                                    last_error     TEXT NULL
-                                  );
-                                  INSERT OR REPLACE INTO edges_v2(edge_id, agent_base_url, hostname, version, last_seen_utc, buffer_backlog, last_error)
-                                  SELECT edge_id, NULL, hostname, version, last_seen_utc, buffer_backlog, last_error FROM edges;
-                                  DROP TABLE edges;
-                                  ALTER TABLE edges_v2 RENAME TO edges;
-                                  """;
-            migrate.ExecuteNonQuery();
-            EnsureAgentBaseUrlColumn(conn);
+            CreateTable(conn);
             return;
         }
 
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-                          CREATE TABLE IF NOT EXISTS edges (
-                            edge_id        TEXT PRIMARY KEY,
-                            agent_base_url TEXT NULL,
-                            hostname       TEXT NULL,
-                            version        TEXT NULL,
-                            last_seen_utc  TEXT NOT NULL,
-                            buffer_backlog INTEGER NULL,
-                            last_error     TEXT NULL
-                          );
-                          """;
-        cmd.ExecuteNonQuery();
+        if (columns.Contains("workshop_id") || columns.Contains("buffer_backlog"))
+        {
+            RebuildTable(conn, columns);
+            columns = GetColumns(conn);
+        }
 
-        EnsureAgentBaseUrlColumn(conn);
+        EnsureColumn(conn, columns, ColumnAgentBaseUrl, "TEXT NULL");
+        EnsureColumn(conn, columns, "hostname", "TEXT NULL");
+        EnsureColumn(conn, columns, "version", "TEXT NULL");
+        EnsureColumn(conn, columns, "last_error", "TEXT NULL");
     }
 
     private EdgeState? Get(string edgeId)
@@ -177,7 +152,7 @@ public sealed class EdgeRegistry
         using var conn = Open();
         using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-                          SELECT edge_id, agent_base_url, hostname, version, last_seen_utc, buffer_backlog, last_error
+                          SELECT edge_id, agent_base_url, hostname, version, last_seen_utc, last_error
                           FROM edges
                           WHERE edge_id = $edge_id;
                           """;
@@ -192,8 +167,7 @@ public sealed class EdgeRegistry
             Hostname = reader.IsDBNull(2) ? null : reader.GetString(2),
             Version = reader.IsDBNull(3) ? null : reader.GetString(3),
             LastSeen = ParseStoredTimestamp(reader.IsDBNull(4) ? null : reader.GetString(4)),
-            BufferBacklog = reader.IsDBNull(5) ? null : reader.GetInt64(5),
-            LastError = reader.IsDBNull(6) ? null : reader.GetString(6)
+            LastError = reader.IsDBNull(5) ? null : reader.GetString(5)
         };
     }
 
@@ -215,43 +189,72 @@ public sealed class EdgeRegistry
         public string? Hostname { get; set; }
         public string? Version { get; set; }
         public DateTimeOffset LastSeen { get; set; } = DateTimeOffset.UtcNow;
-        public long? BufferBacklog { get; set; }
         public string? LastError { get; set; }
     }
 
-    private static bool HasWorkshopIdColumn(SqliteConnection conn)
+    private static HashSet<string> GetColumns(SqliteConnection conn)
     {
         using var cmd = conn.CreateCommand();
         cmd.CommandText = "PRAGMA table_info(edges);";
         using var reader = cmd.ExecuteReader();
+        var columns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         while (reader.Read())
         {
             var name = reader.GetString(1);
-            if (string.Equals(name, "workshop_id", StringComparison.OrdinalIgnoreCase)) return true;
+            columns.Add(name);
         }
 
-        return false;
+        return columns;
     }
 
-    private static bool HasAgentBaseUrlColumn(SqliteConnection conn)
+    private static void CreateTable(SqliteConnection conn)
     {
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "PRAGMA table_info(edges);";
-        using var reader = cmd.ExecuteReader();
-        while (reader.Read())
-        {
-            var name = reader.GetString(1);
-            if (string.Equals(name, ColumnAgentBaseUrl, StringComparison.OrdinalIgnoreCase)) return true;
-        }
-
-        return false;
+        cmd.CommandText = """
+                          CREATE TABLE IF NOT EXISTS edges (
+                            edge_id        TEXT PRIMARY KEY,
+                            agent_base_url TEXT NULL,
+                            hostname       TEXT NULL,
+                            version        TEXT NULL,
+                            last_seen_utc  TEXT NOT NULL,
+                            last_error     TEXT NULL
+                          );
+                          """;
+        cmd.ExecuteNonQuery();
     }
 
-    private static void EnsureAgentBaseUrlColumn(SqliteConnection conn)
+    private static void RebuildTable(SqliteConnection conn, HashSet<string> columns)
     {
-        if (HasAgentBaseUrlColumn(conn)) return;
+        var agentBaseUrl = columns.Contains(ColumnAgentBaseUrl) ? ColumnAgentBaseUrl : "NULL";
+        var hostname = columns.Contains("hostname") ? "hostname" : "NULL";
+        var version = columns.Contains("version") ? "version" : "NULL";
+        var lastSeen = columns.Contains("last_seen_utc") ? "last_seen_utc" : "CURRENT_TIMESTAMP";
+        var lastError = columns.Contains("last_error") ? "last_error" : "NULL";
+
+        using var rebuild = conn.CreateCommand();
+        rebuild.CommandText = $"""
+                               CREATE TABLE edges_v2 (
+                                 edge_id        TEXT PRIMARY KEY,
+                                 agent_base_url TEXT NULL,
+                                 hostname       TEXT NULL,
+                                 version        TEXT NULL,
+                                 last_seen_utc  TEXT NOT NULL,
+                                 last_error     TEXT NULL
+                               );
+                               INSERT OR REPLACE INTO edges_v2(edge_id, agent_base_url, hostname, version, last_seen_utc, last_error)
+                               SELECT edge_id, {agentBaseUrl}, {hostname}, {version}, {lastSeen}, {lastError}
+                               FROM edges;
+                               DROP TABLE edges;
+                               ALTER TABLE edges_v2 RENAME TO edges;
+                               """;
+        rebuild.ExecuteNonQuery();
+    }
+
+    private static void EnsureColumn(SqliteConnection conn, HashSet<string> columns, string columnName, string columnDefinition)
+    {
+        if (columns.Contains(columnName)) return;
         using var alter = conn.CreateCommand();
-        alter.CommandText = $"ALTER TABLE edges ADD COLUMN {ColumnAgentBaseUrl} TEXT NULL;";
+        alter.CommandText = $"ALTER TABLE edges ADD COLUMN {columnName} {columnDefinition};";
         alter.ExecuteNonQuery();
     }
 

@@ -1,6 +1,6 @@
 # 快速开始
 
-这份教程的目标很简单：让你在本地把一个 Edge Agent 跑起来，并确认它能读取配置、启动采集主链路并写入主存储。
+本文说明如何在本地完成 DataAcquisition 的最小可运行验证，包括配置校验、Edge Agent 启动以及主采集链路验证。
 
 ## 前置要求
 
@@ -92,7 +92,7 @@ dotnet run --project src/DataAcquisition.Simulator
 
 - [src/DataAcquisition.Simulator/README.md](../src/DataAcquisition.Simulator/README.md)
 
-## 如何确认系统在工作
+## 验证结果
 
 你可以从这几个角度确认：
 
@@ -106,27 +106,27 @@ curl http://localhost:8001/health
 
 Agent 启动日志里应能看到配置校验成功和 PLC/通道启动相关信息。
 
-### 3. WAL 目录创建成功
+### 3. 本地诊断文件创建成功
 
-默认 WAL 根目录：
+默认运行目录下通常会出现：
 
-- `src/DataAcquisition.Edge.Agent/bin/Debug/net10.0/Data/parquet`
-
-内部状态目录：
-
-- `pending/`
-- `retry/`
-- `invalid/`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
 
 说明：
 
-- `pending/` 是新写入 WAL 的中间态
-- `retry/` 是主存储失败后的待补偿文件
-- `invalid/` 是无法写入 WAL 的坏消息审计区
+- `logs.db` 用于本地日志查询
+- `acquisition-state.db` 用于条件采集的 active cycle 状态恢复
 
 ### 4. InfluxDB 有数据写入
 
-如果 InfluxDB 可达，WAL 文件会很快被删除，不会长期堆积在 `retry/`。
+如果 InfluxDB 可达，你应能在 bucket 中看到对应 measurement 的写入结果。
+
+如果没有数据，请优先检查：
+
+- Edge Agent 日志中的 TSDB 写入错误
+- `/metrics` 中的错误指标
+- `InfluxDB:Url`、`Bucket`、`Org`、`Token` 是否正确
 
 ## 可选：启动中心侧
 
@@ -154,9 +154,16 @@ pnpm run serve
 - `ProtocolOptions` 是否包含当前驱动不支持的键
 - `PlcCode` 是否在多个文件中重复
 
-### WAL 一直进 retry
+### InfluxDB 没有数据
 
-这通常说明主存储不可达，例如 InfluxDB 地址不对或服务未启动。
+这通常说明存储不可达，或者写入配置不正确。
+
+优先检查：
+
+- InfluxDB 服务是否启动
+- `InfluxDB:Url` 是否正确
+- `Bucket`、`Org`、`Token` 是否匹配
+- Edge Agent 日志中是否出现写入错误
 
 ### 本地模拟器能连，现场 PLC 不能连
 
@@ -166,7 +173,7 @@ pnpm run serve
 - 现场网络连通性
 - 驱动选择是否正确
 
-## 下一步
+## 相关文档
 
 - [配置说明](tutorial-configuration.md)
 - [驱动目录](hsl-drivers.md)

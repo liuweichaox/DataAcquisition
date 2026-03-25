@@ -1,17 +1,18 @@
 # Design
 
-This document explains the core design decisions of the project, not file-by-file implementation details.
+This document explains the project's core design principles, system boundaries, and engineering tradeoffs rather than providing file-by-file implementation details.
 
 ## 1. Product Boundary
 
 The main product in this repository is the `Edge Agent`.
 
-That means the project primarily solves:
+The project primarily addresses the following concerns:
 
 - how to connect to PLCs
 - how to collect data
-- how to persist locally before remote success
-- how to recover when primary storage fails
+- how to turn device reads into consistent acquisition messages
+- how to write batches into TSDB reliably
+- how to make field failures easy to diagnose
 
 `Central API` and `Central Web` are support components used for:
 
@@ -26,7 +27,7 @@ They are not required to keep the acquisition path working.
 The runtime path is:
 
 ```text
-PLC -> Collector -> Queue -> Parquet WAL -> Primary Storage
+PLC -> Collector -> Queue -> Storage
 ```
 
 Meaning:
@@ -35,39 +36,39 @@ Meaning:
    reads data from PLCs according to device and channel configuration.
 
 2. `Queue`
-   handles batching, flushes, and in-memory requeue on failure.
+   batches messages by `plcCode + channelCode + measurement` and triggers writes.
 
-3. `Parquet WAL`
-   is the local recoverable copy.
-
-4. `Primary Storage`
+3. `Storage`
    is currently InfluxDB by default.
 
-When primary storage fails:
+The current runtime no longer includes a local WAL, replay folders, or a background replay worker.
 
-- WAL files are moved into `retry/`
-- a background worker retries them later
+When storage writes fail:
 
-When a message itself cannot be written into WAL:
+- the current batch is logged as failed
+- the current batch is dropped
+- later batches continue trying to write
 
-- the single poisoned message goes into `invalid/`
-- healthy messages in the batch keep moving
+That behavior is an explicit product decision, not an unfinished placeholder.
 
-## 3. Why WAL-first
+## 3. Why Direct-to-TSDB
 
-Primary storage failure is a normal edge scenario, not an exceptional one.
+The current project targets real-time acquisition rather than durable edge-side recovery.
 
-Examples:
+The direct-to-TSDB decision is driven by:
 
-- InfluxDB is down
-- the network is temporarily unavailable
-- the configured endpoint is wrong
+- a simpler runtime model
+- clearer success semantics, where success means storage confirmed the write
+- avoiding local backlog replay that can distort time-series write ordering
+- alignment with the project's current business priority, which is visibility of failure rather than local compensation
 
-If the runtime writes directly to primary storage, the edge node loses data in exactly these scenarios.  
-That is why the runtime uses:
+The resulting contract is:
 
-- local WAL first
-- primary storage second
+- a sample is considered persisted only when storage succeeds
+- failures surface through logs and metrics
+- the project does not claim local replay, durable edge buffering, or delayed compensation
+
+If your environment requires long offline retention or strict backfill, that is outside the current project boundary.
 
 ## 4. Configuration Model
 
@@ -102,8 +103,7 @@ Drivers are selected through stable `Driver` names such as:
 - `melsec-mc`
 - `siemens-s7`
 
-The runtime core does not depend directly on a specific PLC library.  
-Instead, it depends on:
+The runtime core does not depend directly on a specific PLC library. Instead, it depends on:
 
 - `IPlcDriverProvider`
 - `IPlcClientService`
@@ -136,7 +136,7 @@ The runtime uses UTC timestamps internally.
 Why:
 
 - multiple edge nodes can be compared on one timeline
-- WAL replay and retry have one unambiguous time meaning
+- TSDB writes and queries remain easier to reason about
 - local timezone and DST issues do not leak into storage semantics
 
 If local display time is needed, it should be handled in the UI or query layer.
@@ -152,6 +152,8 @@ To survive process restarts, active cycle state is stored as:
 
 This allows the runtime to recover context and emit recovery diagnostics instead of silently forgetting state.
 
+This recovery applies to conditional acquisition context only, not raw data replay.
+
 ## 9. Layering
 
 The current layering is:
@@ -161,14 +163,13 @@ The current layering is:
 - `Application`
   runtime abstractions and contracts
 - `Infrastructure`
-  drivers, acquisition, storage, WAL, logging, and metrics
+  drivers, acquisition, storage, logging, and metrics
 - `Edge.Agent`
   main runtime entry
 - `Central.Api` / `Central.Web`
   optional central support components
 
-The goal is not academic purity.  
-The goal is:
+The goal is not academic purity. The goal is:
 
 - keep default implementations inside Infrastructure
 - keep extension points stable in Application
@@ -179,19 +180,20 @@ The goal is:
 The current architecture is built around these principles:
 
 - `Edge First`
-- `WAL First`
+- `Real-Time First`
 - `Configuration Before Runtime`
 - `Explicit Driver Contracts`
+- `Observability First`
 - `Formal Events Separate From Diagnostics`
 
 These principles matter more than whether one class is split into three files.
 
-## 11. Current Direction
+## 11. Near-Term Direction
 
-The architecture is already stable enough.  
-The next valuable improvements are:
+The architecture is already stable enough. The next valuable improvements are:
 
 1. more real-world example configs
 2. more end-to-end tests
 3. fuller `ProtocolOptions` support for the most common drivers
 4. stronger troubleshooting and operations docs
+5. better central observability and diagnostics workflows

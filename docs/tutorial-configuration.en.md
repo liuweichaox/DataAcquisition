@@ -1,15 +1,15 @@
 # Configuration
 
-The goal of the configuration model is not to hide every protocol difference behind one universal schema.
+This document describes the configuration model, field constraints, and directory rules used by DataAcquisition.
 
-Instead, the model is designed to be:
+The configuration model is designed to be:
 
 - stable at the top level
 - explicit about driver selection
 - extensible through `ProtocolOptions`
 - validated before runtime
 
-## Where Config Lives
+## Configuration Entry Points
 
 Default device config directory:
 
@@ -33,7 +33,7 @@ Example configs:
 
 - [../examples/device-configs](../examples/device-configs)
 
-## 1. Device Configuration Structure
+## Device Configuration Structure
 
 Minimal example:
 
@@ -76,7 +76,7 @@ Rules:
 - `ProtocolOptions` is not an unrestricted bag; unsupported keys are rejected
 - `PlcCode` must be unique inside the config directory
 
-## 2. Channel Configuration
+## Channel Configuration
 
 A device can contain multiple channels. Each channel usually maps to one measurement.
 
@@ -111,7 +111,7 @@ Field reference:
 | `ConditionalAcquisition` | Conditional | trigger configuration |
 | `Metrics` | Conditional | metric list |
 
-## 3. Metric Configuration
+## Metric Configuration
 
 Example:
 
@@ -144,7 +144,7 @@ Notes:
 - fixed-length strings are sanitized to remove trailing `\0`
 - expressions apply only to numeric values
 
-## 4. Acquisition Modes
+## Acquisition Modes
 
 ### Always
 
@@ -179,7 +179,7 @@ Conditional semantics:
 - recovery diagnostics are written to `<measurement>_diagnostic`
 - formal analytics should be based only on paired `Start` / `End`
 
-## 5. `ProtocolOptions`
+## `ProtocolOptions`
 
 `ProtocolOptions` is the driver-specific extension area.
 
@@ -198,7 +198,7 @@ Full details:
 
 - [hsl-drivers.en.md](hsl-drivers.en.md)
 
-## 6. Config Directory
+## Configuration Directory
 
 The default device config directory comes from app settings:
 
@@ -218,7 +218,7 @@ Rules:
 - offline validation uses the same directory by default
 - `--config-dir` can override it temporarily
 
-## 7. Best Practices
+## Configuration Guidance
 
 - use stable, searchable `PlcCode` and `ChannelCode` values
 - prefer batch reads for contiguous registers
@@ -226,7 +226,7 @@ Rules:
 - validate configs before deployment
 - do not push private unsupported driver parameters into `ProtocolOptions`
 
-## Next
+## Related Docs
 
 - [Getting Started](tutorial-getting-started.en.md)
 - [Driver Catalog](hsl-drivers.en.md)

@@ -16,13 +16,11 @@ namespace DataAcquisition.Core.Tests.Infrastructure;
 public sealed class QueueServiceTests
 {
     [Fact]
-    public async Task SubscribeAsync_ShouldQuarantinePoisonMessageAndPreserveHealthyMessages()
+    public async Task PublishAsync_ShouldDropFailedBatchAndContinueProcessingLaterBatches()
     {
-        var wal = new FakeWalStorage();
-        var primary = new FakePrimaryStorage();
+        var storage = new FakeStorage();
         var queue = new QueueService(
-            wal,
-            primary,
+            storage,
             NullLogger<QueueService>.Instance,
             Options.Create(new AcquisitionOptions
             {
@@ -33,29 +31,41 @@ public sealed class QueueServiceTests
             }),
             new FakeDeviceConfigService(batchSize: 2));
 
-        using var cts = new CancellationTokenSource();
-        var subscribeTask = queue.SubscribeAsync(cts.Token);
+        await queue.PublishAsync(CreateMessage("PLC01", "CH01", "sensor", quality: "drop"));
+        await queue.PublishAsync(CreateMessage("PLC01", "CH01", "sensor", quality: "healthy-a"));
+        await queue.PublishAsync(CreateMessage("PLC01", "CH01", "sensor", quality: "healthy-b"));
+        await queue.PublishAsync(CreateMessage("PLC01", "CH01", "sensor", quality: "healthy-c"));
 
-        var healthy = CreateMessage("PLC01", "CH01", "sensor", false);
-        var poison = CreateMessage("PLC01", "CH01", "sensor", true);
+        Assert.Equal(2, storage.AttemptedBatchCount);
+        Assert.Equal(["healthy-b", "healthy-c"], storage.SavedMessages.Select(m => m.DataValues["quality"]).OrderBy(x => x));
 
-        await queue.PublishAsync(healthy);
-        await queue.PublishAsync(poison);
-
-        await WaitUntilAsync(() => primary.SavedMessages.Count == 1 && wal.QuarantinedMessages.Count == 1);
-
-        Assert.Single(primary.SavedMessages);
-        Assert.Equal("healthy", primary.SavedMessages.Single().DataValues["quality"]);
-
-        Assert.Single(wal.QuarantinedMessages);
-        Assert.Equal("poison", wal.QuarantinedMessages.Single().message.DataValues["quality"]);
-
-        cts.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await subscribeTask);
         await queue.DisposeAsync();
     }
 
-    private static DataMessage CreateMessage(string plcCode, string channelCode, string measurement, bool poison)
+    [Fact]
+    public async Task DisposeAsync_ShouldFlushRemainingMessages()
+    {
+        var storage = new FakeStorage();
+        var queue = new QueueService(
+            storage,
+            NullLogger<QueueService>.Instance,
+            Options.Create(new AcquisitionOptions
+            {
+                QueueService = new QueueServiceOptions
+                {
+                    FlushIntervalSeconds = 3600
+                }
+            }),
+            new FakeDeviceConfigService(batchSize: 10));
+
+        await queue.PublishAsync(CreateMessage("PLC01", "CH01", "sensor", quality: "healthy"));
+        await queue.DisposeAsync();
+
+        Assert.Single(storage.SavedMessages);
+        Assert.Equal("healthy", storage.SavedMessages.Single().DataValues["quality"]);
+    }
+
+    private static DataMessage CreateMessage(string plcCode, string channelCode, string measurement, string quality)
     {
         var message = DataMessage.Create(
             Guid.NewGuid().ToString(),
@@ -65,60 +75,25 @@ public sealed class QueueServiceTests
             EventType.Data,
             DateTimeOffset.UtcNow);
 
-        message.AddDataValue("quality", poison ? "poison" : "healthy");
-        if (poison)
-            message.AddDataValue("poison", true);
-
+        message.AddDataValue("quality", quality);
         return message;
     }
 
-    private static async Task WaitUntilAsync(Func<bool> predicate, int timeoutMs = 5000, int delayMs = 50)
-    {
-        var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (predicate())
-                return;
-
-            await Task.Delay(delayMs);
-        }
-
-        throw new TimeoutException("Condition was not satisfied within the allotted time.");
-    }
-
-    private sealed class FakeWalStorage : IWalStorageService
-    {
-        public ConcurrentBag<(DataMessage message, string reason)> QuarantinedMessages { get; } = new();
-
-        public Task<string> WriteAsync(List<DataMessage> messages)
-        {
-            if (messages.Any(static msg => msg.DataValues.ContainsKey("poison")))
-                throw new InvalidOperationException(messages.Count > 1 ? "poison batch" : "poison message");
-
-            return Task.FromResult($"/tmp/{Guid.NewGuid():N}.parquet");
-        }
-
-        public Task<List<DataMessage>> ReadAsync(string filePath) => Task.FromResult(new List<DataMessage>());
-
-        public Task DeleteAsync(string filePath) => Task.CompletedTask;
-
-        public Task MoveToRetryAsync(string filePath) => Task.CompletedTask;
-
-        public Task<List<string>> GetRetryFilesAsync() => Task.FromResult(new List<string>());
-
-        public Task QuarantineInvalidAsync(DataMessage message, string reason)
-        {
-            QuarantinedMessages.Add((message, reason));
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class FakePrimaryStorage : IDataStorageService
+    private sealed class FakeStorage : IDataStorageService
     {
         public ConcurrentBag<DataMessage> SavedMessages { get; } = new();
 
+        public int AttemptedBatchCount => _attemptedBatchCount;
+
+        private int _attemptedBatchCount;
+
         public Task<bool> SaveBatchAsync(List<DataMessage> dataPoints)
         {
+            Interlocked.Increment(ref _attemptedBatchCount);
+
+            if (dataPoints.Any(static msg => Equals(msg.DataValues["quality"], "drop")))
+                return Task.FromResult(false);
+
             foreach (var message in dataPoints)
                 SavedMessages.Add(message);
 

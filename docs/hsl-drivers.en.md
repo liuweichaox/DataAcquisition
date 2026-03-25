@@ -1,13 +1,13 @@
 # Driver Catalog
 
-The current built-in driver catalog is provided by [HslStandardPlcDriverProvider.cs](../src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs).
+This document describes the current built-in PLC driver catalog and the supported `ProtocolOptions`. The corresponding driver implementation is provided by [HslStandardPlcDriverProvider.cs](../src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs).
 
-This document does two things:
+It covers the following:
 
 - list the stable `Driver` names supported by the runtime
 - document which `ProtocolOptions` are currently supported per driver
 
-## Usage Rules
+## Usage Constraints
 
 Select a protocol through `Driver` in the device config:
 
@@ -40,7 +40,7 @@ CamelCase variants are also accepted internally, for example:
 - `cpuType`
 - `slotNo`
 
-## Additional Protocol Options
+## Extended Protocol Options
 
 If a driver is not listed below, it currently supports only the common timeout options.
 
@@ -116,7 +116,7 @@ If a driver is not listed below, it currently supports only the common timeout o
 
 - `station`
 
-## Built-In Drivers
+## Built-In Driver Catalog
 
 ### Mitsubishi / Melsec
 

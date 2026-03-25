@@ -53,14 +53,6 @@
             {{ formatTime(row.lastSeen) }}
           </template>
         </el-table-column>
-        <el-table-column prop="bufferBacklog" label="积压量" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.bufferBacklog !== null && row.bufferBacklog !== undefined" :type="row.bufferBacklog > 0 ? 'warning' : 'success'" size="small">
-              {{ row.bufferBacklog ?? "-" }}
-            </el-tag>
-            <span v-else style="color: #909399">-</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="lastError" label="最后错误" min-width="250">
           <template #default="{ row }">
             <el-popover v-if="row.lastError" placement="top" :width="400" trigger="hover">

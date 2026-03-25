@@ -5,7 +5,7 @@ using System.Text.Json;
 namespace DataAcquisition.Domain.Models;
 
 /// <summary>
-///     统一约束数据值类型，避免消息在内存、WAL、主存储之间流转时退化成不可控对象。
+///     统一约束数据值类型，避免消息在内存与存储之间流转时退化成不可控对象。
 /// </summary>
 public static class DataValueNormalizer
 {

@@ -1,9 +1,9 @@
-# 模块
+# 模块说明
 
-这份文档不列所有文件，而是解释这个项目的主要运行面和模块边界。
+本文说明项目的主要运行面、模块职责和边界关系，而不逐项枚举所有源码文件。
 
 DataAcquisition 的主产品是 `Edge Agent`。  
-其他模块都应该围绕它的采集链路来理解。
+其他模块均应围绕该采集链路理解其职责边界。
 
 ## 模块视图
 
@@ -51,7 +51,6 @@ DataAcquisition 的主产品是 `Edge Agent`。
 - 提供默认实现
 - 封装 Hsl 驱动
 - 封装 InfluxDB
-- 封装 Parquet WAL
 - 封装 SQLite 日志和状态存储
 - 实现配置热更新、指标和诊断
 
@@ -95,11 +94,11 @@ DataAcquisition 的主产品是 `Edge Agent`。
 职责：
 
 - 验证驱动配置契约
-- 验证 WAL 行为
-- 验证恢复逻辑
+- 验证队列批次行为
+- 验证条件采集状态恢复逻辑
 - 验证配置校验
 
-## 主运行链路
+## 主运行时链路
 
 DataAcquisition 的核心链路很固定：
 
@@ -109,9 +108,9 @@ DataAcquisition 的核心链路很固定：
 4. 启动心跳与采集任务
 5. 生成 `DataMessage`
 6. 进入 `QueueService`
-7. 先写 `Parquet WAL`
-8. 再写 `InfluxDB`
-9. 主存储失败时进入 `retry/`
+7. 聚合成批次
+8. 直接写 `InfluxDB`
+9. 写入失败时记录日志和指标，当前批次被丢弃
 
 这条链路是判断模块边界是否合理的基准。
 
@@ -162,19 +161,16 @@ DataAcquisition 的核心链路很固定：
 关键文件：
 
 - `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
-- `src/DataAcquisition.Infrastructure/Queues/QueueBatchPersister.cs`
-- `src/DataAcquisition.Infrastructure/DataStorages/ParquetFileStorageService.cs`
-- `src/DataAcquisition.Infrastructure/DataStorages/ParquetDataMessageSerializer.cs`
 - `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
 职责：
 
 - 批量聚合消息
-- 先写 WAL，再写主存储
-- 重放失败数据
-- 隔离坏消息
+- 直接写存储
+- 通过日志和指标暴露写入失败
+- 保持当前运行时的简单失败语义
 
-这里是数据安全边界最重要的一层。
+这里是数据进入存储前最关键的一层。
 
 ### 配置与运维层
 
@@ -214,19 +210,21 @@ DataAcquisition 的核心链路很固定：
 3. 在宿主层注册
 4. 提供完整 `Driver` 名称和示例配置
 
-### 替换主存储
+### 替换存储后端
 
 做法：
 
 1. 实现 `IDataStorageService`
 2. 替换宿主层默认注册
+3. 明确文档化你的成功/失败语义
 
-### 替换 WAL
+### 调整队列策略
 
 做法：
 
-1. 实现 `IWalStorageService`
-2. 保持清晰的文件生命周期语义
+1. 修改 `QueueService`
+2. 保持批量写入边界清晰
+3. 同步更新测试和文档中的失败语义
 
 ## 阅读建议
 

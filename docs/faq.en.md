@@ -1,6 +1,6 @@
 # FAQ
 
-This FAQ answers recurring questions without repeating the full tutorials.
+This document collects recurring questions about the project while avoiding unnecessary repetition of tutorial content.
 
 If you are new to the project, start with:
 
@@ -10,7 +10,7 @@ If you are new to the project, start with:
 
 ## Project Scope
 
-### What is DataAcquisition
+### What is the role of DataAcquisition
 
 It is a PLC data collection runtime.
 
@@ -18,24 +18,24 @@ It is responsible for:
 
 - reading values from PLCs
 - producing normalized acquisition messages
-- writing local WAL first
-- writing primary storage second
-- exposing local diagnostics
+- writing batches directly to storage
+- exposing local logs, metrics, and diagnostics
+- recovering active-cycle context for conditional acquisition
 
-### What DataAcquisition is not
+### What is the current system boundary
 
-It is not:
+The current boundary is:
 
-- a PLC programming tool
-- a SCADA system
-- an MES
-- a time-series database
+- the main product is the `Edge Agent`
+- the central UI is an auxiliary control plane, not the acquisition path itself
+- the default runtime writes directly to InfluxDB without a local WAL or replay worker
+- when storage fails, the current batch is logged and dropped
 
-The central UI is an auxiliary control plane, not the acquisition path itself.
+If your environment requires long offline buffering or strict backfill, that is outside the current implementation promise.
 
 ## Configuration and Drivers
 
-### Which driver name should I use
+### Which driver name should be used
 
 Use the exact `Driver` names listed in the [driver catalog](hsl-drivers.en.md).
 
@@ -83,58 +83,51 @@ If you only use the built-in Hsl drivers, no core change is usually required.
 
 ## Acquisition and Storage
 
-### Why write WAL first
+### Why write directly to TSDB
 
-Because primary storage may fail, and edge collection cannot depend on InfluxDB being immediately available.
+Because the current project prioritizes real-time collection and visible failure handling over local recovery queues.
 
-WAL-first means:
+Direct-to-TSDB means:
 
-- persist data locally first
-- attempt primary storage next
-- replay later if primary storage failed
-
-### What is the difference between `pending`, `retry`, and `invalid`
-
-- `pending/`: WAL files just written and not yet finalized against primary storage
-- `retry/`: WAL files waiting for replay after primary storage failure
-- `invalid/`: poison messages that could not be written to WAL
-
-These are not redundant folders. They describe lifecycle state and separate the real-time path from the replay path.
-
-### Why are there many WAL files
-
-Usually because primary storage is failing or unreachable.
-
-Check in this order:
-
-1. whether `retry/` keeps growing
-2. whether InfluxDB is reachable
-3. the Edge logs for storage failures
-4. `InfluxDB:Url`, bucket, org, and token
-
-### What does it mean if `invalid/` contains files
-
-It means some messages are poison messages and cannot be serialized into WAL.
-
-They have been isolated and will not keep blocking healthy messages.
-
-The right response is:
-
-- inspect the related log entry
-- locate the bad field or configuration
-- fix the source of the poison message
+- the queue batches messages in memory
+- batches write directly to storage
+- storage failures surface through logs and metrics
+- raw data is not retained locally for replay
 
 ### Does InfluxDB downtime stop collection
 
-It should stop primary storage writes, but it should not immediately stop the collection path itself.
+It stops the current batch from being stored successfully.
 
 Expected behavior:
 
-- new data still goes to local WAL
-- `retry/` accumulates
-- replay catches up after InfluxDB recovers
+- failed batches are logged
+- failed batches are dropped
+- later acquisition work keeps running and continues trying to write
 
-If InfluxDB is down and WAL is not being written either, that is a failure, not expected behavior.
+That means TSDB write failures should be treated as operational alerts, not something a replay worker will eventually fix.
+
+### Which local files should I expect
+
+By default, the main runtime files are:
+
+- `Data/logs.db`
+- `Data/acquisition-state.db`
+
+Meaning:
+
+- `logs.db` supports local log querying and troubleshooting
+- `acquisition-state.db` stores active-cycle recovery state for conditional acquisition
+
+### Why store active cycle state at all
+
+Because conditional acquisition needs restart-time context recovery.
+
+The active cycle is mirrored to:
+
+- memory
+- `Data/acquisition-state.db`
+
+The purpose is not raw data replay. It is to preserve context for in-progress cycle semantics.
 
 ## Cycle Collection
 
@@ -155,17 +148,6 @@ They should not be used as the formal business definition of a complete cycle.
 
 For formal cycle analytics, still use paired `Start` / `End`.
 
-### Why store active cycle state at all
-
-Because conditional acquisition needs restart-time context recovery.
-
-The active cycle is mirrored to:
-
-- memory
-- `Data/acquisition-state.db`
-
-The purpose is not to invent missing cycles. It is to preserve recovery context for an in-progress cycle.
-
 ## Operations and Troubleshooting
 
 ### How do I know the system is healthy
@@ -179,8 +161,8 @@ curl http://localhost:8001/metrics
 
 Then verify:
 
-- whether `retry/` keeps growing
-- whether `invalid/` receives files
+- whether Edge logs contain PLC connectivity errors
+- whether Edge logs contain TSDB write failures
 - whether InfluxDB is receiving measurements
 
 ### Why is host-process deployment recommended for Edge
@@ -208,19 +190,17 @@ But the collection path should continue running.
 
 ## Extension and Development
 
-### How do I replace the primary store
+### How do I replace the storage backend
 
 Implement `IDataStorageService` and replace the default registration in the host.
 
-### How do I replace WAL
+### How do I change failure behavior
 
-Implement `IWalStorageService` and preserve explicit lifecycle semantics.
+Modify `QueueService`, and update:
 
-At minimum, WAL should still model:
-
-- newly written files
-- replay-pending files
-- poison-message quarantine
+- automated tests
+- README
+- design docs
 
 ### Why does the project use JSON configuration
 

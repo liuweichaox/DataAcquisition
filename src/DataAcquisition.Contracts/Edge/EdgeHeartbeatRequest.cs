@@ -14,11 +14,6 @@ public sealed record EdgeHeartbeatRequest
     public string? AgentBaseUrl { get; init; }
 
     /// <summary>
-    /// 可选：边缘本地缓冲积压量（条数/批次/字节）。
-    /// </summary>
-    public long? BufferBacklog { get; init; }
-
-    /// <summary>
     /// 可选：最后一次错误摘要。
     /// </summary>
     public string? LastError { get; init; }

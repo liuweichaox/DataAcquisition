@@ -2,12 +2,12 @@
 
 感谢你关注 DataAcquisition。
 
-这个项目的核心目标不是“做一个功能很多的中心平台”，而是把 PLC 数据采集主链路做扎实：连接稳定、采集正确、WAL 优先、故障可恢复、行为可审计。所有贡献都应优先服务这条主线。
+本项目的核心目标不是构建功能泛化的中心平台，而是持续强化 PLC 数据采集主链路的稳定性、正确性、实时性和可观测性。所有贡献都应优先服务这一目标。
 
-## 开发前先了解这些原则
+## 贡献原则
 
 - Edge Agent 是主产品，Central API / Web 是诊断和管理辅助面
-- 不要绕过 `QueueService` 直接写主存储
+- 不要绕过 `QueueService` 直接写存储
 - 不要重新引入 `Type + switch` 这类硬编码工厂
 - 新 PLC 协议优先通过 `IPlcDriverProvider` 扩展
 - 配置入口保持稳定，使用完整 `Driver` 名称
@@ -27,13 +27,13 @@ dotnet build DataAcquisition.sln --no-restore
 - `src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json`
 - `src/DataAcquisition.Simulator`
 
-## 贡献类型
+## 贡献范围
 
 欢迎这些类型的贡献：
 
 - 新 PLC 驱动或现有驱动增强
 - 采集链路可靠性修复
-- WAL / 重试 / 恢复相关改进
+- TSDB 写入与队列语义改进
 - 文档、示例配置、教程
 - 自动化测试
 
@@ -57,16 +57,16 @@ dotnet build DataAcquisition.sln --no-restore
 
 ## 扩展存储后端
 
-- 替换主存储：实现 `IDataStorageService.SaveBatchAsync`
-- 替换 WAL：实现 `IWalStorageService`
+- 替换存储后端：实现 `IDataStorageService.SaveBatchAsync`
+- 调整队列语义：修改 `QueueService` / `QueueBatchPersister`
 
 要求：
 
-- 维持 WAL-first 语义
-- 保持 `pending/retry/invalid` 的状态边界
-- 坏消息要可审计，不能静默吞掉
+- 失败语义必须清晰
+- 日志和指标不能缺位
+- README / 设计文档 / 测试要同步更新
 
-## 提交要求
+## 提交前检查
 
 提交 PR 前至少确认：
 
@@ -76,7 +76,7 @@ dotnet build DataAcquisition.sln --no-restore
 - README / 教程 / 示例配置已同步
 - 没有把本地运行产物提交进版本库
 
-## PR 建议内容
+## PR 内容建议
 
 PR 描述建议包含：
 

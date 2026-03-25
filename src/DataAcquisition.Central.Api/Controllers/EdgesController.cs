@@ -26,7 +26,7 @@ public class EdgesController(EdgeRegistry registry) : ControllerBase
     public IActionResult Heartbeat([FromBody] EdgeHeartbeatRequest request)
     {
         var now = request.Timestamp == default ? DateTimeOffset.UtcNow : request.Timestamp.ToUniversalTime();
-        var state = registry.Heartbeat(request.EdgeId, request.AgentBaseUrl, request.BufferBacklog, request.LastError, now);
-        return Ok(new { state.EdgeId, state.AgentBaseUrl, state.LastSeen, state.BufferBacklog, state.LastError });
+        var state = registry.Heartbeat(request.EdgeId, request.AgentBaseUrl, request.LastError, now);
+        return Ok(new { state.EdgeId, state.AgentBaseUrl, state.LastSeen, state.LastError });
     }
 }

@@ -1,13 +1,13 @@
 # 驱动目录
 
-本项目当前内置驱动由 [HslStandardPlcDriverProvider.cs](../src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs) 提供。
+本文档说明项目当前内置 PLC 驱动目录及其支持的 `ProtocolOptions`。相关驱动实现由 [HslStandardPlcDriverProvider.cs](../src/DataAcquisition.Infrastructure/Clients/HslStandardPlcDriverProvider.cs) 提供。
 
-这份文档只做两件事：
+本文档主要覆盖以下内容：
 
 - 告诉你当前有哪些稳定 `Driver` 名称
 - 告诉你每个驱动当前支持哪些 `ProtocolOptions`
 
-## 使用规则
+## 使用约束
 
 设备配置里通过 `Driver` 选择协议：
 
@@ -40,7 +40,7 @@
 - `cpuType`
 - `slotNo`
 
-## 额外协议选项
+## 扩展协议选项
 
 如果某个驱动没有出现在下面的列表里，说明它当前只支持通用超时配置。
 
@@ -116,7 +116,7 @@
 
 - `station`
 
-## 驱动清单
+## 内置驱动清单
 
 ### Mitsubishi / Melsec
 
@@ -213,7 +213,7 @@
 - `yaskawa-memobus-udp`
 - `yokogawa-link`
 
-## 示例
+## 相关示例
 
 示例配置目录：
 

@@ -1,4 +1,4 @@
-// Edge Agent（车间侧）：负责 Plc 采集、本地缓冲/落盘、上报中心，以及本地诊断 API（不包含 UI）。
+// Edge Agent（车间侧）：负责 PLC 采集、直写 TSDB、上报中心，以及本地诊断 API（不包含 UI）。
 
 using DataAcquisition.Application.Abstractions;
 using DataAcquisition.Domain.Models;
@@ -50,8 +50,7 @@ builder.Services.AddSingleton<IAcquisitionStateManager, AcquisitionStateManager>
 builder.Services.AddSingleton<IHeartbeatMonitor, HeartbeatMonitor>();
 builder.Services.AddSingleton<IChannelCollector, ChannelCollector>();
 
-// 存储：Parquet 作为 WAL，主存储可替换（默认 InfluxDB）
-builder.Services.AddSingleton<IWalStorageService, ParquetFileStorageService>();
+// 存储：默认直写 InfluxDB，存储实现可替换
 builder.Services.AddSingleton<IDataStorageService, InfluxDbDataStorageService>();
 builder.Services.AddSingleton<IQueueService, QueueService>();
 builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>();
@@ -60,8 +59,6 @@ builder.Services.AddSingleton<IDataAcquisitionService, DataAcquisitionService>()
 builder.Services.AddSingleton<ILogViewService, SqliteLogViewService>();
 
 builder.Services.AddHostedService<DataAcquisitionHostedService>();
-builder.Services.AddHostedService<QueueHostedService>();
-builder.Services.AddHostedService<ParquetRetryWorker>();
 builder.Services.AddHostedService<EdgeCentralReporterHostedService>();
 
 builder.Services.AddControllers();

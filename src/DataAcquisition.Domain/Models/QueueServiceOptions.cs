@@ -9,14 +9,4 @@ public class QueueServiceOptions
     ///     定时刷新批次间隔（秒）。
     /// </summary>
     public int FlushIntervalSeconds { get; init; } = 5;
-
-    /// <summary>
-    ///     失败批次重试间隔（秒）。
-    /// </summary>
-    public int RetryIntervalSeconds { get; init; } = 10;
-
-    /// <summary>
-    ///     最大重试次数。
-    /// </summary>
-    public int MaxRetryCount { get; init; } = 3;
 }

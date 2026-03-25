@@ -2,12 +2,12 @@
 
 Thanks for your interest in DataAcquisition.
 
-The project is acquisition-first. Its primary goal is not to become a feature-heavy central platform, but to make the PLC acquisition path solid: stable connections, correct reads, WAL-first persistence, recoverable failures, and auditable behavior. Contributions should reinforce that path.
+The project is acquisition-first. Its primary goal is not to become a generalized central platform, but to strengthen the PLC acquisition path in terms of stability, correctness, real-time behavior, and observability. Contributions should reinforce that objective.
 
-## Principles First
+## Contribution Principles
 
 - The Edge Agent is the main product; Central API / Web are diagnostics and management helpers
-- Do not bypass `QueueService` and write directly into the primary store
+- Do not bypass `QueueService` and write directly into storage
 - Do not reintroduce `Type + switch` style hard-coded factories
 - Extend PLC protocols through `IPlcDriverProvider`
 - Keep configuration stable through full `Driver` names
@@ -27,13 +27,13 @@ For end-to-end local validation, prepare:
 - `src/DataAcquisition.Edge.Agent/Configs/TEST_PLC.json`
 - `src/DataAcquisition.Simulator`
 
-## Contribution Areas
+## Contribution Scope
 
 Useful contributions include:
 
 - new PLC drivers or improvements to existing ones
 - reliability fixes in the acquisition path
-- WAL / retry / restart-recovery improvements
+- TSDB write and queue-semantics improvements
 - docs, configuration examples, tutorials
 - automated tests
 
@@ -57,16 +57,16 @@ Requirements:
 
 ## Extending Storage Backends
 
-- Replace the primary store by implementing `IDataStorageService.SaveBatchAsync`
-- Replace the WAL backend by implementing `IWalStorageService`
+- Replace the storage backend by implementing `IDataStorageService.SaveBatchAsync`
+- Adjust queue semantics by modifying `QueueService` or `QueueBatchPersister`
 
 Requirements:
 
-- keep the WAL-first contract intact
-- preserve lifecycle boundaries such as `pending/retry/invalid`
-- poison messages must remain auditable, not silently dropped
+- failure behavior must stay explicit
+- logs and metrics must remain part of the contract
+- README, design docs, and tests must be updated together
 
-## Before Opening a PR
+## Pre-Submission Checklist
 
 At minimum, make sure that:
 

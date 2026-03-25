@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace DataAcquisition.Edge.Agent.BackgroundServices;
 
 /// <summary>
-/// Edge 启动即自动注册到中心，并周期发送心跳（在线、积压、错误摘要等）。
+/// Edge 启动即自动注册到中心，并周期发送心跳（在线状态、错误摘要等）。
 /// </summary>
 public sealed class EdgeCentralReporterHostedService : BackgroundService
 {
@@ -17,7 +17,6 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
     private readonly EdgeIdentityService _identity;
     private readonly ILogger<EdgeCentralReporterHostedService> _logger;
     private readonly EdgeReportingOptions _options;
-    private readonly IWalStorageService _walStorage;
     private readonly IConfiguration _configuration;
 
     private string? _lastError;
@@ -27,13 +26,11 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
         IHttpClientFactory httpClientFactory,
         IOptions<EdgeReportingOptions> options,
         EdgeIdentityService identity,
-        IWalStorageService walStorage,
         IConfiguration configuration,
         ILogger<EdgeCentralReporterHostedService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _identity = identity;
-        _walStorage = walStorage;
         _configuration = configuration;
         _logger = logger;
         _options = options.Value;
@@ -144,24 +141,12 @@ public sealed class EdgeCentralReporterHostedService : BackgroundService
 
     private async Task SendHeartbeatAsync(HttpClient http, string edgeId, CancellationToken ct)
     {
-        long? backlog = null;
-        try
-        {
-            var pending = await _walStorage.GetRetryFilesAsync().ConfigureAwait(false);
-            backlog = pending.Count;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "获取 WAL 积压量失败：{Message}", ex.Message);
-        }
-
         try
         {
             var req = new EdgeHeartbeatRequest
             {
                 EdgeId = edgeId,
                 AgentBaseUrl = _agentBaseUrl,
-                BufferBacklog = backlog,
                 LastError = _lastError,
                 Timestamp = DateTimeOffset.UtcNow
             };

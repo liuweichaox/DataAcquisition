@@ -1,6 +1,6 @@
 # Getting Started
 
-The goal of this guide is simple: run a local Edge Agent, validate device configuration, and confirm the main acquisition pipeline can start and write to primary storage.
+This guide explains how to complete a minimal local validation of DataAcquisition, including configuration validation, Edge Agent startup, and verification of the primary acquisition path.
 
 ## Prerequisites
 
@@ -92,7 +92,7 @@ The simulator listens on port `502` by default and prints changing registers to 
 
 - [src/DataAcquisition.Simulator/README.md](../src/DataAcquisition.Simulator/README.md)
 
-## How to Verify It Is Working
+## Verification
 
 You can verify the system from four angles.
 
@@ -104,29 +104,29 @@ curl http://localhost:8001/health
 
 ### 2. Config loading
 
-Startup logs should show successful config validation and runtime startup for PLCs/channels.
+Startup logs should show successful config validation and runtime startup for PLCs and channels.
 
-### 3. WAL directories
+### 3. Local diagnostic files
 
-Default WAL root:
+The runtime directory should usually contain:
 
-- `src/DataAcquisition.Edge.Agent/bin/Debug/net10.0/Data/parquet`
-
-Internal state directories:
-
-- `pending/`
-- `retry/`
-- `invalid/`
+- `Data/logs.db`
+- `Data/acquisition-state.db`
 
 Meaning:
 
-- `pending/` is the transient state for newly written WAL files
-- `retry/` contains files that failed primary storage writes
-- `invalid/` contains poisoned messages that could not be written to WAL
+- `logs.db` supports local log querying
+- `acquisition-state.db` stores active-cycle recovery state for conditional acquisition
 
 ### 4. InfluxDB writes
 
-If InfluxDB is reachable, WAL files should be consumed quickly instead of accumulating under `retry/`.
+If InfluxDB is reachable, you should see measurements being written into the configured bucket.
+
+If you do not, check:
+
+- Edge logs for TSDB write failures
+- `/metrics` for runtime errors
+- `InfluxDB:Url`, `Bucket`, `Org`, and `Token`
 
 ## Optional: Start Central Components
 
@@ -144,7 +144,7 @@ pnpm install
 pnpm run serve
 ```
 
-## Common Problems
+## Common Issues
 
 ### Config validation fails
 
@@ -154,9 +154,16 @@ Check:
 - whether `ProtocolOptions` contains keys unsupported by that driver
 - whether `PlcCode` is duplicated across files
 
-### WAL files keep moving into `retry`
+### InfluxDB is not receiving data
 
-This usually means primary storage is unavailable, for example an incorrect InfluxDB endpoint or a stopped service.
+This usually means storage is unavailable or write settings are incorrect.
+
+Check:
+
+- whether InfluxDB is running
+- whether `InfluxDB:Url` is correct
+- whether `Bucket`, `Org`, and `Token` match the target instance
+- Edge logs for storage write failures
 
 ### The simulator works, but the real PLC does not
 
@@ -164,9 +171,9 @@ Check:
 
 - `Host` and `Port`
 - network connectivity
-- whether the selected driver matches the real device/protocol
+- whether the selected driver matches the real device and protocol
 
-## Next
+## Related Docs
 
 - [Configuration](tutorial-configuration.en.md)
 - [Driver Catalog](hsl-drivers.en.md)

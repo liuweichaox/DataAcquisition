@@ -1,15 +1,15 @@
 # Deployment
 
-This document explains how to run DataAcquisition as a long-running, recoverable, observable PLC data collection system.
+This document explains how to deploy DataAcquisition as a long-running, observable, real-time-first PLC data acquisition system.
 
-The deployment model is intentionally simple:
+The recommended deployment principles are:
 
-- `Edge Agent` is the required runtime
-- `InfluxDB` is the default primary store
-- `Parquet WAL` must stay on the local edge node
+- `Edge Agent` is the required runtime and should be deployed close to PLCs
+- `InfluxDB` is the default TSDB implementation
+- local runtime state is limited to logs and conditional acquisition state, without a WAL or replay directories
 - `Central API / Central Web` are optional control-plane components
 
-## Recommended Topologies
+## Recommended Deployment Topologies
 
 ### Single Node
 
@@ -24,14 +24,14 @@ Suitable for local validation, labs, or one production line:
 Suitable for multiple workshops, lines, or factories:
 
 - one `Edge Agent` per collection node
-- local `WAL` and local state store on every edge node
+- local logs and conditional acquisition state on every edge node
 - one shared `Central API / Central Web`
 - centralized or site-specific `InfluxDB`
 
 The core rule is:
 
 - the edge node must be in the PLC-reachable network
-- WAL must not depend on the central service or a remote shared directory
+- TSDB reachability matters more than control-plane reachability
 
 ## Runtime Components
 
@@ -42,7 +42,7 @@ Responsibilities:
 - load device configuration
 - connect to PLCs
 - run Always / Conditional acquisition
-- write WAL first, then write primary storage
+- write batches directly into InfluxDB
 - expose local health, metrics, logs, and diagnostics
 
 ### InfluxDB
@@ -125,30 +125,21 @@ The recommended rule is:
 - `InfluxDB` can be containerized
 - `Edge Agent` should usually run as a host process
 
-## Runtime Data Directories
+## Runtime Files
 
-The important deployment artifact is not the binary folder. It is the runtime data directory.
+The important deployment artifact is not only the binary folder. It is also the local runtime state.
 
-The default locations to watch are:
+The default files to watch are:
 
-- `Data/parquet/pending`
-- `Data/parquet/retry`
-- `Data/parquet/invalid`
 - `Data/logs.db`
 - `Data/acquisition-state.db`
 
 Meaning:
 
-- `pending/`: WAL files just written by the real-time path and not yet finalized against primary storage
-- `retry/`: WAL files waiting for replay after primary storage failure
-- `invalid/`: poison-message quarantine
 - `logs.db`: local log database
-- `acquisition-state.db`: active cycle recovery state
+- `acquisition-state.db`: active-cycle recovery state for conditional acquisition
 
-If you only watch `pending/`, you will miss the real failure signal. The long-term indicators are:
-
-- whether `retry/` keeps growing
-- whether `invalid/` starts receiving files
+The runtime does not keep a local raw-data replay backlog.
 
 ## Pre-Production Configuration Checklist
 
@@ -158,7 +149,6 @@ At minimum, verify these settings.
 
 - `Urls`
 - `InfluxDB:*`
-- `Parquet:Directory`
 - `Acquisition:DeviceConfigService:ConfigDirectory`
 - `Acquisition:StateStore:DatabasePath`
 - `Edge:EnableCentralReporting`
@@ -202,41 +192,41 @@ curl http://localhost:8001/health
 curl http://localhost:8001/metrics
 ```
 
-### 4. WAL State
+### 4. Logs and Errors
 
-Watch:
+Watch for:
 
-- whether `retry/` keeps growing
-- whether `invalid/` receives files
+- PLC connectivity errors
+- TSDB write failures
+- configuration reload problems
 
-### 5. Primary Storage
+### 5. Storage Writes
 
 Confirm that measurements are being written into InfluxDB.
 
 ## Backup Strategy
 
-Back up at least two categories of data.
+If you need to retain diagnostics and conditional acquisition context, back up at least two categories of data.
 
-### Runtime Data
+### Local Runtime State
 
-- `Data/parquet/`
 - `Data/logs.db`
 - `Data/acquisition-state.db`
 
-### Primary Storage
+### Storage
 
 - InfluxDB bucket data
 
-If strong recovery matters, do not place WAL on an unreliable shared temp path.
+Because the current runtime does not depend on a local raw-data replay queue, the primary backup target should be InfluxDB itself.
 
 ## Operational Advice
 
 - run `Edge Agent` under `systemd`, Windows Service, or another service manager
-- keep WAL on reliable local disk
 - treat Central and Edge as separate operational surfaces
-- first make `Edge -> WAL -> InfluxDB` healthy, then add the central plane
+- first make `Edge -> InfluxDB` healthy, then add the central plane
+- if TSDB writes fail, treat that as an operational alarm to fix immediately rather than something a replay worker will clean up later
 
-## Next
+## Related Docs
 
 - [Getting Started](tutorial-getting-started.en.md)
 - [Configuration](tutorial-configuration.en.md)

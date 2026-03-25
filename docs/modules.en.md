@@ -1,9 +1,9 @@
-# Modules
+# Module Overview
 
-This document does not try to list every file. It explains the main runtime surfaces and the module boundaries of the project.
+This document describes the main runtime surfaces, module responsibilities, and boundary lines of the project rather than enumerating every source file.
 
 The primary product is `Edge Agent`.  
-Everything else should be understood around that collection path.
+All other modules should be understood in relation to that acquisition path.
 
 ## Module View
 
@@ -51,8 +51,7 @@ Responsibilities:
 - provide default implementations
 - wrap Hsl drivers
 - wrap InfluxDB
-- wrap Parquet WAL
-- wrap SQLite logs and recovery state
+- wrap SQLite logs and state storage
 - implement config hot reload, metrics, and diagnostics
 
 This is the largest implementation layer, but it should not define the upper-level abstractions.
@@ -95,8 +94,8 @@ Location:
 Responsibilities:
 
 - validate driver config contracts
-- validate WAL behavior
-- validate recovery logic
+- validate queue batch behavior
+- validate conditional acquisition recovery logic
 - validate configuration rules
 
 ## Main Runtime Path
@@ -109,9 +108,9 @@ The core runtime path is intentionally fixed:
 4. heartbeat and acquisition tasks start
 5. `DataMessage` instances are produced
 6. messages enter `QueueService`
-7. `Parquet WAL` is written first
-8. `InfluxDB` is written second
-9. failed primary writes move into `retry/`
+7. messages are grouped into batches
+8. batches are written directly to `InfluxDB`
+9. failed writes are surfaced through logs and metrics, and the current batch is dropped
 
 This path is the baseline for judging whether module boundaries make sense.
 
@@ -162,19 +161,16 @@ Responsibilities:
 Key files:
 
 - `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`
-- `src/DataAcquisition.Infrastructure/Queues/QueueBatchPersister.cs`
-- `src/DataAcquisition.Infrastructure/DataStorages/ParquetFileStorageService.cs`
-- `src/DataAcquisition.Infrastructure/DataStorages/ParquetDataMessageSerializer.cs`
 - `src/DataAcquisition.Infrastructure/DataStorages/InfluxDbDataStorageService.cs`
 
 Responsibilities:
 
 - batch messages
-- write WAL first, primary storage second
-- replay failed data
-- quarantine poison messages
+- write directly to storage
+- surface write failures through logs and metrics
+- preserve the runtime's explicit failure semantics
 
-This is the most important safety boundary in the system.
+This is the most important boundary before data reaches storage.
 
 ### Configuration and Operability Layer
 
@@ -214,26 +210,28 @@ Path:
 3. register it in the host
 4. document the full `Driver` name and provide a config example
 
-### Replace the Primary Store
+### Replace the Storage Backend
 
 Path:
 
 1. implement `IDataStorageService`
 2. replace the default host registration
+3. document the success and failure semantics clearly
 
-### Replace WAL
+### Adjust Queue Strategy
 
 Path:
 
-1. implement `IWalStorageService`
-2. preserve explicit lifecycle semantics
+1. modify `QueueService`
+2. keep batch boundaries explicit
+3. update tests and docs together when failure behavior changes
 
 ## Recommended Reading Order
 
 If you want to understand the codebase quickly, read in this order:
 
-1. `README.md`
-2. `docs/design.md`
+1. `README.en.md`
+2. `docs/design.en.md`
 3. `src/DataAcquisition.Edge.Agent/Program.cs`
 4. `src/DataAcquisition.Infrastructure/DataAcquisitions/DataAcquisitionService.cs`
 5. `src/DataAcquisition.Infrastructure/Queues/QueueService.cs`

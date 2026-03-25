@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace DataAcquisition.Application.Abstractions;
@@ -16,10 +15,4 @@ public interface IQueueService : IAsyncDisposable
     /// <returns>表示异步操作的任务。</returns>
     Task PublishAsync(DataMessage dataMessage);
 
-    /// <summary>
-    ///     订阅并处理数据消息。
-    /// </summary>
-    /// <param name="ct">取消标记</param>
-    /// <returns>表示异步操作的任务。</returns>
-    Task SubscribeAsync(CancellationToken ct);
 }
