@@ -210,6 +210,7 @@ During runtime, these files matter most:
 What to watch:
 
 - `logs.db` stores local logs for PLC connectivity, configuration, and TSDB write diagnostics
+- old log rows are pruned automatically after 30 days by default; use `Logging:RetentionDays` to change this, or set it to `<= 0` to disable cleanup
 - `acquisition-state.db` stores active-cycle recovery state for conditional acquisition
 - if the TSDB is not receiving data, inspect Edge logs and `/metrics` first because the current runtime does not build a local replay backlog
 

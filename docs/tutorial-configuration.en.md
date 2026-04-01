@@ -218,6 +218,26 @@ Rules:
 - offline validation uses the same directory by default
 - `--config-dir` can override it temporarily
 
+## Application Logging Settings
+
+The default local log settings are:
+
+```json
+{
+  "Logging": {
+    "DatabasePath": "Data/logs.db",
+    "RetentionDays": 30
+  }
+}
+```
+
+Notes:
+
+- `Logging:DatabasePath` sets the SQLite log database path
+- relative log paths are resolved from the application base directory
+- `Logging:RetentionDays` defaults to `30`
+- setting `Logging:RetentionDays` to `<= 0` disables automatic log cleanup
+
 ## Configuration Guidance
 
 - use stable, searchable `PlcCode` and `ChannelCode` values

@@ -31,6 +31,7 @@ builder.Services.AddHttpClient();
 
 // 配置 AcquisitionOptions
 builder.Services.Configure<AcquisitionOptions>(builder.Configuration.GetSection("Acquisition"));
+builder.Services.Configure<LogOptions>(builder.Configuration.GetSection("Logging"));
 
 // 配置 Edge 上报（注册/心跳）
 builder.Services.Configure<EdgeReportingOptions>(builder.Configuration.GetSection("Edge"));
@@ -68,7 +69,10 @@ builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("ok"));
 
 // 配置 SQLite 日志数据库路径（从配置读取，支持相对路径和绝对路径）
-var logDbPath = builder.Configuration["Logging:DatabasePath"] ?? "Data/logs.db";
+var logOptions = new LogOptions();
+builder.Configuration.GetSection("Logging").Bind(logOptions);
+
+var logDbPath = logOptions.DatabasePath;
 if (!Path.IsPathRooted(logDbPath)) logDbPath = Path.Combine(AppContext.BaseDirectory, logDbPath);
 Directory.CreateDirectory(Path.GetDirectoryName(logDbPath)!);
 
@@ -80,7 +84,11 @@ Log.Logger = new LoggerConfiguration()
     .WriteTo.Console(
         outputTemplate:
         "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level}] [{SourceContext}] {Message:lj}{NewLine}{Exception}")
-    .WriteTo.Sink(new MicrosoftSqliteSink(logDbPath, batchSize: 100, flushInterval: TimeSpan.FromSeconds(2)))
+    .WriteTo.Sink(new MicrosoftSqliteSink(
+        logDbPath,
+        batchSize: 100,
+        flushInterval: TimeSpan.FromSeconds(2),
+        retentionDays: logOptions.RetentionDays))
     .CreateLogger();
 builder.Host.UseSerilog();
 

@@ -115,7 +115,8 @@ By default, the main runtime files are:
 
 Meaning:
 
-- `logs.db` supports local log querying and troubleshooting
+- `logs.db` supports local log querying and troubleshooting, with 30 days of retention by default
+- `Logging:RetentionDays` changes the retention window, and `<= 0` disables cleanup
 - `acquisition-state.db` stores active-cycle recovery state for conditional acquisition
 
 ### Why store active cycle state at all

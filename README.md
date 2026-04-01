@@ -210,6 +210,7 @@ pnpm run serve
 观察重点：
 
 - `logs.db` 保存本地日志，适合排查 PLC 连接、配置加载和 TSDB 写入错误
+- 默认自动保留 30 天日志，可通过 `Logging:RetentionDays` 调整；设置为 `<= 0` 时关闭清理
 - `acquisition-state.db` 保存条件采集的 active cycle 状态，用于进程重启后的上下文恢复
 - 如果 TSDB 没有收到数据，应优先查看 Edge Agent 日志和 `/metrics`，因为当前实现不会在本地累积待回放数据
 

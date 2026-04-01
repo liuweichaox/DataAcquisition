@@ -136,7 +136,8 @@ The default files to watch are:
 
 Meaning:
 
-- `logs.db`: local log database
+- `logs.db`: local log database, retained for 30 days by default
+- `Logging:RetentionDays`: change the local log retention window, or set `<= 0` to disable cleanup
 - `acquisition-state.db`: active-cycle recovery state for conditional acquisition
 
 The runtime does not keep a local raw-data replay backlog.
@@ -148,6 +149,8 @@ At minimum, verify these settings.
 ### Application Level
 
 - `Urls`
+- `Logging:DatabasePath`
+- `Logging:RetentionDays`
 - `InfluxDB:*`
 - `Acquisition:DeviceConfigService:ConfigDirectory`
 - `Acquisition:StateStore:DatabasePath`
@@ -212,6 +215,8 @@ If you need to retain diagnostics and conditional acquisition context, back up a
 
 - `Data/logs.db`
 - `Data/acquisition-state.db`
+
+If you need a longer local diagnostic window, increase `Logging:RetentionDays` explicitly instead of assuming `logs.db` grows indefinitely.
 
 ### Storage
 

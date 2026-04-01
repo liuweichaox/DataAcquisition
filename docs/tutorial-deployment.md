@@ -134,7 +134,8 @@ pnpm run build
 
 含义：
 
-- `logs.db`：本地日志存储
+- `logs.db`：本地日志存储，默认保留 30 天
+- `Logging:RetentionDays`：用于调整本地日志保留天数；设置为 `<= 0` 时关闭清理
 - `acquisition-state.db`：条件采集的 active cycle 状态库
 
 这里不保存原始采集数据的本地补偿副本。
@@ -146,6 +147,8 @@ pnpm run build
 ### 应用级
 
 - `Urls`
+- `Logging:DatabasePath`
+- `Logging:RetentionDays`
 - `InfluxDB:*`
 - `Acquisition:DeviceConfigService:ConfigDirectory`
 - `Acquisition:StateStore:DatabasePath`
@@ -210,6 +213,8 @@ curl http://localhost:8001/metrics
 
 - `Data/logs.db`
 - `Data/acquisition-state.db`
+
+如果需要更长的本地诊断窗口，应显式调大 `Logging:RetentionDays`，不要默认认为 `logs.db` 会无限增长。
 
 ### 存储
 

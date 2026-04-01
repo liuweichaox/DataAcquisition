@@ -11,33 +11,41 @@ using Serilog.Events;
 namespace DataAcquisition.Infrastructure.Logs;
 
 /// <summary>
-///     使用 Microsoft.Data.Sqlite 的自定义 Serilog Sink
+///     Serilog sink backed by Microsoft.Data.Sqlite.
 /// </summary>
-public class MicrosoftSqliteSink : ILogEventSink, IDisposable
+public sealed class MicrosoftSqliteSink : ILogEventSink, IDisposable
 {
     private readonly string _dbPath;
     private readonly SemaphoreSlim _writeLock = new(1, 1);
     private readonly Queue<LogEvent> _eventQueue = new();
     private readonly Timer _flushTimer;
     private readonly int _batchSize;
+    private readonly int _retentionDays;
+    private readonly TimeSpan _cleanupInterval;
     private SqliteConnection? _connection;
+    private DateTimeOffset _lastCleanupUtc = DateTimeOffset.MinValue;
 
-    public MicrosoftSqliteSink(string dbPath, int batchSize = 1000, TimeSpan? flushInterval = null)
+    public MicrosoftSqliteSink(
+        string dbPath,
+        int batchSize = 1000,
+        TimeSpan? flushInterval = null,
+        int retentionDays = 30,
+        TimeSpan? cleanupInterval = null)
     {
         _dbPath = dbPath;
         _batchSize = batchSize;
+        _retentionDays = retentionDays;
+        _cleanupInterval = cleanupInterval ?? TimeSpan.FromHours(12);
 
-        // 确保目录存在
         var directory = Path.GetDirectoryName(_dbPath);
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        // 初始化数据库
         InitializeDatabase();
+        CleanupExpiredLogs(force: true);
 
-        // 启动定时刷新
         var interval = flushInterval ?? TimeSpan.FromSeconds(5);
         _flushTimer = new Timer(FlushQueue, null, interval, interval);
     }
@@ -48,7 +56,7 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
         _connection = new SqliteConnection(connectionString);
         _connection.Open();
 
-        var sql = @"
+        using var command = new SqliteCommand(@"
             CREATE TABLE IF NOT EXISTS Logs (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 TimeStamp TEXT NOT NULL,
@@ -61,30 +69,34 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
 
             CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON Logs(TimeStamp DESC);
             CREATE INDEX IF NOT EXISTS idx_logs_level ON Logs(Level);
-        ";
-
-        using var command = new SqliteCommand(sql, _connection);
+        ", _connection);
         command.ExecuteNonQuery();
     }
 
     public void Emit(LogEvent logEvent)
     {
-        if (_connection == null) return;
+        if (_connection == null)
+        {
+            return;
+        }
 
         lock (_eventQueue)
         {
             _eventQueue.Enqueue(logEvent);
 
-            // 关键日志（Error/Fatal）立即刷新，避免丢失重要信息
             var isCritical = logEvent.Level >= LogEventLevel.Error;
-
-            // 如果队列达到批次大小，或遇到关键日志，立即刷新
             if (_eventQueue.Count >= _batchSize || isCritical)
             {
                 _ = Task.Run(() =>
                 {
-                    try { FlushQueue(); }
-                    catch { /* Sink 不应抛异常影响日志调用方 */ }
+                    try
+                    {
+                        FlushQueue();
+                    }
+                    catch
+                    {
+                        // Sink should not break the caller.
+                    }
                 });
             }
         }
@@ -97,7 +109,10 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
 
     private void FlushQueueInternal()
     {
-        if (_connection == null) return;
+        if (_connection == null)
+        {
+            return;
+        }
 
         _writeLock.Wait();
         try
@@ -112,49 +127,49 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
                 }
             }
 
-            if (eventsToWrite.Count == 0) return;
-
-            // 批量写入
-            using var transaction = _connection.BeginTransaction();
-            try
+            if (eventsToWrite.Count > 0)
             {
-                var sql = @"
-                    INSERT INTO Logs (TimeStamp, Level, Message, MessageTemplate, Exception, Properties)
-                    VALUES (@timestamp, @level, @message, @messageTemplate, @exception, @properties)
-                ";
-
-                foreach (var logEvent in eventsToWrite)
+                using var transaction = _connection.BeginTransaction();
+                try
                 {
-                    using var command = new SqliteCommand(sql, _connection, transaction);
+                    const string sql = @"
+                        INSERT INTO Logs (TimeStamp, Level, Message, MessageTemplate, Exception, Properties)
+                        VALUES (@timestamp, @level, @message, @messageTemplate, @exception, @properties)
+                    ";
 
-                    command.Parameters.AddWithValue("@timestamp", logEvent.Timestamp.ToString("O"));
-                    command.Parameters.AddWithValue("@level", logEvent.Level.ToString());
-                    command.Parameters.AddWithValue("@message", logEvent.RenderMessage());
-                    command.Parameters.AddWithValue("@messageTemplate", logEvent.MessageTemplate.Text);
-                    command.Parameters.AddWithValue("@exception",
-                        logEvent.Exception?.ToString() ?? (object)DBNull.Value);
-
-                    // 序列化 Properties 为 JSON
-                    var properties = new Dictionary<string, object>();
-                    foreach (var property in logEvent.Properties)
+                    foreach (var logEvent in eventsToWrite)
                     {
-                        properties[property.Key] = property.Value.ToString();
+                        using var command = new SqliteCommand(sql, _connection, transaction);
+                        command.Parameters.AddWithValue("@timestamp", logEvent.Timestamp.ToString("O"));
+                        command.Parameters.AddWithValue("@level", logEvent.Level.ToString());
+                        command.Parameters.AddWithValue("@message", logEvent.RenderMessage());
+                        command.Parameters.AddWithValue("@messageTemplate", logEvent.MessageTemplate.Text);
+                        command.Parameters.AddWithValue("@exception",
+                            logEvent.Exception?.ToString() ?? (object)DBNull.Value);
+
+                        var properties = new Dictionary<string, object>();
+                        foreach (var property in logEvent.Properties)
+                        {
+                            properties[property.Key] = property.Value.ToString();
+                        }
+
+                        var propertiesJson = properties.Count > 0
+                            ? JsonSerializer.Serialize(properties)
+                            : (object)DBNull.Value;
+                        command.Parameters.AddWithValue("@properties", propertiesJson);
+                        command.ExecuteNonQuery();
                     }
-                    var propertiesJson = properties.Count > 0
-                        ? JsonSerializer.Serialize(properties)
-                        : (object)DBNull.Value;
-                    command.Parameters.AddWithValue("@properties", propertiesJson);
 
-                    command.ExecuteNonQuery();
+                    transaction.Commit();
                 }
+                catch
+                {
+                    transaction.Rollback();
+                    throw;
+                }
+            }
 
-                transaction.Commit();
-            }
-            catch
-            {
-                transaction.Rollback();
-                throw;
-            }
+            CleanupExpiredLogs();
         }
         finally
         {
@@ -162,16 +177,36 @@ public class MicrosoftSqliteSink : ILogEventSink, IDisposable
         }
     }
 
+    private void CleanupExpiredLogs(bool force = false)
+    {
+        if (_connection == null || _retentionDays <= 0)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        if (!force && now - _lastCleanupUtc < _cleanupInterval)
+        {
+            return;
+        }
+
+        using var command = new SqliteCommand(@"
+            DELETE FROM Logs
+            WHERE julianday(TimeStamp) < julianday(@cutoff);
+        ", _connection);
+        command.Parameters.AddWithValue("@cutoff", now.AddDays(-_retentionDays).ToString("O"));
+        command.ExecuteNonQuery();
+
+        _lastCleanupUtc = now;
+    }
+
     public void Dispose()
     {
-        _flushTimer?.Dispose();
-
-        // 刷新剩余的事件
+        _flushTimer.Dispose();
         FlushQueueInternal();
 
         _connection?.Close();
         _connection?.Dispose();
-        _writeLock?.Dispose();
+        _writeLock.Dispose();
     }
 }
-

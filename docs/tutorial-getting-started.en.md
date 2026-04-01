@@ -115,7 +115,8 @@ The runtime directory should usually contain:
 
 Meaning:
 
-- `logs.db` supports local log querying
+- `logs.db` supports local log querying and keeps 30 days of logs by default
+- `Logging:RetentionDays` can change the retention window, and `<= 0` disables cleanup
 - `acquisition-state.db` stores active-cycle recovery state for conditional acquisition
 
 ### 4. InfluxDB writes

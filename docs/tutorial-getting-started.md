@@ -116,6 +116,7 @@ Agent 启动日志里应能看到配置校验成功和 PLC/通道启动相关信
 说明：
 
 - `logs.db` 用于本地日志查询
+- 默认保留 30 天，可通过 `Logging:RetentionDays` 调整；设置为 `<= 0` 时关闭清理
 - `acquisition-state.db` 用于条件采集的 active cycle 状态恢复
 
 ### 4. InfluxDB 有数据写入

@@ -116,6 +116,7 @@ Direct-to-TSDB 的含义是：
 含义：
 
 - `logs.db` 用于本地日志查询和排障
+- 默认保留 30 天，可通过 `Logging:RetentionDays` 调整；设置为 `<= 0` 时关闭清理
 - `acquisition-state.db` 用于条件采集的 active cycle 状态恢复
 
 ### 为什么还要保存 active cycle 状态

@@ -290,5 +290,9 @@ public class LogOptions
     ///     默认值：Data/logs.db
     /// </summary>
     public string DatabasePath { get; set; } = "Data/logs.db";
-}
 
+    /// <summary>
+    ///     SQLite log retention in days. Values less than or equal to 0 disable cleanup.
+    /// </summary>
+    public int RetentionDays { get; set; } = 30;
+}

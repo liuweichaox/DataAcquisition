@@ -216,6 +216,26 @@ Conditional 模式语义：
 - 离线校验默认使用同一个目录
 - 可用 `--config-dir` 临时覆盖
 
+## 应用日志配置
+
+默认本地日志配置如下：
+
+```json
+{
+  "Logging": {
+    "DatabasePath": "Data/logs.db",
+    "RetentionDays": 30
+  }
+}
+```
+
+说明：
+
+- `Logging:DatabasePath` 用于设置 SQLite 日志数据库路径
+- 相对路径基于应用运行目录解析
+- `Logging:RetentionDays` 默认值为 `30`
+- `Logging:RetentionDays <= 0` 表示关闭自动清理
+
 ## 配置建议
 
 - `PlcCode`、`ChannelCode` 使用稳定、可读、可搜索的命名
